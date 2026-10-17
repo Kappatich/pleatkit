@@ -1,0 +1,42 @@
+@import "tailwindcss" source(none);
+@source "./";
+
+/*
+ * Dynamic code is compiled in the browser after the app's CSS was built, so Tailwind cannot see
+ * classes an edit introduces. Until runtime CSS generation exists, pre-generate a palette of
+ * common utilities that edits are likely to use.
+ */
+@source inline("{hover:,}{text,bg,border}-{slate,gray,red,orange,amber,yellow,green,emerald,teal,sky,blue,indigo,violet,purple,pink,rose}-{50,{100..900..100},950}");
+@source inline("{font-normal,font-medium,font-semibold,font-bold,italic,underline,line-through,uppercase,tabular-nums,truncate}");
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+}
+
+:root {
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --border: oklch(0.92 0 0);
+  --ring: oklch(0.7 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
