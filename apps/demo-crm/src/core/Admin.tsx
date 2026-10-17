@@ -119,11 +119,12 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
   const query = [appQuery, langQuery].filter(Boolean).join('&')
 
   return (
-    <div className="min-h-screen" lang={locale}>
+    <div className="min-h-screen mk-admin" lang={locale}>
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
             <span className="text-lg font-semibold">Acme CRM</span>
+            <span className="mk-admin-mark" aria-hidden="true" />
             <span className="text-xs text-muted-foreground">
               {tr('admin.title')} · {appId}
             </span>
