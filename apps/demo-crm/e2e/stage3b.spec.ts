@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { adminUrl, openChat, openCrm } from './chat-helpers'
+import { shot as saveShot } from './helpers'
 
 /** Paste an image into an element as the browser would after Ctrl+V of a screenshot. */
 async function paste(target: Locator, png: Buffer): Promise<void> {
@@ -49,6 +50,7 @@ test('screenshot input: paste and drop images, the request carries them and the 
   await paste(input, shot)
   await drop(page.getByTestId('mk-chat'), shot)
   await expect(thumbs).toHaveCount(2)
+  await saveShot(page, '14-screenshot-input.png')
   expect(await thumbs.first().getAttribute('src')).toMatch(/^data:image\/png;base64,/)
 
   // point at the card, then send
@@ -99,6 +101,7 @@ test('clarifying question: an ambiguous request gets one question with buttons, 
   await expect(question.getByTestId('mk-chat-summary')).toHaveText('What should stand out in the customer card?')
   const options = question.getByTestId('mk-clarify-option')
   await expect(options).toHaveText(['The overdue payment date', 'The customer status', 'The email address'])
+  await saveShot(page, '15-clarifying-question.png')
   // nothing changed yet
   await expect(page.getByTestId('due-date')).not.toHaveClass(/bg-red-600/)
 
