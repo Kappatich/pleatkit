@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Renders site/index.html headless (Chromium via the demo's Playwright), fails on console errors or failed
-// requests, and writes screenshots to docs/screenshots/site-*.png (desktop light and dark, mobile).
+// Renders site/index.html and site/ru.html headless (Chromium via the demo's Playwright), fails on console errors or failed
+// requests, and writes screenshots to docs/screenshots/site-*.png (desktop light and dark, mobile; Russian page).
 // Serves site/ on a free local port for the duration of the run; nothing is shown on screen.
 import fs from 'node:fs'
 import http from 'node:http'
@@ -45,6 +45,8 @@ const views = [
   { name: 'site-desktop-light.png', viewport: { width: 1280, height: 800 }, colorScheme: 'light' },
   { name: 'site-desktop-dark.png', viewport: { width: 1280, height: 800 }, colorScheme: 'dark' },
   { name: 'site-mobile.png', viewport: { width: 390, height: 844 }, colorScheme: 'light', isMobile: true },
+  { name: 'site-ru-desktop.png', page: 'ru.html', viewport: { width: 1280, height: 800 }, colorScheme: 'light' },
+  { name: 'site-ru-mobile-dark.png', page: 'ru.html', viewport: { width: 390, height: 844 }, colorScheme: 'dark', isMobile: true },
 ]
 try {
   for (const v of views) {
@@ -55,7 +57,7 @@ try {
     // media requests are aborted by the browser once it has the metadata it wanted (preload=metadata)
     page.on('requestfailed', (r) => !(r.url().endsWith('.mp4') && r.failure()?.errorText === 'net::ERR_ABORTED') && problems.push(`${v.name}: request failed: ${r.url()} ${r.failure()?.errorText}`))
     page.on('response', (r) => r.status() >= 400 && problems.push(`${v.name}: HTTP ${r.status()} ${r.url()}`))
-    await page.goto(base, { waitUntil: 'networkidle' })
+    await page.goto(base + (v.page ?? ''), { waitUntil: 'networkidle' })
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     if (overflow > 0) problems.push(`${v.name}: horizontal overflow of ${overflow}px`)
     await page.screenshot({ path: path.join(shots, v.name), fullPage: true })
