@@ -9,7 +9,7 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
 
   // opening the chat preloads esbuild-wasm and the Tailwind compiler (done well before a user finishes typing)
   await openChat(page)
-  await expect(page.getByTestId('mk-chat-body')).toContainText('Describe what you want to change')
+  await expect(page.getByTestId('mk-chat-body')).toContainText('Describe a change')
   await expect(page.getByTestId('mk-chat')).toHaveAttribute('data-warm', 'true')
 
   const { turn, wallMs } = await ask(page, 'In the customer card add phone, city and source; highlight an overdue payment date in red')
@@ -17,13 +17,12 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
   await expect(card.getByTestId('phone')).toHaveText('+1 555 0102')
   await expect(card.getByTestId('city')).toHaveText('Springfield')
   await expect(card.getByTestId('source')).toHaveText('Referral')
-  await expect(page.getByTestId('mk-toast').filter({ hasText: 'Applied' })).toBeVisible()
 
-  // progress streamed from the agent, in order; at most 6 lines, no "Thinking" left once done (DECISIONS 19)
+  // progress streamed from the agent, in order, behind the "N steps" disclosure; no "Thinking" left once done (DECISIONS 19, brainstorm 14)
   const steps = turn.getByTestId('mk-chat-steps')
-  await expect(steps.locator('li')).toHaveCount(6)
-  await expect(steps).not.toContainText('Thinking')
+  await expect(turn.getByTestId('mk-chat-steps-toggle')).toContainText('steps')
   await turn.getByTestId('mk-chat-steps-toggle').click()
+  await expect(steps).not.toContainText('Thinking')
   await expect(steps.locator('li')).toHaveText([
     'Understanding the request',
     'This can be done on the page',
@@ -38,8 +37,8 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
   // the end user never sees code, file names or diffs in the chat (DECISIONS item 10)
   const chatText = await page.getByTestId('mk-chat-body').innerText()
   expect(chatText).not.toMatch(/\.tsx?\b|src\/|import |export |=>|<\/?[A-Za-z]|className|customer\.meta/)
-  await expect(turn.getByTestId('mk-turn-undo')).toBeEnabled()
-  await expect(turn.getByTestId('mk-turn-history')).toBeVisible()
+  await expect(page.getByTestId('mk-chat-undo')).toBeEnabled()
+  await expect(page.getByTestId('mk-chat-history')).toBeVisible()
 
   // CSS for classes the edit introduced, compiled in the browser: palette colour + arbitrary values
   const due = card.getByTestId('due-date')
@@ -64,7 +63,7 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
   recordMetrics('chatScenario1', { provider: 'scripted', requestToRerenderMs: totalMs, agentMs, commitMs, wallClockMs: wallMs, runtimeCssBytes: runtimeCss.length })
 
   // undo from the result in the chat
-  await turn.getByTestId('mk-turn-undo').click()
+  await page.getByTestId('mk-chat-undo').click()
   await expect(card.getByTestId('phone')).toHaveCount(0)
   await expect(page.getByTestId('mk-toast').filter({ hasText: 'Undone' })).toBeVisible()
   await page.getByTestId('mk-chat-history').click()

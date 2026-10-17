@@ -46,10 +46,10 @@ test('A1: with user tokens the chat edit works end to end, and the development h
 test('A5: the chat drawer says that AI answers can be inaccurate (en and ru)', async ({ page }) => {
   await openCrm(page)
   await openChat(page)
-  await expect(page.getByTestId('mk-chat-disclaimer')).toHaveText('AI answers can be inaccurate. Check the result.')
+  await expect(page.getByTestId('mk-chat-disclaimer')).toHaveText('Describe a change. AI edits only your view and can get it wrong. Undo anytime.')
   await page.goto(`/?user=alice&app=${appFor(page)}&lang=ru`)
   await openChat(page)
-  await expect(page.getByTestId('mk-chat-disclaimer')).toHaveText('Ответы ИИ могут быть неточными, проверьте результат.')
+  await expect(page.getByTestId('mk-chat-disclaimer')).toHaveText('Опишите изменение. ИИ меняет только ваш вид и может ошибаться. Отменить можно в любой момент.')
 })
 
 test('A4: an off-topic request gets one fixed reply and changes nothing', async ({ page }) => {

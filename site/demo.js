@@ -22,16 +22,11 @@
   };
 
   // Each version is a plain render function: that's what a snapshot is.
-  var base = function (state) {
-    return '<div class="title"><b>' + customer.name + '</b><span class="status">' + customer.status + '</span></div>' +
-      '<dl><dt>Email</dt><dd>' + customer.email + '</dd>' +
-      '<dt>Next payment</dt><dd>' + customer.due + '</dd></dl>';
-  };
   var recipesMap = {
     fields: {
       label: 'phone, city, source',
       lines: ['Understanding the request', 'Changing the customer card', 'Checking that the build passes'],
-      render: function (prev) {
+      render: function () {
         return function (s) {
           return '<div class="title"><b>' + customer.name + '</b><span class="status">' + customer.status + '</span></div>' +
             '<dl><dt>Email</dt><dd>' + customer.email + '</dd>' +

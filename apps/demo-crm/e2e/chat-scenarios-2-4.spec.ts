@@ -9,7 +9,6 @@ test('chat scenario 2: a backend request goes to the admin, the app does not cha
   const { turn, wallMs } = await ask(page, 'Add a discount field to deals and recalculate the amount on the server')
   await expect(turn).toHaveAttribute('data-status', 'needs-backend')
   await expect(turn.getByTestId('mk-chat-summary')).toContainText('passed the request to the administrator')
-  await expect(page.getByTestId('mk-toast').filter({ hasText: 'Sent to the administrator' })).toBeVisible()
   expect(await deals.innerHTML()).toBe(before)
   await expect(page.getByTestId('mk-chat-undo')).toBeDisabled()
   await shot(page, '10-needs-backend.png')

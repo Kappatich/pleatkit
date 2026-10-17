@@ -111,7 +111,7 @@ test('clarifying question: an ambiguous request gets one question with buttons, 
   const edit = page.getByTestId('mk-chat-turn').nth(1)
   await expect(edit.locator('.mk-req')).toHaveText('The overdue payment date')
   await expect(edit).toHaveAttribute('data-status', 'applied')
-  await expect(question.getByTestId('mk-clarify')).toContainText('Answered: The overdue payment date')
+  await expect(question.getByTestId('mk-clarify')).toContainText('The overdue payment date')
   await expect(question.getByTestId('mk-clarify-option')).toHaveCount(0)
   await expect(page.getByTestId('due-date')).toHaveClass(/bg-red-600/)
   // the edit's steps show no second question: the classifier was skipped
