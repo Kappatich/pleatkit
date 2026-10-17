@@ -26,7 +26,8 @@ export async function ask(page: Page, text: string): Promise<{ turn: Locator; wa
   const started = Date.now()
   await page.getByTestId('mk-chat-send').click()
   const turn = turns.nth(before)
-  await expect(turn).not.toHaveAttribute('data-status', 'running', { timeout: 30_000 })
+  // a real model (MORPHKIT_LIVE=1) needs far longer than the scripted provider
+  await expect(turn).not.toHaveAttribute('data-status', 'running', { timeout: process.env.MORPHKIT_LIVE === '1' ? 150_000 : 30_000 })
   return { turn, wallMs: Date.now() - started }
 }
 

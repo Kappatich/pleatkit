@@ -16,7 +16,7 @@
     "typecheck": "pnpm -r typecheck",
     "dev:smoke": "pnpm build:packages && node scripts/dev-smoke.mjs",
     "agent:live": "node scripts/anthropic-live.mjs",
-    "e2e:live": "pnpm --filter @morphkit/demo-crm exec playwright test live-anthropic"
+    "e2e:live": "pnpm --filter @morphkit/demo-crm e2e live-anthropic"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
