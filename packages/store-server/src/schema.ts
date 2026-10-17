@@ -77,6 +77,11 @@ export const requests = sqliteTable(
     environment: text('environment').notNull().default('development'),
     /** F4: version of the agent's instructions that produced it. */
     promptVersion: text('prompt_version'),
+    /** DECISIONS 44: closed-list label and a short gist (L0) from the classifier. */
+    intentLabel: text('intent_label'),
+    gist: text('gist'),
+    /** When retention blanked the text and target (DECISIONS 44). */
+    retainedAt: text('retained_at'),
   },
   (t) => [index('requests_by_app').on(t.appId, t.createdAtMs)],
 )
@@ -220,7 +225,60 @@ export const appSettings = sqliteTable('app_settings', {
   /** off | review */
   moderation: text('moderation').notNull(),
   updatedAt: text('updated_at').notNull(),
+  /** DECISIONS 44: off | aggregate | contribute; null means the server's default. */
+  learning: text('learning'),
 })
+
+/** L1 of the data flywheel (DECISIONS 44): a fingerprint per request, no text, no code, keyed ids. */
+export const requestFacts = sqliteTable(
+  'request_facts',
+  {
+    requestId: text('request_id').primaryKey(),
+    appId: text('app_id').notNull(),
+    orgId: text('org_id').notNull(),
+    userKey: text('user_key').notNull(),
+    panelKey: text('panel_key'),
+    intentLabel: text('intent_label'),
+    verdict: text('verdict').notNull(),
+    firstTry: integer('first_try', { mode: 'boolean' }),
+    turns: integer('turns').notNull(),
+    toolCalls: integer('tool_calls').notNull(),
+    costUsd: real('cost_usd').notNull(),
+    latencyMs: integer('latency_ms'),
+    promptVersion: text('prompt_version'),
+    model: text('model'),
+    provider: text('provider'),
+    compilerVersion: text('compiler_version'),
+    staticRuleHits: text('static_rule_hits', { mode: 'json' }).$type<string[]>().notNull(),
+    /** alive24h | reverted:user | reverted:admin | errorboundary | stale */
+    outcome: text('outcome'),
+    learning: text('learning').notNull(),
+    createdAtMs: integer('created_at_ms').notNull(),
+  },
+  (t) => [index('facts_by_app').on(t.appId, t.createdAtMs)],
+)
+
+/** Per-app secret salt for the HMAC keys of L1 (never exported, never sent). */
+export const appSalts = sqliteTable('app_salts', {
+  appId: text('app_id').primaryKey(),
+  salt: text('salt').notNull(),
+  createdAt: text('created_at').notNull(),
+})
+
+/** DECISIONS 42: agent runs by Idempotency-Key, shared by every agent server instance. */
+export const agentRuns = sqliteTable(
+  'agent_runs',
+  {
+    appId: text('app_id').notNull(),
+    userId: text('user_id').notNull(),
+    key: text('key').notNull(),
+    /** running | done */
+    state: text('state').notNull(),
+    result: text('result', { mode: 'json' }).$type<Record<string, unknown>>(),
+    createdAtMs: integer('created_at_ms').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.appId, t.userId, t.key] })],
+)
 
 /** Columns added after the first release, for databases created before them (SQLite has no ADD COLUMN IF NOT EXISTS). */
 export const ADDED_COLUMNS: { table: string; column: string; type: string }[] = [
@@ -237,6 +295,11 @@ export const ADDED_COLUMNS: { table: string; column: string; type: string }[] = 
   { table: 'requests', column: 'environment', type: "TEXT NOT NULL DEFAULT 'development'" },
   { table: 'requests', column: 'prompt_version', type: 'TEXT' },
   { table: 'bundle_files', column: 'org_id', type: "TEXT NOT NULL DEFAULT 'default'" },
+  // Stage 4b (DECISIONS 44)
+  { table: 'requests', column: 'intent_label', type: 'TEXT' },
+  { table: 'requests', column: 'gist', type: 'TEXT' },
+  { table: 'requests', column: 'retained_at', type: 'TEXT' },
+  { table: 'app_settings', column: 'learning', type: 'TEXT' },
 ]
 
 // Plain DDL so the demo needs no migration tool; keep in sync with the tables above.
@@ -257,11 +320,23 @@ CREATE TABLE IF NOT EXISTS requests (
   summary TEXT NOT NULL, status TEXT NOT NULL, classification TEXT, provider TEXT, model TEXT, usage TEXT, timings TEXT,
   log TEXT NOT NULL, files TEXT, snapshot_id TEXT, error TEXT, attachments TEXT, admin_note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
   created_at_ms INTEGER NOT NULL, org_id TEXT NOT NULL DEFAULT 'default', region TEXT NOT NULL DEFAULT 'local',
-  environment TEXT NOT NULL DEFAULT 'development', prompt_version TEXT
+  environment TEXT NOT NULL DEFAULT 'development', prompt_version TEXT, intent_label TEXT, gist TEXT, retained_at TEXT
 );
 CREATE INDEX IF NOT EXISTS requests_by_app ON requests (app_id, created_at_ms);
 CREATE TABLE IF NOT EXISTS app_settings (
-  app_id TEXT PRIMARY KEY, moderation TEXT NOT NULL, updated_at TEXT NOT NULL
+  app_id TEXT PRIMARY KEY, moderation TEXT NOT NULL, updated_at TEXT NOT NULL, learning TEXT
+);
+CREATE TABLE IF NOT EXISTS request_facts (
+  request_id TEXT PRIMARY KEY, app_id TEXT NOT NULL, org_id TEXT NOT NULL, user_key TEXT NOT NULL, panel_key TEXT, intent_label TEXT,
+  verdict TEXT NOT NULL, first_try INTEGER, turns INTEGER NOT NULL, tool_calls INTEGER NOT NULL, cost_usd REAL NOT NULL, latency_ms INTEGER,
+  prompt_version TEXT, model TEXT, provider TEXT, compiler_version TEXT, static_rule_hits TEXT NOT NULL, outcome TEXT, learning TEXT NOT NULL,
+  created_at_ms INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS facts_by_app ON request_facts (app_id, created_at_ms);
+CREATE TABLE IF NOT EXISTS app_salts (app_id TEXT PRIMARY KEY, salt TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS agent_runs (
+  app_id TEXT NOT NULL, user_id TEXT NOT NULL, key TEXT NOT NULL, state TEXT NOT NULL, result TEXT, created_at_ms INTEGER NOT NULL,
+  PRIMARY KEY (app_id, user_id, key)
 );
 CREATE TABLE IF NOT EXISTS bundle_files (
   app_id TEXT NOT NULL, key TEXT NOT NULL, owner TEXT NOT NULL, js TEXT NOT NULL, css TEXT NOT NULL, signature TEXT, created_at TEXT NOT NULL,

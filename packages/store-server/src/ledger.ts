@@ -143,7 +143,11 @@ export function sweepAlive24h(db: Db, place: { region: string; environment: stri
       environment: r.environment ?? place.environment,
       tsMs: now,
     })
-    if (ok) emitted++
+    if (ok) {
+      emitted++
+      // the outcome label of the L1 fact (DECISIONS 44); no-op when the app does not learn
+      db.update(schema.requestFacts).set({ outcome: 'alive24h' }).where(eq(schema.requestFacts.requestId, r.id)).run()
+    }
   }
   return emitted
 }

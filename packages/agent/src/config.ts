@@ -40,6 +40,7 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * MORPHKIT_BASE_URL    API base URL (required for openai-compatible, e.g. https://openrouter.ai/api/v1)
  * MORPHKIT_EFFORT      low | medium | high | xhigh | max (anthropic, default medium)
  * MORPHKIT_FALLBACKS   off disables Anthropic server-side refusal fallback
+ * MORPHKIT_STREAM      1: stream model calls with eager_input_streaming on the tools
  * MORPHKIT_FIXTURES    directory of scripted fixtures (*.json)
  * MORPHKIT_SCRIPTED_DELAY_MS  pause before each scripted answer (recorded demos), default 0
  * MORPHKIT_STORE_URL   @morphkit/store-server URL for the request log
@@ -72,6 +73,7 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
       classifierModel: env.MORPHKIT_CLASSIFIER_MODEL,
       effort: (env.MORPHKIT_EFFORT as 'medium' | undefined) ?? 'medium',
       fallbacks: env.MORPHKIT_FALLBACKS !== 'off',
+      stream: env.MORPHKIT_STREAM === '1',
     })
   } else if (kind === 'openai-compatible' || kind === 'openai' || kind === 'openrouter') {
     const apiKey = env.MORPHKIT_API_KEY ?? env.OPENAI_API_KEY ?? env.OPENROUTER_API_KEY

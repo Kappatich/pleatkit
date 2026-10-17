@@ -60,6 +60,16 @@ export class StoreClient {
     return this.call('PUT', '/admin/flags', { appId: who.appId, userId: '' }, { scope: 'user', scopeId: who.userId, key, value }, { 'x-morphkit-admin': '1' })
   }
 
+  /** DECISIONS 42: claim an agent run by its Idempotency-Key, across agent instances. */
+  claimRun(who: Pick<Identity, 'appId' | 'userId'>, key: string): Promise<{ state: 'claimed' | 'running' | 'done'; result?: Record<string, unknown> }> {
+    return this.call('POST', '/runs/claim', { appId: who.appId, userId: '' }, { userId: who.userId, key })
+  }
+
+  /** Store the result of a claimed run, or release the claim (`null`) when it failed. */
+  finishRun(who: Pick<Identity, 'appId' | 'userId'>, key: string, result: Record<string, unknown> | null): Promise<null> {
+    return this.call('PUT', `/runs/${encodeURIComponent(key)}`, { appId: who.appId, userId: '' }, { userId: who.userId, result })
+  }
+
   quota(appId: string, ops: QuotaOp[]): Promise<QuotaOutcome> {
     return this.call<QuotaOutcome>('POST', '/quota', { appId, userId: '' }, { ops })
   }

@@ -228,6 +228,42 @@ export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'b
     : { id: 'csp', status: 'ok', title: `CSP allows runtime edits (${found.map((f) => f.where).join(', ')})`, details: hints }
 }
 
+// --- context budget (brainstorm 04 §1, §8 item 12) ---
+
+/** Rough token count of text for budgeting (about 3.5 characters per token for code). */
+export const estimateTokens = (text: string): number => Math.ceil(text.length / 3.5)
+/** Size of the agent's own instructions and tool definitions, tokens (measured on PROMPT_VERSION 2026-10-18.4b). */
+export const INSTRUCTION_TOKENS = 2_400
+export const CACHED_TARGET = 20_000
+export const TAIL_TARGET = 6_000
+
+/**
+ * What one edit sends to the model: the cached prefix (instructions, tools, readonly sources, core types,
+ * digests) and the tail (the dynamic files and the request). Targets: prefix 20k, tail 6k tokens; over them the
+ * edits cost more and the model sees more noise.
+ */
+export function checkContextBudget(manifest: MorphkitManifest): Finding {
+  const sum = (files: { source: string }[]) => files.reduce((s, f) => s + estimateTokens(f.source), 0)
+  const readonly = sum(manifest.readonly)
+  const types = sum(manifest.coreTypes)
+  const digests = estimateTokens((manifest.designSystem?.digest ?? '') + (manifest.designSystem?.docs ?? '') + (manifest.dataContracts?.digest ?? ''))
+  const cached = INSTRUCTION_TOKENS + readonly + types + digests
+  const tail = sum(manifest.dynamic) + 200
+  const biggest = [...manifest.readonly, ...manifest.coreTypes]
+    .map((f) => ({ path: f.path, tokens: estimateTokens(f.source) }))
+    .sort((a, b) => b.tokens - a.tokens)
+    .slice(0, 3)
+  const details = [
+    `cached prefix ≈ ${cached.toLocaleString('en')} tokens (instructions ${INSTRUCTION_TOKENS}, readonly ${readonly}, core types ${types}, digests ${digests}); target ≤ ${CACHED_TARGET.toLocaleString('en')}`,
+    `tail ≈ ${tail.toLocaleString('en')} tokens (${manifest.dynamic.length} dynamic files and the request); target ≤ ${TAIL_TARGET.toLocaleString('en')}`,
+    ...(biggest.length ? [`largest in the prefix: ${biggest.map((b) => `${b.path} (${b.tokens})`).join(', ')}`] : []),
+  ]
+  const over = cached > CACHED_TARGET || tail > TAIL_TARGET
+  return over
+    ? { id: 'context-budget', status: 'warn', title: 'the context of one edit is larger than the target', details, fix: 'move large files out of readonly (the agent sees core files as .d.ts only), split big dynamic files into one panel per file, or list fewer externals' }
+    : { id: 'context-budget', status: 'ok', title: `context of one edit: ≈${cached.toLocaleString('en')} cached + ${tail.toLocaleString('en')} per request tokens`, details }
+}
+
 // --- secure context (code review 06 item 4) ---
 
 const LOCAL = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|.*\.localhost)$/i
@@ -329,6 +365,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
         findings.push({ id: 'panels', status: 'fail', title: `the dynamic zone (${config.options.zones.dynamic.join(', ')}) has no files`, details: [], fix: 'move the panels users may change into src/dynamic/<id>.tsx' })
       } else findings.push(checkPanels(root, manifest))
       findings.push(checkExternals(root, manifest))
+      findings.push(checkContextBudget(manifest))
     }
   }
   findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server'))

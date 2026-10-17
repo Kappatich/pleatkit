@@ -30,6 +30,16 @@ export const TOOLS: ToolSpec[] = [
     }),
   },
   {
+    name: 'edit_file',
+    description:
+      'Change part of a dynamic file: old_str must occur exactly once in it and is replaced by new_str. Cheaper than write_file for a small change in a large file. Use write_file for new files.',
+    input_schema: obj({
+      path: { type: 'string', description: 'Path inside the dynamic zone' },
+      old_str: { type: 'string', description: 'Exact text to replace, with enough context to be unique' },
+      new_str: { type: 'string', description: 'The replacement' },
+    }),
+  },
+  {
     name: 'check',
     description:
       'Compile the whole dynamic zone exactly like the browser will (esbuild, same externals), verify that every panel still has a default export, and run the static rules (no eval or new Function, no document.cookie, no dangerouslySetInnerHTML or innerHTML, network requests only to relative URLs of this app, no import() of URLs, imports only from the allowed modules). Returns errors as file:line:column text.',
@@ -38,24 +48,38 @@ export const TOOLS: ToolSpec[] = [
   {
     name: 'finish',
     description:
-      'End the task. verdict "ok": your changes are ready (finish re-runs check and refuses while it fails). "needs-backend": the request needs server or data changes outside the dynamic zone; write no code and explain in one sentence. "failed": you cannot do it.',
+      'End the task. "ok": your changes are ready (finish re-runs check and refuses while it fails). "partial": the screen part is done and checked, the rest needs the server (say what in backend_note). "needs-backend": it needs server or data changes; write no code. "not-editable": it is about a part of the screen that is not open for changes (outside the dynamic zone, not a server matter). "declined": you will not do it (harmful, deceptive, against the app\'s rules). "clarify": two readings would give clearly different results; ask one question with 2 to 4 short options (only once per edit). "failed": you cannot do it.',
     input_schema: obj({
       summary: { type: 'string', description: 'One or two plain-language sentences for the user, in their language; no code or file names' },
-      verdict: { type: 'string', enum: ['ok', 'needs-backend', 'failed'] },
+      verdict: { type: 'string', enum: ['ok', 'partial', 'needs-backend', 'not-editable', 'declined', 'clarify', 'failed'] },
+      backend_note: { type: 'string', description: 'For partial and needs-backend: what the server would need, for the administrator; otherwise empty' },
+      question: { type: 'string', description: 'For clarify: the one question; otherwise empty' },
+      options: { type: 'array', items: { type: 'string' }, description: 'For clarify: 2 to 4 short answers; otherwise empty' },
     }),
   },
 ]
 
 export interface Finish {
-  verdict: Exclude<AgentVerdict, 'clarify'>
+  verdict: AgentVerdict
   summary: string
+  backendNote?: string
+  clarify?: { question: string; options: string[] }
 }
+
+const VERDICTS = ['ok', 'partial', 'needs-backend', 'not-editable', 'declined', 'clarify', 'failed'] as const
+/** Verdicts whose files are applied: the code must pass check. */
+const WITH_CODE = new Set(['ok', 'partial'])
 
 /** Executes tool calls against the workspace, records the tool log and notices `finish`. */
 export class ToolRunner {
   readonly log: ToolLogEntry[] = []
   finished: Finish | null = null
   violations = 0
+  /** Files were written since the last check (the loop checks automatically at the end of the turn). */
+  wroteSinceCheck = false
+
+  /** The user already answered this edit's one clarifying question. */
+  clarified = false
 
   constructor(
     private readonly ws: Workspace,
@@ -120,22 +144,49 @@ export class ToolRunner {
         const path = str('path')
         const content = str('content')
         this.ws.write(path, content)
-        return `Wrote ${path} (${content.length} chars). Run check before finishing.`
+        this.wroteSinceCheck = true
+        return `Wrote ${path} (${content.length} chars).`
+      }
+      case 'edit_file': {
+        const path = str('path')
+        const oldStr = str('old_str')
+        const newStr = str('new_str')
+        if (!this.ws.isWritable(path)) this.ws.write(path, '') // throws the zone error with its explanation
+        const current = this.ws.zoneOf(path) === 'dynamic' ? this.ws.read(path) : null
+        if (current === null) throw new Error(`No such dynamic file: ${path}. Use write_file to create it.`)
+        if (!oldStr) throw new Error('old_str is empty; use write_file to replace a whole file')
+        const count = current.split(oldStr).length - 1
+        if (count !== 1) {
+          const near = nearestLines(current, oldStr)
+          throw new Error(count === 0 ? `old_str was not found in ${path}.${near}` : `old_str occurs ${count} times in ${path}; add surrounding lines so it is unique.`)
+        }
+        this.ws.write(path, current.replace(oldStr, () => newStr))
+        this.wroteSinceCheck = true
+        return `Edited ${path}.`
       }
       case 'check': {
-        const r = await this.ws.check()
-        return r.ok ? `OK: the dynamic zone compiles and every panel has a default export (${r.timeMs.toFixed(0)} ms).` : `FAILED:\n${formatErrors(r.errors)}`
+        this.wroteSinceCheck = false
+        return checkText(await this.ws.check())
       }
       case 'finish': {
         const verdict = str('verdict') as Finish['verdict']
         const summary = str('summary').trim()
-        if (!['ok', 'needs-backend', 'failed'].includes(verdict)) throw new Error(`Unknown verdict "${verdict}"`)
-        if (verdict === 'ok' && this.ws.changed && this.ws.needsCheck) await this.ws.check()
-        if (verdict === 'ok' && this.ws.changed && !this.ws.lastCheck?.ok) {
+        if (!(VERDICTS as readonly string[]).includes(verdict)) throw new Error(`Unknown verdict "${verdict}"`)
+        const opt = (k: string) => (typeof input[k] === 'string' ? (input[k] as string).trim() : '')
+        if (verdict === 'clarify') {
+          if (this.clarified) throw new Error('The user already answered your one question for this edit. Do not ask again: do your best with the answer.')
+          const options = Array.isArray(input.options) ? (input.options as unknown[]).filter((o): o is string => typeof o === 'string' && o.trim() !== '').slice(0, 4) : []
+          if (!opt('question') || options.length < 2) throw new Error('clarify needs a question and 2 to 4 options')
+          this.finished = { verdict, summary: opt('question'), clarify: { question: opt('question').slice(0, 300), options: options.map((o) => o.slice(0, 80)) } }
+          return 'Finished.'
+        }
+        if (WITH_CODE.has(verdict) && this.ws.changed && this.ws.needsCheck) await this.ws.check()
+        if (WITH_CODE.has(verdict) && this.ws.changed && !this.ws.lastCheck?.ok) {
           // The commit is refused, exactly as the browser would refuse it; the model gets the errors and fixes them.
           throw new Error(`Commit rejected, the code does not pass check:\n${formatErrors(this.ws.lastCheck?.errors ?? [])}\nFix the errors, then call finish again.`)
         }
-        this.finished = { verdict, summary: summary || defaultSummary(verdict) }
+        if (verdict === 'partial' && !this.ws.changed) throw new Error('partial means some of it is done on screen, but nothing was changed; use needs-backend')
+        this.finished = { verdict, summary: summary || defaultSummary(verdict), ...(opt('backend_note') ? { backendNote: opt('backend_note').slice(0, 1000) } : {}) }
         return 'Finished.'
       }
       default:
@@ -154,11 +205,48 @@ export function capResult(content: string): string {
 }
 
 function defaultSummary(v: Finish['verdict']): string {
-  return v === 'ok' ? 'Done.' : v === 'needs-backend' ? 'This needs a change on the server; I passed it to the administrator.' : 'I could not make this change.'
+  switch (v) {
+    case 'ok':
+      return 'Done.'
+    case 'partial':
+      return 'I did the part that is on the screen; the rest needs a change on the server, so I passed it to the administrator.'
+    case 'needs-backend':
+      return 'This needs a change on the server; I passed it to the administrator.'
+    case 'not-editable':
+      return 'This part of the screen cannot be changed here.'
+    case 'declined':
+      return 'I will not make this change.'
+    default:
+      return 'I could not make this change.'
+  }
+}
+
+/** The check result as the model reads it. */
+export function checkText(r: { ok: boolean; errors: Parameters<typeof formatErrors>[0]; timeMs: number }): string {
+  return r.ok ? `OK: the dynamic zone compiles, follows the rules and every panel has a default export (${r.timeMs.toFixed(0)} ms).` : `FAILED:\n${formatErrors(r.errors)}`
+}
+
+/** For an edit_file miss: the line of the file that shares the most words with old_str, with 3 lines around it. */
+function nearestLines(source: string, needle: string): string {
+  const lines = source.split('\n')
+  const words = new Set(needle.split(/\W+/).filter((w) => w.length > 2))
+  let best = -1
+  let score = 0
+  lines.forEach((l, i) => {
+    const s = l.split(/\W+/).filter((w) => words.has(w)).length
+    if (s > score) [best, score] = [i, s]
+  })
+  if (best < 0) return ''
+  const from = Math.max(0, best - 3)
+  return ` Closest lines (${from + 1}-${Math.min(lines.length, best + 4)}):\n${lines.slice(from, best + 4).join('\n')}`
 }
 
 /** Keep logs small: file contents are replaced by their size. */
 function logInput(call: ToolCall): Record<string, unknown> {
+  if (call.name === 'edit_file') {
+    const { old_str, new_str, ...rest } = call.input
+    return { ...rest, oldBytes: typeof old_str === 'string' ? old_str.length : 0, newBytes: typeof new_str === 'string' ? new_str.length : 0 }
+  }
   if (call.name === 'write_file') {
     const { content, ...rest } = call.input
     return { ...rest, bytes: typeof content === 'string' ? content.length : 0 }

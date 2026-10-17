@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { TokenUsage } from '@morphkit/runtime/compiler'
-import { CLASSIFIER_INSTRUCTIONS } from '../prompt.js'
+import { CLASSIFIER_INSTRUCTIONS, INTENT_LABELS } from '../prompt.js'
 import { perCallMaxTokens } from './budget.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
 
@@ -21,6 +21,12 @@ export interface AnthropicProviderOptions {
   fallbacks?: boolean
   /** For tests: a fetch that never reaches the network. */
   fetch?: typeof fetch
+  /**
+   * Stream each call (`messages.stream` + `finalMessage()`) with `eager_input_streaming` on the tools, so a large
+   * write_file arrives as it is generated (brainstorm 04 §5). Off by default; MORPHKIT_STREAM=1. Tool inputs are
+   * then not validated by the API: the tool runner checks every field itself.
+   */
+  stream?: boolean
 }
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5'
@@ -54,10 +60,19 @@ const CLASSIFY_SCHEMA = {
     reason: { type: 'string' },
     question: { type: 'string' },
     options: { type: 'array', items: { type: 'string' } },
+    intent_label: { type: 'string', enum: [...INTENT_LABELS] },
+    gist: { type: 'string' },
   },
-  required: ['label', 'reason', 'question', 'options'],
+  required: ['label', 'reason', 'question', 'options', 'intent_label', 'gist'],
   additionalProperties: false,
 } as const
+
+/** The intent label (closed list) and a gist without digits (DECISIONS 44). */
+export function intentOf(p: { intent_label?: unknown; gist?: unknown }): { intentLabel?: string; gist?: string } {
+  const label = typeof p.intent_label === 'string' && (INTENT_LABELS as readonly string[]).includes(p.intent_label) ? p.intent_label : undefined
+  const gist = typeof p.gist === 'string' ? p.gist.replace(/\d+/g, '#').split(/\s+/).filter(Boolean).slice(0, 12).join(' ') : ''
+  return { ...(label ? { intentLabel: label } : {}), ...(gist ? { gist } : {}) }
+}
 
 /** Question and options of an `unclear` classification, cleaned up (2 to 4 non-empty options). */
 export function clarifyOf(p: { question?: unknown; options?: unknown }): { question?: string; options?: string[] } {
@@ -74,6 +89,7 @@ export class AnthropicProvider implements ModelProvider {
   private readonly client: Anthropic
   private readonly effort: Effort
   private readonly fallbacks: boolean
+  private readonly stream: boolean
 
   constructor(options: AnthropicProviderOptions) {
     this.client = new Anthropic({
@@ -86,6 +102,7 @@ export class AnthropicProvider implements ModelProvider {
     this.classifierModel = options.classifierModel ?? DEFAULT_CLASSIFIER_MODEL
     this.effort = options.effort ?? 'medium'
     this.fallbacks = options.fallbacks ?? true
+    this.stream = options.stream ?? false
   }
 
   async classify(input: ClassifyInput, signal: AbortSignal): Promise<Classification> {
@@ -103,8 +120,8 @@ export class AnthropicProvider implements ModelProvider {
     if (msg.stop_reason === 'refusal') return { label: 'unclear', reason: '', usage, model: msg.model }
     const text = msg.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
     try {
-      const parsed = JSON.parse(text) as { label: Classification['label']; reason: string; question?: string; options?: string[] }
-      return { label: parsed.label, reason: parsed.reason, ...clarifyOf(parsed), usage, model: msg.model }
+      const parsed = JSON.parse(text) as { label: Classification['label']; reason: string; question?: string; options?: string[]; intent_label?: string; gist?: string }
+      return { label: parsed.label, reason: parsed.reason, ...clarifyOf(parsed), ...intentOf(parsed), usage, model: msg.model }
     } catch {
       return { label: 'unclear', reason: '', usage, model: msg.model }
     }
@@ -125,7 +142,13 @@ export class AnthropicProvider implements ModelProvider {
       { type: 'text', text: prompt.instructions },
       { type: 'text', text: prompt.cached, cache_control: { type: 'ephemeral' } },
     ]
-    const toolDefs: Anthropic.Beta.BetaTool[] = tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema, strict: true }))
+    const toolDefs: Anthropic.Beta.BetaTool[] = tools.map((t) => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.input_schema,
+      strict: true,
+      ...(this.stream ? { eager_input_streaming: true } : {}),
+    }))
     let pendingText: string | null = null
 
     return {
@@ -143,8 +166,11 @@ export class AnthropicProvider implements ModelProvider {
         pendingText = null
         if (content.length > 0) messages.push({ role: 'user', content })
 
-        const msg = await this.client.beta.messages.create(
-          {
+        const params: Anthropic.Beta.MessageCreateParamsNonStreaming = {
+            // automatic caching of the conversation tail (brainstorm 04 §0.1): every turn re-reads the dynamic
+            // files and the tool history from the cache instead of paying for them again; the explicit breakpoint
+            // on the system block keeps tools + instructions + readonly sources cached across requests
+            cache_control: { type: 'ephemeral' },
             model: this.model,
             max_tokens: perCallMaxTokens(options.maxOutputTokens),
             thinking: { type: 'adaptive' },
@@ -154,9 +180,10 @@ export class AnthropicProvider implements ModelProvider {
             tool_choice: { type: 'auto' },
             messages,
             ...(this.fallbacks ? { betas: [FALLBACK_BETA], fallbacks: 'default' as const } : {}),
-          },
-          { signal: options.signal },
-        )
+        }
+        const msg = this.stream
+          ? await this.client.beta.messages.stream(params, { signal: options.signal }).finalMessage()
+          : await this.client.beta.messages.create(params, { signal: options.signal })
         // Append the assistant turn unchanged (thinking blocks included): the harness stays append-only.
         messages.push({ role: 'assistant', content: msg.content as unknown as Anthropic.Beta.BetaContentBlockParam[] })
 

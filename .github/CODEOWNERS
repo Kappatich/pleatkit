@@ -1,0 +1,29 @@
+# DECISIONS 43 (brainstorm 12 B3): a human reads these paths before merge. Replace @Kappatich with the
+# owners' GitHub handles when the second founder joins.
+
+# static rules, the shared check, signatures, auth and roles
+/packages/runtime/src/check.ts            @Kappatich
+/packages/runtime/src/security.ts         @Kappatich
+/packages/runtime/src/paths.ts            @Kappatich
+/packages/agent/src/static-check.ts       @Kappatich
+/packages/agent/src/auth.ts               @Kappatich
+/packages/agent/src/manifest.ts           @Kappatich
+/packages/store-server/src/auth.ts        @Kappatich
+# money: quotas, plans, prices, alerts and freezes
+/packages/runtime/src/quota.ts            @Kappatich
+/packages/agent/src/quota.ts              @Kappatich
+/packages/agent/src/pricing.ts            @Kappatich
+/packages/agent/src/alerts.ts             @Kappatich
+# public API and protocol
+/packages/*/src/index.ts                  @Kappatich
+/packages/runtime/src/protocol.ts         @Kappatich
+/packages/runtime/src/compiler-entry.ts   @Kappatich
+# schema, migrations, everything that writes L1/L2 data and telemetry
+/packages/store-server/src/schema.ts      @Kappatich
+/packages/store-server/src/facts.ts       @Kappatich
+/packages/vite-plugin/src/telemetry.ts    @Kappatich
+# the system prompt (only with an eval report) and CI
+/packages/agent/src/prompt.ts             @Kappatich
+/.github/                                 @Kappatich
+/package.json                             @Kappatich
+/pnpm-lock.yaml                           @Kappatich
