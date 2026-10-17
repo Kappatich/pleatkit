@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { DevPanel, Dynamic, MorphkitProvider } from '@morphkit/runtime'
+import { DevPanel, Dynamic, MorphkitProvider, useMorphkit } from '@morphkit/runtime'
+import { MorphkitChat } from '@morphkit/ui'
 import { api, type Customer, type Deal } from '@/readonly/api'
 import { formatDate } from '@/readonly/format'
 import { cn } from '@/lib/utils'
-import { morphkitConfig, store, USERS, type UserId } from './morphkit'
+import { Admin } from './Admin'
+import { AGENT_URL, APP_ID, morphkitConfig, storeFor, USERS, type UserId } from './morphkit'
 
 function readParams() {
   const params = new URLSearchParams(location.search)
@@ -11,11 +13,22 @@ function readParams() {
   return {
     user: (USERS as readonly string[]).includes(user ?? '') ? (user as UserId) : 'alice',
     dev: params.get('dev') === '1',
+    isolated: params.get('isolated') === '1',
   }
 }
 
+const EXAMPLES = [
+  'In the customer card add phone, city and source; highlight an overdue payment date in red',
+  'Add a discount field to deals and recalculate the amount on the server',
+]
+
 export function App() {
-  const [{ user, dev }, setParams] = useState(readParams)
+  if (location.pathname.replace(/\/$/, '') === '/admin') return <Admin appId={APP_ID} />
+  return <Crm />
+}
+
+function Crm() {
+  const [{ user, dev, isolated }, setParams] = useState(readParams)
 
   const switchUser = (next: UserId) => {
     const url = new URL(location.href)
@@ -25,7 +38,8 @@ export function App() {
   }
 
   return (
-    <MorphkitProvider config={morphkitConfig} store={store} userId={user}>
+    <MorphkitProvider config={morphkitConfig} store={storeFor(user)} userId={user}>
+      <RefreshOnFocus />
       {/* Leave room for the fixed dev panel so it does not cover the panels being edited. */}
       <div className="min-h-screen" style={dev ? { paddingRight: 580 } : undefined}>
         <header className="border-b border-border bg-card">
@@ -34,31 +48,47 @@ export function App() {
               <span className="text-lg font-semibold">Acme CRM</span>
               <span className="text-xs text-muted-foreground">morphkit demo</span>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              Signed in as
-              <select
-                data-testid="user-switch"
-                value={user}
-                onChange={(e) => switchUser(e.target.value as UserId)}
-                className="rounded-md border border-border bg-background px-2 py-1"
-              >
-                {USERS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="flex items-center gap-4 text-sm">
+              <a className="text-muted-foreground hover:underline" href={`/admin${APP_ID !== 'demo-crm' ? `?app=${encodeURIComponent(APP_ID)}` : ''}`}>
+                Admin
+              </a>
+              <label className="flex items-center gap-2">
+                Signed in as
+                <select
+                  data-testid="user-switch"
+                  value={user}
+                  onChange={(e) => switchUser(e.target.value as UserId)}
+                  className="rounded-md border border-border bg-background px-2 py-1"
+                >
+                  {USERS.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
         </header>
-        <CrmPage />
+        <CrmPage isolated={isolated} />
       </div>
-      {dev && <DevPanel />}
+      {dev ? <DevPanel /> : <MorphkitChat agentUrl={AGENT_URL} appId={APP_ID} examples={EXAMPLES} />}
     </MorphkitProvider>
   )
 }
 
-function CrmPage() {
+/** Pick up changes made elsewhere (an admin rolled this user back) when the tab regains focus. */
+function RefreshOnFocus() {
+  const engine = useMorphkit()
+  useEffect(() => {
+    const onFocus = () => void engine.refresh()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [engine])
+  return null
+}
+
+function CrmPage({ isolated }: { isolated: boolean }) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [deals, setDeals] = useState<Deal[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -79,7 +109,8 @@ function CrmPage() {
 
   return (
     <main className="mx-auto grid max-w-6xl gap-6 px-6 py-6">
-      <Dynamic id="dashboard-panels" props={{ customers, deals }} />
+      {/* With ?isolated=1 this panel runs in a sandboxed iframe (opaque origin, no access to the page). */}
+      <Dynamic id="dashboard-panels" props={{ customers, deals }} isolated={isolated} />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
         <nav aria-label="Customers" className="rounded-xl border border-border bg-card p-2">
           <ul data-testid="customer-list">

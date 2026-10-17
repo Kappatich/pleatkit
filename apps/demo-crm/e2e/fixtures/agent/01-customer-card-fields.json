@@ -1,0 +1,16 @@
+{
+  "name": "scenario-1-customer-card-fields",
+  "description": "Architecture §8 scenario 1: phone, city, source in the customer card, overdue date in red.",
+  "match": ["phone|телефон"],
+  "classify": { "label": "ui", "reason": "Display-only change to the customer card; the fields exist in meta." },
+  "turns": [
+    { "text": "The phone, city and source are already in customer.meta; I will show them and highlight overdue dates.", "calls": [{ "tool": "read_file", "input": { "path": "src/readonly/format.ts" }, "expect": "ok" }] },
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/customer-card.tsx" }, "contentFile": "../customer-card.scenario1.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "The customer card now shows phone, city and source, and an overdue payment date is highlighted in red." }, "expect": "ok" }] }
+  ]
+}

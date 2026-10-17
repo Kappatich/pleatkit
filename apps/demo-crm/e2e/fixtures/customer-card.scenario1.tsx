@@ -33,7 +33,11 @@ export default function CustomerCard({ customer }: { customer: Customer }) {
           <dt className="text-muted-foreground">Next payment</dt>
           <dd data-testid="due-date" data-overdue={overdue} className={cn(overdue && 'font-semibold text-red-600')}>
             {formatDate(customer.dueDate)}
-            {overdue && ' · overdue'}
+            {overdue && (
+              <span data-testid="overdue-chip" className="ml-2 rounded-[3px] bg-red-50 px-[6px] py-px text-[11px] font-semibold uppercase tracking-wide">
+                overdue
+              </span>
+            )}
           </dd>
         </dl>
       </CardContent>

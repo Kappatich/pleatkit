@@ -1,0 +1,22 @@
+{
+  "name": "scenario-3-compile-error-then-fix",
+  "description": "Architecture §8 scenario 3: the first version does not compile, the commit is rejected, the agent reads the error and fixes it.",
+  "match": ["pill|плашк"],
+  "classify": { "label": "ui", "reason": "Layout change in the customer card." },
+  "turns": [
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/customer-card.tsx" }, "contentFile": "../customer-card.broken.tsx", "expect": "ok" },
+        { "tool": "finish", "input": { "verdict": "ok", "summary": "Done." }, "expect": "error" }
+      ]
+    },
+    {
+      "text": "The commit was rejected: CardTitle is not closed. Rewriting the card.",
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/customer-card.tsx" }, "contentFile": "../customer-card.scenario3.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "The name is larger and the status is a coloured pill." }, "expect": "ok" }] }
+  ]
+}

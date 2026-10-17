@@ -1,20 +1,20 @@
 {
-  "measuredAt": "2026-10-17T19:46:12.201Z",
+  "measuredAt": "2026-10-17T20:04:29.391Z",
   "browser": "chromium headless shell 156.0.8078.4",
   "esbuildVersion": "0.28.2",
   "wasmBytes": 13978850,
-  "initColdMs": 216,
-  "initFromCacheMs": 46,
-  "firstCheckWallMs": 1014,
-  "firstCheckCompileMs": 221,
+  "initColdMs": 225,
+  "initFromCacheMs": 47,
+  "firstCheckWallMs": 991,
+  "firstCheckCompileMs": 236,
   "warmCheckMs3Files": [
-    23.6,
-    30.5,
-    22.3,
-    22,
-    20.6
+    26.2,
+    35.5,
+    25.1,
+    24.1,
+    22.9
   ],
-  "commitToRenderMs": 124,
-  "engineCommitMs": 66,
+  "commitToRenderMs": 133,
+  "engineCommitMs": 77,
   "swapMs": 1.6
 }

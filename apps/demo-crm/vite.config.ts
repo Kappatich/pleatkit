@@ -7,6 +7,15 @@ import morphkit from '@morphkit/vite-plugin'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 const dataPort = process.env.DATA_PORT ?? '8787'
+const agentPort = process.env.AGENT_PORT ?? '8789'
+const storePort = process.env.STORE_PORT ?? '8790'
+
+// One origin for the browser: the app, its data API, the agent server and store-server.
+const proxy = {
+  '/api': `http://localhost:${dataPort}`,
+  '/agent': `http://localhost:${agentPort}`,
+  '/morphkit-store': { target: `http://localhost:${storePort}`, rewrite: (p: string) => p.replace(/^\/morphkit-store/, '') },
+}
 
 export default defineConfig({
   plugins: [
@@ -26,6 +35,6 @@ export default defineConfig({
     }),
   ],
   resolve: { alias: { '@': path.join(root, 'src') } },
-  server: { port: 5173, proxy: { '/api': `http://localhost:${dataPort}` } },
-  preview: { port: 4173, proxy: { '/api': `http://localhost:${dataPort}` } },
+  server: { port: 5173, proxy },
+  preview: { port: 4173, proxy },
 })

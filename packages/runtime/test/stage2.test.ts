@@ -198,3 +198,25 @@ describe('engine, Stage 2 additions', () => {
     expect(listener).toHaveBeenCalled()
   })
 })
+
+describe('migration draft', () => {
+  it('starts from the new base files while keeping the stale head as parent', async () => {
+    const store = new MemoryStore()
+    const v1 = engineFor(store)
+    await v1.init()
+    v1.draft.start('mine')
+    v1.draft.write(CARD, `export default function C() { return <b>mine</b> }`)
+    const mine = await v1.draft.commit()
+    const newBase = { ...BASE, 'src/dynamic/deals-table.tsx': `export default function DealsTable() { return <i>v2</i> }` }
+    const v2 = engineFor(store, { base: newBase })
+    await v2.init()
+    const draft = v2.draft.start('carry over', v2.originalFiles())
+    expect(draft.parentId).toBe(mine.id)
+    expect(draft.files).toEqual(newBase)
+    v2.draft.write(CARD, `export default function C() { return <b>mine</b> }`)
+    const migrated = await v2.draft.commit('agent')
+    expect(migrated.files['src/dynamic/deals-table.tsx']).toContain('v2')
+    expect(migrated.files[CARD]).toContain('mine')
+    expect(v2.getState().stale).toBe(false)
+  })
+})

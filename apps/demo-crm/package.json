@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n data,web -c blue,green \"tsx watch server/index.ts\" \"vite\"",
+    "dev": "node scripts/dev.mjs",
     "dev:data": "tsx server/index.ts",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -17,7 +17,9 @@
     "clsx": "^2.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "@morphkit/ui": "workspace:*",
+    "diff": "^8.0.2"
   },
   "devDependencies": {
     "@hono/node-server": "^1.19.5",
@@ -32,6 +34,9 @@
     "hono": "^4.10.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.20.6",
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "@morphkit/agent": "workspace:*",
+    "@morphkit/store-server": "workspace:*",
+    "tree-kill": "^1.2.2"
   }
 }

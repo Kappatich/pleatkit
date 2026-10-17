@@ -17,8 +17,17 @@ export async function shot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: path.join(SHOTS, name), fullPage: true })
 }
 
+// Every test page gets its own namespace in the shared store-server, so tests never see each other's edits.
+const apps = new WeakMap<Page, string>()
+let appSeq = 0
+export function appFor(page: Page): string {
+  let id = apps.get(page)
+  if (!id) apps.set(page, (id = `e2e-${Date.now().toString(36)}-${++appSeq}`))
+  return id
+}
+
 export async function openApp(page: Page, user: 'alice' | 'bob' = 'alice', customer = 'Globex'): Promise<void> {
-  await page.goto(`/?user=${user}&dev=1`)
+  await page.goto(`/?user=${user}&dev=1&app=${appFor(page)}`)
   await page.getByRole('button', { name: new RegExp(customer) }).click()
   await expect(page.getByTestId('customer-card')).toContainText(customer)
   await expect(page.getByTestId('mk-dev-panel')).toBeVisible()
