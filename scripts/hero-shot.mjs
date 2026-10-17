@@ -9,6 +9,7 @@ const out = process.argv[3];
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
 page.on('pageerror', (e) => console.log('pageerror', e.message));
+/* global window */ // runs in the page
 await page.addInitScript(() => { window.__morphkitNoAutoplay = true; });
 await page.goto(pathToFileURL(path.join(site, 'index.html')).href, { waitUntil: 'load' });
 await page.waitForTimeout(800);
