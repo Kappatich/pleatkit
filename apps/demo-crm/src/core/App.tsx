@@ -63,7 +63,7 @@ function Crm() {
       locale={LOCALE}
       {...(COMPILE ? { compile: COMPILE } : {})}
       {...(publicKey ? { publicKey } : {})}
-      {...(AUTH === 'token' ? { token: () => tokenFor(user) } : {})}
+      {...(AUTH === 'token' ? { token: (o?: { refresh?: boolean }) => tokenFor(user, 'user', o?.refresh), onAuthExpired: () => tokenFor(user, 'user', true) } : {})}
     >
       <RefreshOnFocus />
       {/* Leave room for the fixed dev panel so it does not cover the panels being edited. */}

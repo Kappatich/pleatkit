@@ -3,7 +3,10 @@ import { OpenAICompatibleProvider } from './providers/openai.js'
 import { ScriptedProvider } from './providers/scripted.js'
 import { agentAuthFromEnv, type AgentAuth } from './auth.js'
 import type { AgentLimits } from './loop.js'
+import { alertsFromEnv, type AlertsOptions } from './alerts.js'
 import { manifestSourceFromEnv, type ManifestSource } from './manifest.js'
+import { typecheckFromEnv } from './typecheck.js'
+import type { TypecheckFn } from './workspace.js'
 import type { ModelProvider } from './types.js'
 
 export interface AgentConfig {
@@ -17,6 +20,10 @@ export interface AgentConfig {
   plan: { name?: string; limits?: Record<string, number> }
   /** The app's manifest on the server (code review 06 item 8); required in production. */
   manifest: ManifestSource | null
+  /** MORPHKIT_TYPECHECK=1: type errors against the app's `.d.ts` refuse an edit (05 #4). */
+  typecheck: TypecheckFn | null
+  /** MORPHKIT_ALERT_* and MORPHKIT_FREEZE (05 #5). */
+  alerts: Pick<AlertsOptions, 'sinks' | 'freeze'>
 }
 
 type Env = Record<string, string | undefined>
@@ -42,6 +49,11 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * MORPHKIT_APP_ID, MORPHKIT_APP_KEY, MORPHKIT_JWT_SECRET  credentials; required with NODE_ENV=production
  * MORPHKIT_PLAN        plan name (free | team | unlimited) when store-server has no plan for the app
  * MORPHKIT_LIMITS      JSON overrides of plan limits, e.g. {"userDailyUsd": 2, "perEditUsd": 0.2}
+ * MORPHKIT_TYPECHECK=1  type-check edits against the manifest's readonly sources and .d.ts; MORPHKIT_TYPECHECK_ROOT
+ *                      is the app folder whose node_modules give package types (react)
+ * MORPHKIT_ALERT_WEBHOOK  URL that gets a JSON POST for every alert (Slack-compatible `text`)
+ * MORPHKIT_ALERT_EMAIL_URL, MORPHKIT_ALERT_EMAIL_TO, MORPHKIT_ALERT_EMAIL_TOKEN  e-mail through an HTTP e-mail API
+ * MORPHKIT_FREEZE      off, or JSON {"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}
  * MORPHKIT_MANIFEST    path or URL of the app's dist/morphkit.manifest.json: the static rules, readonly sources and core
  *                      types come from it, not from the browser (required with NODE_ENV=production);
  *                      MORPHKIT_MANIFESTS='{"<appId>": "<path or URL>"}' for several apps
@@ -88,6 +100,8 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
   return {
     auth,
     manifest,
+    typecheck: typecheckFromEnv(env),
+    alerts: alertsFromEnv(env),
     plan: { ...(env.MORPHKIT_PLAN ? { name: env.MORPHKIT_PLAN } : {}), ...(planLimits ? { limits: planLimits } : {}) },
     provider,
     port: num(env.MORPHKIT_AGENT_PORT) ?? 8789,

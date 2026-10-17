@@ -78,3 +78,23 @@ describe('zone globs are validated (code review 06 item 11)', () => {
     expect(() => normalizeZones(['**/*.tsx'], 'dynamic')).toThrow(/no fixed directory/)
   })
 })
+
+describe('digests for the agent prompt (brainstorm 04 §1, 05 #10)', () => {
+  it('one line per design-system component and the readonly data contract', async () => {
+    const { designSystemDigest, dataContractsDigest } = await import('../src/manifest.js')
+    const button = `import * as React from 'react'
+interface ButtonProps { variant?: 'default' | 'destructive'; size?: 'sm' | 'lg' }
+export function Button({ variant }: ButtonProps) { return null }
+export const Card = (p: { title: string }) => null
+function internal() {}`
+    expect(designSystemDigest([{ path: 'src/components/ui/button.tsx', source: button }])).toBe(
+      "src/components/ui/button: Button(variant?: 'default' | 'destructive', size?: 'sm' | 'lg'); Card",
+    )
+    const api = `export interface Customer { id: string; name: string }
+export const api = { listCustomers(): Promise<Customer[]> { return fetch('/api').then((r) => r.json()) }, rename: (id: string, name: string): Promise<void> => Promise.resolve() }`
+    const digest = dataContractsDigest([{ path: 'src/readonly/api.ts', source: api }])
+    expect(digest).toContain('interface Customer { id: string; name: string }')
+    expect(digest).toContain('api: { listCustomers(): Promise<Customer[]>; rename(id: string, name: string): Promise<void> }')
+    expect(digest).not.toContain('fetch(')
+  })
+})

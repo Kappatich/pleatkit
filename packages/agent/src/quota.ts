@@ -119,14 +119,24 @@ export class Quotas {
     return this.decide(outcome, plan, { [b.userEdits.key]: 'user-edits', [b.userUsd.key]: 'user-usd', [b.appEdits.key]: 'app-edits', [b.appUsd.key]: 'app-usd' })
   }
 
-  async afterEdit(who: Identity, costUsd: number): Promise<void> {
-    if (!(costUsd > 0)) return
+  /**
+   * Debit the run's cost. Returns how much of the daily dollar budgets is used now (for the 50/80/100 % alerts
+   * and the freeze of one user, brainstorm 05 #5).
+   */
+  async afterEdit(who: Identity, costUsd: number): Promise<{ appUsd: number | null; userShareOfApp: number | null }> {
     const plan = await this.plan(who.appId)
     const b = this.buckets(who, plan)
-    await this.backend.apply(who.appId, [
-      { ...b.userUsd, op: 'debit', amount: costUsd },
-      { ...b.appUsd, op: 'debit', amount: costUsd },
+    const op = costUsd > 0 ? ('debit' as const) : ('peek' as const)
+    const out = await this.backend.apply(who.appId, [
+      { ...b.userUsd, op, amount: costUsd },
+      { ...b.appUsd, op, amount: costUsd },
     ])
+    const used = (key: string, capacity: number) => (capacity > 0 && typeof out.tokens[key] === 'number' ? (capacity - out.tokens[key]!) / capacity : null)
+    const userUsed = used(b.userUsd.key, plan.userDailyUsd)
+    return {
+      appUsd: used(b.appUsd.key, plan.appDailyUsd),
+      userShareOfApp: userUsed === null || plan.appDailyUsd <= 0 ? null : (userUsed * plan.userDailyUsd) / plan.appDailyUsd,
+    }
   }
 
   async beforeCompile(who: Identity): Promise<QuotaDecision> {

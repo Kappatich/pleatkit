@@ -158,6 +158,9 @@ Agent server (`@morphkit/agent`): keys are read from the environment only, never
 | `MORPHKIT_CORS_ORIGIN` | | allowed browser origin if the app calls the agent cross-origin |
 | `MORPHKIT_APP_ID` / `MORPHKIT_APP_KEY` / `MORPHKIT_JWT_SECRET` | | the app this agent serves, its app key (`mk_live_…`) and the user-JWT secret; **required with `NODE_ENV=production`** |
 | `MORPHKIT_PLAN` / `MORPHKIT_LIMITS` | `free` | plan used when store-server has none for the app; JSON overrides such as `{"userDailyUsd": 2, "perEditUsd": 0.2}` |
+| `MORPHKIT_TYPECHECK` / `MORPHKIT_TYPECHECK_ROOT` | off | `1`: `check` also type-checks edits against the manifest's readonly sources and `.d.ts` (package types from the app folder in `_ROOT`); `morphkit check-snapshots --typecheck` runs the same before a release |
+| `MORPHKIT_ALERT_WEBHOOK` / `MORPHKIT_ALERT_EMAIL_URL` + `_TO` + `_TOKEN` | | alerts on static-rule violations, 50/80/100 % of the app's daily budget and automatic freezes ([`docs/ops/incident.md`](docs/ops/incident.md)) |
+| `MORPHKIT_FREEZE` | on | `off`, or JSON `{"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}`: when one user is frozen (`edits.enabled: false` for that user only) |
 | `MORPHKIT_MANIFEST` / `MORPHKIT_MANIFESTS` | | path or URL of the app build's `morphkit.manifest.json` (or a JSON map app id → path/URL): the static rules, readonly sources and core types come from it, never from the browser. **Required with `NODE_ENV=production`** |
 
 Store-server (`@morphkit/store-server`): `MORPHKIT_APP_ID` + `MORPHKIT_APP_KEY` + `MORPHKIT_JWT_SECRET` (one

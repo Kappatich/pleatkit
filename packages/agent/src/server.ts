@@ -7,7 +7,9 @@ import { AgentAuthError, identify, type AgentAuth, type Identity } from './auth.
 import { BundleService, type CompileInput } from './bundle.js'
 import { t, type MessageKey } from './i18n.js'
 import { loopRunner, validateRequest, type AgentLimits, type AgentRunner } from './loop.js'
+import { Alerts, type AlertsOptions } from './alerts.js'
 import { resolveManifest, trustedInput, type ManifestSource } from './manifest.js'
+import type { TypecheckFn } from './workspace.js'
 import { MemoryQuotaBackend, Quotas, resolvePlan, StoreQuotaBackend, type PlanLimits } from './quota.js'
 import { StoreClient } from './store-client.js'
 import type { ModelProvider } from './types.js'
@@ -44,6 +46,10 @@ export interface AgentServerOptions {
   heartbeatMs?: number
   /** Largest request body, bytes. Default 16 MiB (three screenshots and a large zone fit). */
   bodyLimitBytes?: number
+  /** Type check edits against the app's `.d.ts` (brainstorm 05 #4); see `createTypechecker`. */
+  typecheck?: TypecheckFn | null
+  /** Alerts and automatic freezes (brainstorm 05 #5). Default: freezes on, no sinks (log only). */
+  alerts?: Pick<AlertsOptions, 'sinks' | 'freeze'> | Alerts | false
 }
 
 export const SSE_HEARTBEAT_MS = 15_000
@@ -149,7 +155,8 @@ export function createAgentApp(options: AgentServerOptions) {
           return p ? resolvePlan(p.plan ?? options.plan?.name, { ...options.plan?.limits, ...p.limits }) : fallbackPlan()
         }))
 
-  const bundles = new BundleService(auth.credentials, store)
+  const bundles = new BundleService(auth.credentials, store, 500, options.typecheck ?? null)
+  const alerts = options.alerts === false ? null : options.alerts instanceof Alerts ? options.alerts : new Alerts({ sinks: [], ...options.alerts, store, log })
 
   // F6: flags per user, cached briefly (the kill switch takes effect within this time)
   const flagCache = new Map<string, { flags: Record<string, unknown>; at: number }>()
@@ -245,8 +252,11 @@ export function createAgentApp(options: AgentServerOptions) {
         let result: Omit<AgentResult, 'requestId'>
         let plan: PlanLimits | null = null
         const flags = await flagsOf(who)
-        const quota = flags['morphkit.enabled'] === false || flags['edits.enabled'] === false ? null : quotas ? await quotas.beforeEdit(who) : null
-        if (flags['morphkit.enabled'] === false || flags['edits.enabled'] === false) {
+        // a user frozen for abuse (here or in store-server) is refused like the kill switch (05 #5)
+        const frozen = alerts ? await alerts.beforeRun(who) : false
+        const off = flags['morphkit.enabled'] === false || flags['edits.enabled'] === false || frozen
+        const quota = off ? null : quotas ? await quotas.beforeEdit(who) : null
+        if (off) {
           result = refusedResult(req, 'disabled', 'disabled', runner)
         } else if (quota && !quota.ok) {
           result = refusedResult(req, 'quota', quota.limit?.startsWith('app') ? 'quotaApp' : 'quotaUser', runner)
@@ -254,10 +264,10 @@ export function createAgentApp(options: AgentServerOptions) {
         } else {
           plan = quota?.plan ?? null
           const limits = { ...options.limits, ...(plan ? { maxCostUsd: Math.min(plan.perEditUsd, options.limits?.maxCostUsd ?? Infinity) } : {}) }
-          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base })
+          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null })
         }
         const cost = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
-        if (quotas && cost > 0) await quotas.afterEdit(who, cost).catch((e: Error) => log(`[morphkit-agent] could not record the cost: ${e.message}`))
+        const budget = quotas && result.verdict !== 'refused' ? await quotas.afterEdit(who, cost).catch((e: Error) => (log(`[morphkit-agent] could not record the cost: ${e.message}`), null)) : null
         let requestId: string | null = null
         if (store) {
           requestId = await reportRun(store, req, result, who, idemKey).catch((e: Error) => {
@@ -283,6 +293,7 @@ export function createAgentApp(options: AgentServerOptions) {
           if (out?.ok && out.key) result = { ...result, bundle: { key: out.key, filesHash: out.filesHash, compileMs: out.timeMs } }
         }
         if (req.expectedHeadId !== undefined) result = { ...result, expectedHeadId: req.expectedHeadId }
+        if (alerts) await alerts.afterRun(who, { ...result, requestId }, budget).catch((e: Error) => log(`[morphkit-agent] alerts failed: ${e.message}`))
         settle?.({ ...result, requestId })
         await send('result', { ...result, requestId })
       } catch (e) {

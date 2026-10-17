@@ -17,7 +17,7 @@ import {
 } from '@morphkit/runtime/compiler'
 import type { AgentCredentials } from './auth.js'
 import type { StoreClient } from './store-client.js'
-import { Workspace } from './workspace.js'
+import { Workspace, type TypecheckFn } from './workspace.js'
 
 const require = createRequire(import.meta.url)
 
@@ -79,6 +79,7 @@ export class BundleService {
     private readonly credentials: AgentCredentials | null,
     private readonly store: StoreClient | null,
     private readonly maxCached = 500,
+    private readonly typecheck: TypecheckFn | null = null,
   ) {
     this.signing = credentials ? signingKeyFromAppKey(credentials.appKey) : null
     // the first compile after start would otherwise pay for loading the Tailwind compiler (~100 ms)
@@ -90,7 +91,7 @@ export class BundleService {
   async compile(input: CompileInput, options: { check?: boolean } = {}): Promise<CompileOutput> {
     const started = performance.now()
     const context = { ...input.context, namespace: input.context.namespace ?? input.appId }
-    const ws = new Workspace({ files: input.files, readonly: input.readonly, coreTypes: {}, context, components: input.components, ...(input.protected?.length ? { protected: input.protected, base: input.base ?? {} } : {}) })
+    const ws = new Workspace({ files: input.files, readonly: input.readonly, coreTypes: {}, context, components: input.components, ...(input.protected?.length ? { protected: input.protected, base: input.base ?? {} } : {}) }, this.typecheck)
     const check = await ws.check()
     const filesHash = ws.lastHash ?? (await hashFiles(input.files))
     if (!check.ok || !ws.lastBundle) return { ok: false, errors: check.errors, filesHash, timeMs: Math.round(performance.now() - started) }

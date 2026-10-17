@@ -19,6 +19,8 @@ Zones, set by globs in the Vite plugin:
 1. [`install.md`](install.md): steps 1 to 7. Each step is a command, the expected output, and what to do if the output differs. Do them in order; do not skip the checks.
 2. [`verify.md`](verify.md): the acceptance checks. The task is done only when `morphkit doctor` reports no `[FAIL]` and `morphkit ping` reports `[ok]` for all three lines.
 3. If something fails: [`troubleshooting.md`](troubleshooting.md) (symptom, cause, command).
+4. Panels that use context, TanStack Query, Redux or the router, and the design-system profile: [`recipes.md`](recipes.md).
+5. Real users: [`production.md`](production.md) (keys, user tokens, deploying the agent and the store, CSP, privacy settings, checks before each release).
 
 ## Invariants (do not break them)
 
