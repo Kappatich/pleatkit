@@ -4,6 +4,7 @@ import { doctor, formatFindings } from './doctor.js'
 import { ping } from './ping.js'
 import { keys } from './keys.js'
 import { exportData } from './export.js'
+import { checkSnapshotsCommand } from './check-snapshots.js'
 import { track } from '@morphkit/vite-plugin'
 
 const VERSION = '0.1.0'
@@ -15,6 +16,7 @@ const HELP = `Usage:
   morphkit ping [--url http://localhost:5173]
   morphkit keys new | public
   morphkit export --store <url> --app <id> [--user <id>] [--out <file>]
+  morphkit check-snapshots --store <url> --app <id> [--manifest <file>] [--typecheck] [--root <dir>]
 
 doctor checks the morphkit setup of a Vite + React app and prints what to fix:
   config     the morphkit plugin in vite.config and its zones
@@ -74,6 +76,24 @@ async function main(argv: string[]): Promise<number> {
     const r = await exportData({ store, app, ...(user ? { user } : {}), ...(key ? { key } : {}), ...(out ? { out } : {}) })
     console.log(r.lines.join('\n'))
     if (r.ok) await event('export.run', { scope: user ? 'user' : 'app' })
+    return r.ok ? 0 : 1
+  }
+  if (command === 'check-snapshots') {
+    const arg = (name: string) => {
+      const i = rest.indexOf(name)
+      return i >= 0 ? rest[i + 1] : undefined
+    }
+    const store = arg('--store') ?? process.env.MORPHKIT_STORE_URL
+    const app = arg('--app') ?? process.env.MORPHKIT_APP_ID
+    const manifest = arg('--manifest') ?? 'dist/morphkit.manifest.json'
+    if (!store || !app) {
+      console.error('Usage: morphkit check-snapshots --store <url> --app <id> [--manifest dist/morphkit.manifest.json] [--typecheck] [--root <app dir>]')
+      return 1
+    }
+    const key = arg('--key') ?? process.env.MORPHKIT_APP_KEY
+    const root = arg('--root')
+    const r = await checkSnapshotsCommand({ store, app, manifest, ...(key ? { key } : {}), ...(root ? { root } : {}), typecheck: rest.includes('--typecheck') })
+    console.log(r.lines.join('\n'))
     return r.ok ? 0 : 1
   }
   if (command !== 'doctor') {

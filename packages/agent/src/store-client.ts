@@ -55,6 +55,11 @@ export class StoreClient {
     return this.call('POST', '/events', who, { events })
   }
 
+  /** Freeze or unfreeze one user (F6 flag at user scope); the app key is an admin of its app. */
+  setUserFlag(who: Pick<Identity, 'appId' | 'userId'>, key: string, value: unknown): Promise<unknown> {
+    return this.call('PUT', '/admin/flags', { appId: who.appId, userId: '' }, { scope: 'user', scopeId: who.userId, key, value }, { 'x-morphkit-admin': '1' })
+  }
+
   quota(appId: string, ops: QuotaOp[]): Promise<QuotaOutcome> {
     return this.call<QuotaOutcome>('POST', '/quota', { appId, userId: '' }, { ops })
   }

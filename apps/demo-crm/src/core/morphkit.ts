@@ -32,11 +32,11 @@ async function fetchToken(user: string, role: 'user' | 'admin') {
   return { ...((await res.json()) as { token: string; publicKey: string | null }), at: Date.now() }
 }
 
-/** A fresh user token (refreshed after 10 minutes; tokens live 15). */
-export async function tokenFor(user: string, role: 'user' | 'admin' = 'user'): Promise<string> {
+/** A fresh user token (refreshed after 10 minutes, or at once with `force` after a 401; tokens live 15). */
+export async function tokenFor(user: string, role: 'user' | 'admin' = 'user', force = false): Promise<string> {
   const key = `${role}:${user}`
   let hit = tokens.get(key)
-  if (!hit || Date.now() - (await hit.catch(() => ({ at: 0 }))).at > 600_000) tokens.set(key, (hit = fetchToken(user, role)))
+  if (force || !hit || Date.now() - (await hit.catch(() => ({ at: 0 }))).at > 600_000) tokens.set(key, (hit = fetchToken(user, role)))
   return (await hit).token
 }
 
@@ -56,6 +56,6 @@ const http = new Map<string, HttpStore>()
 export function storeFor(user: UserId): SnapshotStore {
   if (STORE_KIND === 'local') return local
   let s = http.get(user)
-  if (!s) http.set(user, (s = new HttpStore({ baseUrl: STORE_URL, userId: user, appId: APP_ID, ...(AUTH === 'token' ? { token: () => tokenFor(user) } : {}) })))
+  if (!s) http.set(user, (s = new HttpStore({ baseUrl: STORE_URL, userId: user, appId: APP_ID, ...(AUTH === 'token' ? { token: (o?: { refresh?: boolean }) => tokenFor(user, 'user', o?.refresh) } : {}) })))
   return s
 }
