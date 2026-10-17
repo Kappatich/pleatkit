@@ -48,7 +48,7 @@ export interface SnapshotStore {
   linkRequest?(requestId: string, patch: RequestLinkPatch): Promise<void>
 }
 
-export type RequestStatus = 'applied' | 'rejected' | 'pending-admin' | 'in-progress' | 'rolled-back' | 'failed'
+export type RequestStatus = 'proposed' | 'applied' | 'rejected' | 'pending-admin' | 'in-progress' | 'rolled-back' | 'failed'
 
 export interface RequestLinkPatch {
   snapshotId?: string

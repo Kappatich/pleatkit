@@ -1,0 +1,72 @@
+import { AnthropicProvider } from './providers/anthropic.js'
+import { OpenAICompatibleProvider } from './providers/openai.js'
+import { ScriptedProvider } from './providers/scripted.js'
+import type { AgentLimits } from './loop.js'
+import type { ModelProvider } from './types.js'
+
+export interface AgentConfig {
+  provider: ModelProvider
+  port: number
+  storeUrl: string | null
+  corsOrigin: string | null
+  limits: Partial<AgentLimits>
+}
+
+type Env = Record<string, string | undefined>
+
+const num = (v: string | undefined): number | undefined => (v && Number.isFinite(Number(v)) ? Number(v) : undefined)
+
+/**
+ * Configuration from environment variables only: keys never come from the browser or from files in the repo.
+ *
+ * MORPHKIT_PROVIDER    anthropic | openai-compatible | scripted (default: anthropic when MORPHKIT_API_KEY is set, else scripted)
+ * MORPHKIT_API_KEY     model API key (anthropic also accepts POLYMORPH_API_KEY / ANTHROPIC_API_KEY when MORPHKIT_PROVIDER=anthropic)
+ * MORPHKIT_MODEL       main model (default claude-sonnet-5-5)
+ * MORPHKIT_CLASSIFIER_MODEL  classifier (default claude-haiku-5-5)
+ * MORPHKIT_BASE_URL    API base URL (required for openai-compatible, e.g. https://openrouter.ai/api/v1)
+ * MORPHKIT_EFFORT      low | medium | high | xhigh | max (anthropic, default medium)
+ * MORPHKIT_FALLBACKS   off disables Anthropic server-side refusal fallback
+ * MORPHKIT_FIXTURES    directory of scripted fixtures (*.json)
+ * MORPHKIT_STORE_URL   @morphkit/store-server URL for the request log
+ * MORPHKIT_AGENT_PORT  default 8789
+ * MORPHKIT_MAX_CALLS, MORPHKIT_TIMEOUT_MS, MORPHKIT_MAX_OUTPUT_TOKENS  limits (12, 90000, 8000)
+ * MORPHKIT_CORS_ORIGIN allowed browser origin, if the app calls the agent cross-origin
+ */
+export function configFromEnv(env: Env = process.env): AgentConfig {
+  const explicit = env.MORPHKIT_PROVIDER
+  const kind = explicit ?? (env.MORPHKIT_API_KEY ? 'anthropic' : 'scripted')
+  let provider: ModelProvider
+  if (kind === 'anthropic') {
+    const apiKey = env.MORPHKIT_API_KEY ?? env.POLYMORPH_API_KEY ?? env.ANTHROPIC_API_KEY
+    if (!apiKey) throw new Error('MORPHKIT_PROVIDER=anthropic needs MORPHKIT_API_KEY (or ANTHROPIC_API_KEY)')
+    provider = new AnthropicProvider({
+      apiKey,
+      baseURL: env.MORPHKIT_BASE_URL,
+      model: env.MORPHKIT_MODEL,
+      classifierModel: env.MORPHKIT_CLASSIFIER_MODEL,
+      effort: (env.MORPHKIT_EFFORT as 'medium' | undefined) ?? 'medium',
+      fallbacks: env.MORPHKIT_FALLBACKS !== 'off',
+    })
+  } else if (kind === 'openai-compatible' || kind === 'openai' || kind === 'openrouter') {
+    const apiKey = env.MORPHKIT_API_KEY ?? env.OPENAI_API_KEY ?? env.OPENROUTER_API_KEY
+    if (!apiKey) throw new Error('MORPHKIT_PROVIDER=openai-compatible needs MORPHKIT_API_KEY')
+    const baseURL = env.MORPHKIT_BASE_URL ?? (kind === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1')
+    if (!env.MORPHKIT_MODEL) throw new Error('MORPHKIT_PROVIDER=openai-compatible needs MORPHKIT_MODEL')
+    provider = new OpenAICompatibleProvider({ apiKey, baseURL, model: env.MORPHKIT_MODEL, classifierModel: env.MORPHKIT_CLASSIFIER_MODEL })
+  } else if (kind === 'scripted') {
+    provider = new ScriptedProvider(env.MORPHKIT_FIXTURES ?? 'fixtures')
+  } else {
+    throw new Error(`Unknown MORPHKIT_PROVIDER "${kind}"`)
+  }
+  return {
+    provider,
+    port: num(env.MORPHKIT_AGENT_PORT) ?? 8789,
+    storeUrl: env.MORPHKIT_STORE_URL || null,
+    corsOrigin: env.MORPHKIT_CORS_ORIGIN || null,
+    limits: {
+      ...(num(env.MORPHKIT_MAX_CALLS) ? { maxModelCalls: num(env.MORPHKIT_MAX_CALLS) } : {}),
+      ...(num(env.MORPHKIT_TIMEOUT_MS) ? { timeoutMs: num(env.MORPHKIT_TIMEOUT_MS) } : {}),
+      ...(num(env.MORPHKIT_MAX_OUTPUT_TOKENS) ? { maxOutputTokens: num(env.MORPHKIT_MAX_OUTPUT_TOKENS) } : {}),
+    },
+  }
+}
