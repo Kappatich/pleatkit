@@ -27,6 +27,7 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * MORPHKIT_EFFORT      low | medium | high | xhigh | max (anthropic, default medium)
  * MORPHKIT_FALLBACKS   off disables Anthropic server-side refusal fallback
  * MORPHKIT_FIXTURES    directory of scripted fixtures (*.json)
+ * MORPHKIT_SCRIPTED_DELAY_MS  pause before each scripted answer (recorded demos), default 0
  * MORPHKIT_STORE_URL   @morphkit/store-server URL for the request log
  * MORPHKIT_AGENT_PORT  default 8789
  * MORPHKIT_MAX_CALLS, MORPHKIT_TIMEOUT_MS, MORPHKIT_MAX_OUTPUT_TOKENS  limits (12, 90000, 8000 visible output tokens)
@@ -54,7 +55,7 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
     if (!env.MORPHKIT_MODEL) throw new Error('MORPHKIT_PROVIDER=openai-compatible needs MORPHKIT_MODEL')
     provider = new OpenAICompatibleProvider({ apiKey, baseURL, model: env.MORPHKIT_MODEL, classifierModel: env.MORPHKIT_CLASSIFIER_MODEL })
   } else if (kind === 'scripted') {
-    provider = new ScriptedProvider(env.MORPHKIT_FIXTURES ?? 'fixtures')
+    provider = new ScriptedProvider(env.MORPHKIT_FIXTURES ?? 'fixtures', { delayMs: num(env.MORPHKIT_SCRIPTED_DELAY_MS) ?? 0 })
   } else {
     throw new Error(`Unknown MORPHKIT_PROVIDER "${kind}"`)
   }

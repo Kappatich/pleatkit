@@ -56,7 +56,14 @@ export class ScriptedProvider implements ModelProvider {
   readonly model = 'scripted'
   private readonly fixtures: LoadedFixture[]
 
-  constructor(fixturesOrDir: string | LoadedFixture[]) {
+  /**
+   * @param pace extra delay before every scripted answer (classifier and each turn), so a recorded demo
+   *   shows the progress lines at a readable speed. 0 in tests.
+   */
+  constructor(
+    fixturesOrDir: string | LoadedFixture[],
+    private readonly pace: { delayMs?: number } = {},
+  ) {
     this.fixtures = typeof fixturesOrDir === 'string' ? loadFixtures(fixturesOrDir) : fixturesOrDir
   }
 
@@ -64,7 +71,8 @@ export class ScriptedProvider implements ModelProvider {
     return this.fixtures.find((f) => f.patterns.some((p) => p.test(request))) ?? null
   }
 
-  async classify(input: ClassifyInput): Promise<Classification> {
+  async classify(input: ClassifyInput, signal?: AbortSignal): Promise<Classification> {
+    if (this.pace.delayMs && signal) await delay(this.pace.delayMs, signal)
     const fx = this.find(input.request)
     return { label: fx?.classify?.label ?? 'ui', reason: fx?.classify?.reason ?? '', usage: emptyUsage(), model: 'scripted-classifier' }
   }
@@ -100,7 +108,8 @@ export class ScriptedProvider implements ModelProvider {
         })
         const turn = turns[i++]
         if (!turn) return { text: '', toolCalls: [], stop: 'end_turn', usage: emptyUsage(), model: this.model }
-        if (turn.delayMs) await delay(turn.delayMs, options.signal)
+        const wait = (turn.delayMs ?? 0) + (this.pace.delayMs ?? 0)
+        if (wait) await delay(wait, options.signal)
         expected = turn.calls.map((c) => c.expect)
         const toolCalls = turn.calls.map((c) => {
           const input = { ...(c.input ?? {}) }

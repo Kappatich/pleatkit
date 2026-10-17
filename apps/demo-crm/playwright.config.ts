@@ -10,6 +10,8 @@ const WEB_PORT = 4183
 const ports = { DATA_PORT, AGENT_PORT, STORE_PORT }
 // MORPHKIT_LIVE=1 runs the agent on the real Anthropic API (key from the environment) for live-anthropic.spec.ts.
 const LIVE = process.env.MORPHKIT_LIVE === '1'
+// MORPHKIT_VIDEO=1 records docs/demo.mp4 (demo-video.spec.ts): the scripted agent pauses before each answer.
+const VIDEO = process.env.MORPHKIT_VIDEO === '1'
 const liveKey = process.env.MORPHKIT_API_KEY ?? process.env.POLYMORPH_API_KEY ?? process.env.ANTHROPIC_API_KEY
 const agentEnv: Record<string, string> = LIVE
   ? {
@@ -21,13 +23,13 @@ const agentEnv: Record<string, string> = LIVE
           .map((k) => [k, process.env[k]!]),
       ),
     }
-  : { MORPHKIT_PROVIDER: 'scripted' }
+  : { MORPHKIT_PROVIDER: 'scripted', ...(VIDEO ? { MORPHKIT_SCRIPTED_DELAY_MS: '650' } : {}) }
 
 // Strictly headless: never open windows on the developer's screen. Runs against the production build,
 // with the scripted model provider (no network, no key) and an in-memory store-server.
 export default defineConfig({
   testDir: './e2e',
-  timeout: LIVE ? 180_000 : 60_000,
+  timeout: LIVE ? 180_000 : VIDEO ? 120_000 : 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
