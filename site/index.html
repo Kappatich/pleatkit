@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>morphkit: users change your UI by asking</title>
+<meta name="description" content="morphkit lets an AI agent inside your React app rewrite the panels you allow, in real code, with commit, undo and a personal version per user.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c3aed'/%3E%3Cpath d='M8 22V10l8 7 8-7v12' stroke='white' stroke-width='3' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f7fb;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #556070;
+    --line: #e3e7ef;
+    --accent: #6d28d9;
+    --accent-soft: #ede9fe;
+    --accent-text: #5b21b6;
+    --code-bg: #0f172a;
+    --code-text: #e2e8f0;
+    --good: #15803d;
+    --warn-bg: #fef3c7;
+    --warn-text: #92400e;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px rgba(15, 23, 42, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0f17;
+      --bg-soft: #111827;
+      --card: #131a26;
+      --text: #e6e9ef;
+      --muted: #9aa4b2;
+      --line: #243042;
+      --accent: #a78bfa;
+      --accent-soft: #2a2141;
+      --accent-text: #c4b5fd;
+      --code-bg: #070a10;
+      --code-text: #d7dce5;
+      --good: #4ade80;
+      --warn-bg: #3a2a0c;
+      --warn-text: #fcd34d;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--accent-text); }
+  code, pre { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: .86em; }
+  :not(pre) > code { background: var(--bg-soft); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  header.top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 58px; gap: 16px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
+  .logo svg { flex: none; }
+  nav.links { display: flex; gap: 22px; align-items: center; font-size: 15px; }
+  nav.links a { color: var(--muted); text-decoration: none; }
+  nav.links a:hover { color: var(--text); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--card); white-space: nowrap; }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn:hover { filter: brightness(1.08); }
+  nav.links .btn { color: var(--text); }
+  nav.links .btn.primary { color: var(--bg); padding: 7px 14px; }
+
+  .hero { padding: 72px 0 36px; text-align: center; }
+  .eyebrow { display: inline-block; font-size: 14px; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); padding: 4px 12px; border-radius: 999px; margin-bottom: 18px; }
+  h1 { font-size: clamp(34px, 5.6vw, 60px); line-height: 1.08; letter-spacing: -.02em; margin: 0 auto 18px; max-width: 900px; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .lead { font-size: clamp(17px, 2.1vw, 20px); color: var(--muted); max-width: 760px; margin: 0 auto 28px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  .contrast { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 44px auto 0; max-width: 900px; text-align: left; }
+  .contrast > div { border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; background: var(--card); }
+  .contrast h3 { margin: 0 0 6px; font-size: 16px; }
+  .contrast p { margin: 0; color: var(--muted); font-size: 15px; }
+  .contrast .them h3 { color: var(--muted); }
+  .contrast .us { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+
+  section { padding: 64px 0; }
+  section.soft { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  h2 { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -.01em; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 32px; max-width: 760px; }
+
+  .video { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: #000; }
+  .video video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 800; }
+  .note { font-size: 14px; color: var(--muted); margin-top: 10px; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .zone { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; margin-bottom: 10px; }
+  .z-dyn { background: var(--accent-soft); color: var(--accent-text); }
+  .z-ro { background: var(--warn-bg); color: var(--warn-text); }
+  .z-core { background: var(--bg-soft); color: var(--muted); border: 1px solid var(--line); }
+
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; counter-reset: flow; }
+  .flow > div { position: relative; padding: 16px 16px 16px 16px; border-radius: 12px; border: 1px dashed var(--line); background: var(--card); font-size: 15px; color: var(--muted); }
+  .flow strong { display: block; color: var(--text); margin-bottom: 4px; }
+
+  ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: step; display: grid; gap: 18px; }
+  ol.steps > li { counter-increment: step; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; }
+  ol.steps > li::before { content: counter(step); width: 34px; height: 34px; border-radius: 50%; background: var(--text); color: var(--bg); display: grid; place-items: center; font-weight: 700; }
+  ol.steps h3 { margin: 4px 0 6px; font-size: 17px; }
+  ol.steps p { margin: 0 0 8px; color: var(--muted); font-size: 15px; }
+  pre { margin: 0; background: var(--code-bg); color: var(--code-text); padding: 14px 16px; border-radius: 10px; overflow-x: auto; line-height: 1.5; }
+
+  .pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: stretch; }
+  .plan { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); }
+  .plan.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset, var(--shadow); }
+  .plan h3 { margin: 0; font-size: 20px; }
+  .price { font-size: 34px; font-weight: 800; margin: 10px 0 2px; letter-spacing: -.02em; }
+  .price small { font-size: 15px; font-weight: 500; color: var(--muted); }
+  .plan .for { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .plan ul { margin: 0 0 20px; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 15px; }
+  .plan li { padding-left: 24px; position: relative; }
+  .plan li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
+  .plan .btn { margin-top: auto; justify-content: center; }
+  .tag { font-size: 12px; font-weight: 600; color: var(--warn-text); background: var(--warn-bg); padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+
+  .faq { display: grid; gap: 10px; max-width: 860px; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0 18px; }
+  summary { cursor: pointer; padding: 15px 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 20px; line-height: 1; }
+  details[open] summary::after { content: "–"; }
+  details > div { padding: 0 0 16px; color: var(--muted); font-size: 15px; }
+  details > div p { margin: 0 0 10px; }
+
+  .numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 28px; }
+  .numbers div { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--card); }
+  .numbers b { display: block; font-size: 22px; }
+  .numbers span { font-size: 13px; color: var(--muted); }
+
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+  @media (max-width: 860px) {
+    nav.links a:not(.btn) { display: none; }
+    .contrast, .grid3, .pricing { grid-template-columns: minmax(0, 1fr); }
+    .flow, .numbers { grid-template-columns: 1fr 1fr; }
+    .hero { padding-top: 48px; }
+    section { padding: 48px 0; }
+  }
+  @media (max-width: 480px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 16px; }
+    .flow, .numbers { grid-template-columns: minmax(0, 1fr); }
+    ol.steps > li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#7c3aed"/><path d="M8 22V10l8 7 8-7v12" stroke="#fff" stroke-width="3" fill="none" stroke-linejoin="round"/></svg>
+      morphkit
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#demo">Demo</a>
+      <a href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a class="btn primary" href="https://github.com/Kappatich/morphkit">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <span class="eyebrow">Open source · MIT · React + Vite</span>
+    <h1>Your users change your UI by asking.<br><em>The agent writes real code</em>, inside a fence.</h1>
+    <p class="lead">morphkit puts an AI agent inside your web app. It rewrites only the panels you mark as dynamic, the change is compiled in the user's browser and swapped in without a reload, and every user keeps a personal version with commit, undo and an admin who sees every diff.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Kappatich/morphkit">Star on GitHub</a>
+      <a class="btn" href="#demo">Watch the 46-second demo</a>
+    </div>
+
+    <div class="contrast" role="list">
+      <div class="them" role="listitem">
+        <h3>Catalog-based generative UI (json-render, A2UI)</h3>
+        <p>The model fills a JSON spec from components you built in advance. Safe, but it can only rearrange what already exists: no generated code, so a request your catalog did not foresee cannot be met.</p>
+      </div>
+      <div class="us" role="listitem">
+        <h3>morphkit</h3>
+        <p>The agent writes actual React and Tailwind in a fenced zone of your code. Nothing applies until the whole zone compiles; every edit is a snapshot you can undo; it changes only the screen of the user who asked.</p>
+      </div>
+    </div>
+  </div>
+
+  <section id="demo">
+    <div class="wrap">
+      <h2>See it in 46 seconds</h2>
+      <p class="sub">Alice asks for more fields in her customer card, undoes it, asks again; a request that needs the server goes to the admin; the admin sees the diff; Bob's card is unchanged.</p>
+      <div class="video">
+        <video controls preload="none" playsinline poster="poster.jpg" width="1280" height="800">
+          <source src="demo.mp4" type="video/mp4">
+          <a href="demo.mp4">Download the demo (MP4, 1 MB)</a>
+        </video>
+      </div>
+      <p class="note">Recorded headless from the demo app with the <em>scripted</em> agent, which replays recorded model answers so the demo runs without a key. Compilation, commit, undo, storage and the dashboard are the real thing. A run on a live model is next.</p>
+    </div>
+  </section>
+
+  <section id="how" class="soft">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <p class="sub">You decide what the agent may touch, with globs in the Vite plugin. Everything else stays yours.</p>
+      <div class="grid3">
+        <div class="card">
+          <span class="zone z-dyn">dynamic</span>
+          <h3>The agent rewrites these</h3>
+          <p>Panels mounted as <code>&lt;Dynamic id="customer-card"&gt;</code>. Each user gets their own copy of this zone, compiled in their browser.</p>
+        </div>
+        <div class="card">
+          <span class="zone z-ro">readonly</span>
+          <h3>The agent reads these</h3>
+          <p>Your typed API client, formatters, UI kit. It imports them; writes are refused and logged as violations.</p>
+        </div>
+        <div class="card">
+          <span class="zone z-core">core</span>
+          <h3>The agent sees types only</h3>
+          <p>Everything else: routing, auth, data. The agent gets <code>.d.ts</code> declarations, never the source.</p>
+        </div>
+      </div>
+
+      <div class="flow">
+        <div><strong>1. Ask</strong>"Add phone and city to the customer card, overdue date in red." Or point at a panel.</div>
+        <div><strong>2. Draft and check</strong>The agent edits a draft and checks it with esbuild on your server. Broken code goes back to the agent, not to the user.</div>
+        <div><strong>3. Commit</strong>The browser compiles the zone again, swaps the modules without a reload. A panel that crashes is rolled back.</div>
+        <div><strong>4. Undo, history, admin</strong>Each edit is a full snapshot. Undo is the parent. The admin sees the request, the diff and the tool log.</div>
+      </div>
+
+      <div class="numbers">
+        <div><b>~0.2 s</b><span>request to re-render with the scripted agent, compilers warm (model time comes on top)</span></div>
+        <div><b>~25 ms</b><span>browser check of three panels with esbuild-wasm</span></div>
+        <div><b>3.8 MB</b><span>esbuild-wasm, gzip, loaded when the chat opens</span></div>
+        <div><b>0</b><span>model keys in the browser: the agent runs on your server</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Install in five steps</h2>
+      <p class="sub">Any Vite + React project. Full guide and options in the <a href="https://github.com/Kappatich/morphkit#readme">README</a>.</p>
+      <ol class="steps">
+        <li>
+          <div>
+            <h3>Install the packages</h3>
+<pre>pnpm add @morphkit/runtime @morphkit/ui
+pnpm add -D @morphkit/vite-plugin @morphkit/agent</pre>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Mark the zones in the Vite plugin</h3>
+<pre>morphkit({
+  zones: {
+    dynamic: ['src/dynamic/**'],                            // the agent rewrites these
+    readonly: ['src/readonly/**', 'src/components/ui/**'], // the agent reads these
+  },
+  externals: ['react', 'react/jsx-runtime', '@/components/ui/*', '@/lib/utils', '@/readonly/*'],
+  css: 'tailwind',
+})
+// and proxy the agent: server: { proxy: { '/agent': 'http://localhost:8789' } }</pre>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Move changeable panels into <code>src/dynamic/</code></h3>
+            <p>Each file default-exports a component; render it through <code>&lt;Dynamic&gt;</code> instead of importing it.</p>
+<pre>&lt;Dynamic id="customer-card" props={{ customer }} /&gt;</pre>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Wrap the app and add the chat</h3>
+<pre>&lt;MorphkitProvider config={config} store={new LocalStore()} userId={user.id}&gt;
+  &lt;App /&gt;
+  &lt;MorphkitChat agentUrl="/agent" /&gt;
+&lt;/MorphkitProvider&gt;</pre>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Run the agent server with your key</h3>
+<pre>MORPHKIT_API_KEY=&lt;your key&gt; npx morphkit-agent   # http://localhost:8789/agent</pre>
+            <p>Without a key it runs the scripted provider, so you can try the whole flow offline.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="pricing" class="soft">
+    <div class="wrap">
+      <h2>Pricing</h2>
+      <p class="sub">The library is free and self-hostable. You pay the model provider directly with your own key. Cloud adds hosted snapshot storage and the admin dashboard.</p>
+      <div class="pricing">
+        <div class="plan">
+          <h3>Free</h3>
+          <div class="price">$0</div>
+          <p class="for">Open source, MIT</p>
+          <ul>
+            <li>vite-plugin, runtime, chat UI, agent server</li>
+            <li>Local store in the browser (IndexedDB)</li>
+            <li>Bring your own model key</li>
+            <li>Self-host the store-server if you like</li>
+          </ul>
+          <a class="btn" href="https://github.com/Kappatich/morphkit">Get it on GitHub</a>
+        </div>
+        <div class="plan featured">
+          <h3>Cloud <span class="tag">coming soon</span></h3>
+          <div class="price">from $29 <small>/ month</small></div>
+          <p class="for">$29 up to 1,000 users with edits, $99 up to 10,000</p>
+          <ul>
+            <li>Hosted snapshot storage, versions follow users across devices</li>
+            <li>Admin dashboard: every request, diff, tool log, cost</li>
+            <li>One-click rollback per user, review mode for edits</li>
+            <li>Backend requests collected for your team</li>
+          </ul>
+          <a class="btn primary" href="https://github.com/Kappatich/morphkit">Watch the repo for launch</a>
+        </div>
+        <div class="plan">
+          <h3>B2B</h3>
+          <div class="price">Custom</div>
+          <p class="for">For teams shipping it in a product</p>
+          <ul>
+            <li>Integration into your app with your team</li>
+            <li>Zones, CSP and security review</li>
+            <li>Support and an SLA</li>
+          </ul>
+          <a class="btn" href="https://github.com/Kappatich/morphkit/issues">Open an issue to talk</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2>FAQ</h2>
+      <div class="faq">
+        <details>
+          <summary>Is it bring-your-own-key?</summary>
+          <div><p>Yes. The agent runs on your server (<code>@morphkit/agent</code>) and reads the key from its environment only. The browser never sees it. You pay your model provider directly; morphkit does not resell tokens.</p></div>
+        </details>
+        <details>
+          <summary>Which models does it use?</summary>
+          <div><p>By default Claude: Sonnet 5.5 writes the code with adaptive thinking, Haiku 5.5 classifies the request first so backend work goes to the admin without calling the big model. Any OpenAI-compatible API (OpenAI, OpenRouter) works through <code>MORPHKIT_PROVIDER=openai-compatible</code>. The harness is pluggable.</p></div>
+        </details>
+        <details>
+          <summary>What does an edit cost?</summary>
+          <div><p>We estimate a few cents per edit on Sonnet 5.5 with prompt caching, but we have not measured it on a live model yet; the script that measures it is in the repo (<code>pnpm agent:live</code>). The visible output is capped at 8k tokens per edit.</p></div>
+        </details>
+        <details>
+          <summary>Does it work with a strict Content Security Policy?</summary>
+          <div><p>Yes, without <code>'unsafe-inline'</code> for scripts: <code>script-src 'self' blob: 'wasm-unsafe-eval'; worker-src blob:; style-src 'self' 'unsafe-inline'</code>. Edits load as <code>blob:</code> modules, the compiler is WebAssembly. Sandboxed panels load their host script as a separate file, which needs <code>Access-Control-Allow-Origin: *</code>. The demo serves itself under exactly this policy in the test suite. A CSP without <code>blob:</code> is not supported yet.</p></div>
+        </details>
+        <details>
+          <summary>Is it safe to let a model write code in my app?</summary>
+          <div>
+            <p>The agent can only write files in the dynamic zone; writes elsewhere are refused and logged. Code must compile before it applies, twice: on the agent server and in the browser. A panel that crashes while rendering is rolled back automatically.</p>
+            <p>An edit runs in the browser of the user who asked and only changes their own version, so it can only affect that user. Panels can also run in a sandboxed iframe with an opaque origin, with no access to the page, cookies or storage. Admins see every request and diff, can roll any edit back, and can turn on review mode.</p>
+            <p>Not done yet: production authentication for the store-server (the demo trusts headers), and type checking of edits.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Which stacks are supported?</summary>
+          <div><p>React 19 with Vite 6 and Tailwind 4 (Tailwind is compiled in the browser for the classes an edit uses). Next.js and webpack are not supported yet.</p></div>
+        </details>
+        <details>
+          <summary>What happens to user edits when I ship a new release?</summary>
+          <div><p>Their snapshot is marked stale. The user can reset to the new version or ask the agent to carry their customizations over to it.</p></div>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>morphkit · MIT licensed library · <a href="https://github.com/Kappatich/morphkit">github.com/Kappatich/morphkit</a></span>
+    <span>Inspired by the "software that adapts to each user" idea; built in public.</span>
+  </div>
+</footer>
+</body>
+</html>
