@@ -58,6 +58,11 @@ export interface SnapshotStore {
    * produced. Implemented by HttpStore; local stores have no request log.
    */
   linkRequest?(requestId: string, patch: RequestLinkPatch): Promise<RequestLinkResult | null>
+  /**
+   * Optional (F6): flags for this user (app < org < user), e.g. the kill switch `morphkit.enabled` and
+   * `edits.enabled`. Implemented by HttpStore.
+   */
+  flags?(): Promise<Record<string, unknown>>
 }
 
 /**

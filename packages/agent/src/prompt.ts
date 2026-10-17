@@ -11,6 +11,12 @@ const files = (map: FileMap) =>
     .map((p) => fence(p, map[p]!))
     .join('\n\n')
 
+/**
+ * Version of the instructions and the classifier prompt (F4). Bump it whenever either changes: it is recorded
+ * with every request, so a regression can be traced to a prompt change.
+ */
+export const PROMPT_VERSION = '2026-10-18.4a'
+
 /** Stable instructions: identical for every request of the same app, so they cache well. */
 export function instructions(req: Pick<AgentRunRequest, 'context'>): string {
   const roots = req.context.dynamicRoots.join(', ')

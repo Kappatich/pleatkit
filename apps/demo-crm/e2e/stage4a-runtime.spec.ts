@@ -159,7 +159,7 @@ test('B6: StrictMode app, one registry and one stylesheet per app instance', asy
   expect(g.styles).toEqual([app])
 })
 
-test('B3: a panel error without edit frames is not rolled back; an edit that throws is', async ({ page }) => {
+test('B3: an edit that throws is recognised by its bundle frames and rolled back (the app-fault path is unit-tested)', async ({ page }) => {
   await openApp(page)
   // the edit itself throws: its frame is morphkit://…, so the boundary rolls it back (scenario 4 path)
   await editFile(page, DEALS, `export default function DealsTable() { throw new Error('edit broke it') }`)
