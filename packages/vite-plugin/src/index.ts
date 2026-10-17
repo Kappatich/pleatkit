@@ -156,6 +156,8 @@ export default function morphkit(options: MorphkitOptions): Plugin {
   return {
     name: 'morphkit',
     enforce: 'pre',
+    /** The options as given, for tools such as `morphkit doctor` that read the app's vite.config. */
+    api: { options },
 
     config(userConfig) {
       const appRoot = path.resolve(userConfig.root ?? process.cwd())

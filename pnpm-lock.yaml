@@ -128,6 +128,25 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
 
+  packages/cli:
+    dependencies:
+      '@morphkit/vite-plugin':
+        specifier: workspace:*
+        version: link:../vite-plugin
+      tinyglobby:
+        specifier: ^0.2.15
+        version: 0.2.17
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.5
+      vite:
+        specifier: ^6.4.1
+        version: 6.4.4(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
+
   packages/runtime:
     dependencies:
       esbuild-wasm:

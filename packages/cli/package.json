@@ -1,0 +1,40 @@
+{
+  "name": "@morphkit/cli",
+  "version": "0.1.0",
+  "description": "morphkit command line: `morphkit doctor` checks an app's morphkit setup and prints fixes",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "morphkit": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@morphkit/vite-plugin": "workspace:*",
+    "tinyglobby": "^0.2.15"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "vite": "^6.4.1",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
