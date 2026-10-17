@@ -3,8 +3,9 @@ import path from 'node:path'
 import { expect, test } from '@playwright/test'
 import { CARD, DOCS, editFile, fixture, openApp, readMetrics } from './helpers'
 
+// compile: 'browser' (esbuild-wasm in the page); the default server mode is measured in stage4a-runtime.spec.ts
 test('metrics: esbuild-wasm size, init time (cold and from Cache API), check time for 3 files', async ({ page }) => {
-  await openApp(page)
+  await openApp(page, 'alice', 'Globex', '&compile=browser')
 
   // The first check initializes esbuild-wasm: fetch, WebAssembly.compile, start the worker
   let started = Date.now()
@@ -34,7 +35,7 @@ test('metrics: esbuild-wasm size, init time (cold and from Cache API), check tim
   await expect(page.getByTestId('mk-head')).toContainText('(base)')
 
   // Reload: esbuild.wasm now comes from the Cache API
-  await openApp(page)
+  await openApp(page, 'alice', 'Globex', '&compile=browser')
   await page.getByTestId('mk-check').click()
   await expect(page.getByTestId('mk-result')).toHaveAttribute('data-ok', 'true')
   const cached = await readMetrics(page)

@@ -1,35 +1,77 @@
 import { EXTERNALS_GLOBAL } from './constants.js'
-import type { CompiledBundle, ModuleNamespace } from './types.js'
+import type { CompiledBundle, ExternalEntry, ModuleNamespace } from './types.js'
+
+/** One app instance's host modules, as compiled bundles see them (V1 B6). */
+interface AppRegistry {
+  require(name: string): unknown
+  /** Resolve lazy externals before a bundle that needs them runs. */
+  ensure(names?: string[]): Promise<void>
+}
 
 interface MorphkitGlobal {
-  externals: Record<string, ModuleNamespace>
-  require(name: string): unknown
+  apps: Record<string, AppRegistry>
 }
 
 declare global {
   var __morphkit: MorphkitGlobal | undefined
 }
 
-/** Expose host modules to compiled bundles as `globalThis.__morphkit.require(name)`. */
-export function installExternals(externals: Record<string, ModuleNamespace>): void {
-  const cache = new Map<string, unknown>()
-  const g: MorphkitGlobal = {
-    externals,
-    require(name) {
-      const hit = cache.get(name)
-      if (hit) return hit
-      const ns = externals[name]
-      if (!ns) throw new Error(`morphkit: module "${name}" is not provided by the host app (add it to externals)`)
-      // Marked as an ES module so esbuild's interop maps `import x from` to the real default export.
-      const mod = Object.assign(Object.create(null), ns, { __esModule: true })
-      cache.set(name, mod)
-      return mod
-    },
-  }
-  ;(globalThis as Record<string, unknown>)[EXTERNALS_GLOBAL] = g
+function globalRegistry(): MorphkitGlobal {
+  const g = globalThis as Record<string, unknown>
+  const current = g[EXTERNALS_GLOBAL] as Partial<MorphkitGlobal> | undefined
+  if (!current || typeof current !== 'object' || !current.apps) g[EXTERNALS_GLOBAL] = { ...(current ?? {}), apps: {} }
+  return g[EXTERNALS_GLOBAL] as MorphkitGlobal
 }
 
-/** Evaluate a compiled ESM bundle and return its `modules` export (path → namespace). */
+const isLazy = (e: ExternalEntry): e is () => Promise<ModuleNamespace> => typeof e === 'function'
+
+/**
+ * Expose host modules to compiled bundles as `globalThis.__morphkit.apps[namespace].require(name)`. Entries may
+ * be lazy (`() => import('lucide-react')`, V1 B6): they are resolved by `ensure()` right before a bundle that
+ * imports them runs, so a big library is loaded only when an edit uses it.
+ */
+export function installExternals(externals: Record<string, ExternalEntry>, namespace = 'default'): AppRegistry {
+  const resolved = new Map<string, unknown>()
+  const pending = new Map<string, Promise<void>>()
+  const wrap = (ns: ModuleNamespace) => Object.assign(Object.create(null), ns, { __esModule: true })
+  const registry: AppRegistry = {
+    require(name) {
+      const hit = resolved.get(name)
+      if (hit) return hit
+      const entry = externals[name]
+      if (!entry) throw new Error(`morphkit: module "${name}" is not provided by the host app (add it to externals)`)
+      if (isLazy(entry)) throw new Error(`morphkit: lazy module "${name}" was not loaded before the edit ran`)
+      // Marked as an ES module so esbuild's interop maps `import x from` to the real default export.
+      const mod = wrap(entry)
+      resolved.set(name, mod)
+      return mod
+    },
+    async ensure(names) {
+      const list = names ?? Object.keys(externals)
+      await Promise.all(
+        list.map((name) => {
+          const entry = externals[name]
+          if (!entry || !isLazy(entry) || resolved.has(name)) return undefined
+          let p = pending.get(name)
+          if (!p) {
+            p = entry().then((ns) => void resolved.set(name, wrap(ns)))
+            p.catch(() => pending.delete(name))
+            pending.set(name, p)
+          }
+          return p
+        }),
+      )
+    },
+  }
+  globalRegistry().apps[namespace] = registry
+  return registry
+}
+
+export function registryFor(namespace = 'default'): AppRegistry | null {
+  return globalRegistry().apps[namespace] ?? null
+}
+
+/** Evaluate a compiled ESM bundle from a `blob:` URL (browser compile mode) and return its `modules` export. */
 export async function importBundle(js: string): Promise<Record<string, ModuleNamespace>> {
   const url = URL.createObjectURL(new Blob([js], { type: 'text/javascript' }))
   try {
@@ -41,18 +83,45 @@ export async function importBundle(js: string): Promise<Record<string, ModuleNam
   }
 }
 
+/**
+ * Evaluate a server bundle from its same-origin URL (compile: 'server', V1 B1) with Subresource Integrity: a
+ * `<script type="module" integrity>` runs it only if its bytes match the signed digest, and the following
+ * `import()` of the same URL returns that already evaluated module from the module map, so what runs is
+ * exactly what was verified. Needs neither `blob:` nor WebAssembly in the CSP.
+ */
+export async function importUrl(url: string, integrity?: string): Promise<Record<string, ModuleNamespace>> {
+  const abs = new URL(url, typeof document !== 'undefined' ? document.baseURI : undefined).href
+  if (typeof document !== 'undefined' && integrity) {
+    await new Promise<void>((resolve, reject) => {
+      const el = document.createElement('script')
+      el.type = 'module'
+      el.src = abs
+      el.integrity = integrity
+      el.crossOrigin = 'anonymous'
+      el.setAttribute('data-morphkit-bundle', '')
+      el.onload = () => resolve()
+      el.onerror = () => reject(new Error(`morphkit: the bundle ${url} failed to load or did not match its signed digest`))
+      document.head.appendChild(el)
+    })
+  }
+  const mod = (await import(/* @vite-ignore */ abs)) as { modules?: Record<string, ModuleNamespace> }
+  if (!mod.modules) throw new Error('morphkit: compiled bundle has no `modules` export')
+  return mod.modules
+}
+
 const STYLE_ATTR = 'data-morphkit-css'
 
-export function applyCss(css: string): void {
+/** The runtime CSS of edits, one `<style>` per app instance (V1 B6). */
+export function applyCss(css: string, namespace = 'default'): void {
   if (typeof document === 'undefined') return
-  let el = document.querySelector<HTMLStyleElement>(`style[${STYLE_ATTR}]`)
+  let el = document.querySelector<HTMLStyleElement>(`style[${STYLE_ATTR}="${CSS.escape(namespace)}"]`)
   if (!css) {
     el?.remove()
     return
   }
   if (!el) {
     el = document.createElement('style')
-    el.setAttribute(STYLE_ATTR, '')
+    el.setAttribute(STYLE_ATTR, namespace)
     document.head.appendChild(el)
   }
   el.textContent = css
@@ -60,4 +129,4 @@ export function applyCss(css: string): void {
 
 export type BundleLoader = (bundle: CompiledBundle) => Promise<Record<string, ModuleNamespace>>
 
-export const defaultLoader: BundleLoader = (bundle) => importBundle(bundle.js)
+export const defaultLoader: BundleLoader = (bundle) => (bundle.url ? importUrl(bundle.url, bundle.integrity) : importBundle(bundle.js))

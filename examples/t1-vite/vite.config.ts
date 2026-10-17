@@ -23,6 +23,7 @@ export default defineConfig({
     // one React for the app and @morphkit/runtime (needed when morphkit is linked from a checkout)
     dedupe: ['react', 'react-dom'],
   },
-  server: { proxy: { '/agent': 'http://localhost:8789' } },
-  preview: { proxy: { '/agent': 'http://localhost:8789' } },
+  // the agent server, and the signed bundles of edits it compiles (compile: 'server', the default)
+  server: { proxy: { '/agent': 'http://localhost:8789', '/morphkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/morphkit\/b/, '/agent/v1/b') } } },
+  preview: { proxy: { '/agent': 'http://localhost:8789', '/morphkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/morphkit\/b/, '/agent/v1/b') } } },
 })

@@ -115,7 +115,7 @@ test('isolated panel works under a strict CSP: no inline script, host loaded wit
     if (r.url().includes('morphkit-isolated-host-')) hostRequests.push({ url: r.url(), origin: r.request().headers()['origin'] ?? null, cors: r.headers()['access-control-allow-origin'] ?? null })
   })
 
-  const doc = await page.goto(`/?user=alice&app=${appFor(page)}&isolated=1&dev=1&csp=strict`)
+  const doc = await page.goto(`/?user=alice&app=${appFor(page)}&isolated=1&dev=1&csp=strict&compile=browser`)
   expect(doc?.headers()['content-security-policy']).toContain("script-src 'self' blob: 'wasm-unsafe-eval'")
   const iframe = page.getByTestId('morphkit-isolated-dashboard-panels')
   const frame = page.frameLocator('[data-testid="morphkit-isolated-dashboard-panels"]')

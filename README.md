@@ -88,12 +88,13 @@ export default defineConfig({
       },
       // what dynamic code may import from your app (everything else is refused at check time)
       externals: ['react', 'react-dom', 'react/jsx-runtime', '@/components/ui/*', '@/lib/utils', '@/readonly/*'],
-      css: 'tailwind',            // compile Tailwind 4 utilities for edits in the browser ('palette' = no runtime CSS)
+      css: 'tailwind',            // compile Tailwind 4 utilities for edits at runtime ('palette' = no runtime CSS)
       tailwindEntry: 'src/index.css',
       isolated: true,             // optional: enables <Dynamic isolated>
     }),
   ],
-  server: { proxy: { '/agent': 'http://localhost:8789' } },
+  // the agent, and the signed bundles of edits (compile: 'server', the default); with store-server point /morphkit/b at its /v1/b
+  server: { proxy: { '/agent': 'http://localhost:8789', '/morphkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/morphkit\/b/, '/agent/v1/b') } } },
 })
 ```
 
@@ -183,28 +184,76 @@ when the user pointed at a panel the classifier is skipped);
 append-only history (thinking blocks are passed back unchanged). `finish` re-runs the check and refuses while the
 code does not compile, so the model gets the errors and fixes them.
 
-## Content Security Policy
+## Compile modes and Content Security Policy
 
-Edits are compiled in the browser by esbuild-wasm and loaded as modules from `blob:` URLs. A strict CSP needs:
+Edits are compiled in one of two places (`morphkit({ compile })`, V1 B1):
+
+- **`server` (default).** The agent server compiles the snapshot with native esbuild (and the app's Tailwind
+  input), checks it with the same static rules as the agent's `check`, signs it with the app key and stores it.
+  The browser loads it from the app's own origin, `/morphkit/b/<app>/<key>.js` (+ `.css`, `.json` with the
+  signature), with a `<script type="module" integrity="sha384-…">` and `import()` of the same URL, so what runs is
+  exactly what was signed. Route `/morphkit/b` of the app to store-server's `/v1/b` (or the agent's `/agent/v1/b`
+  when there is no store-server). After a chat edit the agent already compiled the result, so the commit is a
+  download: send → repaint **69 ms median** with the scripted agent on localhost (browser compile: 81 ms).
+- **`browser`.** esbuild-wasm (14 MB, 3.8 MB gzip) and the Tailwind compiler run in the page; edits load from
+  `blob:` URLs. Useful in development and with `LocalStore` without an agent server. If WebAssembly cannot load
+  (CSP, a proxy that blocks `.wasm`, iOS memory), the runtime switches to `server` by itself.
+
+With a public key in the build (`MORPHKIT_PUBLIC_KEY`, or `morphkit({ publicKey })`; `npx morphkit keys public`
+prints it) the runtime runs only bundles signed by the app key (ed25519, V1 A3): a bundle changed in storage, on a
+CDN or on the wire is refused and the user sees the original version. A public key always means `server` mode.
+
+CSP for `server` mode (checked in e2e with `?csp=strict-no-blob`: no `blob:`, no WebAssembly, no workers):
+
+```
+script-src 'self';                  # signed edits load from /morphkit/b on the app's origin
+style-src 'self' 'unsafe-inline';   # runtime CSS of edits is a <style> element
+connect-src 'self';                 # agent server and store-server behind the same origin (or list them)
+```
+
+CSP for `browser` mode (checked in e2e with `?csp=strict`):
 
 ```
 script-src 'self' blob: 'wasm-unsafe-eval';   # blob: modules of edits; WebAssembly for the compiler
 worker-src blob:;
-style-src 'self' 'unsafe-inline';             # runtime CSS for edits is injected as a <style> element
-connect-src 'self';                           # agent server and store-server behind the same origin (or list them)
+style-src 'self' 'unsafe-inline';
+connect-src 'self';
 ```
 
-`'wasm-unsafe-eval'` is required: without it Chrome refuses `WebAssembly.compile()` and every commit fails
-(checked in e2e: the demo serves its page under exactly this policy with `?csp=strict`). No `'unsafe-inline'` for
-scripts is needed anywhere.
+`'wasm-unsafe-eval'` is required in `browser` mode: without it Chrome refuses `WebAssembly.compile()`. No
+`'unsafe-inline'` for scripts is needed in either mode.
 
 The `isolated` mode renders a panel in an `<iframe sandbox="allow-scripts" srcdoc>`; the frame inherits the
 page's CSP. Its host script is a separate file (`assets/morphkit-isolated-host-<hash>.js`), loaded with
 `crossorigin="anonymous"` from the opaque-origin frame (`Origin: null`), so **serve that one file with
 `Access-Control-Allow-Origin: *`** (Vite dev and `vite preview` do it for you; on a CDN or nginx add the header for
-`/assets/morphkit-isolated-host-*`). If the host never starts, the panel shows an error after 15 s.
-A CSP without `blob:` in `script-src` is not supported in this version (a Service Worker that serves modules from
-your own origin would lift that; it is not built).
+`/assets/morphkit-isolated-host-*`). Server bundles are loaded inside the frame by URL too; store-server and the
+agent serve `/v1/b/` with `Access-Control-Allow-Origin: *` (public, immutable, content-addressed files). If the
+host never starts, the panel shows an error after 15 s.
+
+## Runtime reliability
+
+- **Safe mode (V1 B2).** Before a user's version goes live the runtime writes a boot record (localStorage); once
+  the page has stayed responsive for a second after the swap it is marked mounted. If the previous load of that
+  version never got there (a render or effect that loops forever, a crash) and the tab was not simply closed in
+  the first 5 s, the next start shows the original version with a banner ("Try my version again" / "Reset to
+  the original"). `?morphkit=safe` forces it.
+- **Error boundary (V1 B3).** A panel error rolls the edit back only when the stack has frames of the edit's
+  bundle (`morphkit://…`, `/morphkit/b/…` or `blob:`); an error thrown by the app's own code (bad data, a host
+  hook) shows "not caused by your edit" with "Try again" instead.
+- **State on swap (V1 B4).** Text in inputs and textareas (with focus and selection) and scroll positions inside
+  a panel survive a new version of it (matched by `data-testid`, `name` or `id`, else by position).
+- **Releases (V1 B5).** Snapshots record a hash per base file. After a release, edits to files the release did not
+  change are carried over by themselves (a new snapshot; undo returns to the old one); only panels both sides
+  changed are marked stale (`data-morphkit-stale`), and the banner offers reset or "ask the agent".
+- **Instances (V1 B6).** Each app instance (namespace = `appId`) has its own externals registry
+  (`globalThis.__morphkit.apps[appId]`) and stylesheet. Externals are registered lazily (`() => import()`), so a
+  library only edits use loads when such an edit runs. One esbuild version (0.28.2) in the browser, the agent and
+  the plugin; peers React 18–19, Vite 6–8 (React 18 checked by `apps/react18-smoke`); the demo runs under
+  `StrictMode`.
+- **Error reporting (V1 B7).** Every bundle ends with `//# sourceURL=morphkit://<bundle>/bundle.js`;
+  `engine.tags()` / `useMorphkitTags()` give `morphkit.snapshotId`, `morphkit.bundle`, `morphkit.app`, e.g.
+  `Sentry.setTags(useMorphkitTags())`.
 
 ## Security model and limits of the demo
 
@@ -234,8 +283,8 @@ your own origin would lift that; it is not built).
   gets one fixed sentence and no model is called. Requests that are not about the app at all (poems, general
   questions) are refused by the classifier with one cheap reply.
 - **AI disclaimer (V1 A5).** The chat drawer always shows "AI answers can be inaccurate. Check the result."
-- No server-side type checking (esbuild only strips types), no merging of user edits into a new release (the
-  snapshot is marked stale; the user resets or asks the agent to carry the edits over).
+- No server-side type checking (esbuild only strips types). Edits that conflict with a release (both changed the
+  same file) are not merged automatically: the panel is marked stale; the user resets or asks the agent.
 
 ## Develop
 

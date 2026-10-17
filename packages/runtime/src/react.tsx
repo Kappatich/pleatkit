@@ -3,16 +3,20 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type ComponentType,
   type ErrorInfo,
   type ReactNode,
 } from 'react'
-import { MorphkitEngine, type CompilerLike, type EngineState } from './engine.js'
+import { MORPHKIT_FRAME } from './compiler.js'
+import { MorphkitEngine, type CompilerLike, type EngineOptions, type EngineState } from './engine.js'
 import { IsolatedFrame } from './isolated.js'
 import type { BundleLoader } from './loader.js'
-import type { MorphkitConfig, SnapshotStore } from './types.js'
+import { capturePanel, restorePanel, type PanelState } from './preserve.js'
+import type { CompileMode, MorphkitConfig, SnapshotStore } from './types.js'
 
 interface ContextValue {
   engine: MorphkitEngine
@@ -30,16 +34,63 @@ export interface MorphkitProviderProps {
   autoRollbackMs?: number
   compiler?: CompilerLike
   loader?: BundleLoader
+  /** App instance namespace (V1 B6). Default: the store's `appId`, else `default`. */
+  namespace?: string
+  /** Overrides the plugin's `compile` option (`server` by default). */
+  compile?: CompileMode
+  /** Agent server URL for server compiles. Default `/agent`. */
+  agentUrl?: string
+  /** Same-origin URL of signed bundles. Default `/morphkit/b`. */
+  bundleUrl?: string
+  /** Overrides the plugin's `publicKey` (only bundles signed by it run). */
+  publicKey?: string | null
+  /** User token for server compiles (production): the same token as for store-server. */
+  token?: EngineOptions['token']
+  /** Language of the safe-mode banner. Default `en`. */
+  locale?: 'en' | 'ru'
+  /** Show the safe-mode banner (V1 B2). Default true. */
+  safeModeBanner?: boolean
   children?: ReactNode
 }
 
-export function MorphkitProvider({ config, store, userId, autoRollbackMs = 10_000, compiler, loader, children }: MorphkitProviderProps) {
+export function MorphkitProvider({
+  config,
+  store,
+  userId,
+  autoRollbackMs = 10_000,
+  compiler,
+  loader,
+  namespace,
+  compile,
+  agentUrl,
+  bundleUrl,
+  publicKey,
+  token,
+  locale = 'en',
+  safeModeBanner = true,
+  children,
+}: MorphkitProviderProps) {
+  const make = () =>
+    new MorphkitEngine({
+      config,
+      store,
+      userId,
+      compiler,
+      loader,
+      ...(namespace ? { namespace } : {}),
+      ...(compile ? { compile } : {}),
+      ...(agentUrl ? { agentUrl } : {}),
+      ...(bundleUrl ? { bundleUrl } : {}),
+      ...(publicKey !== undefined ? { publicKey } : {}),
+      ...(token ? { token } : {}),
+    })
   // One engine per user; switching users swaps the whole engine.
-  const [engine, setEngine] = useState(() => new MorphkitEngine({ config, store, userId, compiler, loader }))
+  const [engine, setEngine] = useState(make)
   const current = engine.userId === userId ? engine : null
 
   useEffect(() => {
-    if (!current) setEngine(new MorphkitEngine({ config, store, userId, compiler, loader }))
+    if (!current) setEngine(make())
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the engine is rebuilt only when the user changes
   }, [current, config, store, userId, compiler, loader])
 
   useEffect(() => {
@@ -47,7 +98,12 @@ export function MorphkitProvider({ config, store, userId, autoRollbackMs = 10_00
   }, [engine])
 
   if (!current) return null
-  return <MorphkitContext.Provider value={{ engine: current, autoRollbackMs }}>{children}</MorphkitContext.Provider>
+  return (
+    <MorphkitContext.Provider value={{ engine: current, autoRollbackMs }}>
+      {safeModeBanner && <SafeModeBanner locale={locale} />}
+      {children}
+    </MorphkitContext.Provider>
+  )
 }
 
 function useCtx(): ContextValue {
@@ -64,6 +120,13 @@ export function useMorphkit(): MorphkitEngine {
 export function useMorphkitState(): EngineState {
   const engine = useMorphkit()
   return useSyncExternalStore(engine.subscribe, engine.getState, engine.getState)
+}
+
+/** `engine.tags()` that follow the live version (V1 B7), e.g. `useEffect(() => Sentry.setTags(tags), [tags])`. */
+export function useMorphkitTags(): Record<string, string> {
+  const engine = useMorphkit()
+  useMorphkitState() // re-render when the live version changes
+  return engine.tags()
 }
 
 export interface DynamicProps {
@@ -84,16 +147,34 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
   const { autoRollbackMs } = useCtx()
   const engine = useMorphkit()
   const state = useMorphkitState()
+  const container = useRef<HTMLDivElement>(null)
+  const saved = useRef<PanelState | null>(null)
 
   useEffect(() => engine.mount(id), [engine, id])
+
+  // V1 B4: what the user typed and where they scrolled survive the swap to a new version
+  useEffect(
+    () =>
+      engine.onBeforeSwap(() => {
+        saved.current = container.current ? capturePanel(container.current) : null
+      }),
+    [engine],
+  )
+  useLayoutEffect(() => {
+    const s = saved.current
+    if (!s || !container.current) return
+    saved.current = null
+    restorePanel(container.current, s)
+  }, [state.version])
 
   // Until the user's head is known, show the placeholder rather than flash the original version.
   if (state.status === 'loading') return <div data-morphkit-id={id} data-morphkit-loading="">{loading}</div>
 
-  const headId = state.head?.parentId ? state.head.id : null
+  const headId = state.head?.parentId && !state.usingFallback ? state.head.id : null
+  const stale = state.stalePanels.includes(id) ? '' : undefined
   if (isolated) {
     return (
-      <div data-morphkit-id={id} data-morphkit-isolated="" style={{ display: 'contents' }}>
+      <div data-morphkit-id={id} data-morphkit-isolated="" data-morphkit-stale={stale} style={{ display: 'contents' }}>
         <IsolatedFrame id={id} props={props ?? {}} headId={headId} autoRollbackMs={autoRollbackMs} />
       </div>
     )
@@ -101,7 +182,7 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
 
   const C = state.modules[id]?.default as ComponentType<Record<string, unknown>> | undefined
   return (
-    <div data-morphkit-id={id} style={{ display: 'contents' }}>
+    <div ref={container} data-morphkit-id={id} data-morphkit-stale={stale} style={{ display: 'contents' }}>
       <PanelBoundary key={state.version} id={id} headId={headId} autoRollbackMs={autoRollbackMs} engine={engine}>
         {C ? <C {...props} /> : <MissingComponent id={id} />}
       </PanelBoundary>
@@ -111,6 +192,16 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
 
 function MissingComponent({ id }: { id: string }): ReactNode {
   throw new Error(`Dynamic component "${id}" has no default export`)
+}
+
+/**
+ * V1 B3: was this error thrown by an edit's code? Only then may the boundary roll the edit back. Frames of an
+ * edit come from its bundle (`morphkit://…`, `/morphkit/b/…`, or a `blob:` module); an error with none of them
+ * (bad data from the API, a host hook) is not the edit's fault.
+ */
+export function isEditFault(error: unknown): boolean {
+  const stack = error instanceof Error ? (error.stack ?? '') : ''
+  return MORPHKIT_FRAME.test(stack) || /\bblob:/.test(stack)
 }
 
 export interface BoundaryProps {
@@ -136,7 +227,8 @@ class PanelBoundary extends Component<BoundaryProps, { error: Error | null }> {
   override render() {
     const { error } = this.state
     if (!error) return this.props.children
-    return <CrashBanner {...this.props} error={error} />
+    const fault = isEditFault(error)
+    return <CrashBanner {...this.props} headId={fault ? this.props.headId : null} error={error} fault={fault ? 'edit' : 'app'} onRetry={() => this.setState({ error: null })} />
   }
 }
 
@@ -150,7 +242,15 @@ const bannerStyle = {
 } as const
 const buttonStyle = { marginRight: 8, padding: '4px 10px', borderRadius: 6, border: '1px solid #b91c1c', background: '#fff', cursor: 'pointer' } as const
 
-export function CrashBanner({ id, headId, autoRollbackMs, engine, error }: Omit<BoundaryProps, 'children'> & { error: Error }) {
+export function CrashBanner({
+  id,
+  headId,
+  autoRollbackMs,
+  engine,
+  error,
+  fault = 'edit',
+  onRetry,
+}: Omit<BoundaryProps, 'children'> & { error: Error; fault?: 'edit' | 'app'; onRetry?: () => void }) {
   const [kept, setKept] = useState(false)
   const [left, setLeft] = useState(Math.ceil(autoRollbackMs / 1000))
 
@@ -165,8 +265,21 @@ export function CrashBanner({ id, headId, autoRollbackMs, engine, error }: Omit<
     }
   }, [headId, kept, autoRollbackMs, engine])
 
+  if (fault === 'app') {
+    return (
+      <div role="alert" data-testid="morphkit-crash" data-morphkit-crash={id} data-morphkit-fault="app" style={bannerStyle}>
+        <strong>The “{id}” panel hit an error that is not caused by your edit.</strong>
+        <div style={{ margin: '6px 0', fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{error.message}</div>
+        {onRetry && (
+          <button type="button" style={buttonStyle} onClick={onRetry}>
+            Try again
+          </button>
+        )}
+      </div>
+    )
+  }
   return (
-    <div role="alert" data-testid="morphkit-crash" data-morphkit-crash={id} style={bannerStyle}>
+    <div role="alert" data-testid="morphkit-crash" data-morphkit-crash={id} data-morphkit-fault="edit" style={bannerStyle}>
       <strong>The last edit broke the “{id}” panel.</strong>
       <div style={{ margin: '6px 0', fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{error.message}</div>
       {headId ? (
@@ -184,6 +297,45 @@ export function CrashBanner({ id, headId, autoRollbackMs, engine, error }: Omit<
       ) : (
         <div style={{ fontSize: 12 }}>This is the original version; nothing to roll back.</div>
       )}
+    </div>
+  )
+}
+
+const SAFE_TEXT = {
+  en: {
+    crash: 'Your customized version did not load last time, so the original version is shown.',
+    param: 'Safe mode: the original version is shown.',
+    retry: 'Try my version again',
+    reset: 'Reset to the original',
+  },
+  ru: {
+    crash: 'Ваша версия не загрузилась в прошлый раз, поэтому показана исходная.',
+    param: 'Безопасный режим: показана исходная версия.',
+    retry: 'Попробовать мою версию снова',
+    reset: 'Сбросить к исходной',
+  },
+}
+
+/** V1 B2: shown while the original version stands in for the user's own one. */
+export function SafeModeBanner({ locale = 'en' }: { locale?: 'en' | 'ru' }) {
+  const engine = useMorphkit()
+  const state = useMorphkitState()
+  if (!state.safeMode) return null
+  const t = SAFE_TEXT[locale] ?? SAFE_TEXT.en
+  return (
+    <div
+      role="status"
+      data-testid="morphkit-safe-mode"
+      data-reason={state.safeMode.reason}
+      style={{ ...bannerStyle, borderColor: '#fcd34d', background: '#fffbeb', color: '#78350f', borderRadius: 0, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}
+    >
+      <span>{t[state.safeMode.reason]}</span>
+      <button type="button" style={buttonStyle} data-testid="morphkit-safe-retry" onClick={() => void engine.leaveSafeMode()}>
+        {t.retry}
+      </button>
+      <button type="button" style={buttonStyle} data-testid="morphkit-safe-reset" onClick={() => void engine.reset()}>
+        {t.reset}
+      </button>
     </div>
   )
 }

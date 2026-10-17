@@ -58,7 +58,7 @@ If not:
 
 ## Step 3. Configure Vite
 
-Edit `vite.config.ts` so it has the morphkit plugin, the `@` alias, one React and the `/agent` proxy. A complete file for an app with Tailwind:
+Edit `vite.config.ts` so it has the morphkit plugin, the `@` alias, one React and two proxies: `/agent` (the agent server) and `/morphkit/b` (the signed bundles of edits it compiles; edits are compiled on the server by default, `compile: 'server'`). A complete file for an app with Tailwind:
 
 ```ts
 import { fileURLToPath } from 'node:url'
@@ -86,10 +86,12 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     dedupe: ['react', 'react-dom'], // required while morphkit is linked from a checkout
   },
-  server: { proxy: { '/agent': 'http://localhost:8789' } },
-  preview: { proxy: { '/agent': 'http://localhost:8789' } },
+  server: { proxy: { '/agent': 'http://localhost:8789', '/morphkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/morphkit\/b/, '/agent/v1/b') } } },
+  preview: { proxy: { '/agent': 'http://localhost:8789', '/morphkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/morphkit\/b/, '/agent/v1/b') } } },
 })
 ```
+
+With store-server (`HttpStore`), point `/morphkit/b` at store-server's `/v1/b` instead: it keeps the bundles across agent restarts. `compile: 'browser'` in the plugin options compiles in the page with esbuild-wasm instead (no `/morphkit/b` proxy needed, but the CSP must allow `blob:` and `'wasm-unsafe-eval'`).
 
 Keep the app's existing plugins and options; add only what is missing. With Tailwind, `src/index.css` must start with `@import "tailwindcss";`. If the app has a UI kit the panels should use (for example `src/components/ui/*`), add it to `readonly` and to `externals` (`'@/components/ui/*'`).
 
@@ -174,7 +176,7 @@ Run:
 pnpm build
 ```
 
-Expect: the build ends with `✓ built in …`, the list includes `dist/morphkit.manifest.json` and `dist/assets/esbuild-….wasm`.
+Expect: the build ends with `✓ built in …`, the list includes `dist/morphkit.manifest.json` (and `dist/assets/esbuild-….wasm`, used only with `compile: 'browser'` or as a fallback).
 
 If not: see [troubleshooting.md](troubleshooting.md) ("Build fails").
 
@@ -190,6 +192,8 @@ Expect, without a key: `morphkit agent on http://localhost:8789/agent (provider 
 
 If not: `EADDRINUSE` means port 8789 is taken; set `MORPHKIT_AGENT_PORT` and change the two proxy targets in `vite.config.ts` to match.
 
-The key lives only in this process's environment. In production run the agent as its own Node service and route `/agent` of the app's origin to it.
+The key lives only in this process's environment. In production run the agent as its own Node service and route `/agent` (and `/morphkit/b`, or point it at store-server) of the app's origin to it.
+
+Production (`NODE_ENV=production`): the agent server and store-server refuse to start without `MORPHKIT_APP_ID`, `MORPHKIT_APP_KEY` (`mk_live_…`) and `MORPHKIT_JWT_SECRET`. `pnpm exec morphkit keys new` prints all three plus `MORPHKIT_PUBLIC_KEY`; put the first three in the servers' secret store, never in the repo or a `VITE_` variable. The app's backend mints a 15-minute user token per signed-in user (`mintUserToken` from `@morphkit/store-server/token`), and the app passes it to `HttpStore({ token })`, `<MorphkitChat token>` and `<MorphkitProvider token>`. Build the app with `MORPHKIT_PUBLIC_KEY` set (or `morphkit({ publicKey })`): the runtime then runs only bundles signed by the app key.
 
 Next: [verify.md](verify.md).

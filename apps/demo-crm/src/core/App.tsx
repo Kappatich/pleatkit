@@ -5,7 +5,7 @@ import { api, type Customer, type Deal } from '@/readonly/api'
 import { formatDate } from '@/readonly/format'
 import { cn } from '@/lib/utils'
 import { Admin } from './Admin'
-import { AGENT_URL, APP_ID, AUTH, morphkitConfig, storeFor, tokenFor, USERS, type UserId } from './morphkit'
+import { AGENT_URL, APP_ID, AUTH, BUNDLE_URL, COMPILE, demoPublicKey, morphkitConfig, storeFor, tokenFor, USERS, type UserId } from './morphkit'
 
 function readParams() {
   const params = new URLSearchParams(location.search)
@@ -39,6 +39,11 @@ export function App() {
 
 function Crm() {
   const [{ user, dev, isolated }, setParams] = useState(readParams)
+  // `?auth=token`: bundles must be signed by the app key; its public key comes from the demo's backend
+  const [publicKey, setPublicKey] = useState<string | null | undefined>(AUTH === 'token' ? undefined : null)
+  useEffect(() => {
+    if (publicKey === undefined) void demoPublicKey().then(setPublicKey, () => setPublicKey(null))
+  }, [publicKey])
 
   const switchUser = (next: UserId) => {
     const url = new URL(location.href)
@@ -47,8 +52,19 @@ function Crm() {
     setParams((p) => ({ ...p, user: next }))
   }
 
+  if (publicKey === undefined) return null
   return (
-    <MorphkitProvider config={morphkitConfig} store={storeFor(user)} userId={user}>
+    <MorphkitProvider
+      config={morphkitConfig}
+      store={storeFor(user)}
+      userId={user}
+      agentUrl={AGENT_URL}
+      bundleUrl={BUNDLE_URL}
+      locale={LOCALE}
+      {...(COMPILE ? { compile: COMPILE } : {})}
+      {...(publicKey ? { publicKey } : {})}
+      {...(AUTH === 'token' ? { token: () => tokenFor(user) } : {})}
+    >
       <RefreshOnFocus />
       {/* Leave room for the fixed dev panel so it does not cover the panels being edited. */}
       <div className="min-h-screen" style={dev ? { paddingRight: 580 } : undefined}>

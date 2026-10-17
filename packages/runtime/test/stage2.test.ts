@@ -147,11 +147,12 @@ describe('engine, Stage 2 additions', () => {
     expect(mine.baseHash).toBe(await v1.currentBaseHash())
     expect(v1.getState().stale).toBe(false)
 
-    // the app ships a new release: the deals table changed in the base snapshot
-    const newBase = { ...BASE, 'src/dynamic/deals-table.tsx': `export default function DealsTable() { return <i>v2</i> }` }
+    // the app ships a new release that changed the card too, which alice had customized: she decides
+    const newBase = { ...BASE, [CARD]: `export default function Card() { return <i>v2 card</i> }`, 'src/dynamic/deals-table.tsx': `export default function DealsTable() { return <i>v2</i> }` }
     const v2 = engineFor(store, { base: newBase })
     await v2.init()
     expect(v2.getState().stale).toBe(true)
+    expect(v2.getState().stalePanels).toEqual(['customer-card'])
     expect(v2.getState().head?.id).toBe(mine.id)
     const migration = await v2.migrationInput()
     expect(migration?.oldBase).toEqual(BASE)
@@ -171,7 +172,7 @@ describe('engine, Stage 2 additions', () => {
     v1.draft.start('mine')
     v1.draft.write(CARD, `export default function C() { return <b>mine</b> }`)
     await v1.draft.commit()
-    const v2 = engineFor(store, { base: { ...BASE, 'src/dynamic/deals-table.tsx': `export default () => null` } })
+    const v2 = engineFor(store, { base: { ...BASE, [CARD]: `export default () => 'v2 card'`, 'src/dynamic/deals-table.tsx': `export default () => null` } })
     await v2.init()
     expect(v2.getState().stale).toBe(true)
     v2.draft.start('migrated')
@@ -207,7 +208,7 @@ describe('migration draft', () => {
     v1.draft.start('mine')
     v1.draft.write(CARD, `export default function C() { return <b>mine</b> }`)
     const mine = await v1.draft.commit()
-    const newBase = { ...BASE, 'src/dynamic/deals-table.tsx': `export default function DealsTable() { return <i>v2</i> }` }
+    const newBase = { ...BASE, [CARD]: `export default function Card() { return <i>v2 card</i> }`, 'src/dynamic/deals-table.tsx': `export default function DealsTable() { return <i>v2</i> }` }
     const v2 = engineFor(store, { base: newBase })
     await v2.init()
     const draft = v2.draft.start('carry over', v2.originalFiles())

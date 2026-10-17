@@ -85,10 +85,15 @@ export function IsolatedFrame({ id, props, headId, autoRollbackMs }: Props) {
   useEffect(() => {
     const win = frame.current?.contentWindow
     if (!ready || !win) return
-    const msg: IsolatedRenderMessage = { type: 'morphkit:render', id, props, version: state.version }
+    const msg: IsolatedRenderMessage = { type: 'morphkit:render', id, props, version: state.version, namespace: engine.namespace }
     if (sentVersion.current !== state.version) {
       const bundle = engine.currentBundle()
       msg.js = bundle ? bundle.js : null
+      // server bundles are loaded by URL inside the frame too (CORS on the bundle URL; SRI as in the page)
+      if (bundle?.url) {
+        msg.url = new URL(bundle.url, document.baseURI).href
+        if (bundle.integrity) msg.integrity = bundle.integrity
+      }
       msg.css = bundle?.css ?? ''
       sentVersion.current = state.version
       setError(null)

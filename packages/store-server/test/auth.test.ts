@@ -106,6 +106,8 @@ describe('bundles: signed server bundles are public, browser bundles stay privat
     const res = await app.request(`http://store.test/v1/b/crm/${KEY}.js`)
     expect(res.headers.get('content-type')).toMatch(/text\/javascript/)
     expect(res.headers.get('cache-control')).toMatch(/immutable/)
+    // isolated panels load bundles from an opaque-origin iframe
+    expect(res.headers.get('access-control-allow-origin')).toBe('*')
     expect(await res.text()).toBe(js)
     const sig = (await (await app.request(`http://store.test/v1/b/crm/${KEY}.json`)).json()) as { sig: string }
     expect(sig.sig).toBeTruthy()

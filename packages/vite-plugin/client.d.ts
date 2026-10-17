@@ -15,12 +15,13 @@ declare module 'virtual:morphkit/manifest' {
     externals: string[]
     externalPatterns: string[]
     alias: Record<string, string>
+    css?: { mode: 'tailwind' | 'palette'; input?: string; hash: string }
   }
   export default manifest
 }
 
 declare module 'virtual:morphkit/externals' {
-  const externals: Record<string, Record<string, unknown>>
+  const externals: Record<string, Record<string, unknown> | (() => Promise<Record<string, unknown>>)>
   export default externals
 }
 
@@ -66,4 +67,8 @@ declare module 'virtual:morphkit' {
   export { default as wasmURL } from 'virtual:morphkit/wasm-url'
   export { default as css } from 'virtual:morphkit/css'
   export { default as isolated } from 'virtual:morphkit/isolated'
+  /** Where edits are compiled: `server` (default) or `browser`. */
+  export const compile: 'server' | 'browser'
+  /** Public key bundles must be signed with, or null. */
+  export const publicKey: string | null
 }

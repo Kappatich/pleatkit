@@ -19,7 +19,7 @@ test('per-user isolation: an edit by alice is not visible for bob, and survives 
   await page.getByRole('button', { name: /Globex/ }).click()
   await expect(card.getByTestId('phone')).toHaveText('+1 555 0102')
 
-  // a fresh page load restores alice's version from the bundle cache without starting esbuild
+  // a fresh page load restores alice's version from its signed server bundle; esbuild is never started
   await openApp(page, 'alice')
   await expect(card.getByTestId('phone')).toHaveText('+1 555 0102')
   expect((await readMetrics(page)).initMs).toBeNull()

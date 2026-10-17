@@ -60,8 +60,12 @@ describe('morphkit doctor', () => {
       'worker-src needs blob:',
     ])
     expect(cspProblems("script-src 'self' blob: 'wasm-unsafe-eval'; worker-src blob:")).toEqual([])
+    // compile: 'server' (the default) needs neither blob: nor WebAssembly
+    expect(cspProblems("default-src 'self'", 'server')).toEqual([])
+    expect(cspProblems("script-src https://cdn.test", 'server')).toHaveLength(1)
     const strict = project({ 'index.html': `<meta http-equiv="Content-Security-Policy" content="script-src 'self'; worker-src 'self'">` })
-    expect(checkCsp(strict, false)).toMatchObject({ status: 'fail' })
+    expect(checkCsp(strict, false, 'browser')).toMatchObject({ status: 'fail' })
+    expect(checkCsp(strict, false)).toMatchObject({ status: 'ok' })
     expect(checkCsp(project({ 'index.html': '<html></html>' }), true)).toMatchObject({ status: 'ok' })
   })
 
