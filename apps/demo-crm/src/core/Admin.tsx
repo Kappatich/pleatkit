@@ -1,12 +1,10 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { diffLines } from 'diff'
 import type { Locale, Moderation, Snapshot, ToolLogEntry, UsageByModel } from '@morphkit/runtime'
-import { translator, type Translate, type UiKey } from '@morphkit/ui'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import type { UiKey } from '@morphkit/ui'
+import { adminTranslator, type AdminTranslate } from './admin-i18n'
 import { AUTH, STORE_URL, tokenFor } from './morphkit'
+import './admin.css'
 
 interface RequestRow {
   id: string
@@ -62,30 +60,55 @@ function useAdminApi(appId: string) {
   )
 }
 
-const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%`)
 const cost = (u: UsageByModel[] | null) => (u ?? []).reduce((s, x) => s + (x.costUsd ?? 0), 0)
+/** The scripted provider costs nothing and is not a price: show a dash (brainstorm 14 §5.2). */
+const costLabel = (r: RequestRow) => (r.provider === 'scripted' || !r.usage?.length ? '—' : `$${cost(r.usage).toFixed(4)}`)
 
-const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'secondary' | 'destructive'> = {
-  applied: 'success',
-  proposed: 'secondary',
-  'pending-review': 'warning',
-  'pending-admin': 'warning',
-  'in-progress': 'warning',
-  'rolled-back': 'secondary',
-  rejected: 'destructive',
-  failed: 'destructive',
-  refused: 'secondary',
+/** One Outcome column instead of Verdict + Status (brainstorm 14 §5.2): the status says it, a mark classifies it. */
+const OUTCOME_MARK: Record<string, { mark: string; tone: 'ok' | 'pending' | 'bad' | 'quiet' }> = {
+  applied: { mark: '✓', tone: 'ok' },
+  'pending-review': { mark: '▸', tone: 'pending' },
+  'pending-admin': { mark: '▸', tone: 'pending' },
+  'in-progress': { mark: '▸', tone: 'quiet' },
+  proposed: { mark: '·', tone: 'quiet' },
+  clarifying: { mark: '?', tone: 'quiet' },
+  'rolled-back': { mark: '↶', tone: 'quiet' },
+  rejected: { mark: '×', tone: 'bad' },
+  failed: { mark: '×', tone: 'bad' },
+  refused: { mark: '–', tone: 'quiet' },
+}
+const outcomeOf = (status: string) => OUTCOME_MARK[status] ?? { mark: '·', tone: 'quiet' as const }
+
+/** Renders a "{n} label" string with the number wrapped (mono, tabular) and tagged for tests. */
+function counted(text: string, n: number, testId: string): ReactNode {
+  const [before, after] = text.split('{n}')
+  return (
+    <>
+      {before}
+      <b className="adm-num" data-testid={testId}>
+        {n}
+      </b>
+      {after}
+    </>
+  )
 }
 
-const label = (tr: Translate, prefix: 'status' | 'verdict', value: string) => tr(`${prefix}.${value}` as UiKey)
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg className={open ? 'adm-chev adm-chev-open' : 'adm-chev'} viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M6 3.5 10.5 8 6 12.5" />
+    </svg>
+  )
+}
 
-/** /admin: every agent request of the app, what happened to it, and the admin's levers. */
+/** /admin: every agent request of the app, what happened to it, and the admin's levers. Design v3 (docs/DESIGN.md). */
 export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale }) {
-  const tr = useMemo(() => translator(locale), [locale])
+  const tr = useMemo(() => adminTranslator(locale), [locale])
   const call = useAdminApi(appId)
   const [rows, setRows] = useState<RequestRow[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [open, setOpen] = useState<string | null>(null)
+  const [onlyReview, setOnlyReview] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -118,133 +141,159 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
   const langQuery = locale !== 'en' ? `lang=${locale}` : ''
   const query = [appQuery, langQuery].filter(Boolean).join('&')
 
+  const pendingReview = stats?.pendingReview ?? 0
+  const filtering = onlyReview && pendingReview > 0
+  const shown = filtering ? rows.filter((r) => r.status === 'pending-review') : rows
+  const reviewOn = stats?.moderation === 'review'
+  const total = stats?.total ?? 0
+  const needsBackend = Math.round((stats?.needsBackendRate ?? 0) * total)
+
   return (
-    <div className="min-h-screen mk-admin" lang={locale}>
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold">Acme CRM</span>
-            <span className="mk-admin-mark" aria-hidden="true" />
-            <span className="text-xs text-muted-foreground">
-              {tr('admin.title')} · {appId}
-            </span>
-          </div>
-          <a className="text-sm text-muted-foreground hover:underline" href={`/${query ? `?${query}` : ''}`}>
+    <div className="adm" lang={locale}>
+      <header className="adm-top">
+        <div className="adm-brand">
+          <span className="adm-app">Acme CRM</span>
+          <span className="adm-dot" aria-hidden="true" />
+          <span className="adm-sub">
+            {tr('admin.title')} · <span className="adm-mono">{appId}</span>
+          </span>
+        </div>
+        <div className="adm-settings" data-testid="admin-moderation" aria-label={tr('adm.settings')}>
+          <span className="adm-settings-label">{tr('adm.settings')}</span>
+          <label className="adm-check" title={tr('admin.moderation.hint')}>
+            <input
+              type="checkbox"
+              data-testid="admin-moderation-toggle"
+              checked={reviewOn}
+              disabled={!stats}
+              onChange={(e) => void setModeration(e.target.checked ? 'review' : 'off')}
+            />
+            <span>{tr('admin.moderation')}</span>
+          </label>
+          <a className="adm-back" href={`/${query ? `?${query}` : ''}`}>
             {tr('admin.back')}
           </a>
         </div>
       </header>
-      <main className="mx-auto grid max-w-6xl gap-6 px-6 py-6" data-testid="admin">
-        <div className="grid gap-4 sm:grid-cols-5" data-testid="admin-stats">
-          <Stat label={tr('admin.stat.edits')} value={String(stats?.editsThisWeek ?? '—')} testId="stat-edits" />
-          <Stat label={tr('admin.stat.total')} value={String(stats?.total ?? '—')} testId="stat-total" />
-          <Stat label={tr('admin.stat.success')} value={pct(stats?.successRate ?? null)} testId="stat-success" />
-          <Stat label={tr('admin.stat.backend')} value={pct(stats?.needsBackendRate ?? null)} testId="stat-backend" />
-          <Stat label={tr('admin.stat.review')} value={String(stats?.pendingReview ?? '—')} testId="stat-review" />
+
+      <main className="adm-main" data-testid="admin">
+        <h1 className="adm-h1">{tr('admin.requests')}</h1>
+
+        <div className="adm-stats" data-testid="admin-stats">
+          <p className="adm-week">
+            {tr('adm.week')} {counted(tr(total === 1 ? 'adm.week.requests.one' : 'adm.week.requests'), total, 'stat-total')}
+            <span className="adm-sep"> · </span>
+            {counted(tr('adm.week.applied'), stats?.editsThisWeek ?? 0, 'stat-edits')}
+            <span className="adm-sep"> · </span>
+            {counted(tr('adm.week.backend'), needsBackend, 'stat-backend')}
+          </p>
+          <div className="adm-chips">
+            {pendingReview > 0 && (
+              <button
+                type="button"
+                className="adm-chip adm-chip-red"
+                data-testid="admin-filter-review"
+                aria-pressed={filtering}
+                title={tr(filtering ? 'adm.filter.all.tip' : 'adm.filter.review.tip')}
+                onClick={() => setOnlyReview((v) => !v)}
+              >
+                {tr('adm.filter.review')}{' '}
+                <b className="adm-num" data-testid="stat-review">
+                  {pendingReview}
+                </b>
+                {filtering && <span aria-hidden="true"> ×</span>}
+              </button>
+            )}
+            <span className="adm-chip" data-testid="admin-review-chip" title={tr('adm.reviewChip.tip')}>
+              {tr('adm.reviewChip', { state: tr(reviewOn ? 'adm.on' : 'adm.off') })}
+            </span>
+          </div>
         </div>
-        <label className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm" data-testid="admin-moderation">
-          <input
-            type="checkbox"
-            className="mt-1"
-            data-testid="admin-moderation-toggle"
-            checked={stats?.moderation === 'review'}
-            disabled={!stats}
-            onChange={(e) => void setModeration(e.target.checked ? 'review' : 'off')}
-          />
-          <span>
-            <span className="font-medium">{tr('admin.moderation')}</span>
-            <span className="block text-xs text-muted-foreground">{tr('admin.moderation.hint')}</span>
-          </span>
-        </label>
-        {error && <p className="text-sm text-red-700">Store-server: {error}</p>}
-        <Card>
-          <CardHeader>
-            <CardTitle>{tr('admin.requests')}</CardTitle>
-            <CardDescription>{tr('admin.requests.hint')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <table className="w-full text-sm" data-testid="admin-requests">
-              <thead className="text-left text-xs text-muted-foreground">
-                <tr className="border-b border-border">
-                  <th className="py-2 pr-3 font-medium">{tr('admin.col.when')}</th>
-                  <th className="py-2 pr-3 font-medium">{tr('admin.col.user')}</th>
-                  <th className="py-2 pr-3 font-medium">{tr('admin.col.request')}</th>
-                  <th className="py-2 pr-3 font-medium">{tr('admin.col.verdict')}</th>
-                  <th className="py-2 pr-3 font-medium">{tr('admin.col.status')}</th>
-                  <th className="py-2 pr-3 text-right font-medium">{tr('admin.col.cost')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-6 text-center text-muted-foreground">
-                      {tr('admin.empty')}
+
+        {error && <p className="adm-error">Store-server: {error}</p>}
+
+        <table className="adm-table" data-testid="admin-requests">
+          <colgroup>
+            <col className="adm-c-time" />
+            <col className="adm-c-user" />
+            <col />
+            <col className="adm-c-outcome" />
+            <col className="adm-c-cost" />
+            <col className="adm-c-chev" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>{tr('adm.col.time')}</th>
+              <th>{tr('admin.col.user')}</th>
+              <th>{tr('admin.col.request')}</th>
+              <th>{tr('adm.col.outcome')}</th>
+              <th className="adm-r">{tr('admin.col.cost')}</th>
+              <th aria-hidden="true" />
+            </tr>
+          </thead>
+          <tbody>
+            {shown.length === 0 && (
+              <tr>
+                <td colSpan={6} className="adm-empty">
+                  {tr('admin.empty')}
+                </td>
+              </tr>
+            )}
+            {shown.map((r) => {
+              const o = outcomeOf(r.status)
+              const isOpen = open === r.id
+              const at = new Date(r.createdAt)
+              return (
+                <Fragment key={r.id}>
+                  <tr
+                    className={`adm-row adm-t-${o.tone}${isOpen ? ' adm-open' : ''}`}
+                    onClick={() => setOpen(isOpen ? null : r.id)}
+                    data-testid="admin-row"
+                    data-request-id={r.id}
+                    data-status={r.status}
+                    data-verdict={r.verdict}
+                  >
+                    <td className="adm-time">
+                      <span className="adm-hm">{at.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</span>
+                      <span className="adm-date">{at.toLocaleDateString(locale, { day: '2-digit', month: 'short' })}</span>
+                    </td>
+                    <td className="adm-user">{r.userId}</td>
+                    <td className="adm-req">
+                      <span className="adm-text">{r.text}</span>
+                      <span className="adm-summary">{r.summary}</span>
+                    </td>
+                    <td className="adm-outcome" data-testid="admin-status">
+                      <span className="adm-mark" aria-hidden="true">
+                        {o.mark}
+                      </span>
+                      <span className="adm-otext">{tr(`status.${r.status}` as UiKey)}</span>
+                      {r.isHead && <span className="adm-live">{tr('admin.live')}</span>}
+                    </td>
+                    <td className="adm-cost">{costLabel(r)}</td>
+                    <td className="adm-chevcell">
+                      <button type="button" className="adm-disclose" aria-expanded={isOpen} aria-label={tr('adm.open')}>
+                        <Chevron open={isOpen} />
+                      </button>
                     </td>
                   </tr>
-                )}
-                {rows.map((r) => (
-                  <Fragment key={r.id}>
-                    <tr
-                      className={cn(
-                        'cursor-pointer border-b border-border align-top hover:bg-muted',
-                        r.status === 'pending-review' && 'bg-amber-50',
-                        open === r.id && 'bg-muted',
-                      )}
-                      onClick={() => setOpen(open === r.id ? null : r.id)}
-                      data-testid="admin-row"
-                      data-request-id={r.id}
-                      data-status={r.status}
-                      data-verdict={r.verdict}
-                    >
-                      <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">
-                        {new Date(r.createdAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
+                  {isOpen && (
+                    <tr className="adm-detailrow">
+                      <td colSpan={6}>
+                        <RequestDetail id={r.id} call={call} tr={tr} onChanged={load} />
                       </td>
-                      <td className="py-2 pr-3">{r.userId}</td>
-                      <td className="py-2 pr-3">
-                        {r.text}
-                        <div className="text-xs text-muted-foreground">{r.summary}</div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        <Badge variant={r.verdict === 'ok' ? 'success' : r.verdict === 'needs-backend' ? 'warning' : r.verdict === 'clarify' ? 'secondary' : 'destructive'}>{label(tr, 'verdict', r.verdict)}</Badge>
-                      </td>
-                      <td className="py-2 pr-3" data-testid="admin-status">
-                        <Badge variant={STATUS_VARIANT[r.status] ?? 'secondary'}>{label(tr, 'status', r.status)}</Badge>
-                        {r.isHead && <span className="ml-1 text-xs text-muted-foreground">{tr('admin.live')}</span>}
-                      </td>
-                      <td className="py-2 pr-3 text-right tabular-nums">{r.provider === 'scripted' ? 'scripted' : `$${cost(r.usage).toFixed(4)}`}</td>
                     </tr>
-                    {open === r.id && (
-                      <tr>
-                        <td colSpan={6} className="border-b border-border bg-background p-4">
-                          <RequestDetail id={r.id} call={call} tr={tr} onChanged={load} />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
       </main>
     </div>
   )
 }
 
-function Stat({ label, value, testId }: { label: string; value: string; testId: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl" data-testid={testId}>
-          {value}
-        </CardTitle>
-      </CardHeader>
-    </Card>
-  )
-}
-
-function RequestDetail({ id, call, tr, onChanged }: { id: string; call: ReturnType<typeof useAdminApi>; tr: Translate; onChanged: () => Promise<void> }) {
+function RequestDetail({ id, call, tr, onChanged }: { id: string; call: ReturnType<typeof useAdminApi>; tr: AdminTranslate; onChanged: () => Promise<void> }) {
   const [d, setD] = useState<Detail | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -263,112 +312,187 @@ function RequestDetail({ id, call, tr, onChanged }: { id: string; call: ReturnTy
     }
   }
 
-  if (!d) return <p className="text-sm text-muted-foreground">{tr('admin.loading')}</p>
+  if (!d) return <p className="adm-loading">{tr('admin.loading')}</p>
   const r = d.request
   const after = d.snapshot?.files ?? r.files ?? {}
   const before = d.parent?.files ?? {}
   const changed = Object.keys({ ...before, ...after })
     .filter((p) => before[p] !== after[p] && (d.snapshot ? true : p in after))
     .sort()
+  const diffs = changed.map((p) => ({ path: p, hunks: fragments(before[p] ?? '', after[p] ?? '') }))
+  const lines = diffs.flatMap((f) => f.hunks).filter((h): h is DLine => !('gap' in h))
+  const added = lines.filter((l) => l.kind === '+').length
+  const removed = lines.filter((l) => l.kind === '-').length
 
   return (
-    <div className="grid gap-4" data-testid="admin-detail">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="adm-detail" data-testid="admin-detail">
+      {/* 1. summary */}
+      <section className="adm-d-sum">
+        {changed.length > 0 && (
+          <p className="adm-d-summary" data-testid="admin-change-summary">
+            {tr(changed.length === 1 ? 'adm.changed.one' : 'adm.changed', { n: changed.length })}
+            <span className="adm-sep"> · </span>
+            <span className="adm-plus">+{added}</span> <span className="adm-minus">−{removed}</span>
+          </p>
+        )}
+        {r.attachments && (r.attachments.images > 0 || r.attachments.targetDomChars > 0) && (
+          <p className="adm-d-note" data-testid="admin-attachments">
+            {tr('admin.attachments', { images: r.attachments.images, kb: Math.round(r.attachments.imageBytes / 1024), dom: r.attachments.targetDomChars })}
+          </p>
+        )}
+        {r.error && <p className="adm-d-error">{tr(r.verdict === 'failed' && !r.snapshotId ? 'admin.agentError' : 'admin.browserError', { error: r.error })}</p>}
+      </section>
+
+      {/* 2. diff of the changed fragments only */}
+      <section className="adm-d-diff">
+        <h4 className="adm-h4">
+          {tr('admin.changes')} {d.snapshot ? tr('admin.changes.vsParent') : tr('admin.changes.proposed')}
+        </h4>
+        {changed.length === 0 && <p className="adm-d-note">{tr('admin.changes.none')}</p>}
+        {diffs.map((f) => (
+          <FileDiff key={f.path} path={f.path} hunks={f.hunks} tr={tr} />
+        ))}
+      </section>
+
+      {/* 3. actions */}
+      <div className="adm-actions">
         {r.status === 'pending-review' && (
-          <Button size="sm" data-testid="admin-approve" onClick={() => void act('approve', tr('admin.done.approve'))}>
+          <button type="button" className="adm-btn adm-btn-main" data-testid="admin-approve" title={tr('adm.approve.tip')} onClick={() => void act('approve', tr('admin.done.approve'))}>
             {tr('admin.approve')}
-          </Button>
-        )}
-        {r.isHead && (
-          <Button size="sm" variant="outline" data-testid="admin-rollback" onClick={() => void act('rollback', tr('admin.done.rollback'))}>
-            {tr('admin.rollback', { user: r.userId })}
-          </Button>
-        )}
-        {r.status !== 'rejected' && r.status !== 'rolled-back' && (
-          <Button size="sm" variant="outline" data-testid="admin-reject" onClick={() => void act('reject', tr('admin.done.reject'))}>
-            {tr('admin.reject')}
-          </Button>
+          </button>
         )}
         {r.status === 'pending-admin' && (
-          <Button size="sm" data-testid="admin-approve" onClick={() => void act('approve', tr('admin.done.take'))}>
+          <button type="button" className="adm-btn adm-btn-main" data-testid="admin-approve" title={tr('adm.take.tip')} onClick={() => void act('approve', tr('admin.done.take'))}>
             {tr('admin.take')}
-          </Button>
+          </button>
+        )}
+        {r.isHead && (
+          <button type="button" className="adm-btn" data-testid="admin-rollback" title={tr('adm.undoFor.tip', { user: r.userId })} onClick={() => void act('rollback', tr('admin.done.rollback'))}>
+            {tr('adm.undoFor', { user: r.userId })}
+          </button>
+        )}
+        {r.status !== 'rejected' && r.status !== 'rolled-back' && (
+          <button type="button" className="adm-btn adm-btn-quiet" data-testid="admin-reject" title={tr('adm.reject.tip')} onClick={() => void act('reject', tr('admin.done.reject'))}>
+            {tr('admin.reject')}
+          </button>
         )}
         {msg && (
-          <span className="text-sm text-muted-foreground" data-testid="admin-msg">
+          <span className="adm-msg" data-testid="admin-msg">
             {msg}
           </span>
         )}
-        <span className="ml-auto text-xs text-muted-foreground">
-          {r.provider}/{r.model} · classified {r.classification ?? '—'} · {r.timings?.totalMs ?? '—'} ms
+      </div>
+
+      {/* 4. debug, the tool log and file contents, for whoever needs them */}
+      <details className="adm-tech">
+        <summary>{tr('adm.tech')}</summary>
+        <p className="adm-tech-meta">
+          {r.provider}/{r.model} · classified {r.classification ?? '—'} · {r.timings?.totalMs ?? '—'} ms · {tr('adm.toolCalls', { n: r.log.length })}
           {r.usage?.map((u) => ` · ${u.model}: ${u.inputTokens} in / ${u.outputTokens} out${u.thinkingTokens ? ` (${u.thinkingTokens} thinking)` : ''} / ${u.cacheReadTokens} cached`).join('')}
-        </span>
-      </div>
-      {r.attachments && (r.attachments.images > 0 || r.attachments.targetDomChars > 0) && (
-        <p className="text-sm text-muted-foreground" data-testid="admin-attachments">
-          {tr('admin.attachments', { images: r.attachments.images, kb: Math.round(r.attachments.imageBytes / 1024), dom: r.attachments.targetDomChars })}
         </p>
-      )}
-      {r.error && <p className="text-sm text-red-700">{tr(r.verdict === 'failed' && !r.snapshotId ? 'admin.agentError' : 'admin.browserError', { error: r.error })}</p>}
-
-      <div>
-        <h4 className="mb-2 text-sm font-semibold">
-          {tr('admin.changes')} {d.snapshot ? tr('admin.changes.vsParent') : tr('admin.changes.proposed')}
-        </h4>
-        {changed.length === 0 && <p className="text-sm text-muted-foreground">{tr('admin.changes.none')}</p>}
-        {changed.map((p) => (
-          <FileDiff key={p} path={p} before={before[p] ?? ''} after={after[p] ?? ''} />
-        ))}
-      </div>
-
-      <div>
-        <h4 className="mb-2 text-sm font-semibold">{tr('admin.log')}</h4>
-        <table className="w-full text-xs" data-testid="admin-log">
-          <thead className="text-left text-muted-foreground">
+        <h4 className="adm-h4">{tr('admin.log')}</h4>
+        <table className="adm-log" data-testid="admin-log">
+          <thead>
             <tr>
-              <th className="pr-2">#</th>
-              <th className="pr-2">{tr('admin.log.tool')}</th>
-              <th className="pr-2">{tr('admin.log.input')}</th>
-              <th className="pr-2">{tr('admin.log.result')}</th>
-              <th className="pr-2 text-right">ms</th>
+              <th>#</th>
+              <th>{tr('admin.log.tool')}</th>
+              <th>{tr('admin.log.input')}</th>
+              <th>{tr('admin.log.result')}</th>
+              <th className="adm-r">ms</th>
             </tr>
           </thead>
-          <tbody className="font-mono">
+          <tbody>
             {r.log.map((l, i) => (
-              <tr key={i} className={cn('border-t border-border align-top', !l.ok && 'text-red-700')} data-testid="admin-log-row" data-tool={l.tool} data-ok={l.ok}>
-                <td className="pr-2">{l.turn}</td>
-                <td className="pr-2">{l.tool}</td>
-                <td className="max-w-[260px] truncate pr-2">{JSON.stringify(l.input)}</td>
-                <td className="pr-2 whitespace-pre-wrap">
+              <tr key={i} className={l.ok ? undefined : 'adm-bad'} data-testid="admin-log-row" data-tool={l.tool} data-ok={l.ok}>
+                <td>{l.turn}</td>
+                <td>{l.tool}</td>
+                <td className="adm-log-in">{JSON.stringify(l.input)}</td>
+                <td className="adm-log-out">
                   {l.violation && <strong>violation: </strong>}
                   {l.result.length > 400 ? l.result.slice(0, 400) + '…' : l.result}
                 </td>
-                <td className="pr-2 text-right">{l.ms}</td>
+                <td className="adm-r">{l.ms}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+        {changed.some((p) => p in after) && (
+          <>
+            <h4 className="adm-h4">{tr('adm.files')}</h4>
+            {changed
+              .filter((p) => p in after)
+              .map((p) => (
+                <div key={p} className="adm-file">
+                  <div className="adm-path">{p}</div>
+                  <pre>{after[p]}</pre>
+                </div>
+              ))}
+          </>
+        )}
+      </details>
     </div>
   )
 }
 
-function FileDiff({ path, before, after }: { path: string; before: string; after: string }) {
-  const parts = diffLines(before, after)
+type DLine = { kind: '+' | '-' | ' '; text: string; n: number }
+type Hunk = DLine | { gap: number }
+
+/** The changed fragments of a file with `context` lines around each, and the rest folded into gaps. */
+function fragments(before: string, after: string, context = 2): Hunk[] {
+  const lines: DLine[] = []
+  let a = 1
+  let b = 1
+  for (const part of diffLines(before, after)) {
+    for (const text of part.value.replace(/\n$/, '').split('\n')) {
+      if (part.added) lines.push({ kind: '+', text, n: b++ })
+      else if (part.removed) lines.push({ kind: '-', text, n: a++ })
+      else {
+        lines.push({ kind: ' ', text, n: b++ })
+        a++
+      }
+    }
+  }
+  const keep = lines.map(() => false)
+  lines.forEach((l, i) => {
+    if (l.kind === ' ') return
+    for (let j = Math.max(0, i - context); j <= Math.min(lines.length - 1, i + context); j++) keep[j] = true
+  })
+  const out: Hunk[] = []
+  let run: DLine[] = []
+  const flush = () => {
+    if (run.length >= 3) out.push({ gap: run.length })
+    else out.push(...run)
+    run = []
+  }
+  lines.forEach((l, i) => {
+    if (keep[i]) {
+      flush()
+      out.push(l)
+    } else run.push(l)
+  })
+  flush()
+  return out
+}
+
+function FileDiff({ path, hunks, tr }: { path: string; hunks: Hunk[]; tr: AdminTranslate }) {
   return (
-    <div className="mb-3 overflow-hidden rounded-lg border border-border" data-testid="admin-diff" data-file={path}>
-      <div className="border-b border-border bg-muted px-3 py-1 font-mono text-xs">{path}</div>
-      <pre className="max-h-80 overflow-auto p-0 text-xs leading-5">
-        {parts.map((part, i) =>
-          part.value
-            .replace(/\n$/, '')
-            .split('\n')
-            .map((line, j) => (
-              <div key={`${i}-${j}`} className={cn('px-3', part.added && 'bg-green-50 text-green-800', part.removed && 'bg-red-50 text-red-800')}>
-                {part.added ? '+ ' : part.removed ? '- ' : '  '}
-                {line}
-              </div>
-            )),
+    <div className="adm-diff" data-testid="admin-diff" data-file={path}>
+      <div className="adm-path">{path}</div>
+      <pre>
+        {hunks.map((h, i) =>
+          'gap' in h ? (
+            <div key={i} className="adm-gap">
+              ⋯ {tr('adm.unchanged', { n: h.gap })}
+            </div>
+          ) : (
+            <div key={i} className={h.kind === '+' ? 'adm-add' : h.kind === '-' ? 'adm-del' : undefined}>
+              <span className="adm-ln" aria-hidden="true">
+                {h.n}
+              </span>
+              {h.kind === ' ' ? '  ' : `${h.kind} `}
+              {h.text}
+            </div>
+          ),
         )}
       </pre>
     </div>

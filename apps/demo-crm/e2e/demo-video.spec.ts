@@ -126,7 +126,7 @@ test('demo video (60 s): request, change, undo, backend request, admin, per-user
   // Beat 4: the admin sees every request, the diff and the tool log, and can roll back
   await page.goto(`/admin?app=${app}`)
   await expect(page.getByTestId('admin-row')).toHaveCount(3)
-  await caption(page, 'The admin sees every request', 'Verdict, status, cost; edits can be rolled back per user.')
+  await caption(page, 'The admin sees every request', 'Outcome and cost; an edit can be undone for one user.')
   await page.mouse.move(640, 300, { steps: 15 })
   await pause(page, 2600)
   const edit = page.locator('[data-testid="admin-row"][data-status="applied"]').first()

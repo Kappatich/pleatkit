@@ -27,6 +27,11 @@ test('moderation review: the edit applies at once, waits at the top of /admin, a
 
   await page.goto(adminUrl(page))
   await expect(page.getByTestId('stat-review')).toHaveText('1')
+  await expect(page.getByTestId('admin-review-chip')).toHaveText('Review: on')
+  // the "Awaiting review" chip filters the table to what waits on the admin
+  await expect(page.getByTestId('admin-row')).toHaveCount(2)
+  await page.getByTestId('admin-filter-review').click()
+  await expect(page.getByTestId('admin-row')).toHaveCount(1)
   const first = page.getByTestId('admin-row').first()
   await expect(first).toHaveAttribute('data-status', 'pending-review')
   await expect(first.getByTestId('admin-status')).toContainText('awaiting review')
@@ -34,7 +39,9 @@ test('moderation review: the edit applies at once, waits at the top of /admin, a
   await page.getByTestId('admin-approve').click()
   await expect(page.getByTestId('admin-msg')).toHaveText('Approved.')
   await expect(page.locator('[data-testid="admin-row"][data-status="applied"]')).toHaveCount(1)
-  await expect(page.getByTestId('stat-review')).toHaveText('0')
+  // nothing awaits review any more: the chip goes away and the table shows everything again
+  await expect(page.getByTestId('stat-review')).toHaveCount(0)
+  await expect(page.getByTestId('admin-row')).toHaveCount(2)
 
   // a second reviewed edit is rolled back for the user with one click
   await openCrm(page)
@@ -58,6 +65,7 @@ test('moderation off (default): edits are just applied', async ({ page }) => {
   await expect(turn).not.toHaveAttribute('data-review', /.*/)
   await page.goto(adminUrl(page))
   await expect(page.getByTestId('admin-moderation-toggle')).not.toBeChecked()
+  await expect(page.getByTestId('admin-review-chip')).toHaveText('Review: off')
   await expect(page.getByTestId('admin-row').first()).toHaveAttribute('data-status', 'applied')
 })
 
@@ -91,7 +99,7 @@ test('Russian interface: chat, progress lines and admin through the en/ru dictio
   await page.getByTestId('mk-chat-close').click()
   await page.getByRole('link', { name: 'Admin' }).click()
   await expect(page).toHaveURL(/\/admin\?.*lang=ru/)
-  await expect(page.getByTestId('admin')).toContainText('Правок за неделю')
+  await expect(page.getByTestId('admin')).toContainText('За неделю: запросов 1 · применено 1')
   await expect(page.getByTestId('admin-row').first().getByTestId('admin-status')).toContainText('применена')
 })
 
@@ -99,7 +107,7 @@ test('English is the default language', async ({ page }) => {
   await openCrm(page)
   await expect(page.getByTestId('mk-chat-open')).toHaveText('Customize')
   await page.goto(adminUrl(page))
-  await expect(page.getByTestId('admin')).toContainText('Edits this week')
+  await expect(page.getByTestId('admin')).toContainText('This week: 0 requests · 0 applied')
 })
 
 // The demo serves the page under the README's strict CSP with ?csp=strict (no 'unsafe-inline' for scripts).

@@ -1,0 +1,146 @@
+/*
+ * /admin is morphkit's own surface, design v3 "Swiss grid + timetable" (docs/DESIGN.md, DECISIONS 56, 61-62).
+ * The tokens repeat the names of the drawer's (packages/ui/src/styles.ts) but are defined here: the demo does not
+ * import the ui package's stylesheet. White paper, one red for what waits on the admin, rules instead of cards,
+ * zero radius, tabular figures; uppercase only for column labels.
+ */
+.adm {
+  padding: 0 32px;
+  --mk-paper: #ffffff; --mk-paper-2: #f4f4f2; --mk-ink: #111111; --mk-ink-2: #4a4a4a; --mk-ink-3: #8a8a8a;
+  --mk-rule: #d9d9d9; --mk-rule-2: #bdbdbd; --mk-red: #e30613; --mk-red-ink: #b8000f; --mk-red-wash: #fdeaec;
+  --mk-ok: #1a7f37; --mk-ok-wash: #edf6ef; --mk-bad: #b8000f;
+  --mk-sans: "Helvetica Neue", Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
+  --mk-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --mk-ease: cubic-bezier(.2, .7, .2, 1);
+  min-height: 100vh; background: var(--mk-paper); color: var(--mk-ink);
+  font: 14px/1.45 var(--mk-sans); -webkit-font-smoothing: antialiased;
+}
+.adm *, .adm *::before, .adm *::after { box-sizing: border-box; border-radius: 0; }
+.adm button { font-family: inherit; }
+.adm-mono { font-family: var(--mk-mono); font-size: 12px; }
+.adm-r { text-align: right; }
+@media (prefers-reduced-motion: reduce) { .adm *, .adm *::before, .adm *::after { animation: none !important; transition: none !important; } }
+
+/* top bar: brand left, settings and the way back right */
+.adm-top { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+  max-width: 1056px; margin: 0 auto; padding: 14px 0; border-bottom: 1px solid var(--mk-ink); }
+.adm-brand { display: flex; align-items: center; gap: 10px; }
+.adm-app { font: 700 16px/1 var(--mk-sans); letter-spacing: -.01em; }
+.adm-dot { width: 10px; height: 10px; background: var(--mk-red); }
+.adm-sub { font-size: 13px; color: var(--mk-ink-2); }
+.adm-settings { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+.adm-settings-label { color: var(--mk-ink-3); font-size: 12.5px; padding-right: 12px; border-right: 1px solid var(--mk-rule); }
+.adm-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--mk-ink); }
+.adm-check input { appearance: none; -webkit-appearance: none; margin: 0; width: 14px; height: 14px; border: 1px solid var(--mk-ink); background: var(--mk-paper); display: grid; place-items: center; cursor: pointer; }
+.adm-check input::after { content: ""; width: 8px; height: 8px; background: var(--mk-ink); transform: scale(0); transition: transform .12s var(--mk-ease); }
+.adm-check input:checked::after { transform: none; }
+.adm-check input:focus-visible { outline: 2px solid var(--mk-ink); outline-offset: 2px; }
+.adm-check input:disabled { border-color: var(--mk-rule-2); cursor: default; }
+.adm-back { color: var(--mk-ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--mk-rule-2); }
+.adm-back:hover { text-decoration-color: var(--mk-ink); }
+
+.adm-main { max-width: 1056px; margin: 0 auto; padding: 40px 0 64px; }
+.adm-h1 { margin: 0 0 20px; font: 700 44px/.95 var(--mk-sans); letter-spacing: -.03em; }
+
+/* one stats line between two rules (brainstorm 14 §5.1) */
+.adm-stats { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  border-top: 2px solid var(--mk-ink); border-bottom: 1px solid var(--mk-ink); padding: 10px 0; margin-bottom: 28px; }
+.adm-week { margin: 0; font-size: 15px; color: var(--mk-ink); }
+.adm-num { font: 700 14px var(--mk-mono); font-variant-numeric: tabular-nums; }
+.adm-sep { color: var(--mk-ink-3); }
+.adm-chips { display: flex; gap: 6px; align-items: center; }
+.adm-chip { font: 500 12.5px var(--mk-sans); border: 1px solid var(--mk-rule-2); background: transparent; color: var(--mk-ink-2); padding: 5px 10px; white-space: nowrap; }
+.adm-chip .adm-num { font-size: 12.5px; }
+button.adm-chip { cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
+.adm-chip-red { border-color: var(--mk-red); color: var(--mk-red-ink); }
+.adm-chip-red:hover, .adm-chip-red[aria-pressed="true"] { background: var(--mk-red); border-color: var(--mk-red); color: #fff; }
+.adm-error { margin: 0 0 20px; padding: 8px 12px; border-top: 3px solid var(--mk-red); background: var(--mk-paper); color: var(--mk-ink); font-size: 13px; }
+
+/* the requests as a railway timetable: time first, mono, tabular */
+.adm-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.adm-c-time { width: 92px; } .adm-c-user { width: 92px; } .adm-c-outcome { width: 196px; } .adm-c-cost { width: 92px; } .adm-c-chev { width: 40px; }
+.adm-table th { text-align: left; font: 500 11px/1 var(--mk-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mk-ink-3);
+  padding: 0 12px 9px 0; border-bottom: 2px solid var(--mk-ink); }
+.adm-table th.adm-r { text-align: right; }
+.adm-row { cursor: pointer; border-bottom: 1px solid var(--mk-rule); transition: background .12s; }
+.adm-row:hover { background: var(--mk-paper-2); }
+.adm-row td { padding: 12px 12px 12px 0; vertical-align: baseline; }
+.adm-row.adm-open { background: var(--mk-paper-2); border-bottom-color: transparent; }
+.adm-time { font-family: var(--mk-mono); font-variant-numeric: tabular-nums; white-space: nowrap; position: relative; }
+.adm-hm { display: block; font-size: 14px; font-weight: 700; }
+.adm-date { display: block; font-size: 11.5px; color: var(--mk-ink-3); margin-top: 2px; }
+.adm-user { font-size: 13.5px; color: var(--mk-ink); overflow-wrap: anywhere; }
+.adm-text { display: block; font-size: 14px; color: var(--mk-ink); }
+.adm-summary { display: block; margin-top: 3px; font-size: 13px; color: var(--mk-ink-2); max-width: 72ch; }
+.adm-outcome { font-size: 13.5px; color: var(--mk-ink); }
+.adm-mark { display: inline-block; width: 16px; font-weight: 700; color: var(--mk-ink-3); }
+.adm-live { margin-left: 8px; font: 500 11.5px var(--mk-mono); color: var(--mk-ink-3); }
+.adm-t-ok .adm-mark { color: var(--mk-ok); }
+.adm-t-bad .adm-mark, .adm-t-bad .adm-otext { color: var(--mk-bad); }
+.adm-t-quiet .adm-otext { color: var(--mk-ink-2); }
+/* what waits on the admin carries the one red: a square before the time, a red outcome, a red rule under the row */
+.adm-t-pending { border-bottom: 2px solid var(--mk-red); }
+.adm-t-pending .adm-time::before { content: ""; position: absolute; left: -16px; top: 18px; width: 8px; height: 8px; background: var(--mk-red); }
+.adm-t-pending .adm-mark, .adm-t-pending .adm-otext { color: var(--mk-red-ink); font-weight: 600; }
+.adm-cost { text-align: right; font: 500 13px var(--mk-mono); font-variant-numeric: tabular-nums; color: var(--mk-ink-2); white-space: nowrap; }
+.adm-chevcell { text-align: right; }
+.adm-row td.adm-chevcell { padding: 7px 0 0; vertical-align: top; }
+.adm-disclose { width: 28px; height: 28px; border: 1px solid transparent; background: transparent; color: var(--mk-ink); padding: 0; display: inline-grid; place-items: center; cursor: pointer; }
+.adm-disclose:hover, .adm-disclose:focus-visible { border-color: var(--mk-ink); outline: none; }
+.adm-chev { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .16s var(--mk-ease); }
+.adm-chev-open { transform: rotate(90deg); }
+.adm-empty { padding: 28px 0; color: var(--mk-ink-2); border-bottom: 1px solid var(--mk-rule); }
+
+/* the opened row: summary, diff of the changed fragments, actions; the rest behind "Technical details" */
+.adm-detailrow > td { padding: 4px 0 24px 92px; border-bottom: 1px solid var(--mk-ink); background: var(--mk-paper-2); }
+.adm-detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding-right: 40px; min-width: 0; animation: adm-fade .18s var(--mk-ease); }
+@keyframes adm-fade { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.adm-loading { margin: 0; color: var(--mk-ink-3); font-size: 13px; }
+.adm-d-sum { display: grid; gap: 6px; }
+.adm-d-summary { margin: 0; font: 500 13px var(--mk-mono); font-variant-numeric: tabular-nums; color: var(--mk-ink); }
+.adm-plus { color: var(--mk-ok); } .adm-minus { color: var(--mk-ink-3); }
+.adm-d-note { margin: 0; font-size: 13px; color: var(--mk-ink-2); }
+.adm-d-error { margin: 0; font-size: 13px; color: var(--mk-bad); }
+.adm-h4 { margin: 0 0 8px; font: 700 13px var(--mk-sans); color: var(--mk-ink); }
+.adm-diff, .adm-file { border-top: 1px solid var(--mk-ink); background: var(--mk-paper); margin-bottom: 12px; }
+.adm-path { font: 500 12px var(--mk-mono); padding: 6px 10px; border-bottom: 1px solid var(--mk-rule); color: var(--mk-ink); }
+.adm-diff pre, .adm-file pre { margin: 0; padding: 4px 0; max-height: 360px; overflow: auto; font: 12.5px/1.6 var(--mk-mono); color: var(--mk-ink); }
+.adm-diff pre > div { padding: 0 10px 0 0; white-space: pre; width: max-content; min-width: 100%; }
+.adm-ln { display: inline-block; width: 44px; padding-right: 10px; margin-right: 8px; text-align: right; color: var(--mk-ink-3); font-variant-numeric: tabular-nums; border-right: 1px solid var(--mk-rule); user-select: none; }
+.adm-add { background: var(--mk-ok-wash); }
+.adm-add .adm-ln { color: var(--mk-ok); }
+.adm-del { background: var(--mk-paper-2); color: var(--mk-ink-2); text-decoration: line-through; text-decoration-color: var(--mk-rule-2); }
+.adm-gap { padding: 2px 10px 2px 62px !important; color: var(--mk-ink-3); font-size: 11.5px; border-top: 1px dashed var(--mk-rule); border-bottom: 1px dashed var(--mk-rule); }
+.adm-file pre { padding: 8px 10px; white-space: pre; }
+
+.adm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.adm-btn { font: 500 13px var(--mk-sans); border: 1px solid var(--mk-ink); background: transparent; color: var(--mk-ink); padding: 7px 14px; cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
+.adm-btn:hover, .adm-btn:focus-visible { background: var(--mk-ink); color: var(--mk-paper); outline: none; }
+.adm-btn-main { background: var(--mk-red); border-color: var(--mk-red); color: #fff; }
+.adm-btn-main:hover, .adm-btn-main:focus-visible { background: var(--mk-red-ink); border-color: var(--mk-red-ink); color: #fff; }
+.adm-btn-quiet { border-color: var(--mk-rule-2); color: var(--mk-ink-2); }
+.adm-msg { font-size: 13px; color: var(--mk-ink-2); margin-left: 6px; }
+
+.adm-tech { border-top: 1px solid var(--mk-rule); padding-top: 10px; }
+.adm-tech summary { cursor: pointer; list-style: none; font: 500 12.5px var(--mk-sans); color: var(--mk-ink-3); width: max-content; }
+.adm-tech summary::-webkit-details-marker { display: none; }
+.adm-tech summary::after { content: " ›"; }
+.adm-tech[open] summary::after { content: " ⌄"; }
+.adm-tech summary:hover { color: var(--mk-ink); }
+.adm-tech[open] > *:not(summary) { animation: adm-fade .16s var(--mk-ease); }
+.adm-tech-meta { margin: 10px 0 16px; font: 12px/1.6 var(--mk-mono); color: var(--mk-ink-2); overflow-wrap: anywhere; }
+.adm-log { width: 100%; border-collapse: collapse; font: 12px/1.5 var(--mk-mono); margin-bottom: 16px; background: var(--mk-paper); }
+.adm-log th { text-align: left; font: 500 11px var(--mk-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mk-ink-3); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--mk-ink); }
+.adm-log td { padding: 5px 10px 5px 0; border-bottom: 1px solid var(--mk-rule); vertical-align: top; font-variant-numeric: tabular-nums; }
+.adm-log th:first-child, .adm-log td:first-child { padding-left: 10px; width: 36px; }
+.adm-log-in { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-log-out { white-space: pre-wrap; overflow-wrap: anywhere; }
+.adm-log tr.adm-bad td { color: var(--mk-bad); }
+
+@media (max-width: 760px) {
+  .adm { padding: 0 16px; }
+  .adm-h1 { font-size: 34px; }
+  .adm-c-user { width: 64px; } .adm-c-outcome { width: 120px; } .adm-c-cost { width: 64px; }
+  .adm-detailrow > td { padding-left: 0; }
+  .adm-detail { padding-right: 0; }
+}
