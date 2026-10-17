@@ -72,7 +72,7 @@ test('element picker: pointing at a panel mentions it in the request', async ({ 
   await expect(page.getByTestId('mk-pick-box')).toHaveAttribute('data-panel', 'customer-card')
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
   await expect(page.getByTestId('mk-pick-layer')).toHaveCount(0)
-  await expect(page.getByTestId('mk-chat-input')).toHaveValue(/^\[panel: customer-card\] /)
+  await expect(page.getByTestId('mk-chat-pick')).toContainText('customer-card')
   await page.getByTestId('mk-chat-input').pressSequentially('add phone, city and source')
   await page.getByTestId('mk-chat-send').click()
   await expect(page.getByTestId('mk-chat-turn').first()).toHaveAttribute('data-status', 'applied')

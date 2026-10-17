@@ -19,8 +19,7 @@ test('F6: the kill switch hides the chat and shows everyone the original; edits.
   await openCrm(page)
   await expect(card.getByTestId('phone')).toBeVisible()
   await openChat(page)
-  await expect(page.getByTestId('mk-chat-input')).toBeDisabled()
-  await expect(page.getByTestId('mk-chat-input')).toHaveAttribute('placeholder', /switched off/)
+  await expect(page.getByTestId('mk-chat-paused')).toContainText(/paused/)
 
   // the kill switch for the whole app: original version, no chat at all
   await setFlag(request, app, { scope: 'app', key: 'morphkit.enabled', value: false })
@@ -41,7 +40,7 @@ test('F3/F7/F9: usage events, a verifiable audit chain and an export, through th
   const app = appFor(page)
   const { turn } = await ask(page, SCENARIO_1)
   await expect(turn).toHaveAttribute('data-status', 'applied')
-  await page.getByTestId('mk-turn-undo').click()
+  await page.getByTestId('mk-chat-undo').click()
   await expect(page.getByTestId('customer-card').getByTestId('phone')).toHaveCount(0)
 
   await expect

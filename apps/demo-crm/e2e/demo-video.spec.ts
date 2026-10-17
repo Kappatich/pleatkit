@@ -107,7 +107,7 @@ test('demo video (60 s): request, change, undo, backend request, admin, per-user
 
   // Beat 2: undo
   await caption(page, 'Every edit is a snapshot. Undo is one click.')
-  await glideClick(page, turn.getByTestId('mk-turn-undo'))
+  await glideClick(page, page.getByTestId('mk-chat-undo'))
   await expect(card.getByTestId('phone')).toHaveCount(0)
   await pause(page, 2600)
   await caption(page, 'Ask again, and the edit is back', 'History keeps every version of her page.')
