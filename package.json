@@ -1,0 +1,25 @@
+{
+  "name": "morphkit-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:packages": "pnpm --filter \"./packages/*\" -r build",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "e2e": "pnpm --filter @morphkit/demo-crm e2e",
+    "dev": "pnpm build:packages && pnpm --filter @morphkit/demo-crm dev",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}
