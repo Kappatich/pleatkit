@@ -5,6 +5,7 @@ export { AnthropicProvider, DEFAULT_MODEL, DEFAULT_CLASSIFIER_MODEL, MAX_TOKENS_
 export { OpenAICompatibleProvider, type OpenAICompatibleOptions } from './providers/openai.js'
 export { ScriptedProvider, loadFixtures, type ScriptFixture, type ScriptTurn, type ScriptCall } from './providers/scripted.js'
 export { Workspace, ZoneError, formatErrors, type CheckResult } from './workspace.js'
+export { staticCheck, type StaticRule, type StaticContext } from './static-check.js'
 export { TOOLS, ToolRunner } from './tools.js'
 export { buildPrompt, instructions, cachedContext, userMessage } from './prompt.js'
 export { costUsd, priceOf, UsageMeter } from './pricing.js'

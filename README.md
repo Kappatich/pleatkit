@@ -165,6 +165,8 @@ Screenshots: the user can paste (Ctrl+V) or drop up to 3 images (6 MB in total, 
 
 Clarifying question: when the classifier finds a request ambiguous it returns one question with 2 to 4 answer buttons instead of guessing (no code is written and the big model is not called). The user clicks an answer or types one; the same request is sent again with the answer, the classifier is skipped, so an edit asks at most once.
 
+Static rules for the dynamic zone: `check` on the agent server also parses every dynamic file (TypeScript parser) and refuses `eval`, `new Function` and string timers, `document.cookie`, `dangerouslySetInnerHTML` / `innerHTML` / `outerHTML` / `insertAdjacentHTML` / `document.write`, `fetch` / `WebSocket` / `EventSource` / `sendBeacon` with anything but a relative URL written as a string, `XMLHttpRequest`, `import()` of URLs or computed specifiers, and imports outside the externals and the dynamic zone. A violation comes back to the model like a compile error (`file:line:col text [rule]`), is logged as a violation for the admin, and `finish` refuses to commit until it is fixed. The browser does not repeat these rules (it repeats the compile), so edits made by hand through the dev panel are not covered.
+
 **How the Anthropic provider calls Claude:** official `@anthropic-ai/sdk`; `claude-haiku-5-5` classifies the
 request first with a structured output (backend work goes straight to the admin, the big model is not called;
 when the user pointed at a panel the classifier is skipped);

@@ -32,7 +32,7 @@ export const TOOLS: ToolSpec[] = [
   {
     name: 'check',
     description:
-      'Compile the whole dynamic zone exactly like the browser will (esbuild, same externals) and verify that every panel still has a default export. Returns errors as file:line:column text.',
+      'Compile the whole dynamic zone exactly like the browser will (esbuild, same externals), verify that every panel still has a default export, and run the static rules (no eval or new Function, no document.cookie, no dangerouslySetInnerHTML or innerHTML, network requests only to relative URLs of this app, no import() of URLs, imports only from the allowed modules). Returns errors as file:line:column text.',
     input_schema: obj({}),
   },
   {
@@ -76,6 +76,12 @@ export class ToolRunner {
         violation = content
         this.violations++
       }
+    }
+    // static-rule violations found by check (or by the check finish runs) are logged as violations too
+    const ruleHits = call.name === 'check' || call.name === 'finish' ? (this.ws.lastCheck?.errors ?? []).filter((e) => e.rule) : []
+    if (ruleHits.length && !violation) {
+      violation = `static check: ${[...new Set(ruleHits.map((e) => e.rule))].join(', ')}`
+      this.violations++
     }
     const entry: ToolLogEntry = {
       turn,

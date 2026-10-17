@@ -74,6 +74,8 @@ export interface CompileError {
   line: number
   column: number
   text: string
+  /** Set for a static-rule violation (agent server `check`), e.g. `no-eval`. */
+  rule?: string
 }
 
 export interface CompileResult {
