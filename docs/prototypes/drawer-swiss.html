@@ -1,0 +1,290 @@
+<title>Swiss Grid Drawer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: a faux app canvas on the left, the 420px drawer on the right; a state bar on top switches the prototype between states. */
+  :root {
+    --paper: #ffffff; --ink: #111111; --ink-2: #4a4a4a; --ink-3: #8a8a8a; --rule: #d9d9d9; --rule-2: #bdbdbd;
+    --red: #e30613; --red-ink: #b8000f; --ok: #1a7f37; --ok-wash: #e9f6ec; --wash: #f4f4f2; --canvas: #ececea;
+    --sans: "Helvetica Neue", Helvetica, "Public Sans", Arial, sans-serif; --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #161616; --ink: #f2f2f2; --ink-2: #c4c4c4; --ink-3: #8a8a8a; --rule: #333; --rule-2: #4a4a4a; --red: #ff3b30; --red-ink: #ff5b52; --ok: #5bd37d; --ok-wash: #16301d; --wash: #202020; --canvas: #0f0f0f; color-scheme: dark; } }
+  :root[data-theme="dark"] { --paper: #161616; --ink: #f2f2f2; --ink-2: #c4c4c4; --ink-3: #8a8a8a; --rule: #333; --rule-2: #4a4a4a; --red: #ff3b30; --red-ink: #ff5b52; --ok: #5bd37d; --ok-wash: #16301d; --wash: #202020; --canvas: #0f0f0f; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font: 14px/1.45 var(--sans); }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  /* state bar */
+  .bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--paper); border-bottom: 1px solid var(--rule); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .bar b { font-size: 13px; margin-right: 8px; }
+  .bar button { font: 500 12.5px var(--sans); border: 1px solid var(--rule-2); background: transparent; color: var(--ink); padding: 5px 10px; cursor: pointer; border-radius: 0; }
+  .bar button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .bar .sp { flex: 1; }
+  .bar label { font-size: 12.5px; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; }
+
+  /* stage */
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 420px; min-height: calc(100% - 48px); }
+  .stage.mobile { grid-template-columns: minmax(0, 1fr) 390px; }
+  .app { padding-block: 28px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; display: grid; gap: 14px; align-content: start; }
+  .app .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .app .blk { background: var(--paper); border: 1px solid var(--rule); height: 84px; }
+  .app .blk.tall { height: 260px; }
+  .app .blk.zone { position: relative; outline: 1.5px solid var(--red); outline-offset: 2px; }
+  .app .blk.zone::after { content: "customer-card · editable"; position: absolute; left: 0; top: -22px; font: 600 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--red-ink); }
+  .app .blk.zone .edit { position: absolute; right: 8px; top: 8px; font: 600 10.5px/1 var(--mono); letter-spacing: .08em; color: var(--ink-3); border: 1px solid var(--rule-2); padding: 5px 7px; background: var(--paper); }
+  .app .blk.zone:hover .edit { color: var(--ink); border-color: var(--ink); }
+
+  /* drawer */
+  .drawer { background: var(--paper); border-left: 1px solid var(--ink); display: flex; flex-direction: column; min-height: 100%; }
+  .stage.mobile .drawer { border-left: 0; }
+  .head { display: grid; grid-template-columns: 1fr auto auto auto; grid-template-rows: auto auto; column-gap: 8px; padding: 16px 16px 12px; border-bottom: 1px solid var(--ink); align-items: start; }
+  .head h1 { grid-column: 1; grid-row: 1; margin: 0; font: 700 22px/1.05 var(--sans); letter-spacing: -.02em; }
+  .head .ver { grid-column: 1; grid-row: 2; margin-top: 6px; }
+  .ver button { font: 500 12.5px var(--sans); color: var(--ink-2); background: transparent; border: 0; padding: 0; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .ver button:hover { color: var(--ink); }
+  .ver button .n { font: 700 12.5px var(--mono); color: var(--red-ink); }
+  .ver button.plain { cursor: default; }
+  .ico { grid-row: 1; width: 32px; height: 32px; border: 1px solid transparent; background: transparent; color: var(--ink); cursor: pointer; display: grid; place-items: center; padding: 0; position: relative; border-radius: 0; }
+  .ico:hover, .ico:focus-visible { border-color: var(--ink); outline: none; }
+  .ico[disabled] { color: var(--ink-3); cursor: default; border-color: transparent; }
+  .ico svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ico[data-tip]::after { content: attr(data-tip); position: absolute; top: 100%; right: 0; margin-top: 6px; white-space: nowrap; background: var(--ink); color: var(--paper); font: 500 11.5px var(--sans); padding: 4px 8px; opacity: 0; pointer-events: none; transition: opacity .15s .3s; z-index: 3; }
+  .ico:hover[data-tip]::after, .ico:focus-visible[data-tip]::after { opacity: 1; }
+  .ico.redo { grid-column: 2; display: none; }
+  .ico.undo { grid-column: 3; }
+  .ico.close { grid-column: 4; }
+  .head.undone .ico.redo { display: grid; }
+
+  /* version ruler (shown when history open) */
+  .ruler { display: none; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 10px 16px 12px; border-bottom: 1px solid var(--rule); }
+  .ruler.open { display: grid; }
+  .ruler .lbl { font: 500 12px var(--sans); color: var(--ink-2); }
+  .ruler .lbl.now { color: var(--ink); font-weight: 700; }
+  .ruler .track { position: relative; height: 24px; }
+  .ruler .track::before { content: ""; position: absolute; left: 0; right: 0; top: 11px; border-top: 1px solid var(--ink); }
+  .ruler .dot { position: absolute; top: 6px; width: 12px; height: 12px; border: 1.5px solid var(--ink); background: var(--paper); border-radius: 50%; transform: translateX(-50%); cursor: pointer; padding: 0; }
+  .ruler .dot.cur { background: var(--red); border-color: var(--red); }
+  .ruler .dot:hover { background: var(--ink); }
+  .ruler .dot[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 50%; transform: translateX(-50%); top: 18px; white-space: nowrap; background: var(--ink); color: var(--paper); font: 500 11px var(--sans); padding: 3px 7px; z-index: 3; }
+
+  .feed { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .hint { color: var(--ink-2); font-size: 13.5px; max-width: 36ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font: 500 12.5px var(--sans); border: 1px solid var(--rule-2); background: transparent; color: var(--ink); padding: 6px 10px; cursor: pointer; border-radius: 0; text-align: left; }
+  .chip:hover { border-color: var(--ink); }
+  .turn { display: grid; gap: 8px; }
+  .req { justify-self: end; max-width: 92%; background: var(--ink); color: var(--paper); padding: 8px 12px; font-size: 13.5px; }
+  .req .pchip { display: inline-block; font: 600 10.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; border: 1px solid var(--paper); padding: 3px 6px; margin-right: 6px; vertical-align: 1px; }
+  .live { display: flex; gap: 8px; align-items: baseline; font-size: 13.5px; color: var(--ink-2); }
+  .live .pulse { width: 8px; height: 8px; background: var(--red); flex: none; animation: pulse 1s steps(2) infinite; }
+  @keyframes pulse { 50% { opacity: .2; } }
+  .live .t { font: 500 12px var(--mono); color: var(--ink-3); margin-left: auto; }
+  .res { display: grid; grid-template-columns: 18px 1fr; gap: 8px; font-size: 14px; }
+  .res .mark { font: 700 16px/1.2 var(--sans); color: var(--ok); }
+  .res .mark.warn { color: var(--red-ink); }
+  .res .mark.info { color: var(--ink-3); }
+  .res p { margin: 0; }
+  .res .steps { margin-top: 4px; }
+  .res .steps summary { cursor: pointer; font: 500 12px var(--sans); color: var(--ink-3); list-style: none; }
+  .res .steps summary::-webkit-details-marker { display: none; }
+  .res .steps summary::after { content: " ›"; }
+  .res .steps[open] summary::after { content: " ⌄"; }
+  .res .steps ul { margin: 6px 0 0; padding: 0; list-style: none; font: 12.5px var(--mono); color: var(--ink-2); display: grid; gap: 3px; }
+  .res .steps li::before { content: "· "; color: var(--ink-3); }
+  .res .steps li.ok::before { content: "✓ "; color: var(--ok); }
+  .res .undone { color: var(--ink-3); text-decoration: line-through; }
+  .res .opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .res .opts button { font: 500 13px var(--sans); border: 1px solid var(--ink); background: transparent; color: var(--ink); padding: 7px 12px; cursor: pointer; border-radius: 0; }
+  .res .opts button:hover { background: var(--ink); color: var(--paper); }
+  .res .retry { font: 500 13px var(--sans); border: 1px solid var(--ink); background: transparent; color: var(--ink); padding: 7px 12px; cursor: pointer; margin-top: 8px; width: max-content; border-radius: 0; }
+
+  /* composer */
+  .composer { border-top: 1px solid var(--ink); padding: 12px 16px 14px; padding-bottom: max(14px, env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; }
+  .box { border: 1px solid var(--ink); display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; }
+  .box:focus-within { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .box textarea { grid-column: 1 / -1; width: 100%; min-height: 44px; max-height: 160px; resize: none; border: 0; background: transparent; color: var(--ink); padding: 11px 12px 6px; font: 14px/1.45 var(--sans); }
+  .box textarea::placeholder { color: var(--ink-3); }
+  .box textarea:focus { outline: none; }
+  .box textarea[disabled] { color: var(--ink-3); }
+  .tools { grid-column: 1; display: flex; gap: 4px; align-items: center; padding: 0 6px 6px; }
+  .tool { font: 500 12.5px var(--sans); border: 1px solid transparent; background: transparent; color: var(--ink-2); padding: 6px 8px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; border-radius: 0; }
+  .tool:hover, .tool:focus-visible { border-color: var(--rule-2); color: var(--ink); outline: none; }
+  .tool svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tool.sel { border-color: var(--ink); color: var(--ink); }
+  .tool.sel .x { font-weight: 700; margin-left: 2px; }
+  .send { grid-column: 2; align-self: end; margin: 0 6px 6px 0; width: 32px; height: 32px; border: 0; background: var(--rule); color: var(--ink-3); cursor: default; display: grid; place-items: center; padding: 0; border-radius: 0; }
+  .send.active { background: var(--red); color: #fff; cursor: pointer; }
+  .send.stop { background: var(--ink); color: var(--paper); cursor: pointer; }
+  .send svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .send.stop svg { fill: currentColor; stroke: none; }
+  .paused { font-size: 13px; color: var(--ink-2); padding: 10px 12px; border: 1px dashed var(--rule-2); }
+  .kbd { font: 500 11px var(--mono); color: var(--ink-3); display: flex; justify-content: space-between; gap: 12px; }
+
+  /* notes column under the stage */
+  .notes { background: var(--paper); border-top: 1px solid var(--rule); padding-block: 20px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px 32px; font-size: 13.5px; color: var(--ink-2); }
+  .notes h2 { font: 700 13px var(--sans); color: var(--ink); margin: 0 0 6px; letter-spacing: .02em; text-transform: uppercase; }
+  .notes p { margin: 0 0 6px; }
+  .notes b { color: var(--ink); }
+
+  /* states: JS sets the hidden attribute on [data-s] elements that do not list the current state */
+  [hidden] { display: none !important; }
+  @media (max-width: 860px) { .stage, .stage.mobile { grid-template-columns: minmax(0, 1fr); } .app { display: none; } .drawer { border-left: 0; } }
+</style>
+
+<div class="bar">
+  <b>Состояния</b>
+  <button data-set="empty" class="on">Пусто</button>
+  <button data-set="typing">Набор</button>
+  <button data-set="running">Работает</button>
+  <button data-set="applied">Применено</button>
+  <button data-set="admin">Нужен админ</button>
+  <button data-set="question">Уточнение</button>
+  <button data-set="failed">Не вышло</button>
+  <button data-set="paused">Правки выключены</button>
+  <span class="sp"></span>
+  <label><input type="checkbox" id="mob"> телефон 390px</label>
+</div>
+
+<div class="stage" id="stage" data-state="empty">
+  <div class="app" aria-hidden="true">
+    <div class="row"><div class="blk"></div><div class="blk"></div><div class="blk"></div></div>
+    <div class="row" style="grid-template-columns: 1fr 2fr"><div class="blk tall"></div><div class="blk tall zone"><span class="edit">EDIT</span></div></div>
+  </div>
+
+  <aside class="drawer" aria-label="Customize this page">
+    <header class="head" id="head">
+      <h1>Customize this page</h1>
+      <div class="ver">
+        <button class="plain" data-s="empty typing paused">Original version</button>
+        <button id="verbtn" data-s="running applied admin question failed" aria-expanded="false"><span class="n">3</span> changes <span>▾</span></button>
+      </div>
+      <button class="ico redo" aria-label="Redo" data-tip="Redo · Ctrl+Shift+Z"><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0 0 10"/></svg></button>
+      <button class="ico undo" id="undo" aria-label="Undo last change" data-tip="Undo · Ctrl+Z"><svg viewBox="0 0 24 24"><path d="M9 7l-5 5 5 5M4 12h11a5 5 0 0 1 0 10"/></svg></button>
+      <button class="ico close" aria-label="Close" data-tip="Close · Esc"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </header>
+
+    <div class="ruler" id="ruler" aria-label="Version history">
+      <span class="lbl">Original</span>
+      <div class="track">
+        <button class="dot" style="left:0" data-tip="Original" aria-label="Back to original"></button>
+        <button class="dot" style="left:33%" data-tip="Phone, city, source · 2:41"></button>
+        <button class="dot" style="left:66%" data-tip="Overdue in red · 2:42"></button>
+        <button class="dot cur" style="left:100%" data-tip="Deals under the card · 2:44" aria-current="true"></button>
+      </div>
+      <span class="lbl now">Now</span>
+    </div>
+
+    <div class="feed">
+      <p class="hint" data-s="empty">Describe a change. AI edits only your view and can get it wrong. Undo anytime.</p>
+      <div class="chips" data-s="empty">
+        <button class="chip">Show phone and city in the customer card</button>
+        <button class="chip">Highlight overdue payments</button>
+        <button class="chip">Compact layout</button>
+      </div>
+
+      <div class="turn" data-s="running applied admin question failed">
+        <div class="req"><span class="pchip">Customer card</span>Add phone, city and source; overdue in red</div>
+      </div>
+      <div class="live" data-s="running"><span class="pulse"></span><span>Changing the customer card</span><span class="t">7 s</span></div>
+      <div class="res" data-s="applied">
+        <span class="mark">✓</span>
+        <div><p>The customer card now shows phone, city and source, and overdue dates are red.</p>
+          <details class="steps"><summary>8 steps</summary><ul><li class="ok">Understanding the request</li><li class="ok">Reading the card</li><li class="ok">Changing the fields</li><li class="ok">Checking the build</li><li class="ok">Signed and applied</li></ul></details></div>
+      </div>
+      <div class="res" data-s="admin">
+        <span class="mark info">→</span>
+        <div><p>This needs a change on the server. Sent to your admin; nothing changed on the page.</p></div>
+      </div>
+      <div class="res" data-s="question">
+        <span class="mark info">?</span>
+        <div><p>Red for every overdue payment, or only when it is more than 30 days late?</p>
+          <div class="opts"><button>Every overdue</button><button>Only over 30 days</button></div></div>
+      </div>
+      <div class="res" data-s="failed">
+        <span class="mark warn">!</span>
+        <div><p>Couldn't apply this. Nothing changed.</p><button class="retry">Try again</button></div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="paused" data-s="paused">Editing is paused by your admin. Your version stays as it is.</div>
+      <div class="box" data-s="empty typing running applied admin question failed">
+        <textarea id="ta" rows="1" placeholder="Describe a change or paste a screenshot" aria-label="Describe a change"></textarea>
+        <div class="tools">
+          <button class="tool" id="pick" aria-label="Pick a panel on the page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span>Pick panel</span></button>
+          <button class="tool" aria-label="Attach a screenshot"><svg viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg></button>
+        </div>
+        <button class="send" id="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+      </div>
+      <div class="kbd" data-s="empty typing applied admin question failed"><span>Enter to send · Shift+Enter new line</span><span>Ctrl+Z undo</span></div>
+    </div>
+  </aside>
+</div>
+
+<div class="notes">
+  <div><h2>Что взято из редакторов</h2>
+    <p><b>Один композер внизу</b>, как в ChatGPT и Claude: поле растёт от 1 до 6 строк, Enter отправляет, Shift+Enter перенос; инструменты внутри рамки слева, отправка справа; во время работы отправка становится «стоп».</p>
+    <p><b>Отмена как в редакторе</b>: одна иконка в шапке и Ctrl+Z, redo появляется только после отмены; Figma, Notion, Linear.</p>
+    <p><b>История одной строкой</b> в шапке; раскрывается линейкой версий, клик по точке восстанавливает; как чекпоинты в Claude Code и Cursor.</p>
+    <p><b>Подсказки у поля</b>, сформулированные как действия, только в пустом состоянии; после ответа одна живая строка прогресса, детали за «8 steps».</p>
+  </div>
+  <div><h2>Что от швейцарского плаката</h2>
+    <p>Флаговая верстка, одна гарнитура, жирный заголовок, чёрные линейки как структура, никаких скруглений и теней.</p>
+    <p>Один красный: только текущая версия и кнопка отправки. Всё остальное чёрное и серое.</p>
+    <p>Выделение зоны на странице: красная рамка с подписью в моноширинном и кнопка EDIT в углу панели, видна при наведении.</p>
+  </div>
+  <div><h2>Что убрано по аудиту</h2>
+    <p>Три кнопки в подвале, дублирующие Undo и History у реплик; бейдж и тост «Applied»; «applied in 0.1 s»; постоянная строка дисклеймера; «Show fewer steps» сверху.</p>
+    <p>В состоянии «применено» видимых контролов шесть вместо девяти.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var head = document.getElementById('head');
+  var ruler = document.getElementById('ruler');
+  var verbtn = document.getElementById('verbtn');
+  var ta = document.getElementById('ta');
+  var send = document.getElementById('send');
+  var pick = document.getElementById('pick');
+  var undo = document.getElementById('undo');
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('.bar button[data-set]'));
+
+  function setState(s) {
+    stage.setAttribute('data-state', s);
+    Array.prototype.slice.call(document.querySelectorAll('[data-s]')).forEach(function (el) { el.hidden = el.getAttribute('data-s').split(' ').indexOf(s) < 0; });
+    buttons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-set') === s); });
+    ta.disabled = s === 'running';
+    ta.value = s === 'typing' ? 'Add phone, city and source; overdue in red' : '';
+    ta.placeholder = s === 'running' ? 'Working…' : s === 'question' ? 'Or type your answer' : 'Describe a change or paste a screenshot';
+    send.className = 'send' + (s === 'running' ? ' stop' : s === 'typing' ? ' active' : '');
+    send.innerHTML = s === 'running' ? '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
+    send.setAttribute('aria-label', s === 'running' ? 'Stop' : 'Send');
+    pick.classList.toggle('sel', s === 'typing');
+    pick.innerHTML = s === 'typing' ? '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span>Customer card</span><span class="x">×</span>' : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span>Pick panel</span>';
+    undo.disabled = s === 'empty' || s === 'typing' || s === 'running';
+    head.classList.remove('undone');
+    ruler.classList.remove('open'); verbtn.setAttribute('aria-expanded', 'false');
+    autosize();
+  }
+  function autosize() { ta.style.height = 'auto'; ta.style.height = Math.min(160, Math.max(44, ta.scrollHeight)) + 'px'; }
+  buttons.forEach(function (b) { b.addEventListener('click', function () { setState(b.getAttribute('data-set')); }); });
+  document.getElementById('mob').addEventListener('change', function (e) { stage.classList.toggle('mobile', e.target.checked); });
+  ta.addEventListener('input', function () { autosize(); send.classList.toggle('active', ta.value.trim().length > 0 && !ta.disabled); });
+  ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (ta.value.trim()) setState('running'); } });
+  send.addEventListener('click', function () { if (send.classList.contains('stop')) setState('applied'); else if (send.classList.contains('active')) setState('running'); });
+  verbtn.addEventListener('click', function () { var open = !ruler.classList.contains('open'); ruler.classList.toggle('open', open); verbtn.setAttribute('aria-expanded', String(open)); });
+  undo.addEventListener('click', function () { if (undo.disabled) return; head.classList.add('undone'); var p = document.querySelector('.res[data-s="applied"] p'); if (p) p.classList.add('undone'); });
+  document.querySelector('.ico.redo').addEventListener('click', function () { head.classList.remove('undone'); var p = document.querySelector('.res[data-s="applied"] p'); if (p) p.classList.remove('undone'); });
+  document.addEventListener('keydown', function (e) {
+    var inField = document.activeElement === ta && ta.value.length > 0;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !inField) { e.preventDefault(); if (e.shiftKey) document.querySelector('.ico.redo').click(); else undo.click(); }
+  });
+  Array.prototype.slice.call(document.querySelectorAll('.chip')).forEach(function (c) { c.addEventListener('click', function () { setState('typing'); ta.value = c.textContent; autosize(); send.classList.add('active'); }); });
+  Array.prototype.slice.call(document.querySelectorAll('.ruler .dot')).forEach(function (d) { d.addEventListener('click', function () { Array.prototype.slice.call(document.querySelectorAll('.ruler .dot')).forEach(function (x) { x.classList.remove('cur'); x.removeAttribute('aria-current'); }); d.classList.add('cur'); d.setAttribute('aria-current', 'true'); }); });
+  setState('empty');
+})();
+</script>
