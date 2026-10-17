@@ -27,8 +27,9 @@ export interface CompilerOptions {
 
 export type CompileContext = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'>
 
-/** Global accessor the compiled bundle uses to reach host modules. Set up by `installExternals`. */
-export const EXTERNALS_GLOBAL = '__morphkit'
+import { EXTERNALS_GLOBAL } from './constants.js'
+
+export { EXTERNALS_GLOBAL }
 const NS_VFS = 'morphkit-vfs'
 const NS_EXTERNAL = 'morphkit-external'
 const NS_ENTRY = 'morphkit-entry'

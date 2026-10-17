@@ -34,9 +34,35 @@ declare module 'virtual:morphkit/wasm-url' {
   export default wasmURL
 }
 
+declare module 'virtual:morphkit/tailwind' {
+  export function compile(
+    css: string,
+    options: {
+      base?: string
+      loadStylesheet?: (id: string, base: string) => Promise<{ path: string; base: string; content: string }>
+      loadModule?: (id: string, base: string, resourceHint: 'plugin' | 'config') => Promise<never>
+    },
+  ): Promise<{ build(candidates: string[]): string }>
+  export const input: string
+  export const stylesheets: Record<string, string>
+  export const extraSources: string[]
+}
+
+declare module 'virtual:morphkit/css' {
+  const css: { mode: 'tailwind' | 'palette'; load: (() => Promise<typeof import('virtual:morphkit/tailwind')>) | null }
+  export default css
+}
+
+declare module 'virtual:morphkit/isolated' {
+  const isolated: { load: () => Promise<string> } | null
+  export default isolated
+}
+
 declare module 'virtual:morphkit' {
   export { default as manifest } from 'virtual:morphkit/manifest'
   export { default as externals } from 'virtual:morphkit/externals'
   export { default as fallback } from 'virtual:morphkit/fallback'
   export { default as wasmURL } from 'virtual:morphkit/wasm-url'
+  export { default as css } from 'virtual:morphkit/css'
+  export { default as isolated } from 'virtual:morphkit/isolated'
 }

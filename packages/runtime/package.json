@@ -11,9 +11,19 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./compiler": {
+      "types": "./dist/compiler-entry.d.ts",
+      "import": "./dist/compiler-entry.js"
+    },
+    "./isolated-host": {
+      "types": "./dist/isolated-host.d.ts",
+      "import": "./dist/isolated-host.js"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -25,13 +35,22 @@
     "idb": "^8.0.3"
   },
   "peerDependencies": {
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
     "@types/react": "^19.2.0",
     "fake-indexeddb": "^6.2.4",
     "react": "^19.2.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "react-dom": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.14"
+  },
+  "peerDependenciesMeta": {
+    "react-dom": {
+      "optional": true
+    }
   }
 }

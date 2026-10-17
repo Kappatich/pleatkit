@@ -22,6 +22,16 @@ export interface MorphkitOptions {
   alias?: Record<string, string>
   /** Emit `.d.ts` for core files that dynamic/readonly code imports. Default true. */
   coreTypes?: boolean
+  /**
+   * CSS for classes that runtime edits introduce.
+   * - `tailwind`: compile Tailwind 4 in the browser at commit (needs `tailwindcss` installed in the app).
+   * - `palette` (default): no runtime CSS; pre-generate a safelist with `@source inline(...)` in your CSS.
+   */
+  css?: 'palette' | 'tailwind'
+  /** The app's Tailwind entry CSS; its `@theme`/`@utility`/`@custom-variant` blocks feed the runtime compiler. Default `src/index.css`. */
+  tailwindEntry?: string
+  /** Build the iframe host for `<Dynamic isolated>` panels. Default false. */
+  isolated?: boolean
 }
 
 export interface ManifestFile {
@@ -65,6 +75,9 @@ export function resolveOptions(options: MorphkitOptions) {
     externals: [...new Set([...DEFAULT_EXTERNALS, ...(options.externals ?? [])])],
     alias: options.alias ?? { '@': 'src' },
     coreTypes: options.coreTypes ?? true,
+    css: options.css ?? 'palette',
+    tailwindEntry: options.tailwindEntry ?? 'src/index.css',
+    isolated: options.isolated ?? false,
   }
 }
 

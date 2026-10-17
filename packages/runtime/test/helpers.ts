@@ -38,14 +38,18 @@ export const manifest: MorphkitManifest = {
 
 const utils = { cn: (...c: string[]) => c.filter(Boolean).join(' ') }
 
-export function makeConfig(): MorphkitConfig {
+export function makeConfig(overrides: Partial<MorphkitConfig> = {}, base: FileMap = BASE): MorphkitConfig {
   const fallback: MorphkitConfig['fallback'] = {}
-  for (const path of Object.keys(BASE)) fallback[path] = { default: Object.assign(() => null, { base: path }) }
+  // Panels have a default export; helper modules (parts/) only named ones, like in a real app.
+  for (const path of Object.keys(base)) {
+    fallback[path] = path.includes('/parts/') ? { Row: () => null } : { default: Object.assign(() => null, { base: path }) }
+  }
   return {
-    manifest,
+    manifest: { ...manifest, dynamic: Object.entries(base).map(([path, source]) => ({ path, source })) },
     externals: { react: React as never, 'react-dom': {}, 'react/jsx-runtime': jsxRuntime as never, '@/lib/utils': utils },
     fallback,
     wasmURL: null,
+    ...overrides,
   }
 }
 

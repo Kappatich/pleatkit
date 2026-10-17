@@ -16,7 +16,10 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "client.d.ts"],
+  "files": [
+    "dist",
+    "client.d.ts"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -25,7 +28,8 @@
   "dependencies": {
     "picomatch": "^4.0.3",
     "tinyglobby": "^0.2.15",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "esbuild": "^0.25.0"
   },
   "peerDependencies": {
     "vite": "^6.0.0"

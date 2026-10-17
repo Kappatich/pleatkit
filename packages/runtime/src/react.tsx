@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { MorphkitEngine, type CompilerLike, type EngineState } from './engine.js'
+import { IsolatedFrame } from './isolated.js'
 import type { BundleLoader } from './loader.js'
 import type { MorphkitConfig, SnapshotStore } from './types.js'
 
@@ -71,18 +72,34 @@ export interface DynamicProps {
   props?: Record<string, unknown>
   /** Shown while the user's version is loading. */
   loading?: ReactNode
+  /**
+   * Render inside a sandboxed iframe (`sandbox="allow-scripts"`, opaque origin): the panel's code cannot
+   * reach the page, its cookies or storage. Props must be serializable (they cross via postMessage).
+   * Needs `isolated: true` in the Vite plugin options.
+   */
+  isolated?: boolean
 }
 
-export function Dynamic({ id, props, loading = null }: DynamicProps) {
+export function Dynamic({ id, props, loading = null, isolated = false }: DynamicProps) {
   const { autoRollbackMs } = useCtx()
   const engine = useMorphkit()
   const state = useMorphkitState()
 
+  useEffect(() => engine.mount(id), [engine, id])
+
   // Until the user's head is known, show the placeholder rather than flash the original version.
   if (state.status === 'loading') return <div data-morphkit-id={id} data-morphkit-loading="">{loading}</div>
 
-  const C = state.modules[id]?.default as ComponentType<Record<string, unknown>> | undefined
   const headId = state.head?.parentId ? state.head.id : null
+  if (isolated) {
+    return (
+      <div data-morphkit-id={id} data-morphkit-isolated="" style={{ display: 'contents' }}>
+        <IsolatedFrame id={id} props={props ?? {}} headId={headId} autoRollbackMs={autoRollbackMs} />
+      </div>
+    )
+  }
+
+  const C = state.modules[id]?.default as ComponentType<Record<string, unknown>> | undefined
   return (
     <div data-morphkit-id={id} style={{ display: 'contents' }}>
       <PanelBoundary key={state.version} id={id} headId={headId} autoRollbackMs={autoRollbackMs} engine={engine}>
@@ -96,7 +113,7 @@ function MissingComponent({ id }: { id: string }): ReactNode {
   throw new Error(`Dynamic component "${id}" has no default export`)
 }
 
-interface BoundaryProps {
+export interface BoundaryProps {
   id: string
   /** Snapshot to roll back from; null when showing the original version. */
   headId: string | null
@@ -133,7 +150,7 @@ const bannerStyle = {
 } as const
 const buttonStyle = { marginRight: 8, padding: '4px 10px', borderRadius: 6, border: '1px solid #b91c1c', background: '#fff', cursor: 'pointer' } as const
 
-function CrashBanner({ id, headId, autoRollbackMs, engine, error }: BoundaryProps & { error: Error }) {
+export function CrashBanner({ id, headId, autoRollbackMs, engine, error }: Omit<BoundaryProps, 'children'> & { error: Error }) {
   const [kept, setKept] = useState(false)
   const [left, setLeft] = useState(Math.ceil(autoRollbackMs / 1000))
 

@@ -1,4 +1,4 @@
-import { EXTERNALS_GLOBAL } from './compiler.js'
+import { EXTERNALS_GLOBAL } from './constants.js'
 import type { CompiledBundle, ModuleNamespace } from './types.js'
 
 interface MorphkitGlobal {

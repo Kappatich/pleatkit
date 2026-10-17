@@ -18,6 +18,11 @@ export default defineConfig({
         readonly: ['src/readonly/**', 'src/components/ui/**'],
       },
       externals: ['react', 'react-dom', 'react/jsx-runtime', '@/components/ui/*', '@/lib/utils', '@/readonly/*'],
+      // Edits get exactly the Tailwind utilities they use, compiled in the browser at commit.
+      css: 'tailwind',
+      tailwindEntry: 'src/index.css',
+      // `<Dynamic isolated>` renders a panel in a sandboxed iframe (?isolated=1 in the demo).
+      isolated: true,
     }),
   ],
   resolve: { alias: { '@': path.join(root, 'src') } },

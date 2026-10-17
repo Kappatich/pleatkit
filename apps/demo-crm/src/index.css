@@ -2,12 +2,10 @@
 @source "./";
 
 /*
- * Dynamic code is compiled in the browser after the app's CSS was built, so Tailwind cannot see
- * classes an edit introduces. Until runtime CSS generation exists, pre-generate a palette of
- * common utilities that edits are likely to use.
+ * Classes that runtime edits introduce are compiled in the browser at commit (morphkit `css: 'tailwind'`),
+ * so no safelist is needed here. With `css: 'palette'` you would pre-generate one instead, e.g.
+ * @source inline("{hover:,}{text,bg,border}-{red,green,blue}-{50,{100..900..100},950}");
  */
-@source inline("{hover:,}{text,bg,border}-{slate,gray,red,orange,amber,yellow,green,emerald,teal,sky,blue,indigo,violet,purple,pink,rose}-{50,{100..900..100},950}");
-@source inline("{font-normal,font-medium,font-semibold,font-bold,italic,underline,line-through,uppercase,tabular-nums,truncate}");
 
 @theme inline {
   --color-background: var(--background);
