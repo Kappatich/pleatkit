@@ -5,6 +5,8 @@ import type { FileMap, MorphkitManifest } from './types.js'
 
 export type AgentVerdict = 'ok' | 'needs-backend' | 'failed'
 export type RequestClass = 'ui' | 'needs-backend' | 'unclear'
+/** Interface languages of the chat and the admin dashboard (DECISIONS item 20). */
+export type Locale = 'en' | 'ru'
 
 /** What the compiler needs to resolve imports exactly like the browser does. */
 export type CompileContextWire = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'>
@@ -14,6 +16,8 @@ export interface AgentRunRequest {
   userId: string
   /** Store namespace (several apps can share one store-server). */
   appId?: string
+  /** Language of the progress lines and of the summary (`en` by default). */
+  locale?: Locale
   /** What the user asked for, verbatim. */
   request: string
   /** Current dynamic files of the user (head or draft). */
@@ -58,6 +62,11 @@ export interface TokenUsage {
   outputTokens: number
   cacheReadTokens: number
   cacheWriteTokens: number
+  /**
+   * Part of `outputTokens` the model spent thinking, when the API reports it. The output budget of an edit
+   * counts only the visible rest (DECISIONS item 11); thinking is billed but not limited.
+   */
+  thinkingTokens?: number
 }
 
 export interface UsageByModel extends TokenUsage {
@@ -82,11 +91,15 @@ export interface AgentResult {
   usage: UsageByModel[]
   /** Total model calls in the main loop (the classifier is counted separately in `usage`). */
   modelCalls: number
+  /** Output of the main loop: visible tokens count against `limit`, thinking tokens are reported only. */
+  output?: { visibleTokens: number; thinkingTokens: number; limit: number; estimated: boolean }
   timings: { totalMs: number; classifyMs: number | null; modelMs: number; toolsMs: number }
   /** Request id in store-server, when the agent server logs to one. */
   requestId: string | null
   /** Why the run stopped early (limits), if it did. */
   stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'refusal' | 'no-finish' | 'error'
+  /** Technical error behind a failed run (for the admin's log; the user only sees `summary`). */
+  error?: string
 }
 
 /**
@@ -96,7 +109,7 @@ export interface AgentResult {
 export type AgentProgress =
   | { type: 'status'; text: string }
   | { type: 'classified'; label: RequestClass; text: string }
-  | { type: 'model'; turn: number; text: string }
+  | { type: 'model'; turn: number; text: string; /** "Thinking" between tool calls: collapsible, replaced by the next step. */ transient?: boolean }
   | { type: 'tool'; turn: number; tool: string; text: string; ok?: boolean }
   | { type: 'check'; ok: boolean; errorCount: number; text: string }
 

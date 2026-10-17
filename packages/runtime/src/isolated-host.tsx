@@ -1,6 +1,6 @@
 // Runs inside the sandboxed iframe of an `isolated` <Dynamic> panel (sandbox="allow-scripts", opaque origin).
-// The Vite plugin bundles this file together with React and the app's externals into one script that is
-// inlined into the iframe's srcdoc, so the iframe never needs network access or the parent's objects.
+// The Vite plugin bundles this file together with React and the app's externals into one classic script that
+// the frame loads from the app's origin with CORS (no inline script, DECISIONS item 16); edits arrive by postMessage.
 
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'

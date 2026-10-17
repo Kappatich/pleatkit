@@ -41,7 +41,7 @@ export const requests = sqliteTable(
     target: text('target'),
     verdict: text('verdict').notNull(),
     summary: text('summary').notNull(),
-    /** proposed | applied | rejected | pending-admin | in-progress | rolled-back | failed */
+    /** proposed | applied | pending-review | rejected | pending-admin | in-progress | rolled-back | failed */
     status: text('status').notNull(),
     classification: text('classification'),
     provider: text('provider'),
@@ -74,6 +74,14 @@ export const bundles = sqliteTable(
   (t) => [primaryKey({ columns: [t.appId, t.hash] })],
 )
 
+/** Per-app settings an admin can change at runtime (moderation of agent edits). */
+export const appSettings = sqliteTable('app_settings', {
+  appId: text('app_id').primaryKey(),
+  /** off | review */
+  moderation: text('moderation').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
 // Plain DDL so the demo needs no migration tool; keep in sync with the tables above.
 export const DDL = `
 CREATE TABLE IF NOT EXISTS snapshots (
@@ -91,6 +99,9 @@ CREATE TABLE IF NOT EXISTS requests (
   created_at_ms INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS requests_by_app ON requests (app_id, created_at_ms);
+CREATE TABLE IF NOT EXISTS app_settings (
+  app_id TEXT PRIMARY KEY, moderation TEXT NOT NULL, updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS bundles (
   app_id TEXT NOT NULL, hash TEXT NOT NULL, js TEXT NOT NULL, css TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (app_id, hash)
 );

@@ -135,3 +135,64 @@ describe('request log and admin actions', () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe('moderation: review (DECISIONS 15)', () => {
+  async function edit(userId: string, label: string) {
+    const store = storeFor(userId)
+    const head = await store.head(userId)
+    let parent = head
+    if (!parent) {
+      parent = snap(userId, null, 'base')
+      await store.put(parent)
+    }
+    const requestId = await agentLogs(userId, { text: label })
+    const v = snap(userId, parent.id, label, { requestId })
+    await store.put(v)
+    await store.setHead(userId, v.id)
+    const link = await store.linkRequest(requestId, { snapshotId: v.id, status: 'applied' })
+    return { store, parent, v, requestId, link }
+  }
+
+  it('is off by default: an applied edit is just applied', async () => {
+    expect(await storeFor('alice').moderation()).toBe('off')
+    const { link } = await edit('alice', 'v1')
+    expect(link).toEqual({ status: 'applied' })
+  })
+
+  it('review: the edit applies for the user at once, but waits at the top of the admin list until approved', async () => {
+    expect(await (await admin('/admin/settings', { method: 'PUT', body: JSON.stringify({ moderation: 'review' }) })).json()).toEqual({ moderation: 'review' })
+    expect(await storeFor('alice').moderation()).toBe('review')
+    // an older, unrelated request
+    await agentLogs('bob', { verdict: 'failed', status: 'failed', text: 'older' })
+    const { store, v, requestId, link } = await edit('alice', 'phone')
+    expect(link).toEqual({ status: 'pending-review' })
+    expect((await store.head('alice'))?.id).toBe(v.id) // applied for the user right away
+
+    const list = (await (await admin('/admin/requests')).json()) as { id: string; status: string; isHead: boolean }[]
+    expect(list[0]).toMatchObject({ id: requestId, status: 'pending-review', isHead: true })
+    const stats = (await (await admin('/admin/stats')).json()) as Record<string, unknown>
+    expect(stats).toMatchObject({ pendingReview: 1, editsThisWeek: 1, moderation: 'review' })
+
+    expect(await (await admin(`/admin/requests/${requestId}/approve`, { method: 'POST' })).json()).toEqual({ status: 'applied' })
+    expect((await store.head('alice'))?.id).toBe(v.id)
+    expect((await admin(`/admin/requests/${requestId}/approve`, { method: 'POST' })).status).toBe(409)
+  })
+
+  it('review: one click rolls the edit back for the user', async () => {
+    await admin('/admin/settings', { method: 'PUT', body: JSON.stringify({ moderation: 'review' }) })
+    const { store, parent, requestId } = await edit('alice', 'red date')
+    expect(await (await admin(`/admin/requests/${requestId}/rollback`, { method: 'POST' })).json()).toEqual({ status: 'rolled-back' })
+    expect((await store.head('alice'))?.id).toBe(parent.id)
+  })
+
+  it('the setting is per app, validated, and the server-wide default comes from the options', async () => {
+    expect((await admin('/admin/settings', { method: 'PUT', body: JSON.stringify({ moderation: 'hold' }) })).status).toBe(400)
+    await admin('/admin/settings', { method: 'PUT', body: JSON.stringify({ moderation: 'review' }) })
+    expect(await storeFor('alice', 'other-app').moderation()).toBe('off')
+    expect((await app.request('http://store.test/admin/settings', { method: 'PUT', headers: { 'x-morphkit-user': 'alice' }, body: '{"moderation":"off"}' })).status).toBe(403)
+
+    app = createStoreApp(openStore().db, { moderation: 'review' })
+    expect(await storeFor('alice').moderation()).toBe('review')
+    expect(await (await admin('/admin/settings')).json()).toEqual({ moderation: 'review', default: 'review' })
+  })
+})

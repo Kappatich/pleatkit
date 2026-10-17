@@ -27,6 +27,10 @@ const CSS = `
 .mk-steps li::before { content: "•"; color: #94a3b8; }
 .mk-steps li.mk-bad::before { content: "×"; color: #dc2626; }
 .mk-steps li.mk-good::before { content: "✓"; color: #16a34a; }
+.mk-steps li.mk-transient { color: #7c3aed; }
+.mk-count { margin-left: 4px; color: #94a3b8; }
+.mk-details { display: block; border: 0; background: transparent; padding: 0; margin: 2px 0; font: inherit; font-size: 12px; color: #5b21b6; cursor: pointer; text-decoration: underline; }
+.mk-example { border: 0; padding: 0; text-align: left; color: #5b21b6; background: transparent; }
 .mk-summary { margin-top: 4px; }
 .mk-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-right: 6px; }
 .mk-b-ok { background: #dcfce7; color: #166534; } .mk-b-admin { background: #fef3c7; color: #92400e; }

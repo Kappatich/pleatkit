@@ -6,9 +6,21 @@ import { and, desc, eq, gte } from 'drizzle-orm'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { Hono, type Context } from 'hono'
 import * as schema from './schema.js'
-import { bundles, heads, requests, snapshots } from './schema.js'
+import { appSettings, bundles, heads, requests, snapshots } from './schema.js'
 
 export type StoreDb = BetterSQLite3Database<typeof schema>
+
+/**
+ * Moderation of agent edits (DECISIONS item 15). `off`: an applied edit is just applied. `review`: it is
+ * applied for the user at once, but marked `pending-review`; the admin sees it at the top of the list and
+ * approves it or rolls it back with one click. (Holding edits until approval is deliberately not built.)
+ */
+export type Moderation = 'off' | 'review'
+
+export interface StoreAppOptions {
+  /** Default for apps whose admin has not chosen (`MORPHKIT_MODERATION`). Default `off`. */
+  moderation?: Moderation
+}
 
 export interface StoreOptions {
   /** SQLite file, or `:memory:` (default). */
@@ -43,7 +55,10 @@ function toSnapshot(r: SnapshotRow) {
   }
 }
 
-const STATUSES = ['proposed', 'applied', 'rejected', 'pending-admin', 'in-progress', 'rolled-back', 'failed'] as const
+const STATUSES = ['proposed', 'applied', 'pending-review', 'rejected', 'pending-admin', 'in-progress', 'rolled-back', 'failed'] as const
+/** What an admin should look at first: edits awaiting review, then backend requests, then the rest. */
+const PRIORITY: Record<string, number> = { 'pending-review': 2, 'pending-admin': 1 }
+const priority = (status: string) => PRIORITY[status] ?? 0
 const now = () => new Date().toISOString()
 
 interface Caller {
@@ -66,8 +81,11 @@ function caller(c: Context): Caller {
   }
 }
 
-export function createStoreApp(db: StoreDb) {
+export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
   const app = new Hono()
+  const defaultModeration: Moderation = options.moderation ?? 'off'
+  const moderationOf = (appId: string): Moderation =>
+    (db.select().from(appSettings).where(eq(appSettings.appId, appId)).get()?.moderation as Moderation | undefined) ?? defaultModeration
 
   const canSee = (who: Caller, userId: string) => who.admin || who.userId === userId
   const getSnapshot = (appId: string, id: string) => db.select().from(snapshots).where(and(eq(snapshots.appId, appId), eq(snapshots.id, id))).get()
@@ -87,6 +105,9 @@ export function createStoreApp(db: StoreDb) {
       .run()
 
   app.get('/health', (c) => c.json({ ok: true }))
+
+  /** Public per-app settings (the chat tells the user when edits are reviewed). */
+  app.get('/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId) }))
 
   // --- snapshots & heads (used by HttpStore in the browser) ---
 
@@ -211,7 +232,7 @@ export function createStoreApp(db: StoreDb) {
         log: b.log ?? [],
         files: b.files ?? null,
         snapshotId: null,
-        error: null,
+        error: typeof b.error === 'string' ? b.error.slice(0, 2000) : null,
         adminNote: null,
         createdAt: t,
         updatedAt: t,
@@ -234,8 +255,10 @@ export function createStoreApp(db: StoreDb) {
       if (!snap || snap.userId !== req.userId) return c.json({ error: 'snapshot not found for this user' }, 400)
       db.update(snapshots).set({ requestId: req.id }).where(eq(snapshots.id, snap.id)).run()
     }
-    patchRequest(req.id, { status: b.status, snapshotId: b.snapshotId ?? req.snapshotId, error: b.error ?? null })
-    return c.body(null, 204)
+    // under moderation an applied edit stays applied for the user, but waits for the admin's review
+    const status = b.status === 'applied' && moderationOf(who.appId) === 'review' ? 'pending-review' : b.status
+    patchRequest(req.id, { status, snapshotId: b.snapshotId ?? req.snapshotId, error: b.error ?? null })
+    return c.json({ status })
   })
 
   // --- admin ---
@@ -257,8 +280,23 @@ export function createStoreApp(db: StoreDb) {
       .orderBy(desc(requests.createdAtMs))
       .limit(limit)
       .all()
+    // edits awaiting review and backend requests first, newest first within each group (stable sort)
+    rows.sort((a, b) => priority(b.status) - priority(a.status))
     // the list stays light: no files, log only as a count
     return c.json(rows.map(({ files: _files, log, ...r }) => ({ ...r, toolCalls: log.length, isHead: isHead(who.appId, r.userId, r.snapshotId) })))
+  })
+
+  app.get('/admin/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId), default: defaultModeration }))
+
+  app.put('/admin/settings', async (c) => {
+    const who = caller(c)
+    const b = await c.req.json<{ moderation?: string }>().catch(() => ({}) as { moderation?: string })
+    if (b.moderation !== 'off' && b.moderation !== 'review') return c.json({ error: 'moderation must be "off" or "review"' }, 400)
+    db.insert(appSettings)
+      .values({ appId: who.appId, moderation: b.moderation, updatedAt: now() })
+      .onConflictDoUpdate({ target: appSettings.appId, set: { moderation: b.moderation, updatedAt: now() } })
+      .run()
+    return c.json({ moderation: b.moderation })
   })
 
   const isHead = (appId: string, userId: string, snapshotId: string | null) => Boolean(snapshotId) && getHead(appId, userId)?.snapshotId === snapshotId
@@ -276,14 +314,18 @@ export function createStoreApp(db: StoreDb) {
     })
   })
 
-  /** "Take it": a needs-backend request goes to the backlog of the team. */
+  /**
+   * Approve: an edit awaiting review stays as it is (`applied`); a needs-backend request is taken into the
+   * team's backlog (`in-progress`).
+   */
   app.post('/admin/requests/:id/approve', (c) => {
     const who = caller(c)
     const req = getRequest(who.appId, c.req.param('id'))
     if (!req) return c.json({ error: 'not found' }, 404)
-    if (req.status !== 'pending-admin') return c.json({ error: `cannot take a request in status ${req.status}` }, 409)
-    patchRequest(req.id, { status: 'in-progress' })
-    return c.json({ status: 'in-progress' })
+    const next = req.status === 'pending-review' ? 'applied' : req.status === 'pending-admin' ? 'in-progress' : null
+    if (!next) return c.json({ error: `cannot approve a request in status ${req.status}` }, 409)
+    patchRequest(req.id, { status: next })
+    return c.json({ status: next })
   })
 
   /** Move the user's head off this request's snapshot (to its parent). */
@@ -330,7 +372,7 @@ export function createStoreApp(db: StoreDb) {
       .where(and(eq(requests.appId, who.appId), gte(requests.createdAtMs, since)))
       .all()
     const total = week.length
-    const applied = week.filter((r) => r.snapshotId && (r.status === 'applied' || r.status === 'rolled-back' || r.status === 'rejected')).length
+    const applied = week.filter((r) => r.snapshotId && ['applied', 'pending-review', 'rolled-back', 'rejected'].includes(r.status)).length
     const needsBackend = week.filter((r) => r.verdict === 'needs-backend').length
     const byStatus: Record<string, number> = {}
     for (const r of week) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1
@@ -340,6 +382,8 @@ export function createStoreApp(db: StoreDb) {
       editsThisWeek: applied,
       successRate: total ? applied / total : null,
       needsBackendRate: total ? needsBackend / total : null,
+      pendingReview: byStatus['pending-review'] ?? 0,
+      moderation: moderationOf(who.appId),
       byStatus,
     })
   })

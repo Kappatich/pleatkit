@@ -60,6 +60,7 @@ export function userMessage(req: AgentRunRequest): string {
   parts.push(`<current_dynamic_files>\n${files(req.files)}\n</current_dynamic_files>`)
   parts.push(`Panels that must keep a default export: ${req.components.join(', ') || '(none)'}`)
   if (req.target) parts.push(`The user pointed at the panel "${req.target}" (file ${req.context.dynamicRoots[0] ?? ''}${req.target}.tsx).`)
+  if (req.locale === 'ru') parts.push('The user reads the interface in Russian: write the finish summary (and any needs-backend sentence) in Russian.')
   parts.push(`<user_request>\n${req.request}\n</user_request>`)
   return parts.join('\n\n')
 }

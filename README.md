@@ -148,14 +148,22 @@ Agent server (`@morphkit/agent`): keys are read from the environment only, never
 | `MORPHKIT_STORE_URL` | | store-server URL; each run (request, verdict, tool log, usage) is logged there |
 | `MORPHKIT_FIXTURES` | `fixtures` | directory of scripted answers (`*.json`) |
 | `MORPHKIT_AGENT_PORT` | `8789` | |
-| `MORPHKIT_MAX_CALLS` / `MORPHKIT_TIMEOUT_MS` / `MORPHKIT_MAX_OUTPUT_TOKENS` | `12` / `90000` / `8000` | limits per edit |
+| `MORPHKIT_MAX_CALLS` / `MORPHKIT_TIMEOUT_MS` / `MORPHKIT_MAX_OUTPUT_TOKENS` | `12` / `90000` / `8000` | limits per edit. The output budget counts **visible** tokens only (text and tool calls); thinking is billed but not limited, and reported per run |
 | `MORPHKIT_CORS_ORIGIN` | | allowed browser origin if the app calls the agent cross-origin |
 
 Store-server (`@morphkit/store-server`): `MORPHKIT_STORE_DB` (SQLite file, default `.morphkit/store.db`, or
-`:memory:`), `MORPHKIT_STORE_PORT` (default `8790`).
+`:memory:`), `MORPHKIT_STORE_PORT` (default `8790`), `MORPHKIT_MODERATION` (`off` default, or `review`: the
+default for apps whose admin has not chosen; each app switches it in `/admin`). With `review`, an agent edit is
+applied for the user at once but marked `pending-review`; it waits at the top of the admin's list until it is
+approved or rolled back with one click. (Holding edits until approval is deliberately not built.)
+
+Interface language: `<MorphkitChat locale="ru">` switches the chat, the agent's progress lines and its summaries
+to Russian (`en` by default); the demo takes `?lang=ru`, the dashboard too. Strings live in one dictionary per
+language (`@morphkit/ui` `UI_MESSAGES`, `@morphkit/agent` `MESSAGES`).
 
 **How the Anthropic provider calls Claude:** official `@anthropic-ai/sdk`; `claude-haiku-5-5` classifies the
-request first with a structured output (backend work goes straight to the admin, the big model is not called);
+request first with a structured output (backend work goes straight to the admin, the big model is not called;
+when the user pointed at a panel the classifier is skipped);
 `claude-sonnet-5-5` then works with adaptive thinking, `output_config.effort: "medium"`, five tools with
 `strict: true` (`list_files`, `read_file`, `write_file` limited to the dynamic zone, `check`, `finish`), one
 `cache_control` breakpoint covering the tools, the instructions, the readonly sources and the core types, and an
@@ -164,20 +172,26 @@ code does not compile, so the model gets the errors and fixes them.
 
 ## Content Security Policy
 
-Edits are compiled in the browser and loaded as modules from `blob:` URLs; esbuild-wasm runs in a worker
-created from a `blob:` URL. A strict CSP needs:
+Edits are compiled in the browser by esbuild-wasm and loaded as modules from `blob:` URLs. A strict CSP needs:
 
 ```
-script-src 'self' blob:;
+script-src 'self' blob: 'wasm-unsafe-eval';   # blob: modules of edits; WebAssembly for the compiler
 worker-src blob:;
-style-src 'self' 'unsafe-inline';     # runtime CSS for edits is injected as a <style> element
-connect-src 'self';                   # agent server and store-server behind the same origin (or list them)
+style-src 'self' 'unsafe-inline';             # runtime CSS for edits is injected as a <style> element
+connect-src 'self';                           # agent server and store-server behind the same origin (or list them)
 ```
+
+`'wasm-unsafe-eval'` is required: without it Chrome refuses `WebAssembly.compile()` and every commit fails
+(checked in e2e: the demo serves its page under exactly this policy with `?csp=strict`). No `'unsafe-inline'` for
+scripts is needed anywhere.
 
 The `isolated` mode renders a panel in an `<iframe sandbox="allow-scripts" srcdoc>`; the frame inherits the
-page's CSP, and its host script is inlined in `srcdoc`, so it additionally needs `'unsafe-inline'` for scripts or
-a hash of that script. A CSP without `blob:` in `script-src` is not supported in this version (a Service Worker
-that serves modules from your own origin would lift that; it is not built).
+page's CSP. Its host script is a separate file (`assets/morphkit-isolated-host-<hash>.js`), loaded with
+`crossorigin="anonymous"` from the opaque-origin frame (`Origin: null`), so **serve that one file with
+`Access-Control-Allow-Origin: *`** (Vite dev and `vite preview` do it for you; on a CDN or nginx add the header for
+`/assets/morphkit-isolated-host-*`). If the host never starts, the panel shows an error after 15 s.
+A CSP without `blob:` in `script-src` is not supported in this version (a Service Worker that serves modules from
+your own origin would lift that; it is not built).
 
 ## Security model and limits of the demo
 

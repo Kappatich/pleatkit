@@ -1,7 +1,9 @@
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import picomatch from 'picomatch'
-import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite'
+import type { Connect, Plugin, ResolvedConfig, ViteDevServer } from 'vite'
 import { buildIsolatedHost } from './isolated.js'
 import { aliasToPath, buildManifest, resolveOptions, toPosix, type MorphkitManifest, type MorphkitOptions } from './manifest.js'
 import { generateTailwindModule } from './tailwind.js'
@@ -12,6 +14,25 @@ export { extractTailwindBlocks, generateTailwindModule } from './tailwind.js'
 export { buildIsolatedHost } from './isolated.js'
 
 export const MANIFEST_FILE = 'morphkit.manifest.json'
+/** Dev-server path of the isolated-panel host script (under `base`). */
+export const ISOLATED_DEV_PATH = '@morphkit/isolated-host.js'
+/** Built file name prefix of the isolated-panel host script (`assets/morphkit-isolated-host-<hash>.js`). */
+export const ISOLATED_FILE_PREFIX = 'morphkit-isolated-host-'
+
+/**
+ * The sandboxed frame of an isolated panel has an opaque origin (`Origin: null`), and loads the host script
+ * with `crossorigin="anonymous"`: the script must be served with CORS. Production hosting must send the same
+ * header for this one file (see README, "Content Security Policy").
+ */
+export function isolatedCorsMiddleware(): Connect.NextHandleFunction {
+  return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    if (req.url && (req.url.includes(ISOLATED_FILE_PREFIX) || req.url.includes(ISOLATED_DEV_PATH))) {
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    }
+    next()
+  }
+}
 
 const MODULES = [
   'virtual:morphkit',
@@ -22,7 +43,6 @@ const MODULES = [
   'virtual:morphkit/css',
   'virtual:morphkit/tailwind',
   'virtual:morphkit/isolated',
-  'virtual:morphkit/isolated-code',
 ] as const
 type VirtualId = (typeof MODULES)[number]
 const RESOLVED_PREFIX = '\0'
@@ -84,7 +104,13 @@ export default function morphkit(options: MorphkitOptions): Plugin {
 
   const getManifest = (): MorphkitManifest => (manifest ??= buildManifest(root, options))
 
-  const load = (id: VirtualId): string | Promise<string> => {
+  const hostCode = () =>
+    (isolatedCode ??= buildIsolatedHost(root, getManifest(), config.command === 'build').catch((e: Error) => {
+      isolatedCode = null
+      throw e
+    }))
+
+  const load = async (id: VirtualId, emit: (fileName: string, source: string) => void): Promise<string> => {
     switch (id) {
       case 'virtual:morphkit':
         return [
@@ -115,16 +141,15 @@ export default function morphkit(options: MorphkitOptions): Plugin {
           : `export default { mode: 'palette', load: null }`
       case 'virtual:morphkit/tailwind':
         return generateTailwindModule(root, o.tailwindEntry)
-      case 'virtual:morphkit/isolated':
-        return o.isolated ? `export default { load: () => import('virtual:morphkit/isolated-code').then((m) => m.default) }` : `export default null`
-      case 'virtual:morphkit/isolated-code':
-        return (isolatedCode ??= buildIsolatedHost(root, getManifest(), config.command === 'build')).then(
-          (code) => `export default ${JSON.stringify(code)}`,
-          (e: Error) => {
-            isolatedCode = null
-            throw e
-          },
-        )
+      case 'virtual:morphkit/isolated': {
+        if (!o.isolated) return `export default null`
+        // A separate classic script, never inlined (DECISIONS item 16): works under a strict CSP.
+        if (config.command !== 'build') return `export default { url: ${JSON.stringify(config.base + ISOLATED_DEV_PATH)} }`
+        const code = await hostCode()
+        const fileName = `${config.build.assetsDir}/${ISOLATED_FILE_PREFIX}${createHash('sha256').update(code).digest('hex').slice(0, 10)}.js`
+        emit(fileName, code)
+        return `export default { url: ${JSON.stringify(config.base + fileName)} }`
+      }
     }
   }
 
@@ -172,7 +197,7 @@ export default function morphkit(options: MorphkitOptions): Plugin {
       if (!id.startsWith(RESOLVED_PREFIX)) return null
       const bare = id.slice(RESOLVED_PREFIX.length)
       if (!(MODULES as readonly string[]).includes(bare)) return null
-      return load(bare as VirtualId)
+      return load(bare as VirtualId, (fileName, source) => this.emitFile({ type: 'asset', fileName, source }))
     },
 
     configureServer(s) {
@@ -195,6 +220,24 @@ export default function morphkit(options: MorphkitOptions): Plugin {
         res.setHeader('content-type', 'application/json')
         res.end(JSON.stringify(getManifest(), null, 2))
       })
+      if (o.isolated) {
+        s.middlewares.use(`${config.base}${ISOLATED_DEV_PATH}`, (_req, res, next) => {
+          hostCode().then(
+            (code) => {
+              res.setHeader('content-type', 'text/javascript; charset=utf-8')
+              res.setHeader('cache-control', 'no-cache')
+              res.setHeader('Access-Control-Allow-Origin', '*')
+              res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+              res.end(code)
+            },
+            (e: Error) => next(e),
+          )
+        })
+      }
+    },
+
+    configurePreviewServer(s) {
+      if (o.isolated) s.middlewares.use(isolatedCorsMiddleware())
     },
 
     buildStart() {

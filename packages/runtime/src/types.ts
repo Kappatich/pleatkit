@@ -45,10 +45,22 @@ export interface SnapshotStore {
    * Optional: attach the outcome of an agent request (logged by the agent server) to the snapshot it
    * produced. Implemented by HttpStore; local stores have no request log.
    */
-  linkRequest?(requestId: string, patch: RequestLinkPatch): Promise<void>
+  linkRequest?(requestId: string, patch: RequestLinkPatch): Promise<RequestLinkResult | null>
 }
 
-export type RequestStatus = 'proposed' | 'applied' | 'rejected' | 'pending-admin' | 'in-progress' | 'rolled-back' | 'failed'
+/**
+ * `pending-review`: applied for the user right away, but the app runs with `moderation: 'review'`, so the
+ * edit waits at the top of the admin's list until it is approved or rolled back (DECISIONS item 15).
+ */
+export type RequestStatus = 'proposed' | 'applied' | 'pending-review' | 'rejected' | 'pending-admin' | 'in-progress' | 'rolled-back' | 'failed'
+
+/** Moderation of agent edits per app: `off` (default) or `review` (apply now, admin reviews after). */
+export type Moderation = 'off' | 'review'
+
+/** What store-server made of a link: the request's final status (`pending-review` under moderation). */
+export interface RequestLinkResult {
+  status: RequestStatus
+}
 
 export interface RequestLinkPatch {
   snapshotId?: string
@@ -121,9 +133,14 @@ export interface CssConfig {
   load: (() => Promise<TailwindModule>) | null
 }
 
-/** Self-contained iframe host for `isolated` panels (React + externals + fallback), as script text. */
+/**
+ * Self-contained iframe host for `isolated` panels (React + externals + fallback), served as a separate
+ * classic script (DECISIONS item 16). The opaque-origin frame loads it with `crossorigin="anonymous"`, so the
+ * file must be served with `Access-Control-Allow-Origin: *` (the Vite plugin does this in dev and preview).
+ */
 export interface IsolatedConfig {
-  load: () => Promise<string>
+  /** URL of the host script, absolute or relative to the page. */
+  url: string
 }
 
 /** Everything the Vite plugin generates, as `import * as config from 'virtual:morphkit'`. */

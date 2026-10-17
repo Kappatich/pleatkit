@@ -54,7 +54,8 @@ declare module 'virtual:morphkit/css' {
 }
 
 declare module 'virtual:morphkit/isolated' {
-  const isolated: { load: () => Promise<string> } | null
+  /** URL of the iframe host script (served with Access-Control-Allow-Origin: *). */
+  const isolated: { url: string } | null
   export default isolated
 }
 

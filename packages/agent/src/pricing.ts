@@ -41,6 +41,7 @@ export class UsageMeter {
     row.outputTokens += u.outputTokens
     row.cacheReadTokens += u.cacheReadTokens
     row.cacheWriteTokens += u.cacheWriteTokens
+    if (u.thinkingTokens !== undefined) row.thinkingTokens = (row.thinkingTokens ?? 0) + u.thinkingTokens
     row.costUsd = costUsd(model, row)
     this.byModel.set(model, row)
   }

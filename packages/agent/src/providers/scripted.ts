@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { RequestClass } from '@morphkit/runtime/compiler'
+import type { RequestClass, TokenUsage } from '@morphkit/runtime/compiler'
 import { emptyUsage } from '../pricing.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, ToolResult, TurnOptions } from '../types.js'
 
@@ -20,6 +20,8 @@ export interface ScriptFixture {
 export interface ScriptTurn {
   text?: string
   delayMs?: number
+  /** Simulated token usage of this turn (tests of the output budget). */
+  usage?: Partial<TokenUsage>
   calls: ScriptCall[]
 }
 
@@ -105,7 +107,7 @@ export class ScriptedProvider implements ModelProvider {
           if (c.contentFile) input.content = fs.readFileSync(path.join(fx!.dir, c.contentFile), 'utf8')
           return { id: `scripted_${++ids}`, name: c.tool, input }
         })
-        return { text: turn.text ?? '', toolCalls, stop: 'tool_use', usage: emptyUsage(), model: fx ? `scripted:${fx.name}` : 'scripted' }
+        return { text: turn.text ?? '', toolCalls, stop: 'tool_use', usage: { ...emptyUsage(), ...turn.usage }, model: fx ? `scripted:${fx.name}` : 'scripted' }
       },
     }
   }
