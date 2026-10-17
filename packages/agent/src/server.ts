@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { streamSSE } from 'hono/streaming'
-import type { AgentRefusal, AgentResult, AgentRunRequest, RequestStatus } from '@morphkit/runtime/compiler'
+import { COMPILER_VERSION, type AgentRefusal, type AgentResult, type AgentRunRequest, type RequestStatus } from '@morphkit/runtime/compiler'
 import { AgentAuthError, identify, type AgentAuth, type Identity } from './auth.js'
 import { BundleService, type CompileInput } from './bundle.js'
 import { t, type MessageKey } from './i18n.js'
@@ -57,6 +57,7 @@ export const DEFAULT_AGENT_BODY_LIMIT = 16 * 1024 * 1024
 
 function statusFor(result: Omit<AgentResult, 'requestId'>): RequestStatus {
   if (result.verdict === 'needs-backend') return 'pending-admin'
+  if (result.verdict === 'not-editable' || result.verdict === 'declined') return 'refused'
   if (result.verdict === 'failed') return 'failed'
   if (result.verdict === 'clarify') return 'clarifying'
   if (result.verdict === 'refused') return 'refused'
@@ -95,6 +96,10 @@ export async function reportRun(
     ...(result.refusal ? { error: `refused: ${result.refusal}` } : {}),
     ...(result.attachments ? { attachments: result.attachments } : {}),
     ...(result.promptVersion ? { promptVersion: result.promptVersion } : {}),
+    ...(result.backendNote ? { backendNote: result.backendNote } : {}),
+    ...(result.intentLabel ? { intentLabel: result.intentLabel } : {}),
+    ...(result.gist ? { gist: result.gist } : {}),
+    compilerVersion: COMPILER_VERSION,
     },
     // F5: a retried run is logged once
     idempotencyKey ? { 'idempotency-key': `run:${idempotencyKey}` } : {},
@@ -136,6 +141,21 @@ function refusedResult(req: AgentRunRequest, refusal: AgentRefusal, key: Message
     modelCalls: 0,
     timings: { totalMs: 0, classifyMs: null, modelMs: 0, toolsMs: 0 },
   }
+}
+
+/** A run with this key is in progress on another instance: poll the store until it is done (at most 3 minutes). */
+async function waitForRun(store: StoreClient, who: Identity, key: string): Promise<Omit<AgentResult, 'requestId'> & { requestId: string | null }> {
+  for (const until = Date.now() + 180_000; Date.now() < until; ) {
+    await new Promise((r) => setTimeout(r, 500))
+    const c = await store.claimRun(who, key).catch(() => null)
+    if (c?.state === 'done' && c.result) return c.result as never
+    if (c?.state === 'claimed') {
+      // the first instance gave up: release our accidental claim and report it, the client retries
+      await store.finishRun(who, key, null).catch(() => undefined)
+      break
+    }
+  }
+  throw new Error('a run with this Idempotency-Key did not finish; retry with a new key')
 }
 
 export function createAgentApp(options: AgentServerOptions) {
@@ -222,7 +242,16 @@ export function createAgentApp(options: AgentServerOptions) {
     }
     const idemKey = c.req.header('idempotency-key')?.slice(0, 200)
     const scoped = idemKey ? `${who.appId}\0${who.userId}\0${idemKey}` : null
-    const previous = scoped ? runs.get(scoped) : undefined
+    let previous = scoped ? runs.get(scoped) : undefined
+    // DECISIONS 42: with store-server the key is claimed there, so a retry that lands on another agent instance
+    // gets the first run's result too (or waits for it) instead of running the model again
+    let claimed = false
+    if (!previous && scoped && idemKey && store) {
+      const claim = await store.claimRun(who, idemKey).catch(() => null)
+      if (claim?.state === 'done' && claim.result) previous = { result: Promise.resolve(claim.result as never), at: Date.now() }
+      else if (claim?.state === 'running') previous = { result: waitForRun(store, who, idemKey), at: Date.now() }
+      else claimed = claim?.state === 'claimed'
+    }
     if (previous) {
       // a retry of a run already started: its result, once, without running the model again
       return streamSSE(c, async (stream) => {
@@ -264,7 +293,8 @@ export function createAgentApp(options: AgentServerOptions) {
         } else {
           plan = quota?.plan ?? null
           const limits = { ...options.limits, ...(plan ? { maxCostUsd: Math.min(plan.perEditUsd, options.limits?.maxCostUsd ?? Infinity) } : {}) }
-          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null })
+          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null,
+            digests: { ...(trusted.manifest?.designSystem ? { designSystem: trusted.manifest.designSystem } : {}), ...(trusted.manifest?.dataContracts ? { dataContracts: trusted.manifest.dataContracts } : {}) } })
         }
         const cost = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
         const budget = quotas && result.verdict !== 'refused' ? await quotas.afterEdit(who, cost).catch((e: Error) => (log(`[morphkit-agent] could not record the cost: ${e.message}`), null)) : null
@@ -295,9 +325,11 @@ export function createAgentApp(options: AgentServerOptions) {
         if (req.expectedHeadId !== undefined) result = { ...result, expectedHeadId: req.expectedHeadId }
         if (alerts) await alerts.afterRun(who, { ...result, requestId }, budget).catch((e: Error) => log(`[morphkit-agent] alerts failed: ${e.message}`))
         settle?.({ ...result, requestId })
+        if (claimed && idemKey && store) await store.finishRun(who, idemKey, { ...result, requestId } as unknown as Record<string, unknown>).catch(() => undefined)
         await send('result', { ...result, requestId })
       } catch (e) {
         fail?.(e as Error)
+        if (claimed && idemKey && store) await store.finishRun(who, idemKey, null).catch(() => undefined)
         await send('error', { message: (e as Error).message })
       } finally {
         clearInterval(beat)

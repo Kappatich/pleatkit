@@ -30,6 +30,16 @@ export function costUsd(model: string, u: TokenUsage): number | null {
   return (u.inputTokens * p.input + u.outputTokens * p.output + u.cacheReadTokens * p.cacheRead + u.cacheWriteTokens * p.cacheWrite) / 1_000_000
 }
 
+/**
+ * Share of the main model's input that came from the prompt cache (brainstorm 04 §5): cache reads over all input
+ * (uncached + cache writes + cache reads). The eval harness treats a run below 0.8 as a broken prefix.
+ */
+export function cacheHitRate(rows: Pick<UsageByModel, 'inputTokens' | 'cacheReadTokens' | 'cacheWriteTokens' | 'calls'>[]): number | null {
+  const main = rows.filter((r) => r.calls > 0)
+  const total = main.reduce((s, r) => s + r.inputTokens + r.cacheReadTokens + r.cacheWriteTokens, 0)
+  return total > 0 ? main.reduce((s, r) => s + r.cacheReadTokens, 0) / total : null
+}
+
 /** Accumulates usage per model across the classifier and the main loop. */
 export class UsageMeter {
   private byModel = new Map<string, UsageByModel>()

@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server'
 import { createStoreApp, openStore } from './app.js'
 import { authFromEnv } from './auth.js'
 import { sweepAlive24h } from './ledger.js'
+import { applyRetention, DEFAULT_RETENTION, type RetentionPolicy } from './facts.js'
 
 // MORPHKIT_STORE_DB: SQLite file (default .morphkit/store.db), or :memory:
 // MORPHKIT_STORE_PORT: default 8790
@@ -10,6 +11,8 @@ import { sweepAlive24h } from './ledger.js'
 // MORPHKIT_APP_ID / MORPHKIT_APP_KEY / MORPHKIT_JWT_SECRET (or MORPHKIT_APPS): credentials, required with NODE_ENV=production
 // MORPHKIT_DEMO_HEADERS=0 turns the demo headers off in development too
 // MORPHKIT_STORE_BODY_LIMIT: largest request body in bytes (default 4 MiB; larger bodies get 413)
+// MORPHKIT_LEARNING: off (default) | aggregate | contribute, the default of each app's learning flag (DECISIONS 44)
+// MORPHKIT_RETENTION: JSON {"textDays": 90, "logDays": 30, "factsDays": 548}, applied hourly
 // MORPHKIT_REGION (default local) and MORPHKIT_ENVIRONMENT (default production with NODE_ENV=production, else development): recorded on every row (F2)
 let auth
 try {
@@ -24,11 +27,14 @@ const { db, close } = openStore({ file })
 const region = process.env.MORPHKIT_REGION ?? 'local'
 const environment = process.env.MORPHKIT_ENVIRONMENT ?? (auth.production ? 'production' : 'development')
 const bodyLimitBytes = Number(process.env.MORPHKIT_STORE_BODY_LIMIT) || undefined
-const app = createStoreApp(db, { moderation: process.env.MORPHKIT_MODERATION === 'review' ? 'review' : 'off', auth, region, environment, ...(bodyLimitBytes ? { bodyLimitBytes } : {}) })
+const learning = (['off', 'aggregate', 'contribute'] as const).find((m) => m === process.env.MORPHKIT_LEARNING) ?? 'off'
+const retention = { ...DEFAULT_RETENTION, ...(process.env.MORPHKIT_RETENTION ? (JSON.parse(process.env.MORPHKIT_RETENTION) as Partial<RetentionPolicy>) : {}) }
+const app = createStoreApp(db, { moderation: process.env.MORPHKIT_MODERATION === 'review' ? 'review' : 'off', auth, region, environment, learning, ...(bodyLimitBytes ? { bodyLimitBytes } : {}) })
 // F3: `edit.alive24h` for applied edits that are still in their user's version a day later (hourly, idempotent)
 const sweep = () => {
   try {
     sweepAlive24h(db, { region, environment })
+    applyRetention(db, Date.now(), retention)
   } catch (e) {
     console.error(`morphkit store-server: alive24h sweep failed: ${(e as Error).message}`)
   }

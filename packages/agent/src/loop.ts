@@ -2,8 +2,8 @@ import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_
 import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, FileMap, RequestClass } from '@morphkit/runtime/compiler'
 import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
-import { buildPrompt, classifierContext, PROMPT_VERSION } from './prompt.js'
-import { ToolRunner, TOOLS } from './tools.js'
+import { buildPrompt, classifierContext, PROMPT_VERSION, type PromptDigests } from './prompt.js'
+import { checkText, ToolRunner, TOOLS } from './tools.js'
 import type { ModelProvider, ModelTurn, ToolCall, ToolResult } from './types.js'
 import { Workspace, type TypecheckFn } from './workspace.js'
 
@@ -43,6 +43,8 @@ export interface RunOptions {
   base?: FileMap
   /** Type check against the app's `.d.ts` after a clean compile (brainstorm 05 #4). */
   typecheck?: TypecheckFn | null
+  /** Design-system and data-contract digests from the server manifest (cached prompt prefix). */
+  digests?: PromptDigests
   /** Run the cheap classifier first (default true). Migrations skip it. */
   classify?: boolean
   onProgress?: (p: AgentProgress) => void
@@ -69,6 +71,7 @@ export function describe(call: ToolCall, req: Pick<AgentRunRequest, 'context' | 
     case 'read_file':
       return t(req.locale, 'looking', { name: humanName(call.input.path, req) })
     case 'write_file':
+    case 'edit_file':
       return t(req.locale, 'changing', { name: humanName(call.input.path, req) })
     case 'check':
       return t(req.locale, 'checking')
@@ -163,9 +166,11 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   let error: string | undefined
   let clarify: AgentResult['clarify']
   let refusal: AgentResult['refusal']
+  let backendNote: string | undefined
+  const intent: { intentLabel?: string; gist?: string } = {}
   const spent = () => meter.rows().reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
 
-  const runner = new ToolRunner(ws, (entry, call) => {
+  const runner: ToolRunner = new ToolRunner(ws, (entry, call) => {
     if (call.name === 'check' || (call.name === 'finish' && !entry.ok)) {
       const ok = entry.ok && !entry.result.startsWith('FAILED')
       progress({ type: 'check', ok, errorCount: ws.lastCheck?.errors.length ?? 0, text: t(lang, ok ? 'checkOk' : 'checkFailed') })
@@ -177,8 +182,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
     return {
       verdict,
       summary,
-      files: verdict === 'ok' ? ws.changedFiles() : {},
-      deleted: verdict === 'ok' ? ws.deleted() : [],
+      files: verdict === 'ok' || verdict === 'partial' ? ws.changedFiles() : {},
+      deleted: verdict === 'ok' || verdict === 'partial' ? ws.deleted() : [],
       log: runner.log,
       classification,
       provider: provider.name,
@@ -197,6 +202,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       ...(error ? { error } : {}),
       ...(clarify ? { clarify } : {}),
       ...(refusal ? { refusal } : {}),
+      ...(backendNote ? { backendNote } : {}),
+      ...intent,
     }
   }
 
@@ -210,6 +217,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         const c = await provider.classify({ request: req.request, context: classifierContext(req) }, signal)
         if (c.usage && c.model) meter.add(c.model, c.usage)
         classification = c.label
+        if (c.intentLabel) intent.intentLabel = c.intentLabel
+        if (c.gist) intent.gist = c.gist
         timings.classifyMs = performance.now() - startedAt
         const ask = c.label === 'unclear' && c.question && c.options && c.options.length >= 2
         if (c.label !== 'off-topic') progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : ask ? 'classifiedUnclear' : 'classifiedUi') })
@@ -233,7 +242,9 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       }
     }
 
-    const session = provider.start(buildPrompt(req, limits), TOOLS, { request: req.request })
+    // one clarifying question per edit (brainstorm 04 §3): after the user answered, finish("clarify") is refused
+    runner.clarified = Boolean(req.clarification)
+    const session = provider.start(buildPrompt(req, limits, options.digests ?? {}), TOOLS, { request: req.request })
     let results: ToolResult[] = []
     let nudged = false
     while (!runner.finished) {
@@ -297,6 +308,15 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         runner.note(cutOff, modelCalls, CUT_OFF)
         results.push({ id: cutOff.id, ok: false, content: CUT_OFF })
       }
+      // automatic check after a turn that wrote files (brainstorm 04 §2): the model sees the result with its
+      // writes and does not spend a call on check
+      if (runner.wroteSinceCheck && !runner.finished) {
+        const r = await ws.check()
+        runner.wroteSinceCheck = false
+        progress({ type: 'check', ok: r.ok, errorCount: r.errors.length, text: t(lang, r.ok ? 'checkOk' : 'checkFailed') })
+        const last = [...results].reverse().find((x) => x.ok)
+        if (last) last.content += `\n\nAutomatic check after this turn: ${checkText(r)}`
+      }
       timings.toolsMs += performance.now() - tt
     }
   } catch (e) {
@@ -311,7 +331,11 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   }
 
   const fin = runner.finished
-  if (fin) return done(fin.verdict, fin.summary)
+  if (fin) {
+    if (fin.clarify) clarify = fin.clarify
+    if (fin.backendNote) backendNote = fin.backendNote
+    return done(fin.verdict, fin.summary)
+  }
   const why =
     stopReason === 'calls'
       ? t(lang, 'limitCalls', { n: limits.maxModelCalls })

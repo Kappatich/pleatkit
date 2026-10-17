@@ -10,10 +10,11 @@ import { applyQuotaOps, signingKeyFromAppKey, sriDigest, verifyBundleSignature, 
 import { AuthError, resolveCaller, type AuthOptions, type Caller } from './auth.js'
 import { buildExport } from './export.js'
 import { deleteFlag, FLAG_SCOPES, listFlags, resolveFlags, setFlag, type FlagScope } from './flags.js'
+import { learningOf, LEARNING_MODES, recordFacts, setOutcome, type Learning } from './facts.js'
 import { idempotencyMiddleware } from './idempotency.js'
 import { appendAudit, EVENT_TYPES, markEditorActive, recordEvent, verifyAuditChain, type EventType } from './ledger.js'
 import * as schema from './schema.js'
-import { appPlans, appSettings, audit, bundleFiles, events, heads, quotaBuckets, requests, snapshots } from './schema.js'
+import { agentRuns, appPlans, appSettings, audit, bundleFiles, events, heads, quotaBuckets, requests, snapshots } from './schema.js'
 
 export type StoreDb = BetterSQLite3Database<typeof schema>
 
@@ -38,6 +39,8 @@ export interface StoreAppOptions {
   environment?: string
   /** Largest request body, bytes (`MORPHKIT_STORE_BODY_LIMIT`). Default 4 MiB. */
   bodyLimitBytes?: number
+  /** DECISIONS 44: default of the per-app `learning` flag (`MORPHKIT_LEARNING`). Default `off` (self-host). */
+  learning?: Learning
 }
 
 /** A snapshot of a big zone is a few hundred KB; a request log with tool results stays well under this. */
@@ -330,7 +333,10 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     const old = before ? getSnapshot(who.appId, before.snapshotId) : undefined
     audited(who, 'head.set', 'head', snap.userId, { from: before?.snapshotId ?? null, to: snap.id })
     // the user undid an agent edit: its snapshot left the head for its parent (F3)
-    if (old?.requestId && old.parentId === snap.id) event(who, 'edit.reverted', snap.userId, old.requestId, { props: { by: 'user' } })
+    if (old?.requestId && old.parentId === snap.id) {
+      event(who, 'edit.reverted', snap.userId, old.requestId, { props: { by: 'user' } })
+      setOutcome(db, old.requestId, 'reverted:user')
+    }
     return c.body(null, 204)
   })
 
@@ -468,15 +474,39 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
         snapshotId: null,
         error: typeof b.error === 'string' ? b.error.slice(0, 2000) : null,
         attachments: b.attachments && typeof b.attachments === 'object' ? b.attachments : null,
-        adminNote: null,
+        // what the server side of a partial or needs-backend request would need (the agent's backend_note)
+        adminNote: typeof (b as unknown as { backendNote?: unknown }).backendNote === "string" ? String((b as unknown as { backendNote: string }).backendNote).slice(0, 1000) : null,
         createdAt: t,
         updatedAt: t,
         createdAtMs: Date.now(),
         orgId: who.orgId,
         ...place(who),
         promptVersion: typeof b.promptVersion === 'string' ? b.promptVersion : null,
+        intentLabel: typeof b.intentLabel === 'string' ? b.intentLabel.slice(0, 40) : null,
+        gist: typeof b.gist === 'string' ? b.gist.slice(0, 120) : null,
       })
       .run()
+    // L1 fingerprint, when the app's learning flag allows it (DECISIONS 44)
+    recordFacts(
+      db,
+      {
+        requestId: id,
+        appId: who.appId,
+        orgId: who.orgId,
+        userId: b.userId,
+        target: b.target ?? null,
+        verdict: b.verdict ?? 'failed',
+        intentLabel: typeof b.intentLabel === 'string' ? b.intentLabel : null,
+        usage: Array.isArray(b.usage) ? (b.usage as { model: string; calls: number; costUsd: number | null }[]) : null,
+        log: Array.isArray(b.log) ? (b.log as { tool: string; ok: boolean; violation?: string }[]) : [],
+        timings: (b.timings as { totalMs?: number } | null) ?? null,
+        promptVersion: typeof b.promptVersion === 'string' ? b.promptVersion : null,
+        model: b.model ?? null,
+        provider: b.provider ?? null,
+        compilerVersion: typeof (b as unknown as { compilerVersion?: unknown }).compilerVersion === 'string' ? (b as unknown as { compilerVersion: string }).compilerVersion : null,
+      },
+      learningOf(db, who.appId, options.learning ?? 'off'),
+    )
     audited(who, 'request.create', 'request', id, { userId: b.userId, verdict: b.verdict ?? 'failed', status })
     markEditorActive(db, { appId: who.appId, orgId: who.orgId, userId: b.userId, requestId: id, ...place(who) })
     return c.json({ id }, 201)
@@ -530,7 +560,49 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json(rows.map(({ r: { files: _files, log, ...r }, headSnapshot }) => ({ ...r, toolCalls: log.length, isHead: Boolean(r.snapshotId) && headSnapshot === r.snapshotId })))
   })
 
-  api.get('/admin/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId), default: defaultModeration }))
+  api.get('/admin/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId), default: defaultModeration, learning: learningOf(db, caller(c).appId, options.learning ?? 'off') }))
+
+  /** DECISIONS 44: `{ learning: 'off' | 'aggregate' | 'contribute' }` for this app. */
+  api.put('/admin/learning', async (c) => {
+    const who = caller(c)
+    const b = await c.req.json<{ learning?: string }>().catch(() => ({}) as { learning?: string })
+    if (!LEARNING_MODES.includes(b.learning as Learning)) return c.json({ error: 'learning must be off, aggregate or contribute' }, 400)
+    db.insert(appSettings)
+      .values({ appId: who.appId, moderation: moderationOf(who.appId), updatedAt: now(), learning: b.learning! })
+      .onConflictDoUpdate({ target: appSettings.appId, set: { learning: b.learning!, updatedAt: now() } })
+      .run()
+    audited(who, 'settings.learning', 'app', who.appId, { learning: b.learning })
+    return c.json({ learning: b.learning })
+  })
+
+  // --- DECISIONS 42: agent runs by Idempotency-Key, shared by all agent instances ---
+
+  /** Claim a run key: `claimed` (go ahead), `running` (another instance has it), `done` (with its result). */
+  api.post('/runs/claim', async (c) => {
+    const who = caller(c)
+    if (!who.agent) return c.json({ error: 'agent only' }, 403)
+    const b = await c.req.json<{ userId?: string; key?: string }>().catch(() => ({}) as { userId?: string; key?: string })
+    if (typeof b.userId !== 'string' || typeof b.key !== 'string' || !b.key || b.key.length > 200) return c.json({ error: 'userId and key are required' }, 400)
+    const out = db.transaction((tx) => {
+      const row = tx.select().from(agentRuns).where(and(eq(agentRuns.appId, who.appId), eq(agentRuns.userId, b.userId!), eq(agentRuns.key, b.key!))).get()
+      if (row) return row.state === 'done' ? { state: 'done', result: row.result } : { state: 'running' }
+      tx.insert(agentRuns).values({ appId: who.appId, userId: b.userId!, key: b.key!, state: 'running', result: null, createdAtMs: Date.now() }).run()
+      return { state: 'claimed' }
+    })
+    return c.json(out)
+  })
+
+  /** Store a run's result (`result: null` releases a failed claim so a retry runs again). */
+  api.put('/runs/:key', async (c) => {
+    const who = caller(c)
+    if (!who.agent) return c.json({ error: 'agent only' }, 403)
+    const b = await c.req.json<{ userId?: string; result?: Record<string, unknown> | null }>().catch(() => ({}) as { userId?: string; result?: null })
+    if (typeof b.userId !== 'string') return c.json({ error: 'userId is required' }, 400)
+    const where = and(eq(agentRuns.appId, who.appId), eq(agentRuns.userId, b.userId), eq(agentRuns.key, c.req.param('key')))
+    if (!b.result) db.delete(agentRuns).where(where).run()
+    else db.update(agentRuns).set({ state: 'done', result: b.result }).where(where).run()
+    return c.body(null, 204)
+  })
 
   api.put('/admin/settings', async (c) => {
     const who = caller(c)
@@ -593,6 +665,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     if (!r.ok) return c.json({ error: r.error }, 409)
     patchRequest(req.id, { status: 'rolled-back' })
     audited(who, 'request.rollback', 'request', req.id, { userId: req.userId })
+    setOutcome(db, req.id, 'reverted:admin')
     event(who, 'edit.reverted', req.userId, req.id, { props: { by: 'admin' } })
     return c.json({ status: 'rolled-back' })
   })

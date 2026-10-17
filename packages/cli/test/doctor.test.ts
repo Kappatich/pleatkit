@@ -99,7 +99,7 @@ describe('morphkit doctor', () => {
   it('passes on the demo app (loads its real vite.config)', async () => {
     const demo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../apps/demo-crm')
     const findings = await doctor({ root: demo })
-    expect(findings.map((f) => f.id)).toEqual(['config', 'react', 'panels', 'externals', 'csp', 'secure-context', 'secrets'])
+    expect(findings.map((f) => f.id)).toEqual(['config', 'react', 'panels', 'externals', 'context-budget', 'csp', 'secure-context', 'secrets'])
     expect(findings.filter((f) => f.status === 'fail')).toEqual([])
     expect(findings.find((f) => f.id === 'panels')?.details).toContain('<Dynamic id="customer-card">')
   }, 60_000)
@@ -121,5 +121,15 @@ describe('secure context (code review 06 item 4)', () => {
     expect(checkSecureContext('http://intranet.corp:8080', undefined, true).status).toBe('fail')
     expect(checkSecureContext(undefined, { host: true, https: false }, false).status).toBe('warn')
     expect(checkSecureContext(undefined, { host: undefined, https: false }, false).status).toBe('ok')
+  })
+})
+
+describe('context budget (brainstorm 04 §8 item 12)', () => {
+  it('estimates the cached prefix and the tail and warns over the targets', async () => {
+    const { checkContextBudget } = await import('../src/doctor.js')
+    const m = (readonly: number, dynamic: number) => ({ version: 1 as const, dynamicRoots: ['src/dynamic/'], dynamic: [{ path: 'src/dynamic/a.tsx', source: 'x'.repeat(dynamic) }], readonly: [{ path: 'src/readonly/api.ts', source: 'x'.repeat(readonly) }], coreTypes: [], externals: [], externalPatterns: [], alias: {} })
+    expect(checkContextBudget(m(7_000, 3_500)).status).toBe('ok')
+    expect(checkContextBudget(m(70_000, 3_500))).toMatchObject({ status: 'warn', details: expect.arrayContaining([expect.stringContaining('largest in the prefix: src/readonly/api.ts')]) })
+    expect(checkContextBudget(m(7_000, 35_000)).status).toBe('warn')
   })
 })

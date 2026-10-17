@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { RequestClass, TokenUsage } from '@morphkit/runtime/compiler'
 import { emptyUsage } from '../pricing.js'
+import { intentOf } from './anthropic.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, TurnOptions } from '../types.js'
 
 /**
@@ -13,7 +14,7 @@ export interface ScriptFixture {
   description?: string
   /** Case-insensitive regular expressions; the first fixture with a matching one is used. */
   match: string[]
-  classify?: { label: RequestClass; reason?: string; question?: string; options?: string[] }
+  classify?: { label: RequestClass; reason?: string; question?: string; options?: string[]; intentLabel?: string; gist?: string }
   turns: ScriptTurn[]
 }
 
@@ -81,6 +82,7 @@ export class ScriptedProvider implements ModelProvider {
       label: c?.label ?? 'ui',
       reason: c?.reason ?? '',
       ...(c?.question && c.options ? { question: c.question, options: c.options } : {}),
+      ...intentOf({ intent_label: c?.intentLabel, gist: c?.gist }),
       usage: emptyUsage(),
       model: 'scripted-classifier',
     }

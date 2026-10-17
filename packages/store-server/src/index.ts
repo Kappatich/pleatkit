@@ -5,4 +5,5 @@ export { recordEvent, appendAudit, verifyAuditChain, sweepAlive24h, markEditorAc
 export { resolveFlags, setFlag, deleteFlag, DEFAULT_FLAGS, type FlagScope } from './flags.js'
 export { idempotencyMiddleware, IDEMPOTENCY_TTL_MS } from './idempotency.js'
 export { buildExport, EXPORT_FORMAT } from './export.js'
+export { recordFacts, setOutcome, applyRetention, saltOf, hmacKey, learningOf, INTENT_LABELS, LEARNING_MODES, DEFAULT_RETENTION, type Learning, type IntentLabel, type RetentionPolicy } from './facts.js'
 export * as schema from './schema.js'

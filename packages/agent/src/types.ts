@@ -67,6 +67,9 @@ export interface Classification {
   /** For `unclear`: one question that would settle it, and 2 to 4 short answers. */
   question?: string
   options?: string[]
+  /** DECISIONS 44: one of the closed list of request labels, and at most 12 words without names or numbers. */
+  intentLabel?: string
+  gist?: string
   usage: TokenUsage | null
   model: string | null
 }
