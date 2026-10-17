@@ -281,3 +281,35 @@ describe('B1/A3: the browser verifies signed bundles before they run', () => {
     await expect(client.load(key, '0'.repeat(64))).rejects.toBeInstanceOf(BundleVerificationError)
   })
 })
+
+describe('F6: flags read by the runtime', () => {
+  class FlaggedStore extends MemoryStore {
+    constructor(private readonly f: Record<string, unknown>) {
+      super()
+    }
+    async flags() {
+      return this.f
+    }
+  }
+
+  it('the kill switch shows the original version and refuses edits; edits.enabled=false keeps versions but refuses new ones', async () => {
+    const store = new FlaggedStore({ 'morphkit.enabled': true, 'edits.enabled': true })
+    const e = engine(store)
+    await e.init()
+    await commit(e, CARD, `export default function C() { return <b>mine</b> }`)
+
+    const killed = engine(new FlaggedStore({ 'morphkit.enabled': false }) as MemoryStore)
+    await killed.init()
+    expect(killed.getState()).toMatchObject({ disabled: true, editsEnabled: false, usingFallback: true, status: 'ready' })
+
+    const frozen = new FlaggedStore({ 'edits.enabled': false })
+    // same snapshots and head as the first store
+    Object.assign(frozen, { snapshots: (store as unknown as { snapshots: unknown }).snapshots, heads: (store as unknown as { heads: unknown }).heads })
+    const f = engine(frozen)
+    await f.init()
+    expect(f.getState()).toMatchObject({ disabled: false, editsEnabled: false, usingFallback: false })
+    f.draft.start('x')
+    f.draft.write(CARD, `export default function C() { return <b>new</b> }`)
+    await expect(f.draft.commit()).rejects.toThrow(/switched off/)
+  })
+})

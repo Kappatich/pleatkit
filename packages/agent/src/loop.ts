@@ -2,7 +2,7 @@ import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_
 import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, RequestClass } from '@morphkit/runtime/compiler'
 import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
-import { buildPrompt, classifierContext } from './prompt.js'
+import { buildPrompt, classifierContext, PROMPT_VERSION } from './prompt.js'
 import { ToolRunner, TOOLS } from './tools.js'
 import type { ModelProvider, ModelTurn, ToolCall, ToolResult } from './types.js'
 import { Workspace } from './workspace.js'
@@ -175,6 +175,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       classification,
       provider: provider.name,
       model: provider.model,
+      promptVersion: PROMPT_VERSION,
       usage: meter.rows(),
       modelCalls,
       output,

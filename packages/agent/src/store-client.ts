@@ -44,6 +44,17 @@ export class StoreClient {
     return (res.status === 204 ? null : await res.json()) as T
   }
 
+  /** F6: flags of a user (app < org < user). */
+  async flags(who: Pick<Identity, 'appId' | 'userId' | 'orgId'>): Promise<Record<string, unknown>> {
+    const q = `?userId=${encodeURIComponent(who.userId)}&orgId=${encodeURIComponent(who.orgId)}`
+    return (await this.call<{ flags?: Record<string, unknown> }>('GET', `/flags${q}`, { appId: who.appId, userId: '' })).flags ?? {}
+  }
+
+  /** F3: append usage events (dedupe keys make retries safe). */
+  events(who: Pick<Identity, 'appId' | 'userId' | 'orgId' | 'environment'>, events: Record<string, unknown>[]): Promise<{ stored: number }> {
+    return this.call('POST', '/events', who, { events })
+  }
+
   quota(appId: string, ops: QuotaOp[]): Promise<QuotaOutcome> {
     return this.call<QuotaOutcome>('POST', '/quota', { appId, userId: '' }, { ops })
   }

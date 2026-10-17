@@ -18,10 +18,10 @@ Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Progress and measurement
 | Package | What it does | Repo |
 |---|---|---|
 | `@morphkit/vite-plugin` | zones, manifest (dynamic sources, readonly sources, core `.d.ts`), externals registry, fallback bundle, runtime Tailwind module, isolated-panel host | morphkit (public, MIT) |
-| `@morphkit/runtime` | `<MorphkitProvider>`, `<Dynamic>`, snapshot engine (draft/check/commit/undo/redo/reset), esbuild-wasm compiler, Tailwind 4 in the browser, `LocalStore` (IndexedDB) and `HttpStore` | morphkit (public, MIT) |
+| `@morphkit/runtime` | `<MorphkitProvider>`, `<Dynamic>`, snapshot engine (draft/check/commit/undo/redo/reset), signed server bundles or esbuild-wasm in the page, Tailwind 4 at runtime, safe mode, `LocalStore` (IndexedDB) and `HttpStore` | morphkit (public, MIT) |
 | `@morphkit/ui` | chat drawer, "point at a panel" picker, history, undo/reset, toasts, stale-version banner | morphkit (public, MIT) |
 | `@morphkit/agent` | Node agent server: model loop with zone-checked tools, server-side check, SSE progress, providers `anthropic` / `openai-compatible` / `scripted` | morphkit (public, MIT) |
-| `@morphkit/cli` | `morphkit doctor`: checks an app's morphkit setup and prints fixes | morphkit (public, MIT) |
+| `@morphkit/cli` | `morphkit doctor` (setup checks with fixes), `ping`, `keys new`, `keys public`, `export` | morphkit (public, MIT) |
 | `@morphkit/store-server` | snapshots, heads, bundles and the request log per user; admin actions; Hono + Drizzle (SQLite in the demo) | **morphkit-cloud** (private) |
 | `apps/demo-crm` | demo CRM with two users, three dynamic panels and an `/admin` dashboard | morphkit (public) |
 
@@ -194,7 +194,8 @@ Edits are compiled in one of two places (`morphkit({ compile })`, V1 B1):
   signature), with a `<script type="module" integrity="sha384-…">` and `import()` of the same URL, so what runs is
   exactly what was signed. Route `/morphkit/b` of the app to store-server's `/v1/b` (or the agent's `/agent/v1/b`
   when there is no store-server). After a chat edit the agent already compiled the result, so the commit is a
-  download: send → repaint **69 ms median** with the scripted agent on localhost (browser compile: 81 ms).
+  download: send → repaint **69–81 ms median** over three runs with the scripted agent on localhost (browser
+  compile: 79–95 ms; `docs/metrics-stage4a.json`).
 - **`browser`.** esbuild-wasm (14 MB, 3.8 MB gzip) and the Tailwind compiler run in the page; edits load from
   `blob:` URLs. Useful in development and with `LocalStore` without an agent server. If WebAssembly cannot load
   (CSP, a proxy that blocks `.wasm`, iOS memory), the runtime switches to `server` by itself.
@@ -285,6 +286,65 @@ host never starts, the panel shows an error after 15 s.
 - **AI disclaimer (V1 A5).** The chat drawer always shows "AI answers can be inaccurate. Check the result."
 - No server-side type checking (esbuild only strips types). Edits that conflict with a release (both changed the
   same file) are not merged automatically: the panel is marked stale; the user resets or asks the agent.
+
+## Data, operations and versions (V1 F)
+
+- **Tenancy and placement (F1, F2).** Every row in store-server carries `app_id`, `org_id` (from the user token's
+  `org` claim, `default` otherwise) and, where it describes something that happened, `region`
+  (`MORPHKIT_REGION`) and `environment` (the token's `env` claim, else `MORPHKIT_ENVIRONMENT`).
+- **Usage ledger (F3).** An append-only `events` table (UPDATE and DELETE are refused by triggers):
+  `edit.requested`, `tokens.used` (per model) and `cost.usd` from the agent server; `edit.applied`,
+  `edit.reverted` (user undo or admin), `edit.alive24h` (hourly sweep: the edit is still in the user's version a
+  day later) and `editor.active` (once per user per day) from store-server. Retries never count twice (dedupe
+  keys). `GET /v1/admin/events`.
+- **Versions (F4).** The store API is under `/v1/` (the unversioned routes remain as aliases); snapshots carry
+  `schemaVersion`; every request records the agent's `promptVersion` and model; bundle keys include the compiler
+  version (`esbuild@0.28.2+f3`).
+- **Idempotency (F5).** Writes to store-server and `POST /agent/v1/run` accept `Idempotency-Key`: a retry gets the
+  first response (`Idempotent-Replayed: true`) instead of a second write or a second model run; the same key with
+  a different body is refused (422). `HttpStore` and the chat send keys and retry once on network errors.
+- **Flags and kill switch (F6).** `PUT /v1/admin/flags { scope: 'app' | 'org' | 'user', scopeId, key, value }`;
+  user overrides org overrides app. `morphkit.enabled: false` shows everyone the original version, hides the
+  chat and makes the agent refuse; `edits.enabled: false` keeps versions but takes no new edits. Read by the
+  runtime (`GET /v1/flags`) and the agent server (cached 15 s).
+- **Audit (F7).** An append-only `audit` table with one SHA-256 hash chain per app: snapshot writes, head moves,
+  requests, links, admin actions, settings, plan, flags, stored bundles, exports, each with its actor.
+  `GET /v1/admin/audit?verify=1` recomputes the chain and names the first broken row.
+- **Export (F9).** `npx morphkit export --store <url> --app <id> [--user <id>]` (authenticates with
+  `MORPHKIT_APP_KEY`) writes one JSON file: snapshots with their files, heads, requests, events, and for an app
+  the audit chain, flags, settings and plan (`GET /v1/admin/export`).
+- **Plans as data (F14).** Limits live in the default plan table of the agent server and per app in store-server
+  (`PUT /v1/admin/plan`); see "Quotas" above.
+
+### Telemetry (F8)
+
+`@morphkit/cli` and `@morphkit/vite-plugin` can send anonymous install-funnel events: the event name
+(`plugin.build`, `plugin.dev`, `doctor.run`, `doctor.fail:<check>`, `ping.ok`, `ping.fail`, `keys.new`,
+`export.run`), a few enum-like properties (compile mode, CSS mode, Vite major), the package version, the Node
+major, the OS platform and a random install id kept in `~/.morphkit/telemetry.json`. Never code, file names,
+paths, URLs, keys or user data (values with `/`, `\`, `:` or spaces are dropped before sending).
+**Off** with `MORPHKIT_TELEMETRY=0`, `DO_NOT_TRACK=1` or in CI. In this version no collector exists yet, so
+nothing is sent and no install id is written unless `MORPHKIT_TELEMETRY_URL` is set; the first event that is
+sent prints a one-line notice.
+
+### Open source and closed parts (F12)
+
+- `packages/runtime`, `vite-plugin`, `ui`, `agent`, `cli` and `apps/*`, `examples/*`: MIT, published to npm
+  (once publishing is enabled, `docs/RELEASING.md`). They depend on nothing closed.
+- `packages/store-server`: `private`, `UNLICENSED`, never published; it is the seed of morphkit-cloud and moves
+  to its own repository (`cloud/*`) with the first cloud commit. It depends only on `@morphkit/runtime` (MIT).
+  The open packages know it only through the HTTP contract (`HttpStore`, the agent's `StoreClient`), so a
+  self-hosted store with the same `/v1` API is a drop-in replacement.
+
+### Changelog and breaking changes (F11)
+
+Changes are listed per version in [`CHANGELOG.md`](CHANGELOG.md). Policy, from the first public release:
+semantic versioning per package; while the version is `0.x`, a minor bump (`0.1` → `0.2`) may break and every
+break is marked **Breaking** in the changelog with the migration step. Wire contracts are versioned separately
+and never broken in place: the HTTP API lives under `/v1/` (a breaking change gets `/v2/` while `/v1/` keeps
+working for at least two minor releases), snapshots carry `schemaVersion` (old snapshots are always readable),
+bundle keys include the compiler version (a compiler change rebuilds bundles instead of reusing them). Event
+and audit names are append-only: new names are added, existing ones never change meaning.
 
 ## Develop
 

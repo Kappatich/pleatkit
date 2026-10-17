@@ -1,8 +1,8 @@
 # morphkit
 
-> morphkit lets users of a React + Vite app change its interface by asking an in-app agent. The agent rewrites only the files you mark as dynamic; each change is compiled in the user's browser (esbuild-wasm), swapped in without a reload, and saved as that user's own version with undo, history and admin rollback. MIT, bring your own model key (the key stays on your agent server).
+> morphkit lets users of a React + Vite app change its interface by asking an in-app agent. The agent rewrites only the files you mark as dynamic; each change is compiled on the agent server (or in the browser with esbuild-wasm), signed, loaded from the app's own origin, swapped in without a reload, and saved as that user's own version with undo, history and admin rollback. MIT, bring your own model key (the key stays on your agent server).
 
-Version 0.1.0 (2026-10-18). Not on npm yet: install from a local checkout with `link:` (see install). Supported: Vite 6 or 7, React 19, TypeScript, optional Tailwind 4. Not supported: Next.js, webpack.
+Version 0.1.0 (2026-10-18). Not on npm yet: install from a local checkout with `link:` (see install). Supported: Vite 6 to 8, React 18 or 19, TypeScript 5, optional Tailwind 4. Not supported: Next.js, webpack.
 
 ## For coding agents installing morphkit
 
@@ -17,6 +17,8 @@ Version 0.1.0 (2026-10-18). Not on npm yet: install from a local checkout with `
 - [README.md](README.md): packages, running the demo, environment variables, CSP, security model
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design (in Russian)
 - [docs/DEVLOG.md](docs/DEVLOG.md): what was built, measurements, open questions (in Russian)
+- [CHANGELOG.md](CHANGELOG.md): changes per version, breaking changes marked
+- [docs/RELEASING.md](docs/RELEASING.md): npm trusted publishing with provenance (prepared, not used yet)
 
 ## Packages
 
@@ -24,7 +26,7 @@ Version 0.1.0 (2026-10-18). Not on npm yet: install from a local checkout with `
 - `@morphkit/runtime`: `MorphkitProvider`, `<Dynamic id>`, snapshots, compiler, `LocalStore`, `HttpStore`
 - `@morphkit/ui`: `MorphkitChat` (chat drawer, screenshots, clarifying question, undo, history)
 - `@morphkit/agent`: agent server (`morphkit-agent`), providers anthropic / openai-compatible / scripted
-- `@morphkit/cli`: `morphkit doctor`, `morphkit ping`
+- `@morphkit/cli`: `morphkit doctor`, `morphkit ping`, `morphkit keys`, `morphkit export`
 
 ## Optional
 

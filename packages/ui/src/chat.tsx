@@ -282,6 +282,9 @@ export function MorphkitChat({
   }
 
   const head = state.head
+  // F6 kill switch: no chat at all; everyone sees the original version
+  if (state.disabled) return null
+  const editsOff = !state.editsEnabled
   return (
     <div className="mk-root" data-morphkit-ui-layer="" lang={locale}>
       {state.stale && (
@@ -419,9 +422,9 @@ export function MorphkitChat({
                 void attach(files)
               }}
               data-testid="mk-chat-input"
-              placeholder={tr('chat.placeholder')}
+              placeholder={editsOff ? tr('chat.editsOff') : tr('chat.placeholder')}
               value={text}
-              disabled={busy}
+              disabled={busy || editsOff}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -434,7 +437,7 @@ export function MorphkitChat({
               <button type="button" className={`mk-btn ${picking ? 'mk-on' : ''}`} data-testid="mk-chat-pick" disabled={busy} onClick={() => setPicking(true)}>
                 {tr('chat.pick')}
               </button>
-              <button type="button" className="mk-btn mk-primary" data-testid="mk-chat-send" disabled={busy || !text.trim()} onClick={send}>
+              <button type="button" className="mk-btn mk-primary" data-testid="mk-chat-send" disabled={busy || editsOff || !text.trim()} onClick={send}>
                 {busy ? tr('chat.working') : tr('chat.send')}
               </button>
             </div>

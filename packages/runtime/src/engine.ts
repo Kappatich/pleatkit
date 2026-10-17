@@ -76,6 +76,12 @@ export interface EngineState {
   safeMode: SafeModeState | null
   /** Where edits are compiled right now (`browser` may have fallen back to `server`). */
   compileMode: CompileMode
+  /** F6: flags from the store (app < org < user). */
+  flags: Record<string, unknown>
+  /** F6 kill switch (`morphkit.enabled: false`): everyone sees the original version; no chat, no edits. */
+  disabled: boolean
+  /** F6 `edits.enabled: false`: users keep their versions but cannot make new edits. */
+  editsEnabled: boolean
 }
 
 export interface EngineMetrics extends CompilerMetrics, CssMetrics {
@@ -238,6 +244,9 @@ export class MorphkitEngine {
       stalePanels: [],
       safeMode: null,
       compileMode: this.mode,
+      flags: {},
+      disabled: false,
+      editsEnabled: true,
     }
   }
 
@@ -419,6 +428,14 @@ export class MorphkitEngine {
   }
 
   private async loadHead(): Promise<void> {
+    // F6: the kill switch wins over everything; a store that cannot answer leaves the defaults
+    const flags = this.store.flags ? await this.store.flags().catch(() => ({}) as Record<string, unknown>) : {}
+    const disabled = flags['morphkit.enabled'] === false
+    this.set({ flags, disabled, editsEnabled: !disabled && flags['edits.enabled'] !== false })
+    if (disabled) {
+      if (!this.state.usingFallback) this.swap(this.fallbackModules(), null, true, this.state.head)
+      return this.set({ status: 'ready' })
+    }
     const head = await this.store.head(this.userId)
     if (!head) {
       if (this.state.head) this.swap(this.fallbackModules(), null, true, null)
@@ -709,6 +726,7 @@ export class MorphkitEngine {
     /** check + store + set head + swap. Throws CommitRejectedError if the draft does not compile or evaluate. */
     commit: (author: SnapshotAuthor = 'user', options: CommitOptions = {}): Promise<Snapshot> =>
       this.enqueue(async () => {
+        if (!this.state.editsEnabled) throw new Error('morphkit: edits are switched off for this app (flags)')
         const draft = this.requireDraft()
         const snapshot = await this.commitFiles(draft.files, draft.message, draft.parentId, author, options)
         this.set({ draft: null })

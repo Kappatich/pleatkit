@@ -1,3 +1,5 @@
 export { doctor, formatFindings, loadViteConfig, checkReact, checkPanels, checkExternals, checkCsp, checkSecrets, cspProblems, parseCsp } from './doctor.js'
 export type { Finding, Status, DoctorOptions, LoadedConfig } from './doctor.js'
 export { ping, type PingResult } from './ping.js'
+export { exportData, type ExportOptions } from './export.js'
+export { keys } from './keys.js'

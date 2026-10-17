@@ -3,17 +3,21 @@ import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import picomatch from 'picomatch'
-import type { Connect, Plugin, ResolvedConfig, ViteDevServer } from 'vite'
+import { version as viteVersion, type Connect, type Plugin, type ResolvedConfig, type ViteDevServer } from 'vite'
 import { buildIsolatedHost } from './isolated.js'
 import { aliasToPath, buildManifest, resolveOptions, toPosix, type MorphkitManifest, type MorphkitOptions } from './manifest.js'
 import { generateTailwindModule } from './tailwind.js'
+import { track } from './telemetry.js'
 
 export type { MorphkitManifest, MorphkitOptions, ManifestFile, ZonesOptions } from './manifest.js'
 export { buildManifest, expandExternals, globRoot, findImports } from './manifest.js'
 export { extractTailwindBlocks, generateTailwindModule } from './tailwind.js'
 export { buildIsolatedHost } from './isolated.js'
+export { track, telemetryStatus, sanitizeProps, TELEMETRY_ENDPOINT, type TelemetryOptions, type TelemetryProps } from './telemetry.js'
 
 export const MANIFEST_FILE = 'morphkit.manifest.json'
+/** Version reported in telemetry events (F8). */
+export const PLUGIN_VERSION = '0.1.0'
 /** Dev-server path of the isolated-panel host script (under `base`). */
 export const ISOLATED_DEV_PATH = '@morphkit/isolated-host.js'
 /** Built file name prefix of the isolated-panel host script (`assets/morphkit-isolated-host-<hash>.js`). */
@@ -136,6 +140,7 @@ function createPlugin(options: MorphkitOptions): Plugin {
   let server: ViteDevServer | null = null
   let isolatedCode: Promise<string> | null = null
   const inZones = picomatch([...o.dynamic, ...o.readonly])
+  let tracked = false
 
   const getManifest = (): MorphkitManifest => (manifest ??= buildManifest(root, options))
 
@@ -282,6 +287,18 @@ function createPlugin(options: MorphkitOptions): Plugin {
     buildStart() {
       manifest = null
       isolatedCode = null
+      // F8: one anonymous event per build or dev start (no paths, no code; off with MORPHKIT_TELEMETRY=0)
+      if (!tracked) {
+        tracked = true
+        const m = getManifest()
+        void track(config.command === 'build' ? 'plugin.build' : 'plugin.dev', {
+          compile: o.compile,
+          css: o.css,
+          zones: m.dynamic.length > 0,
+          isolated: o.isolated,
+          vite: Number(viteVersion.split('.')[0]),
+        }, { source: { package: '@morphkit/vite-plugin', version: PLUGIN_VERSION } })
+      }
       if (config.command === 'build') {
         for (const f of getManifest().dynamic) this.addWatchFile(path.join(root, f.path))
       }

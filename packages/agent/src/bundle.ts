@@ -78,6 +78,10 @@ export class BundleService {
     private readonly maxCached = 500,
   ) {
     this.signing = credentials ? signingKeyFromAppKey(credentials.appKey) : null
+    // the first compile after start would otherwise pay for loading the Tailwind compiler (~100 ms)
+    void import('tailwindcss').catch(() => undefined)
+    // and for starting esbuild's native service
+    void import('esbuild').then((e) => e.transform('')).catch(() => undefined)
   }
 
   async compile(input: CompileInput, options: { check?: boolean } = {}): Promise<CompileOutput> {

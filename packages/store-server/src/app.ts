@@ -7,8 +7,12 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { Hono, type Context } from 'hono'
 import { applyQuotaOps, signingKeyFromAppKey, sriDigest, verifyBundleSignature, type BundleSignature, type QuotaOp } from '@morphkit/runtime/compiler'
 import { AuthError, resolveCaller, type AuthOptions, type Caller } from './auth.js'
+import { buildExport } from './export.js'
+import { deleteFlag, FLAG_SCOPES, listFlags, resolveFlags, setFlag, type FlagScope } from './flags.js'
+import { idempotencyMiddleware } from './idempotency.js'
+import { appendAudit, EVENT_TYPES, markEditorActive, recordEvent, verifyAuditChain, type EventType } from './ledger.js'
 import * as schema from './schema.js'
-import { appPlans, appSettings, bundleFiles, heads, quotaBuckets, requests, snapshots } from './schema.js'
+import { appPlans, appSettings, audit, bundleFiles, events, heads, quotaBuckets, requests, snapshots } from './schema.js'
 
 export type StoreDb = BetterSQLite3Database<typeof schema>
 
@@ -27,6 +31,10 @@ export interface StoreAppOptions {
    * `authFromEnv`, which refuses to start in production without an app key and a user-JWT secret.
    */
   auth?: AuthOptions
+  /** F2: where this store runs (`MORPHKIT_REGION`), recorded on every row. Default `local`. */
+  region?: string
+  /** F2: environment recorded when the caller does not say (`MORPHKIT_ENVIRONMENT`). Default `development`. */
+  environment?: string
 }
 
 export interface StoreOptions {
@@ -63,6 +71,9 @@ function toSnapshot(r: SnapshotRow) {
     status: r.status,
     ...(r.baseHash ? { baseHash: r.baseHash } : {}),
     ...(r.requestId ? { requestId: r.requestId } : {}),
+    ...(r.baseFiles ? { baseFiles: r.baseFiles } : {}),
+    // missing means 1 (F4), so older clients see the shape they wrote
+    ...(r.schemaVersion > 1 ? { schemaVersion: r.schemaVersion } : {}),
   }
 }
 
@@ -82,6 +93,27 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
   const auth: AuthOptions = options.auth ?? { demoHeaders: true }
   if (auth.production && auth.demoHeaders) throw new Error('demo headers are not allowed in production')
   const app = new Hono<Env>()
+  const region = options.region ?? 'local'
+  const defaultEnvironment = options.environment ?? 'development'
+  const place = (who: Caller) => ({ region, environment: who.environment ?? defaultEnvironment })
+  /** Actor of an audit row: who did it, as the server authenticated them. */
+  const actor = (who: Caller) => (who.agent ? `agent${who.userId ? `:for:${who.userId}` : ''}` : who.admin && !who.userId ? 'admin' : `${who.admin ? 'admin' : 'user'}:${who.userId}`)
+  const audited = (who: Caller, action: string, objectType: string, objectId: string | null, details: Record<string, unknown> | null = null) =>
+    appendAudit(db, { appId: who.appId, orgId: who.orgId, actor: actor(who), action, objectType, objectId, details })
+  const event = (who: Caller, type: EventType, userId: string | null, requestId: string | null, extra: { value?: number; unit?: string; props?: Record<string, unknown>; dedupeKey?: string } = {}) =>
+    recordEvent(db, {
+      type,
+      value: extra.value ?? 1,
+      unit: extra.unit ?? 'edit',
+      appId: who.appId,
+      orgId: who.orgId,
+      userId,
+      requestId,
+      source: 'store',
+      dedupeKey: extra.dedupeKey ?? null,
+      props: extra.props ?? null,
+      ...place(who),
+    })
   const defaultModeration: Moderation = options.moderation ?? 'off'
   const moderationOf = (appId: string): Moderation =>
     (db.select().from(appSettings).where(eq(appSettings.appId, appId)).get()?.moderation as Moderation | undefined) ?? defaultModeration
@@ -89,10 +121,10 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
   const canSee = (who: Caller, userId: string) => who.admin || who.userId === userId
   const getSnapshot = (appId: string, id: string) => db.select().from(snapshots).where(and(eq(snapshots.appId, appId), eq(snapshots.id, id))).get()
   const getHead = (appId: string, userId: string) => db.select().from(heads).where(and(eq(heads.appId, appId), eq(heads.userId, userId))).get()
-  const setHead = (appId: string, userId: string, snapshotId: string) =>
+  const setHead = (appId: string, userId: string, snapshotId: string, orgId = 'default') =>
     db
       .insert(heads)
-      .values({ appId, userId, snapshotId, updatedAt: now() })
+      .values({ appId, userId, snapshotId, updatedAt: now(), orgId })
       .onConflictDoUpdate({ target: [heads.appId, heads.userId], set: { snapshotId, updatedAt: now() } })
       .run()
   const getRequest = (appId: string, id: string) => db.select().from(requests).where(and(eq(requests.appId, appId), eq(requests.id, id))).get()
@@ -134,9 +166,49 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     }
     await next()
   })
+  // F5: writes with an Idempotency-Key run once; retries get the stored response
+  api.use('*', idempotencyMiddleware(db))
 
   /** Public per-app settings (the chat tells the user when edits are reviewed). */
   api.get('/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId) }))
+
+  /** F6: flags for the caller (defaults < app < org < user); the runtime and the agent server read them. */
+  api.get('/flags', (c) => {
+    const who = caller(c)
+    const userId = c.req.query('userId') ?? who.userId
+    if (userId && !canSee({ ...who, admin: who.admin || who.agent }, userId)) return c.json({ error: 'forbidden' }, 403)
+    return c.json({ flags: resolveFlags(db, who.appId, c.req.query('orgId') && (who.agent || who.admin) ? c.req.query('orgId')! : who.orgId, userId) })
+  })
+
+  /** F3: usage events from the agent server (`edit.requested`, `tokens.used`, `cost.usd`). Append-only. */
+  api.post('/events', async (c) => {
+    const who = caller(c)
+    if (!who.agent) return c.json({ error: 'agent only' }, 403)
+    const b = await c.req.json<{ events?: unknown[] }>().catch(() => ({}) as { events?: unknown[] })
+    if (!Array.isArray(b.events) || b.events.length === 0 || b.events.length > 100) return c.json({ error: 'events: 1 to 100 events' }, 400)
+    let stored = 0
+    for (const raw of b.events as Record<string, unknown>[]) {
+      const type = raw?.type as EventType
+      if (!EVENT_TYPES.includes(type) || typeof raw.value !== 'number' || !Number.isFinite(raw.value) || typeof raw.unit !== 'string') {
+        return c.json({ error: `bad event: ${JSON.stringify(raw).slice(0, 200)}` }, 400)
+      }
+      const ok = recordEvent(db, {
+        type,
+        value: raw.value,
+        unit: raw.unit,
+        appId: who.appId,
+        orgId: who.orgId,
+        userId: typeof raw.userId === 'string' ? raw.userId : who.userId,
+        requestId: typeof raw.requestId === 'string' ? raw.requestId : null,
+        source: 'agent',
+        dedupeKey: typeof raw.dedupeKey === 'string' ? raw.dedupeKey.slice(0, 200) : null,
+        props: raw.props && typeof raw.props === 'object' ? (raw.props as Record<string, unknown>) : null,
+        ...place(who),
+      })
+      if (ok) stored++
+    }
+    return c.json({ stored }, 201)
+  })
 
   // --- snapshots & heads (used by HttpStore in the browser) ---
 
@@ -195,8 +267,13 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
       status: body.status,
       baseHash: body.baseHash ?? null,
       requestId: body.requestId ?? null,
+      orgId: who.orgId,
+      ...place(who),
+      baseFiles: body.baseFiles && typeof body.baseFiles === 'object' ? body.baseFiles : null,
+      schemaVersion: typeof body.schemaVersion === 'number' ? body.schemaVersion : 1,
     }
     db.insert(snapshots).values(row).onConflictDoUpdate({ target: snapshots.id, set: row }).run()
+    audited(who, existing ? 'snapshot.update' : 'snapshot.create', 'snapshot', body.id, { userId: body.userId, parentId: row.parentId, status: row.status, author: row.author, files: Object.keys(row.files ?? {}).length })
     return c.body(null, 204)
   })
 
@@ -206,7 +283,12 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     if (!snap) return c.json({ error: 'not found' }, 404)
     if (!canSee(who, snap.userId)) return c.json({ error: 'forbidden' }, 403)
     if (snap.status === 'rejected') return c.json({ error: 'a rejected snapshot cannot become the head' }, 409)
-    setHead(who.appId, snap.userId, snap.id)
+    const before = getHead(who.appId, snap.userId)
+    const old = before ? getSnapshot(who.appId, before.snapshotId) : undefined
+    setHead(who.appId, snap.userId, snap.id, who.orgId)
+    audited(who, 'head.set', 'head', snap.userId, { from: before?.snapshotId ?? null, to: snap.id })
+    // the user undid an agent edit: its snapshot left the head for its parent (F3)
+    if (old?.requestId && old.parentId === snap.id) event(who, 'edit.reverted', snap.userId, old.requestId, { props: { by: 'user' } })
     return c.body(null, 204)
   })
 
@@ -260,10 +342,12 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     } else {
       return c.json({ error: 'forbidden' }, 403)
     }
-    db.insert(bundleFiles)
-      .values({ appId: who.appId, key, owner, js, css, signature: signature as unknown as Record<string, unknown> | null, createdAt: now() })
+    const stored = db
+      .insert(bundleFiles)
+      .values({ appId: who.appId, key, owner, js, css, signature: signature as unknown as Record<string, unknown> | null, createdAt: now(), orgId: who.orgId })
       .onConflictDoNothing()
       .run()
+    if (stored.changes > 0 && who.agent) audited(who, 'bundle.store', 'bundle', key, { signed: Boolean(signature?.sig), keyId: signature?.keyId ?? null })
     return c.body(null, 204)
   })
 
@@ -346,8 +430,13 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
         createdAt: t,
         updatedAt: t,
         createdAtMs: Date.now(),
+        orgId: who.orgId,
+        ...place(who),
+        promptVersion: typeof b.promptVersion === 'string' ? b.promptVersion : null,
       })
       .run()
+    audited(who, 'request.create', 'request', id, { userId: b.userId, verdict: b.verdict ?? 'failed', status })
+    markEditorActive(db, { appId: who.appId, orgId: who.orgId, userId: b.userId, requestId: id, ...place(who) })
     return c.json({ id }, 201)
   })
 
@@ -367,6 +456,8 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     // under moderation an applied edit stays applied for the user, but waits for the admin's review
     const status = b.status === 'applied' && moderationOf(who.appId) === 'review' ? 'pending-review' : b.status
     patchRequest(req.id, { status, snapshotId: b.snapshotId ?? req.snapshotId, error: b.error ?? null })
+    audited(who, 'request.link', 'request', req.id, { status, snapshotId: b.snapshotId ?? null })
+    if (status === 'applied' || status === 'pending-review') event(who, 'edit.applied', req.userId, req.id, { dedupeKey: `edit.applied:${req.id}` })
     return c.json({ status })
   })
 
@@ -405,6 +496,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
       .values({ appId: who.appId, moderation: b.moderation, updatedAt: now() })
       .onConflictDoUpdate({ target: appSettings.appId, set: { moderation: b.moderation, updatedAt: now() } })
       .run()
+    audited(who, 'settings.update', 'app', who.appId, { moderation: b.moderation })
     return c.json({ moderation: b.moderation })
   })
 
@@ -434,6 +526,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     const next = req.status === 'pending-review' ? 'applied' : req.status === 'pending-admin' ? 'in-progress' : null
     if (!next) return c.json({ error: `cannot approve a request in status ${req.status}` }, 409)
     patchRequest(req.id, { status: next })
+    audited(who, 'request.approve', 'request', req.id, { status: next })
     return c.json({ status: next })
   })
 
@@ -455,6 +548,8 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     const r = rollback(who.appId, req)
     if (!r.ok) return c.json({ error: r.error }, 409)
     patchRequest(req.id, { status: 'rolled-back' })
+    audited(who, 'request.rollback', 'request', req.id, { userId: req.userId })
+    event(who, 'edit.reverted', req.userId, req.id, { props: { by: 'admin' } })
     return c.json({ status: 'rolled-back' })
   })
 
@@ -464,11 +559,14 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     if (!req) return c.json({ error: 'not found' }, 404)
     const note = (await c.req.json<{ note?: string }>().catch(() => ({}) as { note?: string })).note ?? null
     // a live edit is also taken back from the user
-    if (isHead(who.appId, req.userId, req.snapshotId)) {
+    const live = isHead(who.appId, req.userId, req.snapshotId)
+    if (live) {
       const r = rollback(who.appId, req)
       if (!r.ok) return c.json({ error: r.error }, 409)
     }
     patchRequest(req.id, { status: 'rejected', adminNote: note })
+    audited(who, 'request.reject', 'request', req.id, { userId: req.userId, note, rolledBack: live })
+    if (live) event(who, 'edit.reverted', req.userId, req.id, { props: { by: 'admin' } })
     return c.json({ status: 'rejected' })
   })
 
@@ -485,7 +583,56 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     const plan = typeof b.plan === 'string' && b.plan ? b.plan : 'custom'
     const row = { appId: who.appId, plan, limits: limits as Record<string, number>, updatedAt: now() }
     db.insert(appPlans).values(row).onConflictDoUpdate({ target: appPlans.appId, set: row }).run()
+    audited(who, 'plan.update', 'app', who.appId, { plan, limits })
     return c.json(planOf(who.appId))
+  })
+
+  // --- F6 flags, F3 events, F7 audit, F9 export ---
+
+  api.get('/admin/flags', (c) => c.json({ flags: listFlags(db, caller(c).appId) }))
+
+  /** `{ scope: 'app' | 'org' | 'user', scopeId?, key, value }`; `value: null` deletes the override. */
+  api.put('/admin/flags', async (c) => {
+    const who = caller(c)
+    const b = await c.req.json<{ scope?: string; scopeId?: string; key?: string; value?: unknown }>().catch(() => ({}) as Record<string, undefined>)
+    if (!FLAG_SCOPES.includes(b.scope as FlagScope)) return c.json({ error: 'scope must be app, org or user' }, 400)
+    if (typeof b.key !== 'string' || !b.key || b.key.length > 100) return c.json({ error: 'key is required' }, 400)
+    if (b.scope !== 'app' && (typeof b.scopeId !== 'string' || !b.scopeId)) return c.json({ error: 'scopeId is required for org and user flags' }, 400)
+    if (b.value === null || b.value === undefined) deleteFlag(db, who.appId, b.scope as FlagScope, b.scopeId ?? '', b.key)
+    else setFlag(db, who.appId, b.scope as FlagScope, b.scopeId ?? '', b.key, b.value)
+    audited(who, b.value === null || b.value === undefined ? 'flag.delete' : 'flag.set', 'flag', `${b.scope}:${b.scopeId ?? ''}:${b.key}`, { value: b.value ?? null })
+    return c.json({ flags: listFlags(db, who.appId) })
+  })
+
+  api.get('/admin/events', (c) => {
+    const who = caller(c)
+    const type = c.req.query('type')
+    const since = Number(c.req.query('since') ?? 0) || 0
+    const limit = Math.min(Number(c.req.query('limit') ?? 500) || 500, 5000)
+    const rows = db
+      .select()
+      .from(events)
+      .where(and(eq(events.appId, who.appId), gte(events.tsMs, since), type ? eq(events.type, type) : undefined))
+      .orderBy(desc(events.seq))
+      .limit(limit)
+      .all()
+    return c.json(rows)
+  })
+
+  /** The app's audit chain; `?verify=1` recomputes every hash. */
+  api.get('/admin/audit', (c) => {
+    const who = caller(c)
+    const limit = Math.min(Number(c.req.query('limit') ?? 200) || 200, 5000)
+    const rows = db.select().from(audit).where(eq(audit.appId, who.appId)).orderBy(desc(audit.seq)).limit(limit).all()
+    return c.json({ rows, ...(c.req.query('verify') ? { verify: verifyAuditChain(db, who.appId) } : {}) })
+  })
+
+  /** F9: everything about the app, or about one user of it (`?userId=`), as one JSON document. */
+  api.get('/admin/export', (c) => {
+    const who = caller(c)
+    const userId = c.req.query('userId') || null
+    audited(who, 'export', userId ? 'user' : 'app', userId ?? who.appId)
+    return c.json(buildExport(db, who.appId, userId))
   })
 
   api.get('/admin/stats', (c) => {
