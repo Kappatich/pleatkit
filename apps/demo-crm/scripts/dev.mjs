@@ -48,6 +48,8 @@ const stopAll = () => commands.forEach((c) => c.kill())
 process.on('SIGINT', stopAll)
 process.on('SIGTERM', stopAll)
 process.on('SIGBREAK', stopAll)
+// Windows cannot deliver SIGINT to another process, so scripts/dev-smoke.mjs asks over IPC (same path as Ctrl+C).
+process.on('message', (m) => m === 'shutdown' && stopAll())
 
 result.then(
   () => process.exit(0),

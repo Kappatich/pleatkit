@@ -68,6 +68,7 @@ export function MorphkitChat({
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState<Snapshot[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [warm, setWarm] = useState(false)
   const body = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLTextAreaElement>(null)
 
@@ -79,7 +80,11 @@ export function MorphkitChat({
 
   // Preload esbuild-wasm and the Tailwind compiler as soon as the chat opens (DECISIONS item 4).
   useEffect(() => {
-    if (open) void engine.warmup().catch(() => undefined)
+    if (open)
+      void engine.warmup().then(
+        () => setWarm(true),
+        () => undefined,
+      )
   }, [open, engine])
 
   useEffect(() => {
@@ -219,7 +224,7 @@ export function MorphkitChat({
       )}
 
       {open && (
-        <aside className="mk-drawer" aria-label="morphkit chat" data-testid="mk-chat">
+        <aside className="mk-drawer" aria-label="morphkit chat" data-testid="mk-chat" data-warm={warm}>
           <div className="mk-head">
             <div>
               <div className="mk-title">{title}</div>
@@ -342,7 +347,17 @@ function TurnView({ turn }: { turn: Turn }) {
   const [label, cls] = BADGE[turn.status]
   const cost = turn.result?.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0) ?? 0
   return (
-    <div className="mk-turn" data-testid="mk-chat-turn" data-status={turn.status} data-total-ms={turn.timing ? Math.round(turn.timing.totalMs) : undefined}>
+    <div
+      className="mk-turn"
+      data-testid="mk-chat-turn"
+      data-status={turn.status}
+      data-total-ms={turn.timing ? Math.round(turn.timing.totalMs) : undefined}
+      data-agent-ms={turn.timing ? Math.round(turn.timing.agentMs) : undefined}
+      data-commit-ms={turn.timing ? Math.round(turn.timing.commitMs) : undefined}
+      data-model-calls={turn.result?.modelCalls}
+      data-cost-usd={turn.result ? cost.toFixed(6) : undefined}
+      data-usage={turn.result ? JSON.stringify(turn.result.usage) : undefined}
+    >
       <div className="mk-req">{turn.request}</div>
       <div className="mk-resp">
         <span className={`mk-badge ${cls}`}>{label}</span>

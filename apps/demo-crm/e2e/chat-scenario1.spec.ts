@@ -7,9 +7,10 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
   const card = page.getByTestId('customer-card')
   await expect(card.getByTestId('phone')).toHaveCount(0)
 
-  // opening the chat preloads esbuild-wasm and the Tailwind compiler
+  // opening the chat preloads esbuild-wasm and the Tailwind compiler (done well before a user finishes typing)
   await openChat(page)
   await expect(page.getByTestId('mk-chat-body')).toContainText('Describe what you want to change')
+  await expect(page.getByTestId('mk-chat')).toHaveAttribute('data-warm', 'true')
 
   const { turn, wallMs } = await ask(page, 'In the customer card add phone, city and source; highlight an overdue payment date in red')
   await expect(turn).toHaveAttribute('data-status', 'applied')
@@ -37,8 +38,13 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
   await shot(page, '08-chat-applied.png')
 
   const totalMs = Number(await turn.getAttribute('data-total-ms'))
-  console.log(`[metrics] chat scenario 1 (scripted provider): request -> re-render ${totalMs} ms in the page, ${wallMs} ms wall clock in Playwright`)
-  recordMetrics('chatScenario1', { provider: 'scripted', requestToRerenderMs: totalMs, wallClockMs: wallMs, runtimeCssBytes: runtimeCss.length })
+  const agentMs = Number(await turn.getAttribute('data-agent-ms'))
+  const commitMs = Number(await turn.getAttribute('data-commit-ms'))
+  console.log(
+    `[metrics] chat scenario 1 (scripted provider): request -> re-render ${totalMs} ms in the page ` +
+      `(agent round trip incl. classify + 3 scripted turns + server check ${agentMs} ms, browser commit + paint ${commitMs} ms), ${wallMs} ms wall clock in Playwright`,
+  )
+  recordMetrics('chatScenario1', { provider: 'scripted', requestToRerenderMs: totalMs, agentMs, commitMs, wallClockMs: wallMs, runtimeCssBytes: runtimeCss.length })
 
   // undo from the chat
   await page.getByTestId('mk-chat-undo').click()
@@ -47,6 +53,15 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
   await page.getByTestId('mk-chat-history').click()
   await expect(page.getByTestId('mk-history')).toContainText('Original version')
   await expect(page.getByTestId('mk-history')).toContainText('In the customer card add phone')
+})
+
+test('chat, cold: a request sent the instant the chat opens still applies (compilers load on demand)', async ({ page }) => {
+  await openCrm(page)
+  const { turn } = await ask(page, 'In the customer card add phone, city and source; highlight an overdue payment date in red')
+  await expect(turn).toHaveAttribute('data-status', 'applied')
+  const m = { requestToRerenderMs: Number(await turn.getAttribute('data-total-ms')), agentMs: Number(await turn.getAttribute('data-agent-ms')), commitMs: Number(await turn.getAttribute('data-commit-ms')) }
+  console.log(`[metrics] chat scenario 1, cold (sent before warmup finished): ${JSON.stringify(m)}`)
+  recordMetrics('chatScenario1Cold', { provider: 'scripted', ...m })
 })
 
 test('chat: a request that has no recorded answer fails politely and changes nothing', async ({ page }) => {

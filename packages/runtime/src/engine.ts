@@ -188,10 +188,22 @@ export class MorphkitEngine {
    * does not pay for them. Called by the chat UI when it opens. Safe to call repeatedly.
    */
   async warmup(): Promise<EngineMetrics> {
-    const compiler = this.compiler as CompilerLike & { init?: () => Promise<unknown> }
-    await Promise.all([compiler.init?.(), this.css.init()])
+    this.warming ??= (async () => {
+      const compiler = this.compiler as CompilerLike & { init?: () => Promise<unknown> }
+      await Promise.all([compiler.init?.(), this.css.init()])
+      // One throwaway build: the first compile after init is several times slower while V8 tiers up the
+      // wasm code. Doing it while the user types makes the first real commit as fast as later ones.
+      const files = this.files()
+      await Promise.all([this.compiler.compile(files).catch(() => null), this.css.build(files).catch(() => '')])
+    })()
+    this.warming.catch(() => {
+      this.warming = null
+    })
+    await this.warming
     return this.metrics
   }
+
+  private warming: Promise<void> | null = null
 
   /** Called by `<Dynamic id>` while mounted. Mounted panels must keep a default export (DECISIONS item 5). */
   mount(id: string): () => void {

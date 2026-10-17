@@ -54,6 +54,9 @@ test('metrics: esbuild-wasm size, init time (cold and from Cache API), check tim
     commitToRenderMs,
     engineCommitMs: round(afterCommit.lastCommitMs),
     swapMs: round(afterCommit.lastSwapMs, 1),
+    tailwindInitMs: round(afterCommit.tailwindInitMs),
+    tailwindCssBuildMs: round(afterCommit.lastCssMs, 1),
+    tailwindCssBytes: afterCommit.lastCssBytes,
   }
   console.log('[metrics]', JSON.stringify(result, null, 2))
   fs.writeFileSync(path.join(DOCS, 'metrics.json'), JSON.stringify(result, null, 2) + '\n')

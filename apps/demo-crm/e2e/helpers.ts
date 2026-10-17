@@ -46,6 +46,9 @@ export interface Metrics {
   lastCheckMs: number | null
   lastCommitMs: number | null
   lastSwapMs: number | null
+  tailwindInitMs: number | null
+  lastCssMs: number | null
+  lastCssBytes: number | null
 }
 
 export async function readMetrics(page: Page): Promise<Metrics> {
