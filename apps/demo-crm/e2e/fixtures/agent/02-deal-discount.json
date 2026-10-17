@@ -1,0 +1,10 @@
+{
+  "name": "scenario-2-deal-discount",
+  "description": "Architecture §8 scenario 2: needs a server change, goes to the admin dashboard.",
+  "match": ["discount|скидк"],
+  "classify": {
+    "label": "needs-backend",
+    "reason": "A discount that the server uses to recalculate the deal amount needs a new field and server-side logic, so I passed the request to the administrator."
+  },
+  "turns": []
+}

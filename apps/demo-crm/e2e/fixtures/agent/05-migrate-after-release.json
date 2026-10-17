@@ -1,0 +1,14 @@
+{
+  "name": "migrate-after-release",
+  "description": "Stale snapshot: carry the user's customizations over to a new release of the app.",
+  "match": ["carry my customizations"],
+  "turns": [
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/customer-card.tsx" }, "contentFile": "../customer-card.scenario1.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "Your customer card changes now sit on top of the new version." }, "expect": "ok" }] }
+  ]
+}

@@ -29,12 +29,18 @@ importers:
       '@morphkit/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@morphkit/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      diff:
+        specifier: ^8.0.2
+        version: 8.0.4
       react:
         specifier: ^19.2.0
         version: 19.3.1
@@ -48,6 +54,12 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.5
         version: 1.19.17(hono@4.13.13)
+      '@morphkit/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
+      '@morphkit/store-server':
+        specifier: workspace:*
+        version: link:../../packages/store-server
       '@morphkit/vite-plugin':
         specifier: workspace:*
         version: link:../../packages/vite-plugin
@@ -78,6 +90,9 @@ importers:
       tailwindcss:
         specifier: ^4.1.14
         version: 4.3.3
+      tree-kill:
+        specifier: ^1.2.2
+        version: 1.2.2
       tsx:
         specifier: ^4.20.6
         version: 4.23.15
@@ -168,6 +183,24 @@ importers:
       '@types/node':
         specifier: ^22.18.0
         version: 22.20.5
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
+
+  packages/ui:
+    devDependencies:
+      '@morphkit/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.5
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.3.0
+      react:
+        specifier: ^19.2.0
+        version: 19.3.1
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
@@ -1236,6 +1269,10 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  diff@8.0.4:
+    resolution: {integrity: sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==}
+    engines: {node: '>=0.3.1'}
 
   drizzle-orm@0.45.4:
     resolution: {integrity: sha512-NiM1YZpJ2UxyeE67DpDDZ+Tsw4YLX3trSlkNT7Tm9eKoUNb1LvaAaQzXgYQsWs+AQ9TUmmwMmBOCXuqqxUWKKQ==}
@@ -2986,6 +3023,8 @@ snapshots:
   deep-is@0.1.4: {}
 
   detect-libc@2.1.2: {}
+
+  diff@8.0.4: {}
 
   drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.11.1):
     optionalDependencies:

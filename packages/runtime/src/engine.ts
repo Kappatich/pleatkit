@@ -9,6 +9,7 @@ import type {
   FileMap,
   ModuleNamespace,
   MorphkitConfig,
+  RequestLinkPatch,
   Snapshot,
   SnapshotAuthor,
   SnapshotStore,
@@ -230,7 +231,10 @@ export class MorphkitEngine {
     }
   }
 
-  /** The base files the stale head was made from, and the head's files: input for an agent migration. */
+  /**
+   * The base files the stale head was made from, and the head's files: input for an agent migration.
+   * Send it with `files: originalFiles()` and start the draft from `originalFiles()` too.
+   */
   async migrationInput(): Promise<AgentRunRequest['migration'] | null> {
     const head = this.state.head
     if (!head || !this.state.stale) return null
@@ -241,6 +245,11 @@ export class MorphkitEngine {
   /** Files of the current head (or the base snapshot). */
   files(): FileMap {
     return clone(this.state.head?.files ?? this.baseFiles)
+  }
+
+  /** The current release's original dynamic files (the manifest's base snapshot). */
+  originalFiles(): FileMap {
+    return clone(this.baseFiles)
   }
 
   // --- lifecycle ---
@@ -389,9 +398,12 @@ export class MorphkitEngine {
   }
 
   readonly draft = {
-    /** Copy head into a fresh draft. */
-    start: (message = ''): Draft => {
-      const draft: Draft = { message, parentId: this.state.head?.id ?? null, files: this.files() }
+    /**
+     * Copy head into a fresh draft. `from` starts from other files instead (a migration starts from the
+     * current release's base files); the parent is still the head, so undo returns to it.
+     */
+    start: (message = '', from?: FileMap): Draft => {
+      const draft: Draft = { message, parentId: this.state.head?.id ?? null, files: from ? clone(from) : this.files() }
       this.set({ draft })
       return draft
     },
@@ -536,6 +548,11 @@ export class MorphkitEngine {
       this.set({})
       return s
     })
+  }
+
+  /** Report what happened to an agent request (no-op for stores without a request log). */
+  async linkRequest(requestId: string, patch: RequestLinkPatch): Promise<void> {
+    await this.store.linkRequest?.(requestId, patch)
   }
 
   history(limit?: number): Promise<Snapshot[]> {

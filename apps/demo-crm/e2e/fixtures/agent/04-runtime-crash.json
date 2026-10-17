@@ -1,0 +1,15 @@
+{
+  "name": "scenario-4-runtime-crash",
+  "description": "Architecture §8 scenario 4: compiles, but throws while rendering; the error boundary rolls it back.",
+  "match": ["total row|итогов"],
+  "classify": { "label": "ui", "reason": "Display change in the deals table." },
+  "turns": [
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/deals-table.tsx" }, "contentFile": "../deals-table.throws.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "Added a total row to the deals table." }, "expect": "ok" }] }
+  ]
+}

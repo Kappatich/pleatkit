@@ -1,0 +1,13 @@
+{
+  "chatScenario1": {
+    "provider": "scripted",
+    "requestToRerenderMs": 325,
+    "wallClockMs": 859,
+    "runtimeCssBytes": 11180
+  },
+  "measuredAt": "2026-10-17T20:04:13.396Z",
+  "chatScenario2": {
+    "provider": "scripted",
+    "wallClockMs": 237
+  }
+}
