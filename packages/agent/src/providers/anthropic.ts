@@ -54,7 +54,7 @@ function usageOf(u: WireUsage): TokenUsage {
 const CLASSIFY_SCHEMA = {
   type: 'object',
   properties: {
-    label: { type: 'string', enum: ['ui', 'needs-backend', 'unclear'] },
+    label: { type: 'string', enum: ['ui', 'needs-backend', 'unclear', 'off-topic'] },
     reason: { type: 'string' },
     question: { type: 'string' },
     options: { type: 'array', items: { type: 'string' } },

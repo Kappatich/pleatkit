@@ -52,7 +52,18 @@ export interface SnapshotStore {
  * `pending-review`: applied for the user right away, but the app runs with `moderation: 'review'`, so the
  * edit waits at the top of the admin's list until it is approved or rolled back (DECISIONS item 15).
  */
-export type RequestStatus = 'proposed' | 'applied' | 'pending-review' | 'clarifying' | 'rejected' | 'pending-admin' | 'in-progress' | 'rolled-back' | 'failed'
+export type RequestStatus =
+  | 'proposed'
+  | 'applied'
+  | 'pending-review'
+  | 'clarifying'
+  | 'rejected'
+  | 'pending-admin'
+  | 'in-progress'
+  | 'rolled-back'
+  | 'failed'
+  /** Not run: off-topic, over quota or switched off. */
+  | 'refused'
 
 /** Moderation of agent edits per app: `off` (default) or `review` (apply now, admin reviews after). */
 export type Moderation = 'off' | 'review'

@@ -1,6 +1,7 @@
 import { AnthropicProvider } from './providers/anthropic.js'
 import { OpenAICompatibleProvider } from './providers/openai.js'
 import { ScriptedProvider } from './providers/scripted.js'
+import { agentAuthFromEnv, type AgentAuth } from './auth.js'
 import type { AgentLimits } from './loop.js'
 import type { ModelProvider } from './types.js'
 
@@ -10,6 +11,9 @@ export interface AgentConfig {
   storeUrl: string | null
   corsOrigin: string | null
   limits: Partial<AgentLimits>
+  auth: AgentAuth
+  /** Plan used when store-server has none for the app (V1 A4, F14). */
+  plan: { name?: string; limits?: Record<string, number> }
 }
 
 type Env = Record<string, string | undefined>
@@ -32,6 +36,9 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * MORPHKIT_AGENT_PORT  default 8789
  * MORPHKIT_MAX_CALLS, MORPHKIT_TIMEOUT_MS, MORPHKIT_MAX_OUTPUT_TOKENS  limits (12, 90000, 8000 visible output tokens)
  * MORPHKIT_CORS_ORIGIN allowed browser origin, if the app calls the agent cross-origin
+ * MORPHKIT_APP_ID, MORPHKIT_APP_KEY, MORPHKIT_JWT_SECRET  credentials; required with NODE_ENV=production
+ * MORPHKIT_PLAN        plan name (free | team | unlimited) when store-server has no plan for the app
+ * MORPHKIT_LIMITS      JSON overrides of plan limits, e.g. {"userDailyUsd": 2, "perEditUsd": 0.2}
  */
 export function configFromEnv(env: Env = process.env): AgentConfig {
   const explicit = env.MORPHKIT_PROVIDER
@@ -59,7 +66,17 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
   } else {
     throw new Error(`Unknown MORPHKIT_PROVIDER "${kind}"`)
   }
+  let planLimits: Record<string, number> | undefined
+  if (env.MORPHKIT_LIMITS) {
+    try {
+      planLimits = JSON.parse(env.MORPHKIT_LIMITS) as Record<string, number>
+    } catch {
+      throw new Error('MORPHKIT_LIMITS must be JSON, e.g. {"userDailyUsd": 2}')
+    }
+  }
   return {
+    auth: agentAuthFromEnv(env),
+    plan: { ...(env.MORPHKIT_PLAN ? { name: env.MORPHKIT_PLAN } : {}), ...(planLimits ? { limits: planLimits } : {}) },
     provider,
     port: num(env.MORPHKIT_AGENT_PORT) ?? 8789,
     storeUrl: env.MORPHKIT_STORE_URL || null,

@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Chat drawer, element picker, history and toasts for morphkit",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kappatich/morphkit.git",
+    "directory": "packages/ui"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,7 +18,9 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -30,5 +37,9 @@
     "@types/react": "^19.2.0",
     "react": "^19.2.0",
     "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

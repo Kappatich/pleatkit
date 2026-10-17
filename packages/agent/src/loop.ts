@@ -16,6 +16,8 @@ export interface AgentLimits {
    * counted and not limited (DECISIONS item 11); it is reported in `AgentResult.output` and billed in `usage`.
    */
   maxOutputTokens: number
+  /** Model cost of one edit in USD (the app plan's `perEditUsd`, V1 A4). Unknown prices are not counted. */
+  maxCostUsd: number
 }
 
 /**
@@ -29,7 +31,7 @@ export function visibleOutputTokens(turn: Pick<ModelTurn, 'text' | 'toolCalls' |
   return { tokens: Math.min(out, Math.ceil(chars / 3.5)), estimated: true }
 }
 
-export const DEFAULT_LIMITS: AgentLimits = { maxModelCalls: 12, timeoutMs: 90_000, maxOutputTokens: 8_000 }
+export const DEFAULT_LIMITS: AgentLimits = { maxModelCalls: 12, timeoutMs: 90_000, maxOutputTokens: 8_000, maxCostUsd: Number.POSITIVE_INFINITY }
 
 export interface RunOptions {
   limits?: Partial<AgentLimits>
@@ -152,6 +154,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   let stopReason: AgentResult['stopReason']
   let error: string | undefined
   let clarify: AgentResult['clarify']
+  let refusal: AgentResult['refusal']
+  const spent = () => meter.rows().reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
 
   const runner = new ToolRunner(ws, (entry, call) => {
     if (call.name === 'check' || (call.name === 'finish' && !entry.ok)) {
@@ -183,6 +187,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       ...(stopReason ? { stopReason } : {}),
       ...(error ? { error } : {}),
       ...(clarify ? { clarify } : {}),
+      ...(refusal ? { refusal } : {}),
     }
   }
 
@@ -198,7 +203,12 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         classification = c.label
         timings.classifyMs = performance.now() - startedAt
         const ask = c.label === 'unclear' && c.question && c.options && c.options.length >= 2
-        progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : ask ? 'classifiedUnclear' : 'classifiedUi') })
+        if (c.label !== 'off-topic') progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : ask ? 'classifiedUnclear' : 'classifiedUi') })
+        if (c.label === 'off-topic') {
+          // one cheap fixed reply; the big model is never called for it (V1 A4)
+          refusal = 'off-topic'
+          return done('refused', t(lang, 'offTopic'))
+        }
         if (c.label === 'needs-backend') {
           return done('needs-backend', c.reason || t(lang, 'needsBackendDefault'))
         }
@@ -224,6 +234,10 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       }
       if (output.visibleTokens >= limits.maxOutputTokens) {
         stopReason = 'output-tokens'
+        break
+      }
+      if (spent() >= limits.maxCostUsd) {
+        stopReason = 'cost'
         break
       }
       progress(modelCalls === 0 ? { type: 'model', turn: 1, text: t(lang, 'planning') } : { type: 'model', turn: modelCalls + 1, text: t(lang, 'thinking'), transient: true })
@@ -277,6 +291,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       ? t(lang, 'limitCalls', { n: limits.maxModelCalls })
       : stopReason === 'output-tokens'
         ? t(lang, 'limitOutput')
+        : stopReason === 'cost'
+          ? t(lang, 'limitCost')
         : stopReason === 'refusal'
           ? t(lang, 'refused')
           : t(lang, 'noFinish')

@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Browser runtime for morphkit: snapshots, esbuild-wasm compiler, hot swap of dynamic React components, undo/redo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kappatich/morphkit.git",
+    "directory": "packages/runtime"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,6 +19,10 @@
     "./compiler": {
       "types": "./dist/compiler-entry.d.ts",
       "import": "./dist/compiler-entry.js"
+    },
+    "./security": {
+      "types": "./dist/security.d.ts",
+      "import": "./dist/security.js"
     },
     "./isolated-host": {
       "types": "./dist/isolated-host.d.ts",
@@ -52,5 +61,9 @@
     "react-dom": {
       "optional": true
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

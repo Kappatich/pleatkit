@@ -40,6 +40,7 @@ const en = {
   'chat.migrateRequest': 'Carry my customizations over to the new version of the app',
   'chat.rejectedSummary': 'The change did not pass the final check in your browser, so nothing was changed.',
   'chat.failedSummary': 'Something went wrong on our side and nothing was changed. Please try again.',
+  'chat.disclaimer': 'AI answers can be inaccurate. Check the result.',
   'badge.running': 'Working',
   'badge.applied': 'Applied',
   'badge.nothing': 'No change needed',
@@ -47,6 +48,7 @@ const en = {
   'badge.failed': 'Not done',
   'badge.rejected': 'Did not compile',
   'badge.clarify': 'Question',
+  'badge.refused': 'Not done',
   'chat.clarify.other': 'Or type your own answer below.',
   'chat.clarify.answered': 'Answered: {answer}',
   'toast.applied': 'Applied',
@@ -106,10 +108,12 @@ const en = {
   'status.rolled-back': 'rolled back',
   'status.failed': 'failed',
   'status.clarifying': 'asked the user',
+  'status.refused': 'refused (off-topic, limit or switched off)',
   'verdict.ok': 'ok',
   'verdict.needs-backend': 'needs backend',
   'verdict.failed': 'failed',
   'verdict.clarify': 'question',
+  'verdict.refused': 'refused',
 }
 
 export type UiKey = keyof typeof en
@@ -149,6 +153,7 @@ const ru: Record<UiKey, string> = {
   'chat.migrateRequest': 'Перенеси мои настройки на новую версию приложения',
   'chat.rejectedSummary': 'Правка не прошла финальную проверку в вашем браузере, ничего не изменено.',
   'chat.failedSummary': 'У нас что-то пошло не так, ничего не изменено. Попробуйте ещё раз.',
+  'chat.disclaimer': 'Ответы ИИ могут быть неточными, проверьте результат.',
   'badge.running': 'В работе',
   'badge.applied': 'Применено',
   'badge.nothing': 'Ничего менять не нужно',
@@ -156,6 +161,7 @@ const ru: Record<UiKey, string> = {
   'badge.failed': 'Не сделано',
   'badge.rejected': 'Не собралось',
   'badge.clarify': 'Вопрос',
+  'badge.refused': 'Не выполнено',
   'chat.clarify.other': 'Или напишите свой ответ ниже.',
   'chat.clarify.answered': 'Ответ: {answer}',
   'toast.applied': 'Применено',
@@ -214,10 +220,12 @@ const ru: Record<UiKey, string> = {
   'status.rolled-back': 'откачена',
   'status.failed': 'не удалась',
   'status.clarifying': 'уточнение у пользователя',
+  'status.refused': 'отказ (не по теме, лимит или выключено)',
   'verdict.ok': 'ok',
   'verdict.needs-backend': 'нужен бэкенд',
   'verdict.failed': 'не удалось',
   'verdict.clarify': 'вопрос',
+  'verdict.refused': 'отказ',
 }
 
 export const UI_MESSAGES: Record<Locale, Record<UiKey, string>> = { en, ru }

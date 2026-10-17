@@ -2,10 +2,12 @@
 import path from 'node:path'
 import { doctor, formatFindings } from './doctor.js'
 import { ping } from './ping.js'
+import { keys } from './keys.js'
 
 const HELP = `Usage:
   morphkit doctor [--root <dir>] [--dist <dir>] [--json]
   morphkit ping [--url http://localhost:5173]
+  morphkit keys new | public
 
 doctor checks the morphkit setup of a Vite + React app and prints what to fix:
   config     the morphkit plugin in vite.config and its zones
@@ -18,6 +20,10 @@ doctor checks the morphkit setup of a Vite + React app and prints what to fix:
 ping checks the running app end to end: the manifest it serves, the agent behind its /agent proxy, and
 one agent run over SSE (the agent is asked to change nothing).
 
+keys new prints a fresh app key (mk_live_…, server to server), a user-JWT secret and the public key the app's
+build needs to verify signed bundles; keys public prints the public key of MORPHKIT_APP_KEY. Keep the first
+two in your server's secret store, never in the repository or the browser.
+
 Exit code 1 when a check fails.`
 
 async function main(argv: string[]): Promise<number> {
@@ -29,6 +35,11 @@ async function main(argv: string[]): Promise<number> {
   if (command === 'ping') {
     const i = rest.indexOf('--url')
     const r = await ping(i >= 0 ? rest[i + 1]! : 'http://localhost:5173')
+    console.log(r.lines.join('\n'))
+    return r.ok ? 0 : 1
+  }
+  if (command === 'keys') {
+    const r = await keys(rest[0], process.env)
     console.log(r.lines.join('\n'))
     return r.ok ? 0 : 1
   }

@@ -153,9 +153,13 @@ Agent server (`@morphkit/agent`): keys are read from the environment only, never
 | `MORPHKIT_AGENT_PORT` | `8789` | |
 | `MORPHKIT_MAX_CALLS` / `MORPHKIT_TIMEOUT_MS` / `MORPHKIT_MAX_OUTPUT_TOKENS` | `12` / `90000` / `8000` | limits per edit. The output budget counts **visible** tokens only (text and tool calls); thinking is billed but not limited, and reported per run |
 | `MORPHKIT_CORS_ORIGIN` | | allowed browser origin if the app calls the agent cross-origin |
+| `MORPHKIT_APP_ID` / `MORPHKIT_APP_KEY` / `MORPHKIT_JWT_SECRET` | | the app this agent serves, its app key (`mk_live_…`) and the user-JWT secret; **required with `NODE_ENV=production`** |
+| `MORPHKIT_PLAN` / `MORPHKIT_LIMITS` | `free` | plan used when store-server has none for the app; JSON overrides such as `{"userDailyUsd": 2, "perEditUsd": 0.2}` |
 
-Store-server (`@morphkit/store-server`): `MORPHKIT_STORE_DB` (SQLite file, default `.morphkit/store.db`, or
-`:memory:`), `MORPHKIT_STORE_PORT` (default `8790`), `MORPHKIT_MODERATION` (`off` default, or `review`: the
+Store-server (`@morphkit/store-server`): `MORPHKIT_APP_ID` + `MORPHKIT_APP_KEY` + `MORPHKIT_JWT_SECRET` (one
+app) or `MORPHKIT_APPS` (JSON `{ "<appId>": { "appKey": "…", "jwtSecret": "…" } }`), required with
+`NODE_ENV=production`; `MORPHKIT_DEMO_HEADERS=0` turns the demo headers off in development too;
+`MORPHKIT_STORE_DB` (SQLite file, default `.morphkit/store.db`, or `:memory:`), `MORPHKIT_STORE_PORT` (default `8790`), `MORPHKIT_MODERATION` (`off` default, or `review`: the
 default for apps whose admin has not chosen; each app switches it in `/admin`). With `review`, an agent edit is
 applied for the user at once but marked `pending-review`; it waits at the top of the admin's list until it is
 approved or rolled back with one click. (Holding edits until approval is deliberately not built.)
@@ -209,8 +213,27 @@ your own origin would lift that; it is not built).
   page, its cookies or storage; props cross by `postMessage`, so they must be serializable.
 - The agent server is stateless; the browser is the source of truth for files and re-checks everything before
   committing. Writes outside the dynamic zone are refused and logged as violations.
-- **Demo authorization only:** store-server trusts the `x-morphkit-user` / `x-morphkit-admin` headers. Put real
-  authentication in front of it before production.
+- **Authentication (V1 A1).** With `NODE_ENV=production`, store-server and the agent server refuse to start
+  without credentials: an app key `mk_live_…` (server to server: agent → store-server, and the seed of the
+  bundle-signing key) and a user-JWT secret. Your backend mints a 15-minute HS256 user token after its own
+  sign-in check, and the browser sends it as `Authorization: Bearer …`:
+
+  ```ts
+  import { mintUserToken } from '@morphkit/store-server/token' // also in @morphkit/runtime/security
+  const token = await mintUserToken({ secret: process.env.MORPHKIT_JWT_SECRET!, userId: user.id, appId: 'crm', orgId: user.orgId, role: user.isAdmin ? 'admin' : 'user' })
+  // browser: new HttpStore({ baseUrl: '/morphkit-store', userId, appId: 'crm', token: getToken }); <MorphkitChat token={getToken} />
+  ```
+
+  `npx morphkit keys new` prints a fresh app key, JWT secret and public key. The demo headers
+  (`x-morphkit-user` / `x-morphkit-admin` / `x-morphkit-agent`) work only outside production and only for apps
+  without credentials; e2e runs the token path on `?app=e2e-secure&auth=token`.
+- **Quotas (V1 A4).** On by default, as per-app data (plan `free` unless store-server has another plan for the
+  app, `PUT /v1/admin/plan`): dollars per edit (the loop stops), dollars and edits per user per day, dollars and
+  edits per app per day, server compiles per user per day. Token buckets refill evenly over 24 h; they live in
+  store-server's SQLite when `MORPHKIT_STORE_URL` is set, otherwise in the agent process. Over the limit the user
+  gets one fixed sentence and no model is called. Requests that are not about the app at all (poems, general
+  questions) are refused by the classifier with one cheap reply.
+- **AI disclaimer (V1 A5).** The chat drawer always shows "AI answers can be inaccurate. Check the result."
 - No server-side type checking (esbuild only strips types), no merging of user edits into a new release (the
   snapshot is marked stale; the user resets or asks the agent to carry the edits over).
 

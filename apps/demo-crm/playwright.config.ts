@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
 
@@ -8,6 +9,12 @@ const AGENT_PORT = '8799'
 const STORE_PORT = '8800'
 const WEB_PORT = 4183
 const ports = { DATA_PORT, AGENT_PORT, STORE_PORT }
+// One app runs the production auth path (V1 A1): `?app=e2e-secure&auth=token`. Its credentials are made up
+// per run (set once here, inherited by the workers); every other test app uses the development headers.
+export const SECURE_APP = 'e2e-secure'
+process.env.MORPHKIT_E2E_APP_KEY ??= `mk_test_${randomBytes(24).toString('base64url')}`
+process.env.MORPHKIT_E2E_JWT_SECRET ??= randomBytes(32).toString('base64url')
+const secure = { appKey: process.env.MORPHKIT_E2E_APP_KEY, jwtSecret: process.env.MORPHKIT_E2E_JWT_SECRET }
 // MORPHKIT_LIVE=1 runs the agent on the real Anthropic API (key from the environment) for live-anthropic.spec.ts.
 const LIVE = process.env.MORPHKIT_LIVE === '1'
 // MORPHKIT_VIDEO=1 records docs/demo.mp4 (demo-video.spec.ts): the scripted agent pauses before each answer.
@@ -42,7 +49,13 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], headless: true, viewport: { width: 1400, height: 900 } } }],
   webServer: [
-    { command: 'tsx server/index.ts', env: ports, url: `http://localhost:${DATA_PORT}/api/health`, reuseExistingServer: false },
+    {
+      command: 'tsx server/index.ts',
+      // the demo's "backend": mints user tokens for the secure app and knows its public key
+      env: { ...ports, MORPHKIT_JWT_SECRET: secure.jwtSecret, MORPHKIT_APP_KEY: secure.appKey },
+      url: `http://localhost:${DATA_PORT}/api/health`,
+      reuseExistingServer: false,
+    },
     {
       command: 'node ../../packages/agent/dist/cli.js',
       env: {
@@ -51,13 +64,16 @@ export default defineConfig({
         MORPHKIT_AGENT_PORT: AGENT_PORT,
         MORPHKIT_STORE_URL: `http://localhost:${STORE_PORT}`,
         MORPHKIT_FIXTURES: path.join(here, 'e2e', 'fixtures', 'agent'),
+        MORPHKIT_APP_ID: SECURE_APP,
+        MORPHKIT_APP_KEY: secure.appKey,
+        MORPHKIT_JWT_SECRET: secure.jwtSecret,
       },
       url: `http://localhost:${AGENT_PORT}/agent/health`,
       reuseExistingServer: false,
     },
     {
       command: 'node ../../packages/store-server/dist/cli.js',
-      env: { ...ports, MORPHKIT_STORE_PORT: STORE_PORT, MORPHKIT_STORE_DB: ':memory:' },
+      env: { ...ports, MORPHKIT_STORE_PORT: STORE_PORT, MORPHKIT_STORE_DB: ':memory:', MORPHKIT_APPS: JSON.stringify({ [SECURE_APP]: secure }) },
       url: `http://localhost:${STORE_PORT}/health`,
       reuseExistingServer: false,
     },

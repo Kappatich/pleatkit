@@ -26,7 +26,7 @@ async function drop(target: Locator, png: Buffer): Promise<void> {
 function captureAgentRequest(page: Page): () => Record<string, unknown> | null {
   let body: Record<string, unknown> | null = null
   page.on('request', (r) => {
-    if (r.url().endsWith('/agent/run') && r.method() === 'POST') body = JSON.parse(r.postData() ?? '{}') as Record<string, unknown>
+    if (r.url().endsWith('/agent/v1/run') && r.method() === 'POST') body = JSON.parse(r.postData() ?? '{}') as Record<string, unknown>
   })
   return () => body
 }

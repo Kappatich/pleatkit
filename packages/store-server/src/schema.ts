@@ -1,4 +1,4 @@
-import { index, primaryKey, sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { index, primaryKey, sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
 
 /** A full snapshot of one user's dynamic zone (same shape as `Snapshot` in @morphkit/runtime, plus appId). */
 export const snapshots = sqliteTable(
@@ -76,6 +76,46 @@ export const bundles = sqliteTable(
   (t) => [primaryKey({ columns: [t.appId, t.hash] })],
 )
 
+/**
+ * Compiled bundles by content key. `owner` is '' for bundles the agent server compiled and signed (served
+ * publicly under /v1/b/<app>/<key>.js); otherwise the user whose browser uploaded it, visible only to that user,
+ * so one user can never plant code in another user's bundle cache.
+ */
+export const bundleFiles = sqliteTable(
+  'bundle_files',
+  {
+    appId: text('app_id').notNull(),
+    key: text('key').notNull(),
+    owner: text('owner').notNull(),
+    js: text('js').notNull(),
+    css: text('css').notNull(),
+    /** BundleSignature JSON (payload + ed25519 signature); null for browser-made bundles. */
+    signature: text('signature', { mode: 'json' }).$type<Record<string, unknown>>(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.appId, t.key, t.owner] })],
+)
+
+/** Token buckets for quotas (V1 A4): `tokens` refills continuously up to the bucket's capacity. */
+export const quotaBuckets = sqliteTable(
+  'quota_buckets',
+  {
+    appId: text('app_id').notNull(),
+    key: text('key').notNull(),
+    tokens: real('tokens').notNull(),
+    updatedMs: integer('updated_ms').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.appId, t.key] })],
+)
+
+/** Plan and limits of an app as data (F14): overrides of the default plan, per app. */
+export const appPlans = sqliteTable('app_plans', {
+  appId: text('app_id').primaryKey(),
+  plan: text('plan').notNull(),
+  limits: text('limits', { mode: 'json' }).$type<Record<string, number>>().notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
 /** Per-app settings an admin can change at runtime (moderation of agent edits). */
 export const appSettings = sqliteTable('app_settings', {
   appId: text('app_id').primaryKey(),
@@ -106,6 +146,16 @@ CREATE TABLE IF NOT EXISTS requests (
 CREATE INDEX IF NOT EXISTS requests_by_app ON requests (app_id, created_at_ms);
 CREATE TABLE IF NOT EXISTS app_settings (
   app_id TEXT PRIMARY KEY, moderation TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS bundle_files (
+  app_id TEXT NOT NULL, key TEXT NOT NULL, owner TEXT NOT NULL, js TEXT NOT NULL, css TEXT NOT NULL, signature TEXT, created_at TEXT NOT NULL,
+  PRIMARY KEY (app_id, key, owner)
+);
+CREATE TABLE IF NOT EXISTS quota_buckets (
+  app_id TEXT NOT NULL, key TEXT NOT NULL, tokens REAL NOT NULL, updated_ms INTEGER NOT NULL, PRIMARY KEY (app_id, key)
+);
+CREATE TABLE IF NOT EXISTS app_plans (
+  app_id TEXT PRIMARY KEY, plan TEXT NOT NULL, limits TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS bundles (
   app_id TEXT NOT NULL, hash TEXT NOT NULL, js TEXT NOT NULL, css TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (app_id, hash)

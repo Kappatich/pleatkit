@@ -5,8 +5,10 @@ import Database from 'better-sqlite3'
 import { and, desc, eq, gte } from 'drizzle-orm'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { Hono, type Context } from 'hono'
+import { applyQuotaOps, signingKeyFromAppKey, sriDigest, verifyBundleSignature, type BundleSignature, type QuotaOp } from '@morphkit/runtime/compiler'
+import { AuthError, resolveCaller, type AuthOptions, type Caller } from './auth.js'
 import * as schema from './schema.js'
-import { appSettings, bundles, heads, requests, snapshots } from './schema.js'
+import { appPlans, appSettings, bundleFiles, heads, quotaBuckets, requests, snapshots } from './schema.js'
 
 export type StoreDb = BetterSQLite3Database<typeof schema>
 
@@ -20,6 +22,11 @@ export type Moderation = 'off' | 'review'
 export interface StoreAppOptions {
   /** Default for apps whose admin has not chosen (`MORPHKIT_MODERATION`). Default `off`. */
   moderation?: Moderation
+  /**
+   * Who may call (V1 A1). Default: demo headers only (development and tests). The CLI builds it with
+   * `authFromEnv`, which refuses to start in production without an app key and a user-JWT secret.
+   */
+  auth?: AuthOptions
 }
 
 export interface StoreOptions {
@@ -59,34 +66,22 @@ function toSnapshot(r: SnapshotRow) {
   }
 }
 
-const STATUSES = ['proposed', 'applied', 'pending-review', 'clarifying', 'rejected', 'pending-admin', 'in-progress', 'rolled-back', 'failed'] as const
+const STATUSES = ['proposed', 'applied', 'pending-review', 'clarifying', 'rejected', 'pending-admin', 'in-progress', 'rolled-back', 'failed', 'refused'] as const
 /** What an admin should look at first: edits awaiting review, then backend requests, then the rest. */
 const PRIORITY: Record<string, number> = { 'pending-review': 2, 'pending-admin': 1 }
 const priority = (status: string) => PRIORITY[status] ?? 0
 const now = () => new Date().toISOString()
 
-interface Caller {
-  appId: string
-  userId: string | null
-  admin: boolean
-  agent: boolean
-}
+type Env = { Variables: { caller: Caller } }
+const caller = (c: Context<Env>): Caller => c.get('caller')
 
-/**
- * Demo authorization: the caller is whoever the `x-morphkit-user` header says, admins send `x-morphkit-admin: 1`,
- * the agent server sends `x-morphkit-agent: 1`. Replace with real auth before production (see README).
- */
-function caller(c: Context): Caller {
-  return {
-    appId: c.req.header('x-morphkit-app') || 'default',
-    userId: c.req.header('x-morphkit-user') || null,
-    admin: c.req.header('x-morphkit-admin') === '1',
-    agent: c.req.header('x-morphkit-agent') === '1',
-  }
-}
+/** Bundle key of a server-compiled bundle: lowercase hex, the only thing allowed in a public bundle URL. */
+const KEY_RE = /^[0-9a-f]{16,64}$/
 
 export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
-  const app = new Hono()
+  const auth: AuthOptions = options.auth ?? { demoHeaders: true }
+  if (auth.production && auth.demoHeaders) throw new Error('demo headers are not allowed in production')
+  const app = new Hono<Env>()
   const defaultModeration: Moderation = options.moderation ?? 'off'
   const moderationOf = (appId: string): Moderation =>
     (db.select().from(appSettings).where(eq(appSettings.appId, appId)).get()?.moderation as Moderation | undefined) ?? defaultModeration
@@ -110,12 +105,41 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
 
   app.get('/health', (c) => c.json({ ok: true }))
 
+  // Public, unauthenticated: signed bundles by their unguessable content key, so `<script type="module">` and
+  // `import()` can load them from the app's origin (V1 B1). Only bundles the agent server compiled and signed.
+  app.get('/v1/b/:app/:file', (c) => {
+    const m = /^([0-9a-f]{16,64})\.(js|css|json)$/.exec(c.req.param('file'))
+    if (!m) return c.json({ error: 'not found' }, 404)
+    const row = db
+      .select()
+      .from(bundleFiles)
+      .where(and(eq(bundleFiles.appId, c.req.param('app')), eq(bundleFiles.key, m[1]!), eq(bundleFiles.owner, '')))
+      .get()
+    if (!row) return c.json({ error: 'not found' }, 404)
+    const headers = { 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff' }
+    if (m[2] === 'js') return c.body(row.js, 200, { ...headers, 'content-type': 'text/javascript; charset=utf-8' })
+    if (m[2] === 'css') return c.body(row.css, 200, { ...headers, 'content-type': 'text/css; charset=utf-8' })
+    return c.json(row.signature ?? {}, 200, headers)
+  })
+
+  // Everything else needs a caller: app key, user token, or (development only) demo headers.
+  const api = new Hono<Env>()
+  api.use('*', async (c, next) => {
+    try {
+      c.set('caller', await resolveCaller((name) => c.req.header(name), auth))
+    } catch (e) {
+      if (e instanceof AuthError) return c.json({ error: e.message }, e.status)
+      throw e
+    }
+    await next()
+  })
+
   /** Public per-app settings (the chat tells the user when edits are reviewed). */
-  app.get('/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId) }))
+  api.get('/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId) }))
 
   // --- snapshots & heads (used by HttpStore in the browser) ---
 
-  app.get('/heads/:userId', (c) => {
+  api.get('/heads/:userId', (c) => {
     const who = caller(c)
     const userId = c.req.param('userId')
     if (!canSee(who, userId)) return c.json({ error: 'forbidden' }, 403)
@@ -124,7 +148,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json({ snapshot: snap ? toSnapshot(snap) : null })
   })
 
-  app.get('/snapshots', (c) => {
+  api.get('/snapshots', (c) => {
     const who = caller(c)
     const userId = c.req.query('userId') ?? who.userId
     if (!userId || !canSee(who, userId)) return c.json({ error: 'forbidden' }, 403)
@@ -139,7 +163,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json(rows.map(toSnapshot))
   })
 
-  app.get('/snapshots/:id', (c) => {
+  api.get('/snapshots/:id', (c) => {
     const who = caller(c)
     const snap = getSnapshot(who.appId, c.req.param('id'))
     if (!snap) return c.json({ error: 'not found' }, 404)
@@ -147,7 +171,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json(toSnapshot(snap))
   })
 
-  app.put('/snapshots/:id', async (c) => {
+  api.put('/snapshots/:id', async (c) => {
     const who = caller(c)
     const body = await c.req.json<ReturnType<typeof toSnapshot>>()
     if (body.id !== c.req.param('id')) return c.json({ error: 'id mismatch' }, 400)
@@ -175,7 +199,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.body(null, 204)
   })
 
-  app.post('/snapshots/:id/head', (c) => {
+  api.post('/snapshots/:id/head', (c) => {
     const who = caller(c)
     const snap = getSnapshot(who.appId, c.req.param('id'))
     if (!snap) return c.json({ error: 'not found' }, 404)
@@ -187,31 +211,110 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
 
   // --- bundle cache ---
 
-  app.get('/bundles/:hash', (c) => {
+  /** A cached bundle the caller may use: one the agent server made (signed) or one this user's browser made. */
+  api.get('/bundles/:key', (c) => {
     const who = caller(c)
-    const row = db
+    const key = c.req.param('key')
+    const rows = db
       .select()
-      .from(bundles)
-      .where(and(eq(bundles.appId, who.appId), eq(bundles.hash, c.req.param('hash'))))
-      .get()
-    return row ? c.json({ js: row.js, css: row.css }) : c.json({ error: 'not found' }, 404)
+      .from(bundleFiles)
+      .where(and(eq(bundleFiles.appId, who.appId), eq(bundleFiles.key, key)))
+      .all()
+    const row = rows.find((r) => r.owner === '') ?? rows.find((r) => who.userId !== null && r.owner === who.userId)
+    if (!row) return c.json({ error: 'not found' }, 404)
+    return c.json({ js: row.js, css: row.css, ...(row.signature ? { signature: row.signature } : {}) })
   })
 
-  app.put('/bundles/:hash', async (c) => {
+  /**
+   * Store a bundle. From the agent server (app key) it must carry a valid signature by the app's key and is
+   * then public under /v1/b/; in development (demo headers) the agent may store it unsigned. From a user's
+   * browser it is kept for that user only.
+   */
+  api.put('/bundles/:key', async (c) => {
     const who = caller(c)
-    if (!who.userId && !who.admin) return c.json({ error: 'forbidden' }, 403)
-    const { js, css } = await c.req.json<{ js: string; css: string }>()
+    const key = c.req.param('key')
+    if (key.length > 200) return c.json({ error: 'bad key' }, 400)
+    const body = await c.req.json<{ js?: unknown; css?: unknown; signature?: BundleSignature }>().catch(() => ({}) as { js?: unknown })
+    const { js, css } = body as { js?: unknown; css?: unknown }
     if (typeof js !== 'string' || typeof css !== 'string') return c.json({ error: 'js and css are required' }, 400)
-    db.insert(bundles)
-      .values({ appId: who.appId, hash: c.req.param('hash'), js, css, createdAt: now() })
+    let owner: string
+    let signature: BundleSignature | null = null
+    if (who.agent) {
+      if (!KEY_RE.test(key)) return c.json({ error: 'server bundles need a hex key' }, 400)
+      signature = (body as { signature?: BundleSignature }).signature ?? null
+      const p = signature?.payload
+      if (!p || p.key !== key || p.app !== who.appId) return c.json({ error: 'signature payload does not match this bundle' }, 400)
+      if (p.js !== (await sriDigest(js)) || p.css !== (await sriDigest(css))) return c.json({ error: 'signature digests do not match the files' }, 400)
+      if (who.via === 'app-key') {
+        const creds = auth.apps?.[who.appId]
+        try {
+          await verifyBundleSignature(signature!, (await signingKeyFromAppKey(creds!.appKey)).publicKey)
+        } catch (e) {
+          return c.json({ error: (e as Error).message }, 400)
+        }
+      }
+      owner = ''
+    } else if (who.userId) {
+      owner = who.userId
+    } else {
+      return c.json({ error: 'forbidden' }, 403)
+    }
+    db.insert(bundleFiles)
+      .values({ appId: who.appId, key, owner, js, css, signature: signature as unknown as Record<string, unknown> | null, createdAt: now() })
       .onConflictDoNothing()
       .run()
     return c.body(null, 204)
   })
 
+  // --- quotas and plan (V1 A4, F14): the agent server keeps its policy, store-server keeps the buckets ---
+
+  /** Apply token-bucket operations atomically. Agent server only. */
+  api.post('/quota', async (c) => {
+    const who = caller(c)
+    if (!who.agent) return c.json({ error: 'agent only' }, 403)
+    const { ops } = await c.req.json<{ ops?: QuotaOp[] }>().catch(() => ({}) as { ops?: QuotaOp[] })
+    if (!Array.isArray(ops) || ops.length === 0 || ops.length > 20) return c.json({ error: 'ops: 1 to 20 operations' }, 400)
+    for (const op of ops) {
+      if (typeof op?.key !== 'string' || !['take', 'debit', 'peek'].includes(op.op) || !(op.capacity >= 0) || !(op.refillPerSec >= 0)) {
+        return c.json({ error: 'bad operation' }, 400)
+      }
+    }
+    const outcome = db.transaction((tx) => {
+      const read = (key: string) => {
+        const r = tx
+          .select()
+          .from(quotaBuckets)
+          .where(and(eq(quotaBuckets.appId, who.appId), eq(quotaBuckets.key, key)))
+          .get()
+        return r ? { tokens: r.tokens, updatedMs: r.updatedMs } : undefined
+      }
+      const { outcome, writes } = applyQuotaOps(read, ops, Date.now())
+      for (const [key, st] of Object.entries(writes)) {
+        tx.insert(quotaBuckets)
+          .values({ appId: who.appId, key, tokens: st.tokens, updatedMs: st.updatedMs })
+          .onConflictDoUpdate({ target: [quotaBuckets.appId, quotaBuckets.key], set: { tokens: st.tokens, updatedMs: st.updatedMs } })
+          .run()
+      }
+      return outcome
+    })
+    return c.json(outcome)
+  })
+
+  const planOf = (appId: string) => {
+    const row = db.select().from(appPlans).where(eq(appPlans.appId, appId)).get()
+    return { plan: row?.plan ?? null, limits: row?.limits ?? {} }
+  }
+
+  /** The app's plan name and limit overrides (the agent merges them over its default plan). */
+  api.get('/plan', (c) => {
+    const who = caller(c)
+    if (!who.agent && !who.admin) return c.json({ error: 'forbidden' }, 403)
+    return c.json(planOf(who.appId))
+  })
+
   // --- request log ---
 
-  app.post('/requests', async (c) => {
+  api.post('/requests', async (c) => {
     const who = caller(c)
     const b = await c.req.json<Partial<RequestRow> & { userId: string; text: string }>()
     if (!b.userId || !canSee({ ...who, admin: who.admin || who.agent }, b.userId)) return c.json({ error: 'forbidden' }, 403)
@@ -248,7 +351,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
   })
 
   /** The user's browser reports what happened to the agent's result (committed as a snapshot, or not). */
-  app.post('/requests/:id/link', async (c) => {
+  api.post('/requests/:id/link', async (c) => {
     const who = caller(c)
     const req = getRequest(who.appId, c.req.param('id'))
     if (!req) return c.json({ error: 'not found' }, 404)
@@ -272,9 +375,9 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     if (!caller(c).admin) return c.json({ error: 'admin only' }, 403)
     await next()
   }
-  app.use('/admin/*', adminOnly)
+  api.use('/admin/*', adminOnly)
 
-  app.get('/admin/requests', (c) => {
+  api.get('/admin/requests', (c) => {
     const who = caller(c)
     const status = c.req.query('status')
     const limit = Math.min(Number(c.req.query('limit') ?? 100) || 100, 1000)
@@ -291,9 +394,9 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json(rows.map(({ files: _files, log, ...r }) => ({ ...r, toolCalls: log.length, isHead: isHead(who.appId, r.userId, r.snapshotId) })))
   })
 
-  app.get('/admin/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId), default: defaultModeration }))
+  api.get('/admin/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId), default: defaultModeration }))
 
-  app.put('/admin/settings', async (c) => {
+  api.put('/admin/settings', async (c) => {
     const who = caller(c)
     const b = await c.req.json<{ moderation?: string }>().catch(() => ({}) as { moderation?: string })
     if (b.moderation !== 'off' && b.moderation !== 'review') return c.json({ error: 'moderation must be "off" or "review"' }, 400)
@@ -306,7 +409,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
 
   const isHead = (appId: string, userId: string, snapshotId: string | null) => Boolean(snapshotId) && getHead(appId, userId)?.snapshotId === snapshotId
 
-  app.get('/admin/requests/:id', (c) => {
+  api.get('/admin/requests/:id', (c) => {
     const who = caller(c)
     const req = getRequest(who.appId, c.req.param('id'))
     if (!req) return c.json({ error: 'not found' }, 404)
@@ -323,7 +426,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
    * Approve: an edit awaiting review stays as it is (`applied`); a needs-backend request is taken into the
    * team's backlog (`in-progress`).
    */
-  app.post('/admin/requests/:id/approve', (c) => {
+  api.post('/admin/requests/:id/approve', (c) => {
     const who = caller(c)
     const req = getRequest(who.appId, c.req.param('id'))
     if (!req) return c.json({ error: 'not found' }, 404)
@@ -344,7 +447,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return { ok: true }
   }
 
-  app.post('/admin/requests/:id/rollback', (c) => {
+  api.post('/admin/requests/:id/rollback', (c) => {
     const who = caller(c)
     const req = getRequest(who.appId, c.req.param('id'))
     if (!req) return c.json({ error: 'not found' }, 404)
@@ -354,7 +457,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json({ status: 'rolled-back' })
   })
 
-  app.post('/admin/requests/:id/reject', async (c) => {
+  api.post('/admin/requests/:id/reject', async (c) => {
     const who = caller(c)
     const req = getRequest(who.appId, c.req.param('id'))
     if (!req) return c.json({ error: 'not found' }, 404)
@@ -368,7 +471,23 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json({ status: 'rejected' })
   })
 
-  app.get('/admin/stats', (c) => {
+  api.get('/admin/plan', (c) => c.json(planOf(caller(c).appId)))
+
+  /** Set the app's plan and limits as data (F14): `{ plan?: string, limits: { userDailyUsd: 2, ... } }`. */
+  api.put('/admin/plan', async (c) => {
+    const who = caller(c)
+    const b = await c.req.json<{ plan?: unknown; limits?: unknown }>().catch(() => ({}) as { plan?: unknown; limits?: unknown })
+    const limits = (b.limits ?? {}) as Record<string, unknown>
+    if (typeof limits !== 'object' || Object.values(limits).some((v) => typeof v !== 'number' || !Number.isFinite(v) || v < 0)) {
+      return c.json({ error: 'limits must map names to non-negative numbers' }, 400)
+    }
+    const plan = typeof b.plan === 'string' && b.plan ? b.plan : 'custom'
+    const row = { appId: who.appId, plan, limits: limits as Record<string, number>, updatedAt: now() }
+    db.insert(appPlans).values(row).onConflictDoUpdate({ target: appPlans.appId, set: row }).run()
+    return c.json(planOf(who.appId))
+  })
+
+  api.get('/admin/stats', (c) => {
     const who = caller(c)
     const since = Date.now() - 7 * 24 * 60 * 60 * 1000
     const week = db
@@ -393,5 +512,8 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     })
   })
 
+  app.route('/v1', api)
+  // unversioned routes: the API before /v1 (kept for existing clients; new clients use /v1)
+  app.route('/', api)
   return app
 }

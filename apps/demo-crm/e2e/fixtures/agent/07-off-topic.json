@@ -1,0 +1,7 @@
+{
+  "name": "off-topic-poem",
+  "description": "Stage 4a (V1 A4): a request that has nothing to do with the app; the classifier refuses it with one cheap reply.",
+  "match": ["poem|стих"],
+  "classify": { "label": "off-topic", "reason": "" },
+  "turns": []
+}

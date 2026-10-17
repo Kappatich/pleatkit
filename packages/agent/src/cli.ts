@@ -3,12 +3,18 @@ import { serve } from '@hono/node-server'
 import { configFromEnv } from './config.js'
 import { createAgentApp } from './server.js'
 
-const config = configFromEnv()
-const app = createAgentApp({ provider: config.provider, limits: config.limits, storeUrl: config.storeUrl, corsOrigin: config.corsOrigin })
+let config: ReturnType<typeof configFromEnv>
+try {
+  config = configFromEnv()
+} catch (e) {
+  console.error(`morphkit agent: ${(e as Error).message}`)
+  process.exit(1)
+}
+const app = createAgentApp({ provider: config.provider, limits: config.limits, storeUrl: config.storeUrl, corsOrigin: config.corsOrigin, auth: config.auth, plan: config.plan })
 const server = serve({ fetch: app.fetch, port: config.port }, () => {
   console.log(
     `morphkit agent on http://localhost:${config.port}/agent (provider ${config.provider.name}, model ${config.provider.model}` +
-      `${config.storeUrl ? `, logging to ${config.storeUrl}` : ''})`,
+      `${config.storeUrl ? `, logging to ${config.storeUrl}` : ''}${config.auth.credentials ? `, app ${config.auth.credentials.appId} with credentials` : ', no credentials (development)'})`,
   )
 })
 const stop = () => server.close(() => process.exit(0))

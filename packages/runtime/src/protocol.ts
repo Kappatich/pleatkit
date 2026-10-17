@@ -3,8 +3,13 @@
 
 import type { FileMap, MorphkitManifest } from './types.js'
 
-/** `clarify`: the request was ambiguous; the result carries one question with options, nothing was changed. */
-export type AgentVerdict = 'ok' | 'needs-backend' | 'failed' | 'clarify'
+/**
+ * `clarify`: the request was ambiguous; the result carries one question with options, nothing was changed.
+ * `refused`: not run at all, with a fixed reply (`refusal` says why: off-topic request, quota, kill switch).
+ */
+export type AgentVerdict = 'ok' | 'needs-backend' | 'failed' | 'clarify' | 'refused'
+/** Why a request was refused without running the model loop. */
+export type AgentRefusal = 'off-topic' | 'quota' | 'disabled'
 
 /** Image types every supported vision model accepts. */
 export const AGENT_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const
@@ -21,7 +26,8 @@ export interface AgentImage {
   data: string
   name?: string
 }
-export type RequestClass = 'ui' | 'needs-backend' | 'unclear'
+/** `off-topic`: not about this app's interface (the agent is not a free chatbot, V1 A4). */
+export type RequestClass = 'ui' | 'needs-backend' | 'unclear' | 'off-topic'
 /** Interface languages of the chat and the admin dashboard (DECISIONS item 20). */
 export type Locale = 'en' | 'ru'
 
@@ -125,8 +131,10 @@ export interface AgentResult {
   timings: { totalMs: number; classifyMs: number | null; modelMs: number; toolsMs: number }
   /** Request id in store-server, when the agent server logs to one. */
   requestId: string | null
-  /** Why the run stopped early (limits), if it did. */
-  stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'refusal' | 'no-finish' | 'error'
+  /** Why the run stopped early (limits), if it did. `cost`: the per-edit dollar limit of the app's plan. */
+  stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'cost' | 'refusal' | 'no-finish' | 'error'
+  /** For verdict `refused`. */
+  refusal?: AgentRefusal
   /** Technical error behind a failed run (for the admin's log; the user only sees `summary`). */
   error?: string
   /** For verdict `clarify`: the question to show and 2 to 4 short answers as buttons. */
