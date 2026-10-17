@@ -32,6 +32,14 @@ const CSS = `
 .mk-details { display: block; border: 0; background: transparent; padding: 0; margin: 2px 0; font: inherit; font-size: 12px; color: #5b21b6; cursor: pointer; text-decoration: underline; }
 .mk-example { border: 0; padding: 0; text-align: left; color: #5b21b6; background: transparent; }
 .mk-summary { margin-top: 4px; }
+.mk-thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-thumb { position: relative; display: inline-block; }
+.mk-thumb img { height: 56px; max-width: 96px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1; display: block; }
+.mk-thumb button { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: 0; background: #0f172a; color: #fff; font-size: 12px; line-height: 18px; padding: 0; cursor: pointer; }
+.mk-req-thumbs { display: flex; gap: 4px; margin-top: 6px; }
+.mk-req-thumbs img { height: 40px; max-width: 72px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,.3); }
+.mk-drawer.mk-dragging { outline: 3px dashed #8b5cf6; outline-offset: -8px; }
+.mk-dropzone { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: rgba(237,233,254,.85); color: #5b21b6; font-weight: 600; pointer-events: none; }
 .mk-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-right: 6px; }
 .mk-b-ok { background: #dcfce7; color: #166534; } .mk-b-admin { background: #fef3c7; color: #92400e; }
 .mk-b-bad { background: #fee2e2; color: #991b1b; } .mk-b-run { background: #ede9fe; color: #5b21b6; }

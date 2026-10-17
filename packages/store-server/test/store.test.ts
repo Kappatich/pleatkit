@@ -196,3 +196,31 @@ describe('moderation: review (DECISIONS 15)', () => {
     expect(await (await admin('/admin/settings')).json()).toEqual({ moderation: 'review', default: 'review' })
   })
 })
+
+describe('attachments on the request log (stage 3b)', () => {
+  it('stores sizes of screenshots and panel DOM, never the images', async () => {
+    const id = await agentLogs('alice', { attachments: { images: 1, imageBytes: 54_000, targetDomChars: 1800 } })
+    const detail = (await (await admin(`/admin/requests/${id}`)).json()) as { request: { attachments: unknown } }
+    expect(detail.request.attachments).toEqual({ images: 1, imageBytes: 54_000, targetDomChars: 1800 })
+  })
+
+  it('adds the column to a database created before it existed', async () => {
+    const fs = await import('node:fs')
+    const os = await import('node:os')
+    const path = await import('node:path')
+    const Database = (await import('better-sqlite3')).default
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'morphkit-store-'))
+    const file = path.join(dir, 'old.db')
+    const old = new Database(file)
+    old.exec(`CREATE TABLE requests (id TEXT PRIMARY KEY, app_id TEXT NOT NULL, user_id TEXT NOT NULL, text TEXT NOT NULL, target TEXT, verdict TEXT NOT NULL,
+      summary TEXT NOT NULL, status TEXT NOT NULL, classification TEXT, provider TEXT, model TEXT, usage TEXT, timings TEXT,
+      log TEXT NOT NULL, files TEXT, snapshot_id TEXT, error TEXT, admin_note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, created_at_ms INTEGER NOT NULL)`)
+    old.close()
+    const store = openStore({ file })
+    app = createStoreApp(store.db)
+    const id = await agentLogs('alice', { attachments: { images: 2, imageBytes: 10, targetDomChars: 0 } })
+    expect(((await (await admin(`/admin/requests/${id}`)).json()) as { request: { attachments: { images: number } } }).request.attachments.images).toBe(2)
+    store.close()
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+})

@@ -53,6 +53,8 @@ export const requests = sqliteTable(
     files: text('files', { mode: 'json' }).$type<Record<string, string>>(),
     snapshotId: text('snapshot_id'),
     error: text('error'),
+    /** Screenshots and panel DOM that came with the request: sizes only, the images are not stored. */
+    attachments: text('attachments', { mode: 'json' }).$type<{ images: number; imageBytes: number; targetDomChars: number }>(),
     adminNote: text('admin_note'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -82,6 +84,9 @@ export const appSettings = sqliteTable('app_settings', {
   updatedAt: text('updated_at').notNull(),
 })
 
+/** Columns added after the first release, for databases created before them (SQLite has no ADD COLUMN IF NOT EXISTS). */
+export const ADDED_COLUMNS: { table: string; column: string; type: string }[] = [{ table: 'requests', column: 'attachments', type: 'TEXT' }]
+
 // Plain DDL so the demo needs no migration tool; keep in sync with the tables above.
 export const DDL = `
 CREATE TABLE IF NOT EXISTS snapshots (
@@ -95,7 +100,7 @@ CREATE TABLE IF NOT EXISTS heads (
 CREATE TABLE IF NOT EXISTS requests (
   id TEXT PRIMARY KEY, app_id TEXT NOT NULL, user_id TEXT NOT NULL, text TEXT NOT NULL, target TEXT, verdict TEXT NOT NULL,
   summary TEXT NOT NULL, status TEXT NOT NULL, classification TEXT, provider TEXT, model TEXT, usage TEXT, timings TEXT,
-  log TEXT NOT NULL, files TEXT, snapshot_id TEXT, error TEXT, admin_note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+  log TEXT NOT NULL, files TEXT, snapshot_id TEXT, error TEXT, attachments TEXT, admin_note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
   created_at_ms INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS requests_by_app ON requests (app_id, created_at_ms);

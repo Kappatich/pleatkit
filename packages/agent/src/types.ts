@@ -1,4 +1,4 @@
-import type { RequestClass, TokenUsage } from '@morphkit/runtime/compiler'
+import type { AgentImage, RequestClass, TokenUsage } from '@morphkit/runtime/compiler'
 
 /** JSON schema of a tool's input. Every tool is strict: all properties required, no extra ones. */
 export interface ToolSpec {
@@ -41,6 +41,8 @@ export interface PromptParts {
   cached: string
   /** First user message: the request, current dynamic files, target panel. */
   user: string
+  /** Screenshots for the first user message (vision input), before its text. */
+  images?: AgentImage[]
 }
 
 export interface TurnOptions {

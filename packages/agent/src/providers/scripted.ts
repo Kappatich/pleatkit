@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { RequestClass, TokenUsage } from '@morphkit/runtime/compiler'
 import { emptyUsage } from '../pricing.js'
-import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, ToolResult, TurnOptions } from '../types.js'
+import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, TurnOptions } from '../types.js'
 
 /**
  * A scripted conversation: the provider replays the tool calls of each turn instead of asking a model, so the
@@ -77,7 +77,12 @@ export class ScriptedProvider implements ModelProvider {
     return { label: fx?.classify?.label ?? 'ui', reason: fx?.classify?.reason ?? '', usage: emptyUsage(), model: 'scripted-classifier' }
   }
 
-  start(_prompt: unknown, _tools: unknown, meta: { request: string }): ModelSession {
+  /** What each scripted run received besides text: a model would see the images, the script only notes them. */
+  readonly received: { request: string; images: number; targetDom: boolean }[] = []
+
+  start(prompt: Pick<PromptParts, 'images' | 'user'>, _tools: unknown, meta: { request: string }): ModelSession {
+    this.received.push({ request: meta.request, images: prompt.images?.length ?? 0, targetDom: prompt.user.includes('<panel_dom') })
+    if (this.received.length > 50) this.received.shift()
     const fx = this.find(meta.request)
     const turns: ScriptTurn[] = fx
       ? fx.turns

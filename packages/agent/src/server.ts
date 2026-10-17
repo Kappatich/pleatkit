@@ -46,6 +46,7 @@ export async function reportRun(storeUrl: string, req: AgentRunRequest, result: 
       log: result.log,
       files: result.files,
       ...(result.error ? { error: result.error } : {}),
+      ...(result.attachments ? { attachments: result.attachments } : {}),
     }),
     signal: AbortSignal.timeout(5_000),
   })

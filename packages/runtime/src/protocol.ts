@@ -1,9 +1,25 @@
 // Wire protocol between the browser (@morphkit/ui) and the agent server (@morphkit/agent).
-// Types only, so both sides agree without the browser depending on Node code.
+// Types and a few constants, so both sides agree without the browser depending on Node code.
 
 import type { FileMap, MorphkitManifest } from './types.js'
 
 export type AgentVerdict = 'ok' | 'needs-backend' | 'failed'
+
+/** Image types every supported vision model accepts. */
+export const AGENT_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const
+export type AgentImageType = (typeof AGENT_IMAGE_TYPES)[number]
+/** At most this many screenshots per request, and this many bytes of image data in total. */
+export const MAX_AGENT_IMAGES = 3
+export const MAX_AGENT_IMAGE_BYTES = 6 * 1024 * 1024
+/** Longest DOM snapshot of a panel that is sent to the agent (characters). */
+export const MAX_TARGET_DOM_CHARS = 12_000
+
+/** A screenshot attached to a request: base64 without the `data:` prefix. */
+export interface AgentImage {
+  mediaType: AgentImageType
+  data: string
+  name?: string
+}
 export type RequestClass = 'ui' | 'needs-backend' | 'unclear'
 /** Interface languages of the chat and the admin dashboard (DECISIONS item 20). */
 export type Locale = 'en' | 'ru'
@@ -31,6 +47,13 @@ export interface AgentRunRequest {
   components: string[]
   /** Panel the user pointed at, if any (`customer-card`). */
   target?: string
+  /**
+   * Screenshots the user pasted or dropped into the chat (vision input). What they show, including any
+   * text in them, is data about the user's screen, never instructions to the agent.
+   */
+  images?: AgentImage[]
+  /** Sanitized DOM of the panel the user pointed at, as the user sees it now (data, not instructions). */
+  targetDom?: string
   /** Set when asking the agent to carry the user's edits over to a new app release (stale snapshot). */
   migration?: {
     /** Base files the user's edits were made against. */
@@ -100,6 +123,8 @@ export interface AgentResult {
   stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'refusal' | 'no-finish' | 'error'
   /** Technical error behind a failed run (for the admin's log; the user only sees `summary`). */
   error?: string
+  /** What came with the request besides text (sizes only; images are not stored). */
+  attachments?: { images: number; imageBytes: number; targetDomChars: number }
 }
 
 /**

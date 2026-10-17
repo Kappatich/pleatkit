@@ -1,4 +1,5 @@
-import type { AgentProgress, AgentResult, AgentRunRequest, RequestClass } from '@morphkit/runtime/compiler'
+import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_DOM_CHARS } from '@morphkit/runtime/compiler'
+import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, RequestClass } from '@morphkit/runtime/compiler'
 import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
 import { buildPrompt, classifierContext } from './prompt.js'
@@ -99,8 +100,12 @@ export function validateRequest(body: unknown): AgentRunRequest {
   if (!ctx || !Array.isArray(ctx.dynamicRoots) || !Array.isArray(ctx.externals) || !Array.isArray(ctx.externalPatterns) || typeof ctx.alias !== 'object') {
     throw new Error('context { dynamicRoots, externals, externalPatterns, alias } is required')
   }
+  const images = validateImages(b.images)
+  if (b.targetDom !== undefined && typeof b.targetDom !== 'string') throw new Error('targetDom must be a string')
   return {
     ...b,
+    ...(images ? { images } : {}),
+    ...(typeof b.targetDom === 'string' ? { targetDom: b.targetDom.slice(0, MAX_TARGET_DOM_CHARS) } : {}),
     readonly: b.readonly ?? {},
     coreTypes: b.coreTypes ?? {},
     components: Array.isArray(b.components) ? b.components.filter((c): c is string => typeof c === 'string') : [],
@@ -111,6 +116,22 @@ export function validateRequest(body: unknown): AgentRunRequest {
  * One edit: classify (unless the user pointed at a panel), then let the model use the tools until it calls
  * finish or a limit is hit.
  */
+/** Screenshots: known image types, base64, at most MAX_AGENT_IMAGES and MAX_AGENT_IMAGE_BYTES in total. */
+function validateImages(raw: unknown): AgentImage[] | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (!Array.isArray(raw)) throw new Error('images must be an array')
+  if (raw.length > MAX_AGENT_IMAGES) throw new Error(`at most ${MAX_AGENT_IMAGES} images per request`)
+  let bytes = 0
+  const out = raw.map((i: Partial<AgentImage> | null, n) => {
+    if (!i || !(AGENT_IMAGE_TYPES as readonly string[]).includes(i.mediaType ?? '')) throw new Error(`images[${n}].mediaType must be one of ${AGENT_IMAGE_TYPES.join(', ')}`)
+    if (typeof i.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(i.data)) throw new Error(`images[${n}].data must be base64 without a data: prefix`)
+    bytes += Math.floor((i.data.length * 3) / 4)
+    return { mediaType: i.mediaType as AgentImage['mediaType'], data: i.data, ...(typeof i.name === 'string' ? { name: i.name.slice(0, 200) } : {}) }
+  })
+  if (bytes > MAX_AGENT_IMAGE_BYTES) throw new Error(`images are too large (${Math.round(bytes / 1024)} KB, at most ${MAX_AGENT_IMAGE_BYTES / 1024} KB in total)`)
+  return out.length ? out : undefined
+}
+
 export async function runAgent(req: AgentRunRequest, provider: ModelProvider, options: RunOptions = {}): Promise<Omit<AgentResult, 'requestId'>> {
   const limits = { ...DEFAULT_LIMITS, ...options.limits }
   const progress = options.onProgress ?? (() => undefined)
@@ -148,6 +169,11 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       usage: meter.rows(),
       modelCalls,
       output,
+      attachments: {
+        images: req.images?.length ?? 0,
+        imageBytes: (req.images ?? []).reduce((s, i) => s + Math.floor((i.data.length * 3) / 4), 0),
+        targetDomChars: req.targetDom?.length ?? 0,
+      },
       timings: { ...timings, modelMs: Math.round(timings.modelMs), toolsMs: Math.round(timings.toolsMs), classifyMs: timings.classifyMs === null ? null : Math.round(timings.classifyMs) },
       ...(stopReason ? { stopReason } : {}),
       ...(error ? { error } : {}),
