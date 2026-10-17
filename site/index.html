@@ -9,11 +9,11 @@
 <meta property="og:description" content="morphkit lets users of your React app change its interface by asking an agent. The agent rewrites only files you mark editable; each change compiles in the browser, becomes that user's version, and gets undo, history, admin rollback. MIT, BYOK.">
 <meta property="og:image" content="poster.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="color-scheme" content="dark light">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d2b5c'/%3E%3Cpath d='M0 32L32 0M-8 24L24 -8M8 40L40 8' stroke='%23ffd23f' stroke-width='3'/%3E%3Crect x='9' y='9' width='14' height='14' fill='%230d2b5c' stroke='%23eaf2ff' stroke-width='2'/%3E%3C/svg%3E">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23ffffff'/%3E%3Crect x='6' y='6' width='20' height='20' fill='%23e30613'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..700&family=Azeret+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="morphkit.css">
 </head>
 <body>
@@ -44,37 +44,38 @@
       <p class="cta-more"><a href="https://github.com/Kappatich/morphkit#install-into-your-own-vite--react-project-5-steps">Add it to your Vite app</a> · <a href="#pilot">Book a pilot for your B2B app</a></p>
     </div>
 
-    <div class="live" data-live>
+    <div class="live" data-live aria-label="Scripted demo of the chat drawer">
       <div class="sheet">
         <div class="sheet-head">
-          <span class="label"><b>zone: dynamic</b> · customer-card.tsx</span>
-          <span class="label">user: alice</span>
+          <span class="label"><b>editable</b> · customer-card.tsx</span>
+          <span class="label">alice's version</span>
         </div>
         <div class="zone-hatch">
           <div class="panel" aria-live="polite"></div>
         </div>
-        <div class="ruler" aria-label="Version ruler"></div>
+        <div class="ruler" aria-label="Version history"></div>
       </div>
       <div class="prompt">
+        <div class="progress" aria-live="polite"></div>
         <div class="prompt-bar" aria-hidden="true">
-          <span class="gt">&gt;</span>
-          <span class="text empty">e.g. show the phone and city in the customer card</span>
+          <span class="text empty">Describe a change or paste a screenshot</span>
           <span class="cursor"></span>
+          <span class="tools"><span>⌖ Pick panel</span></span>
+          <span class="send">↑</span>
         </div>
         <div class="recipes" role="group" aria-label="Try a request">
-          <button class="recipe" data-recipe="fields" data-request="In the customer card add phone, city and source">add phone, city, source</button>
-          <button class="recipe" data-recipe="red" data-request="Highlight an overdue payment date in red">overdue in red</button>
-          <button class="recipe" data-recipe="deals" data-request="Show the deals under the card">deals under the card</button>
-          <button class="recipe" data-recipe="compact" data-request="Make the card more compact">compact layout</button>
-          <button class="recipe" data-recipe="note" data-request="Add a notes field to the card">a notes field</button>
-          <button class="recipe" data-recipe="backend" data-request="Add a discount field and recompute the total on the server">discount on the server</button>
+          <button class="recipe" data-recipe="fields" data-request="In the customer card add phone, city and source">Add phone, city, source</button>
+          <button class="recipe" data-recipe="red" data-request="Highlight an overdue payment date in red">Overdue in red</button>
+          <button class="recipe" data-recipe="deals" data-request="Show the deals under the card">Deals under the card</button>
+          <button class="recipe" data-recipe="compact" data-request="Make the card more compact">Compact layout</button>
+          <button class="recipe" data-recipe="note" data-request="Add a notes field to the card">A notes field</button>
+          <button class="recipe" data-recipe="backend" data-request="Add a discount field and recompute the total on the server">Discount on the server</button>
         </div>
-        <div class="progress" aria-live="polite"></div>
         <div class="live-actions">
-          <button class="btn" data-undo disabled>Undo</button>
-          <button class="btn quiet" data-reset disabled>Reset to original</button>
+          <button class="btn" data-undo disabled>↶ Undo</button>
+          <button class="btn quiet" data-reset disabled>Original</button>
         </div>
-        <p class="live-foot">Scripted on this page, so it runs with no model. In the app the agent writes the code, the browser compiles it, and bob keeps his own card.</p>
+        <p class="live-foot">Scripted on this page, so it runs with no model. In the app the agent writes the code, the server compiles and signs it, and bob keeps his own card.</p>
       </div>
     </div>
   </div>
@@ -90,7 +91,7 @@
 
   <section id="demo">
     <div class="wrap">
-      <div class="section-head"><span class="label">01 / demo</span><h2>Forty-six seconds, four scenes</h2></div>
+      <div class="section-head"><span class="label">01</span><h2>Forty-six seconds, four scenes</h2></div>
       <div class="video">
         <video controls preload="none" playsinline poster="poster.jpg" width="1280" height="800">
           <source src="demo.mp4" type="video/mp4">
@@ -105,22 +106,22 @@
     <div class="wrap pain">
       <div>
         <h2>You build the app</h2>
-        <div class="card"><span class="label">01 / backlog</span><h3>The backlog is small requests.</h3><p>Move the date up. Add the phone number. Make overdue dates red. Each takes ten minutes of code and half a day of context switching. They never stop.</p></div>
-        <div class="card"><span class="label">02 / taste</span><h3>Every request is one person's taste.</h3><p>Alice wants the compact table and Bob hates it. Whichever you ship, the other one files a ticket. A setting for every preference turns your code into a settings page.</p></div>
-        <div class="card"><span class="label">03 / agents</span><h3>Agents write code, but only for you.</h3><p>During the day you trust Claude or Codex with your repo. Your users get a fixed screen and a feedback form.</p></div>
+        <div class="card"><span class="label">backlog</span><h3>The backlog is small requests.</h3><p>Move the date up. Add the phone number. Make overdue dates red. Each takes ten minutes of code and half a day of context switching. They never stop.</p></div>
+        <div class="card"><span class="label">taste</span><h3>Every request is one person's taste.</h3><p>Alice wants the compact table and Bob hates it. Whichever you ship, the other one files a ticket. A setting for every preference turns your code into a settings page.</p></div>
+        <div class="card"><span class="label">agents</span><h3>Agents write code, but only for you.</h3><p>During the day you trust Claude or Codex with your repo. Your users get a fixed screen and a feedback form.</p></div>
       </div>
       <div>
         <h2>You own the product</h2>
-        <div class="card"><span class="label">04 / forks</span><h3>Every big customer wants a fork.</h3><p>One wants the deal value in the list view. Another wants the approval column gone. Saying yes means custom branches. Saying no comes back at renewal.</p></div>
-        <div class="card"><span class="label">05 / settings</span><h3>Your settings stop at columns and colors.</h3><p>Anything that needs a different layout goes to the engineering queue, next to the roadmap. It waits there for a quarter.</p></div>
-        <div class="card"><span class="label">06 / signal</span><h3>You can't see what people actually want.</h3><p>Requests arrive by email, on calls and in Slack. Nobody counts them, so the roadmap follows whoever spoke last.</p></div>
+        <div class="card"><span class="label">forks</span><h3>Every big customer wants a fork.</h3><p>One wants the deal value in the list view. Another wants the approval column gone. Saying yes means custom branches. Saying no comes back at renewal.</p></div>
+        <div class="card"><span class="label">settings</span><h3>Your settings stop at columns and colors.</h3><p>Anything that needs a different layout goes to the engineering queue, next to the roadmap. It waits there for a quarter.</p></div>
+        <div class="card"><span class="label">signal</span><h3>You can't see what people actually want.</h3><p>Requests arrive by email, on calls and in Slack. Nobody counts them, so the roadmap follows whoever spoke last.</p></div>
       </div>
     </div>
   </section>
 
   <section id="how">
     <div class="wrap">
-      <div class="section-head"><span class="label">02 / mechanism</span><h2>How it works</h2></div>
+      <div class="section-head"><span class="label">02</span><h2>How it works</h2></div>
       <div class="zones">
         <ol class="steps">
           <li><div><h3>Mark the zones.</h3><p>In <code>vite.config.ts</code> you list the files the agent may rewrite and the files it may read. Everything else stays closed: the agent sees only its type declarations.</p></div></li>
@@ -132,9 +133,9 @@
           <div class="zone-map" aria-label="Zone map of an app">
             <div class="core"><b>core</b><small>compiled · the agent sees only .d.ts</small></div>
             <div class="ro"><b>readonly</b><small>api.ts, ui/ · read, never written</small></div>
-            <div class="dyn"><b>dynamic</b><small>customer-card.tsx · the agent rewrites</small></div>
+            <div class="dyn"><b>editable</b><small>customer-card.tsx · the agent rewrites</small></div>
           </div>
-          <p class="note">One config line decides what is hatched. Writes outside the hatch are refused by the tool itself, not by a prompt.</p>
+          <p class="note">One config line decides what is marked red. Writes outside it are refused by the tool itself, not by a prompt.</p>
         </div>
       </div>
     </div>
@@ -142,7 +143,7 @@
 
   <section id="not" class="soft">
     <div class="wrap">
-      <div class="section-head"><span class="label">03 / not this</span><h2>What it is not</h2></div>
+      <div class="section-head"><span class="label">03</span><h2>What it is not</h2></div>
       <div class="grid2">
         <div class="card"><h3>A component catalog.</h3><p>With json-render, A2UI or CopilotKit, an agent builds screens from blocks you defined in advance. That is safe, but it stops at what you predicted. In morphkit the agent writes new code inside files you allowed, behind compile checks, zones and undo. If a catalog covers your users' requests, use a catalog.</p></div>
         <div class="card"><h3>An app builder.</h3><p>Lovable and Bolt change an app for its creator, and then you deploy. morphkit changes the running app for one end user. Your repository and your release stay as they are.</p></div>
@@ -154,7 +155,7 @@
 
   <section id="install">
     <div class="wrap">
-      <div class="section-head"><span class="label">04 / install</span><h2>Install in five steps</h2></div>
+      <div class="section-head"><span class="label">04</span><h2>Install in five steps</h2></div>
       <p class="sub">Any Vite + React project. Full guide and options in the <a href="https://github.com/Kappatich/morphkit#readme">README</a>.</p>
       <ol class="steps">
         <li><div><h3>Install the packages</h3>
@@ -185,7 +186,7 @@ pnpm add -D @morphkit/vite-plugin @morphkit/agent</pre></div></li>
 
   <section id="pricing" class="soft">
     <div class="wrap">
-      <div class="section-head"><span class="label">05 / pricing</span><h2>Early prices</h2></div>
+      <div class="section-head"><span class="label">05</span><h2>Early prices</h2></div>
       <p class="sub">They will change after the first pilots.</p>
       <div class="pricing">
         <div class="plan">
@@ -214,7 +215,7 @@ pnpm add -D @morphkit/vite-plugin @morphkit/agent</pre></div></li>
 
   <section id="faq">
     <div class="wrap">
-      <div class="section-head"><span class="label">06 / faq</span><h2>Questions a senior engineer asks</h2></div>
+      <div class="section-head"><span class="label">06</span><h2>Questions a senior engineer asks</h2></div>
       <div class="faq">
         <details><summary>Can a generated edit attack other users or leak data?</summary><div><p>An edit runs only in the browser of the user who asked for it, so a bad edit can reach only that user. The agent can write only to dynamic files, and imports are limited to a list you control. With <code>connect-src 'self'</code> in your CSP, edit code cannot call other hosts. Edits shared between users can run in a sandboxed iframe that has no access to the page, cookies or storage. Static rules for generated code (no eval, no requests to other hosts, imports only from your list) run at every check, and an edit that breaks one is refused.</p></div></details>
         <details><summary>Where does the model key live?</summary><div><p>In the environment of your agent server and nowhere else. The browser talks to your <code>/agent</code> endpoint and never sees the key. You bring your own key.</p></div></details>
@@ -231,7 +232,7 @@ pnpm add -D @morphkit/vite-plugin @morphkit/agent</pre></div></li>
   <section id="pilot" class="soft">
     <div class="wrap ctas">
       <div class="card main-cta">
-        <span class="label">next step</span>
+        <span class="label">07</span>
         <h3>Run the demo locally.</h3>
         <p><code>pnpm install &amp;&amp; pnpm dev</code>. You don't need a key: the agent replays recorded answers. Open <code>/admin</code> to see every edit.</p>
         <a class="btn primary" href="https://github.com/Kappatich/morphkit#run-the-demo">Get the code</a>

@@ -8,6 +8,7 @@
   var hatch = root.querySelector('.zone-hatch');
   var ruler = root.querySelector('.ruler');
   var text = root.querySelector('.prompt-bar .text');
+  var sendBtn = root.querySelector('.prompt-bar .send');
   var progress = root.querySelector('.progress');
   var undoBtn = root.querySelector('[data-undo]');
   var resetBtn = root.querySelector('[data-reset]');
@@ -73,11 +74,12 @@
 
   function drawRuler() {
     ruler.innerHTML = '';
-    var total = Math.max(history.length + 1, 5);
-    for (var i = 0; i < total; i++) {
+    var times = ['—', '14:41', '14:42', '14:44', '14:47', '14:52'];
+    for (var i = 0; i < history.length; i++) {
       var t = document.createElement('div');
-      t.className = 'tick' + (i === head ? ' head' : '') + (i >= history.length ? ' future' : '');
-      t.textContent = i < history.length ? (i === 0 ? 'v0 base' : 'v' + i + ' ' + history[i].label) : 'v' + i;
+      t.className = 'tick' + (i === head ? ' head' : '');
+      var label = i === 0 ? 'Original' : history[i].label.charAt(0).toUpperCase() + history[i].label.slice(1);
+      t.innerHTML = '<span class="v">v' + i + '</span><span>' + label + '</span><span class="t">' + (i === head ? 'now' : times[i] || '') + '</span>';
       ruler.appendChild(t);
     }
     undoBtn.disabled = head === 0 || busy;
@@ -92,6 +94,7 @@
 
   function typeInto(str, done) {
     text.classList.remove('empty');
+    if (sendBtn) sendBtn.classList.add('on');
     text.textContent = '';
     if (reduced) { text.textContent = str; return done(); }
     var i = 0;
@@ -126,7 +129,7 @@
         if (r.backend) {
           var d = document.createElement('div');
           d.className = 'done';
-          d.textContent = 'Routed to the admin queue. Your card is unchanged.';
+          d.textContent = 'Needs a change on the server. Sent to your admin; the card is unchanged.'; if (sendBtn) sendBtn.classList.remove('on'); text.classList.add('empty'); text.textContent = 'Describe a change or paste a screenshot';
           progress.appendChild(d);
           setBusy(false);
           return;
@@ -142,7 +145,7 @@
         hatch.classList.remove('flash'); void hatch.offsetWidth; hatch.classList.add('flash');
         var ok = document.createElement('div');
         ok.className = 'done';
-        ok.textContent = 'Applied as v' + head + ' for this user only. Compiled in the real app, scripted here.';
+        ok.textContent = 'Applied as v' + head + ' for alice only. Scripted here; compiled and signed in the app.'; if (sendBtn) sendBtn.classList.remove('on'); text.classList.add('empty'); text.textContent = 'Describe a change or paste a screenshot';
         progress.appendChild(ok);
         setBusy(false);
       });
@@ -155,7 +158,7 @@
     renderState(history[head].state);
     hatch.classList.remove('flash'); void hatch.offsetWidth; hatch.classList.add('flash');
     progress.innerHTML = '<div class="done">Back to v' + head + '. Undo is one click, no model call.</div>';
-    text.textContent = ''; text.classList.add('empty'); text.textContent = 'e.g. show the phone and city in the customer card';
+    text.textContent = ''; text.classList.add('empty'); text.textContent = 'Describe a change or paste a screenshot'; if (sendBtn) sendBtn.classList.remove('on');
     drawRuler();
   });
   resetBtn.addEventListener('click', function () {
@@ -163,7 +166,7 @@
     head = 0; history = history.slice(0, 1);
     renderState({});
     progress.innerHTML = '<div class="done">Reset to the original.</div>';
-    text.classList.add('empty'); text.textContent = 'e.g. show the phone and city in the customer card';
+    text.classList.add('empty'); text.textContent = 'Describe a change or paste a screenshot'; if (sendBtn) sendBtn.classList.remove('on');
     drawRuler();
   });
   recipes.forEach(function (btn) {
