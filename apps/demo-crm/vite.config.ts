@@ -1,11 +1,37 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vite'
+import { defineConfig, type Connect, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import morphkit from '@morphkit/vite-plugin'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
+
+/**
+ * The strict Content Security Policy from the README: no inline scripts, compiled edits from blob: URLs,
+ * WebAssembly for esbuild. The demo serves its page under it when the URL has `?csp=strict`.
+ */
+const STRICT_CSP = [
+  "default-src 'self'",
+  "script-src 'self' blob: 'wasm-unsafe-eval'",
+  'worker-src blob:',
+  "style-src 'self' 'unsafe-inline'",
+  "connect-src 'self'",
+  "img-src 'self' data:",
+].join('; ')
+
+const strictCsp: Connect.NextHandleFunction = (req, res, next) => {
+  if (req.url && /[?&]csp=strict(&|$)/.test(req.url)) res.setHeader('Content-Security-Policy', STRICT_CSP)
+  next()
+}
+
+function strictCspDemo(): Plugin {
+  return {
+    name: 'demo-strict-csp',
+    configureServer: (s) => void s.middlewares.use(strictCsp),
+    configurePreviewServer: (s) => void s.middlewares.use(strictCsp),
+  }
+}
 const dataPort = process.env.DATA_PORT ?? '8787'
 const agentPort = process.env.AGENT_PORT ?? '8789'
 const storePort = process.env.STORE_PORT ?? '8790'
@@ -19,6 +45,7 @@ const proxy = {
 
 export default defineConfig({
   plugins: [
+    strictCspDemo(),
     react(),
     tailwindcss(),
     morphkit({

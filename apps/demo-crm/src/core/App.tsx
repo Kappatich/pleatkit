@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DevPanel, Dynamic, MorphkitProvider, useMorphkit } from '@morphkit/runtime'
-import { MorphkitChat } from '@morphkit/ui'
+import { detectLocale, MorphkitChat } from '@morphkit/ui'
 import { api, type Customer, type Deal } from '@/readonly/api'
 import { formatDate } from '@/readonly/format'
 import { cn } from '@/lib/utils'
@@ -17,13 +17,23 @@ function readParams() {
   }
 }
 
-const EXAMPLES = [
-  'In the customer card add phone, city and source; highlight an overdue payment date in red',
-  'Add a discount field to deals and recalculate the amount on the server',
-]
+/** Interface language of the chat and the admin dashboard: `?lang=ru`, English by default (DECISIONS item 20). */
+const LOCALE = detectLocale('en')
+
+const ADMIN_HREF = '/admin' + (() => {
+  const q = new URLSearchParams()
+  if (APP_ID !== 'demo-crm') q.set('app', APP_ID)
+  if (LOCALE !== 'en') q.set('lang', LOCALE)
+  return q.size ? `?${q}` : ''
+})()
+
+const EXAMPLES = {
+  en: ['In the customer card add phone, city and source; highlight an overdue payment date in red', 'Add a discount field to deals and recalculate the amount on the server'],
+  ru: ['В карточке клиента добавь телефон, город и источник; просроченную дату платежа выделяй красным', 'Добавь в сделку поле «скидка» и пересчитывай сумму на сервере'],
+}
 
 export function App() {
-  if (location.pathname.replace(/\/$/, '') === '/admin') return <Admin appId={APP_ID} />
+  if (location.pathname.replace(/\/$/, '') === '/admin') return <Admin appId={APP_ID} locale={LOCALE} />
   return <Crm />
 }
 
@@ -49,7 +59,7 @@ function Crm() {
               <span className="text-xs text-muted-foreground">morphkit demo</span>
             </div>
             <div className="flex items-center gap-4 text-sm">
-              <a className="text-muted-foreground hover:underline" href={`/admin${APP_ID !== 'demo-crm' ? `?app=${encodeURIComponent(APP_ID)}` : ''}`}>
+              <a className="text-muted-foreground hover:underline" href={ADMIN_HREF}>
                 Admin
               </a>
               <label className="flex items-center gap-2">
@@ -72,7 +82,7 @@ function Crm() {
         </header>
         <CrmPage isolated={isolated} />
       </div>
-      {dev ? <DevPanel /> : <MorphkitChat agentUrl={AGENT_URL} appId={APP_ID} examples={EXAMPLES} />}
+      {dev ? <DevPanel /> : <MorphkitChat agentUrl={AGENT_URL} appId={APP_ID} locale={LOCALE} examples={EXAMPLES[LOCALE]} />}
     </MorphkitProvider>
   )
 }

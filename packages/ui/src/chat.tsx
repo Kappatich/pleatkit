@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { CommitRejectedError, useMorphkit, useMorphkitState, type AgentProgress, type AgentResult, type Snapshot } from '@morphkit/runtime'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CommitRejectedError, useMorphkit, useMorphkitState, type AgentResult, type Locale, type Snapshot } from '@morphkit/runtime'
+import { translator, type Translate, type UiKey } from './i18n.js'
 import { ElementPicker } from './picker.js'
 import { callAgent } from './sse.js'
+import { addStep, visibleSteps, type Step } from './steps.js'
 import { useMorphkitUiStyles } from './styles.js'
 
 export interface MorphkitChatProps {
@@ -9,10 +11,14 @@ export interface MorphkitChatProps {
   agentUrl?: string
   /** Store namespace sent to the agent for its request log. */
   appId?: string
+  /** Interface language of the chat and of the agent's progress lines and summaries. Default `en`. */
+  locale?: Locale
+  /** Overrides the localized title. */
   title?: string
   /** Example requests shown in an empty chat. */
   examples?: string[]
   defaultOpen?: boolean
+  /** Overrides the localized launcher label. */
   launcherLabel?: string
   /** Shift the page left while the drawer is open so the panels being changed stay visible. Default true. */
   pushContent?: boolean
@@ -20,17 +26,14 @@ export interface MorphkitChatProps {
 
 type TurnStatus = 'running' | 'applied' | 'nothing' | 'needs-backend' | 'failed' | 'rejected'
 
-interface Step {
-  text: string
-  tone?: 'good' | 'bad'
-}
-
 interface Turn {
   id: number
   request: string
   status: TurnStatus
   steps: Step[]
   summary?: string
+  /** Applied under `moderation: 'review'`: an administrator will look at it. */
+  review?: boolean
   /** Snapshot this turn produced, so its Undo button acts only while it is the current version. */
   snapshotId?: string
   /** Send → re-render, and the agent's own share. */
@@ -52,13 +55,15 @@ let ids = 0
 export function MorphkitChat({
   agentUrl = '/agent',
   appId,
-  title = 'Customize this page',
+  locale = 'en',
+  title,
   examples = [],
   defaultOpen = false,
-  launcherLabel = 'Customize',
+  launcherLabel,
   pushContent = true,
 }: MorphkitChatProps) {
   useMorphkitUiStyles()
+  const tr = useMemo(() => translator(locale), [locale])
   const engine = useMorphkit()
   const state = useMorphkitState()
   const [open, setOpen] = useState(defaultOpen)
@@ -114,13 +119,6 @@ export function MorphkitChat({
   const update = (id: number, patch: Partial<Turn> | ((t: Turn) => Partial<Turn>)) =>
     setTurns((all) => all.map((t) => (t.id === id ? { ...t, ...(typeof patch === 'function' ? patch(t) : patch) } : t)))
 
-  const addStep = (id: number, p: AgentProgress) =>
-    update(id, (t) => {
-      if (p.type === 'check') return { steps: [...t.steps, { text: p.text, tone: p.ok ? 'good' : 'bad' }] }
-      if (t.steps.at(-1)?.text === p.text) return {}
-      return { steps: [...t.steps, { text: p.text }] }
-    })
-
   const run = async (request: string, migrate = false) => {
     const trimmed = request.trim()
     if (!trimmed || busy) return
@@ -133,14 +131,20 @@ export function MorphkitChat({
       // A migration rewrites the new release's files with the user's old customizations applied.
       const migration = migrate ? await engine.migrationInput() : null
       const from = migration ? engine.originalFiles() : undefined
-      const payload = engine.agentRequest(trimmed, { ...(appId ? { appId } : {}), ...(target ? { target } : {}), ...(migration ? { migration, files: from } : {}) })
-      const result = await callAgent(agentUrl, payload, (p) => addStep(id, p))
+      const payload = engine.agentRequest(trimmed, {
+        locale,
+        ...(appId ? { appId } : {}),
+        ...(target ? { target } : {}),
+        ...(migration ? { migration, files: from } : {}),
+      })
+      const result = await callAgent(agentUrl, payload, (p) => update(id, (t) => ({ steps: addStep(t.steps, p) })))
       const agentMs = performance.now() - started
-      update(id, { result, summary: plain(result.summary) })
+      // the agent's last "Thinking" line is over once the result is in
+      update(id, (t) => ({ result, summary: plain(result.summary), steps: t.steps.filter((s) => !s.transient) }))
 
       if (result.verdict === 'needs-backend') {
         update(id, { status: 'needs-backend' })
-        toast('Sent to the administrator', 'admin')
+        toast(tr('toast.admin'), 'admin')
         return
       }
       if (result.verdict !== 'ok') {
@@ -162,14 +166,21 @@ export function MorphkitChat({
         await new Promise((r) => requestAnimationFrame(() => r(null)))
         const now = performance.now()
         update(id, { status: 'applied', snapshotId: snapshot.id, timing: { totalMs: now - started, agentMs, commitMs: now - commitStarted } })
-        toast('Applied')
-        if (result.requestId) void engine.linkRequest(result.requestId, { snapshotId: snapshot.id, status: 'applied' }).catch(() => undefined)
+        if (!result.requestId) {
+          toast(tr('toast.applied'))
+          return
+        }
+        // under `moderation: 'review'` store-server marks the edit for the admin's review (DECISIONS item 15)
+        const link = await engine.linkRequest(result.requestId, { snapshotId: snapshot.id, status: 'applied' }).catch(() => null)
+        const review = link?.status === 'pending-review'
+        if (review) update(id, { review: true })
+        toast(tr(review ? 'toast.appliedReview' : 'toast.applied'))
       } catch (e) {
         const errors = e instanceof CommitRejectedError ? e.errors : [{ file: '', line: 0, column: 0, text: (e as Error).message }]
         // the details go to the admin's request log, not to the user
-        update(id, { status: 'rejected', summary: 'The change did not pass the final check in your browser, so nothing was changed.' })
+        update(id, { status: 'rejected', summary: tr('chat.rejectedSummary') })
         engine.draft.discard()
-        toast('The change did not compile in the browser; nothing was applied', 'bad')
+        toast(tr('toast.rejected'), 'bad')
         if (result.requestId) {
           const snapshotId = e instanceof CommitRejectedError ? e.snapshot.id : undefined
           void engine.linkRequest(result.requestId, { status: 'rejected', ...(snapshotId ? { snapshotId } : {}), error: errors.map((x) => x.text).join('; ') }).catch(() => undefined)
@@ -177,7 +188,7 @@ export function MorphkitChat({
       }
     } catch (e) {
       console.warn('[morphkit] agent request failed', e)
-      update(id, { status: 'failed', summary: 'Something went wrong on our side and nothing was changed. Please try again.' })
+      update(id, (t) => ({ status: 'failed', summary: tr('chat.failedSummary'), steps: t.steps.filter((s) => !s.transient) }))
     } finally {
       setBusy(false)
     }
@@ -192,17 +203,17 @@ export function MorphkitChat({
   const nav = async (label: string, op: () => Promise<Snapshot | null>) => {
     engine.draft.discard()
     const s = await op()
-    toast(s ? label : `${label}: nothing to do`)
+    toast(s ? label : tr('toast.nothing', { label }))
   }
 
   const head = state.head
   return (
-    <div className="mk-root" data-morphkit-ui-layer="">
+    <div className="mk-root" data-morphkit-ui-layer="" lang={locale}>
       {state.stale && (
         <div className="mk-stale" role="status" data-testid="mk-stale">
-          <span>The app was updated since you customized it. Your version may be out of date.</span>
-          <button type="button" className="mk-btn" data-testid="mk-stale-reset" disabled={busy} onClick={() => void nav('Reset to the new version', () => engine.reset())}>
-            Reset my changes
+          <span>{tr('chat.stale')}</span>
+          <button type="button" className="mk-btn" data-testid="mk-stale-reset" disabled={busy} onClick={() => void nav(tr('toast.resetNew'), () => engine.reset())}>
+            {tr('chat.stale.reset')}
           </button>
           <button
             type="button"
@@ -211,10 +222,10 @@ export function MorphkitChat({
             disabled={busy}
             onClick={() => {
               setOpen(true)
-              void run('Carry my customizations over to the new version of the app', true)
+              void run(tr('chat.migrateRequest'), true)
             }}
           >
-            Ask the agent to carry them over
+            {tr('chat.stale.migrate')}
           </button>
         </div>
       )}
@@ -222,7 +233,7 @@ export function MorphkitChat({
       {!open && (
         <button type="button" className="mk-launch" data-testid="mk-chat-open" onClick={() => setOpen(true)}>
           <span className="mk-dot" />
-          {launcherLabel}
+          {launcherLabel ?? tr('chat.launcher')}
         </button>
       )}
 
@@ -230,12 +241,14 @@ export function MorphkitChat({
         <aside className="mk-drawer" aria-label="morphkit chat" data-testid="mk-chat" data-warm={warm}>
           <div className="mk-head">
             <div>
-              <div className="mk-title">{title}</div>
+              <div className="mk-title">{title ?? tr('chat.title')}</div>
               <div className="mk-sub">
-                Your personal version · {head && head.parentId ? `${head.author} edit, ${new Date(head.createdAt).toLocaleTimeString()}` : 'original'}
+                {tr('chat.version', {
+                  what: head && head.parentId ? tr('chat.version.edit', { author: head.author, time: new Date(head.createdAt).toLocaleTimeString(locale) }) : tr('chat.version.original'),
+                })}
               </div>
             </div>
-            <button type="button" className="mk-icon" aria-label="Close" data-testid="mk-chat-close" onClick={() => setOpen(false)}>
+            <button type="button" className="mk-icon" aria-label={tr('chat.close')} data-testid="mk-chat-close" onClick={() => setOpen(false)}>
               ×
             </button>
           </div>
@@ -243,12 +256,12 @@ export function MorphkitChat({
           <div className="mk-body" ref={body} data-testid="mk-chat-body">
             {turns.length === 0 && (
               <div className="mk-empty">
-                Describe what you want to change on this page. Only your view changes; you can undo any time.
+                {tr('chat.empty')}
                 {examples.length > 0 && (
                   <ul>
                     {examples.map((ex) => (
                       <li key={ex}>
-                        <button type="button" className="mk-btn" style={{ border: 0, padding: 0, textAlign: 'left', color: '#5b21b6' }} onClick={() => setText(ex)}>
+                        <button type="button" className="mk-btn mk-example" onClick={() => setText(ex)}>
                           {ex}
                         </button>
                       </li>
@@ -261,8 +274,9 @@ export function MorphkitChat({
               <TurnView
                 key={t.id}
                 turn={t}
+                tr={tr}
                 canUndo={!busy && t.snapshotId !== undefined && t.snapshotId === head?.id && state.canUndo}
-                onUndo={() => void nav('Undone', () => engine.undo())}
+                onUndo={() => void nav(tr('toast.undone'), () => engine.undo())}
                 onHistory={() => setShowHistory(true)}
               />
             ))}
@@ -273,12 +287,12 @@ export function MorphkitChat({
               <ol className="mk-history" data-testid="mk-history">
                 {history.map((s) => (
                   <li key={s.id} className={`${s.id === head?.id ? 'mk-cur' : ''} ${s.status === 'rejected' ? 'mk-rej' : ''}`}>
-                    <span style={{ color: '#64748b', minWidth: 54 }}>{new Date(s.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span style={{ color: '#64748b', minWidth: 54 }}>{new Date(s.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</span>
                     <span style={{ flex: 1 }}>
-                      {s.author === 'base' ? 'Original version' : s.message}
-                      {s.status === 'rejected' && ' (rejected)'}
+                      {s.author === 'base' ? tr('chat.history.original') : s.message}
+                      {s.status === 'rejected' && tr('chat.history.rejected')}
                     </span>
-                    {s.id === head?.id && <strong>current</strong>}
+                    {s.id === head?.id && <strong>{tr('chat.history.current')}</strong>}
                   </li>
                 ))}
               </ol>
@@ -287,7 +301,7 @@ export function MorphkitChat({
               ref={input}
               className="mk-input"
               data-testid="mk-chat-input"
-              placeholder="e.g. show the phone and city in the customer card"
+              placeholder={tr('chat.placeholder')}
               value={text}
               disabled={busy}
               onChange={(e) => setText(e.target.value)}
@@ -300,21 +314,27 @@ export function MorphkitChat({
             />
             <div className="mk-row">
               <button type="button" className={`mk-btn ${picking ? 'mk-on' : ''}`} data-testid="mk-chat-pick" disabled={busy} onClick={() => setPicking(true)}>
-                Point at a panel
+                {tr('chat.pick')}
               </button>
               <button type="button" className="mk-btn mk-primary" data-testid="mk-chat-send" disabled={busy || !text.trim()} onClick={send}>
-                {busy ? 'Working…' : 'Send'}
+                {busy ? tr('chat.working') : tr('chat.send')}
               </button>
             </div>
             <div className="mk-row">
-              <button type="button" className="mk-btn" data-testid="mk-chat-undo" disabled={busy || !state.canUndo} onClick={() => void nav('Undone', () => engine.undo())}>
-                Undo last change
+              <button type="button" className="mk-btn" data-testid="mk-chat-undo" disabled={busy || !state.canUndo} onClick={() => void nav(tr('toast.undone'), () => engine.undo())}>
+                {tr('chat.undoLast')}
               </button>
               <button type="button" className={`mk-btn ${showHistory ? 'mk-on' : ''}`} data-testid="mk-chat-history" onClick={() => setShowHistory((v) => !v)}>
-                History
+                {tr('chat.history')}
               </button>
-              <button type="button" className="mk-btn" data-testid="mk-chat-reset" disabled={busy || !(head?.parentId || state.stale)} onClick={() => void nav('Reset to the original', () => engine.reset())}>
-                Reset to original
+              <button
+                type="button"
+                className="mk-btn"
+                data-testid="mk-chat-reset"
+                disabled={busy || !(head?.parentId || state.stale)}
+                onClick={() => void nav(tr('toast.resetOriginal'), () => engine.reset())}
+              >
+                {tr('chat.reset')}
               </button>
             </div>
           </div>
@@ -323,6 +343,7 @@ export function MorphkitChat({
 
       {picking && (
         <ElementPicker
+          hint={tr('chat.pickHint')}
           onCancel={() => setPicking(false)}
           onPick={(id) => {
             setPicking(false)
@@ -343,13 +364,13 @@ export function MorphkitChat({
   )
 }
 
-const BADGE: Record<TurnStatus, [string, string]> = {
-  running: ['Working', 'mk-b-run'],
-  applied: ['Applied', 'mk-b-ok'],
-  nothing: ['No change needed', 'mk-b-ok'],
-  'needs-backend': ['Sent to admin', 'mk-b-admin'],
-  failed: ['Not done', 'mk-b-bad'],
-  rejected: ['Did not compile', 'mk-b-bad'],
+const BADGE: Record<TurnStatus, [UiKey, string]> = {
+  running: ['badge.running', 'mk-b-run'],
+  applied: ['badge.applied', 'mk-b-ok'],
+  nothing: ['badge.nothing', 'mk-b-ok'],
+  'needs-backend': ['badge.needs-backend', 'mk-b-admin'],
+  failed: ['badge.failed', 'mk-b-bad'],
+  rejected: ['badge.rejected', 'mk-b-bad'],
 }
 
 /** Model summaries are meant for the user; strip anything that still looks like code. */
@@ -360,14 +381,17 @@ function plain(text: string): string {
     .trim()
 }
 
-function TurnView({ turn, canUndo, onUndo, onHistory }: { turn: Turn; canUndo: boolean; onUndo: () => void; onHistory: () => void }) {
-  const [label, cls] = BADGE[turn.status]
+function TurnView({ turn, tr, canUndo, onUndo, onHistory }: { turn: Turn; tr: Translate; canUndo: boolean; onUndo: () => void; onHistory: () => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const [labelKey, cls] = BADGE[turn.status]
   const cost = turn.result?.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0) ?? 0
+  const { shown, hidden } = visibleSteps(turn.steps, expanded)
   return (
     <div
       className="mk-turn"
       data-testid="mk-chat-turn"
       data-status={turn.status}
+      data-review={turn.review ? 'pending' : undefined}
       data-total-ms={turn.timing ? Math.round(turn.timing.totalMs) : undefined}
       data-agent-ms={turn.timing ? Math.round(turn.timing.agentMs) : undefined}
       data-commit-ms={turn.timing ? Math.round(turn.timing.commitMs) : undefined}
@@ -377,11 +401,17 @@ function TurnView({ turn, canUndo, onUndo, onHistory }: { turn: Turn; canUndo: b
     >
       <div className="mk-req">{turn.request}</div>
       <div className="mk-resp">
-        <span className={`mk-badge ${cls}`}>{label}</span>
-        <ul className="mk-steps" data-testid="mk-chat-steps">
-          {turn.steps.map((s, i) => (
-            <li key={i} className={s.tone === 'good' ? 'mk-good' : s.tone === 'bad' ? 'mk-bad' : undefined}>
+        <span className={`mk-badge ${cls}`}>{tr(labelKey)}</span>
+        {(hidden > 0 || expanded) && (
+          <button type="button" className="mk-details" data-testid="mk-chat-steps-toggle" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+            {expanded ? tr('chat.details.less') : tr('chat.details.more', { n: turn.steps.length })}
+          </button>
+        )}
+        <ul className="mk-steps" data-testid="mk-chat-steps" data-hidden={hidden}>
+          {shown.map((s, i) => (
+            <li key={i} className={s.tone === 'good' ? 'mk-good' : s.tone === 'bad' ? 'mk-bad' : s.transient ? 'mk-transient' : undefined}>
               {s.text}
+              {s.count && s.count > 1 ? <span className="mk-count">×{s.count}</span> : null}
             </li>
           ))}
         </ul>
@@ -390,15 +420,20 @@ function TurnView({ turn, canUndo, onUndo, onHistory }: { turn: Turn; canUndo: b
             {turn.summary}
           </div>
         )}
+        {turn.review && (
+          <div className="mk-meta" data-testid="mk-chat-review">
+            {tr('chat.review')}
+          </div>
+        )}
         {turn.status === 'applied' && (
           <div className="mk-row" style={{ marginTop: 6 }}>
             <button type="button" className="mk-btn" data-testid="mk-turn-undo" disabled={!canUndo} onClick={onUndo}>
-              Undo
+              {tr('chat.undo')}
             </button>
             <button type="button" className="mk-btn" data-testid="mk-turn-history" onClick={onHistory}>
-              History
+              {tr('chat.history')}
             </button>
-            {turn.timing && <span className="mk-meta">applied in {(turn.timing.totalMs / 1000).toFixed(1)} s</span>}
+            {turn.timing && <span className="mk-meta">{tr('chat.appliedIn', { seconds: (turn.timing.totalMs / 1000).toFixed(1) })}</span>}
           </div>
         )}
       </div>

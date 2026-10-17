@@ -10,6 +10,7 @@ import type {
   ModuleNamespace,
   MorphkitConfig,
   RequestLinkPatch,
+  RequestLinkResult,
   Snapshot,
   SnapshotAuthor,
   SnapshotStore,
@@ -311,9 +312,9 @@ export class MorphkitEngine {
     return out
   }
 
-  /** Loader of the iframe host script for `isolated` panels, when the Vite plugin provides one. */
-  isolatedLoader(): (() => Promise<string>) | null {
-    return this.config.isolated?.load ?? null
+  /** URL of the iframe host script for `isolated` panels, when the Vite plugin provides one. */
+  isolatedHostUrl(): string | null {
+    return this.config.isolated?.url ?? null
   }
 
   /** Compiled bundle of the live modules; null while the original (fallback) version is shown. */
@@ -563,8 +564,8 @@ export class MorphkitEngine {
   }
 
   /** Report what happened to an agent request (no-op for stores without a request log). */
-  async linkRequest(requestId: string, patch: RequestLinkPatch): Promise<void> {
-    await this.store.linkRequest?.(requestId, patch)
+  async linkRequest(requestId: string, patch: RequestLinkPatch): Promise<RequestLinkResult | null> {
+    return (await this.store.linkRequest?.(requestId, patch)) ?? null
   }
 
   history(limit?: number): Promise<Snapshot[]> {

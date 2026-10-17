@@ -1,4 +1,4 @@
-import type { BundleCache, CompiledBundle, RequestLinkPatch, Snapshot, SnapshotStore } from '../types.js'
+import type { BundleCache, CompiledBundle, Moderation, RequestLinkPatch, RequestLinkResult, Snapshot, SnapshotStore } from '../types.js'
 
 export interface HttpStoreOptions {
   /** Base URL of @morphkit/store-server, e.g. `/morphkit-store` behind the app's proxy. */
@@ -91,7 +91,14 @@ export class HttpStore implements SnapshotStore {
     },
   }
 
-  async linkRequest(requestId: string, patch: RequestLinkPatch): Promise<void> {
-    await this.request('POST', `/requests/${encodeURIComponent(requestId)}/link`, patch)
+  /** Returns the request's final status: `pending-review` when the app runs with `moderation: 'review'`. */
+  async linkRequest(requestId: string, patch: RequestLinkPatch): Promise<RequestLinkResult | null> {
+    return this.request<RequestLinkResult>('POST', `/requests/${encodeURIComponent(requestId)}/link`, patch)
+  }
+
+  /** The app's moderation mode (`off` or `review`), as set by its admin. */
+  async moderation(): Promise<Moderation> {
+    const r = await this.request<{ moderation: Moderation }>('GET', '/settings')
+    return r?.moderation ?? 'off'
   }
 }

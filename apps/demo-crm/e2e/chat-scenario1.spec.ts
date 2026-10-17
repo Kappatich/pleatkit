@@ -19,11 +19,21 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
   await expect(card.getByTestId('source')).toHaveText('Referral')
   await expect(page.getByTestId('mk-toast').filter({ hasText: 'Applied' })).toBeVisible()
 
-  // progress streamed from the agent, in order
+  // progress streamed from the agent, in order; at most 6 lines, no "Thinking" left once done (DECISIONS 19)
   const steps = turn.getByTestId('mk-chat-steps')
-  for (const s of ['Understanding the request', "Looking at the app's data and helpers", 'Changing the customer card', 'Checking that everything still works', 'Everything works']) {
-    await expect(steps).toContainText(s)
-  }
+  await expect(steps.locator('li')).toHaveCount(6)
+  await expect(steps).not.toContainText('Thinking')
+  await turn.getByTestId('mk-chat-steps-toggle').click()
+  await expect(steps.locator('li')).toHaveText([
+    'Understanding the request',
+    'This can be done on the page',
+    'Planning the change',
+    "Looking at the app's data and helpers",
+    'Changing the customer card',
+    'Checking that everything still works',
+    'Everything works',
+    'Wrapping up',
+  ])
   await expect(turn.getByTestId('mk-chat-summary')).toContainText('overdue payment date is highlighted in red')
   // the end user never sees code, file names or diffs in the chat (DECISIONS item 10)
   const chatText = await page.getByTestId('mk-chat-body').innerText()

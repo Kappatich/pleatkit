@@ -1,7 +1,7 @@
 {
   "name": "migrate-after-release",
   "description": "Stale snapshot: carry the user's customizations over to a new release of the app.",
-  "match": ["carry my customizations"],
+  "match": ["carry my customizations", "перенеси мои настройки"],
   "turns": [
     {
       "calls": [

@@ -1,16 +1,31 @@
 import type { AgentProgress, AgentResult, AgentRunRequest, RequestClass } from '@morphkit/runtime/compiler'
+import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
 import { buildPrompt, classifierContext } from './prompt.js'
 import { ToolRunner, TOOLS } from './tools.js'
-import type { ModelProvider, ToolCall, ToolResult } from './types.js'
+import type { ModelProvider, ModelTurn, ToolCall, ToolResult } from './types.js'
 import { Workspace } from './workspace.js'
 
 export interface AgentLimits {
   /** Model calls in the main loop. */
   maxModelCalls: number
   timeoutMs: number
-  /** Output tokens (thinking included) for one edit, summed over all model calls. */
+  /**
+   * Visible output tokens (text and tool calls) for one edit, summed over all model calls. Thinking is not
+   * counted and not limited (DECISIONS item 11); it is reported in `AgentResult.output` and billed in `usage`.
+   */
   maxOutputTokens: number
+}
+
+/**
+ * Visible output tokens of one model turn. Exact when the API reports the thinking share
+ * (`thinkingTokens`), otherwise estimated from the visible content (~3.5 characters per token).
+ */
+export function visibleOutputTokens(turn: Pick<ModelTurn, 'text' | 'toolCalls' | 'usage'>): { tokens: number; estimated: boolean } {
+  const out = turn.usage.outputTokens
+  if (turn.usage.thinkingTokens !== undefined) return { tokens: Math.max(0, out - turn.usage.thinkingTokens), estimated: false }
+  const chars = turn.text.length + turn.toolCalls.reduce((s, c) => s + c.name.length + JSON.stringify(c.input).length, 0)
+  return { tokens: Math.min(out, Math.ceil(chars / 3.5)), estimated: true }
 }
 
 export const DEFAULT_LIMITS: AgentLimits = { maxModelCalls: 12, timeoutMs: 90_000, maxOutputTokens: 8_000 }
@@ -25,31 +40,31 @@ export interface RunOptions {
 }
 
 /** `src/dynamic/customer-card.tsx` → "the customer card"; non-panel files get a generic name. */
-export function humanName(path: unknown, req: Pick<AgentRunRequest, 'context' | 'components'>): string {
-  if (typeof path !== 'string') return 'the page'
+export function humanName(path: unknown, req: Pick<AgentRunRequest, 'context' | 'components' | 'locale'>): string {
+  if (typeof path !== 'string') return t(req.locale, 'page')
   const root = req.context.dynamicRoots.find((r) => path.startsWith(r))
   if (root && req.components.includes(path)) {
-    return 'the ' + path.slice(root.length).replace(/\.\w+$/, '').replace(/[-_/]+/g, ' ').trim()
+    return t(req.locale, 'panel', { name: path.slice(root.length).replace(/\.\w+$/, '').replace(/[-_/]+/g, ' ').trim() })
   }
-  if (root) return 'a helper of the page'
-  return "the app's data and helpers"
+  if (root) return t(req.locale, 'helper')
+  return t(req.locale, 'dataHelpers')
 }
 
 /** Plain-language progress line for a tool call. Never code or file paths: the end user reads these. */
-export function describe(call: ToolCall, req: Pick<AgentRunRequest, 'context' | 'components'>): string {
+export function describe(call: ToolCall, req: Pick<AgentRunRequest, 'context' | 'components' | 'locale'>): string {
   switch (call.name) {
     case 'list_files':
-      return 'Looking around the page'
+      return t(req.locale, 'lookingAround')
     case 'read_file':
-      return `Looking at ${humanName(call.input.path, req)}`
+      return t(req.locale, 'looking', { name: humanName(call.input.path, req) })
     case 'write_file':
-      return `Changing ${humanName(call.input.path, req)}`
+      return t(req.locale, 'changing', { name: humanName(call.input.path, req) })
     case 'check':
-      return 'Checking that everything still works'
+      return t(req.locale, 'checking')
     case 'finish':
-      return 'Wrapping up'
+      return t(req.locale, 'wrappingUp')
     default:
-      return 'Working'
+      return t(req.locale, 'working')
   }
 }
 
@@ -92,24 +107,30 @@ export function validateRequest(body: unknown): AgentRunRequest {
   } as AgentRunRequest
 }
 
-/** One edit: classify, then let the model use the tools until it calls finish or a limit is hit. */
+/**
+ * One edit: classify (unless the user pointed at a panel), then let the model use the tools until it calls
+ * finish or a limit is hit.
+ */
 export async function runAgent(req: AgentRunRequest, provider: ModelProvider, options: RunOptions = {}): Promise<Omit<AgentResult, 'requestId'>> {
   const limits = { ...DEFAULT_LIMITS, ...options.limits }
   const progress = options.onProgress ?? (() => undefined)
+  const lang = req.locale
   const started = performance.now()
   const timeout = AbortSignal.timeout(limits.timeoutMs)
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout
   const meter = new UsageMeter()
   const ws = new Workspace(req)
   const timings = { totalMs: 0, classifyMs: null as number | null, modelMs: 0, toolsMs: 0 }
+  const output = { visibleTokens: 0, thinkingTokens: 0, limit: limits.maxOutputTokens, estimated: false }
   let classification: RequestClass | null = null
   let modelCalls = 0
   let stopReason: AgentResult['stopReason']
+  let error: string | undefined
 
   const runner = new ToolRunner(ws, (entry, call) => {
     if (call.name === 'check' || (call.name === 'finish' && !entry.ok)) {
       const ok = entry.ok && !entry.result.startsWith('FAILED')
-      progress({ type: 'check', ok, errorCount: ws.lastCheck?.errors.length ?? 0, text: ok ? 'Everything works' : 'Found a problem, fixing it' })
+      progress({ type: 'check', ok, errorCount: ws.lastCheck?.errors.length ?? 0, text: t(lang, ok ? 'checkOk' : 'checkFailed') })
     }
   })
 
@@ -126,51 +147,56 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       model: provider.model,
       usage: meter.rows(),
       modelCalls,
+      output,
       timings: { ...timings, modelMs: Math.round(timings.modelMs), toolsMs: Math.round(timings.toolsMs), classifyMs: timings.classifyMs === null ? null : Math.round(timings.classifyMs) },
       ...(stopReason ? { stopReason } : {}),
+      ...(error ? { error } : {}),
     }
   }
 
   try {
-    if (options.classify !== false && !req.migration) {
-      progress({ type: 'status', text: 'Understanding the request' })
-      const t = performance.now()
+    // Pointing at a panel already says "this is about the page": skip the classifier (DECISIONS item 17).
+    if (options.classify !== false && !req.migration && !req.target) {
+      progress({ type: 'status', text: t(lang, 'understanding') })
+      const startedAt = performance.now()
       try {
         const c = await provider.classify({ request: req.request, context: classifierContext(req) }, signal)
         if (c.usage && c.model) meter.add(c.model, c.usage)
         classification = c.label
-        timings.classifyMs = performance.now() - t
-        progress({ type: 'classified', label: c.label, text: c.label === 'needs-backend' ? 'This needs a change on the server' : 'This can be done on the page' })
+        timings.classifyMs = performance.now() - startedAt
+        progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : 'classifiedUi') })
         if (c.label === 'needs-backend') {
-          return done('needs-backend', c.reason || 'This needs a change on the server, so I passed it to the administrator.')
+          return done('needs-backend', c.reason || t(lang, 'needsBackendDefault'))
         }
       } catch (e) {
         if (signal.aborted) throw e
-        timings.classifyMs = performance.now() - t
-        progress({ type: 'status', text: 'Thinking it over' })
+        timings.classifyMs = performance.now() - startedAt
+        progress({ type: 'status', text: t(lang, 'thinkingOver') })
       }
     }
 
     const session = provider.start(buildPrompt(req), TOOLS, { request: req.request })
     let results: ToolResult[] = []
-    let usedOutput = 0
     let nudged = false
     while (!runner.finished) {
       if (modelCalls >= limits.maxModelCalls) {
         stopReason = 'calls'
         break
       }
-      if (usedOutput >= limits.maxOutputTokens) {
+      if (output.visibleTokens >= limits.maxOutputTokens) {
         stopReason = 'output-tokens'
         break
       }
-      progress({ type: 'model', turn: modelCalls + 1, text: modelCalls === 0 ? 'Planning the change' : 'Thinking' })
-      const t = performance.now()
-      const turn = await session.next(results, { signal, maxOutputTokens: limits.maxOutputTokens - usedOutput })
-      timings.modelMs += performance.now() - t
+      progress(modelCalls === 0 ? { type: 'model', turn: 1, text: t(lang, 'planning') } : { type: 'model', turn: modelCalls + 1, text: t(lang, 'thinking'), transient: true })
+      const startedAt = performance.now()
+      const turn = await session.next(results, { signal, maxOutputTokens: limits.maxOutputTokens - output.visibleTokens })
+      timings.modelMs += performance.now() - startedAt
       modelCalls++
       meter.add(turn.model, turn.usage)
-      usedOutput += turn.usage.outputTokens
+      const visible = visibleOutputTokens(turn)
+      output.visibleTokens += visible.tokens
+      output.thinkingTokens += turn.usage.outputTokens - visible.tokens
+      output.estimated ||= visible.estimated && turn.usage.outputTokens > 0
       // The model's own text is not forwarded: it may contain code. It stays out of the user's view.
       if (turn.stop === 'refusal') {
         stopReason = 'refusal'
@@ -197,21 +223,23 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   } catch (e) {
     if (signal.aborted) {
       stopReason = 'timeout'
-      return done('failed', timeout.aborted ? `I ran out of time (${Math.round(limits.timeoutMs / 1000)} s) and did not change anything.` : 'Cancelled.')
+      return done('failed', timeout.aborted ? t(lang, 'outOfTime', { seconds: Math.round(limits.timeoutMs / 1000) }) : t(lang, 'cancelled'))
     }
     stopReason = 'error'
-    return done('failed', `The agent failed: ${(e as Error).message}`)
+    // the technical message is for the admin's request log, not for the user
+    error = (e as Error).message
+    return done('failed', t(lang, 'agentFailed'))
   }
 
   const fin = runner.finished
   if (fin) return done(fin.verdict, fin.summary)
   const why =
     stopReason === 'calls'
-      ? `I reached the limit of ${limits.maxModelCalls} steps`
+      ? t(lang, 'limitCalls', { n: limits.maxModelCalls })
       : stopReason === 'output-tokens'
-        ? `I reached the output budget of ${limits.maxOutputTokens} tokens`
+        ? t(lang, 'limitOutput')
         : stopReason === 'refusal'
-          ? 'The model declined this request'
-          : 'The model stopped without finishing'
-  return done('failed', `${why} and did not change anything.`)
+          ? t(lang, 'refused')
+          : t(lang, 'noFinish')
+  return done('failed', why)
 }

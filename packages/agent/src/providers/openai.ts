@@ -23,12 +23,24 @@ interface ChatMessage {
 interface ChatResponse {
   model?: string
   choices: { message: ChatMessage; finish_reason: string | null }[]
-  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } }
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    prompt_tokens_details?: { cached_tokens?: number }
+    completion_tokens_details?: { reasoning_tokens?: number }
+  }
 }
 
 function usageOf(u: ChatResponse['usage']): TokenUsage {
   const cached = u?.prompt_tokens_details?.cached_tokens ?? 0
-  return { inputTokens: (u?.prompt_tokens ?? 0) - cached, outputTokens: u?.completion_tokens ?? 0, cacheReadTokens: cached, cacheWriteTokens: 0 }
+  const reasoning = u?.completion_tokens_details?.reasoning_tokens
+  return {
+    inputTokens: (u?.prompt_tokens ?? 0) - cached,
+    outputTokens: u?.completion_tokens ?? 0,
+    cacheReadTokens: cached,
+    cacheWriteTokens: 0,
+    ...(typeof reasoning === 'number' ? { thinkingTokens: reasoning } : {}),
+  }
 }
 
 /** Any OpenAI-compatible Chat Completions API (OpenAI, OpenRouter, ...), with strict function tools. */
@@ -93,7 +105,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         if (pendingText) messages.push({ role: 'user', content: pendingText })
         pendingText = null
         const r = await this.chat(
-          { model: this.model, messages, tools: toolDefs, tool_choice: 'auto', max_completion_tokens: Math.max(1024, options.maxOutputTokens) },
+          { model: this.model, messages, tools: toolDefs, tool_choice: 'auto', max_completion_tokens: 16_000 },
           options.signal,
         )
         const choice = r.choices[0]

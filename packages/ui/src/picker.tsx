@@ -41,7 +41,7 @@ export function panelAt(x: number, y: number): Element | null {
  * "Point at the screen": highlights the panel under the pointer; a click picks it. A transparent layer
  * catches the click so the app underneath does not react. Escape cancels.
  */
-export function ElementPicker({ onPick, onCancel }: { onPick: (id: string) => void; onCancel: () => void }) {
+export function ElementPicker({ onPick, onCancel, hint = 'Click a panel to mention it · Esc to cancel' }: { onPick: (id: string) => void; onCancel: () => void; hint?: string }) {
   const [box, setBox] = useState<Box | null>(null)
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export function ElementPicker({ onPick, onCancel }: { onPick: (id: string) => vo
 
   return (
     <div data-morphkit-ui-layer="" className="mk-root">
-      <div className="mk-pick-hint">Click a panel to mention it · Esc to cancel</div>
+      <div className="mk-pick-hint">{hint}</div>
       <div
         className="mk-pick-layer"
         data-testid="mk-pick-layer"

@@ -45,7 +45,7 @@ export interface PromptParts {
 
 export interface TurnOptions {
   signal: AbortSignal
-  /** Output tokens still allowed for this edit. */
+  /** Visible output tokens still allowed for this edit (thinking is not counted). */
   maxOutputTokens: number
 }
 

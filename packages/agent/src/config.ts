@@ -29,7 +29,7 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * MORPHKIT_FIXTURES    directory of scripted fixtures (*.json)
  * MORPHKIT_STORE_URL   @morphkit/store-server URL for the request log
  * MORPHKIT_AGENT_PORT  default 8789
- * MORPHKIT_MAX_CALLS, MORPHKIT_TIMEOUT_MS, MORPHKIT_MAX_OUTPUT_TOKENS  limits (12, 90000, 8000)
+ * MORPHKIT_MAX_CALLS, MORPHKIT_TIMEOUT_MS, MORPHKIT_MAX_OUTPUT_TOKENS  limits (12, 90000, 8000 visible output tokens)
  * MORPHKIT_CORS_ORIGIN allowed browser origin, if the app calls the agent cross-origin
  */
 export function configFromEnv(env: Env = process.env): AgentConfig {

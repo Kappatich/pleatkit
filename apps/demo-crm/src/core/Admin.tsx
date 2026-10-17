@@ -1,6 +1,7 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { diffLines } from 'diff'
-import type { Snapshot, ToolLogEntry, UsageByModel } from '@morphkit/runtime'
+import type { Locale, Moderation, Snapshot, ToolLogEntry, UsageByModel } from '@morphkit/runtime'
+import { translator, type Translate, type UiKey } from '@morphkit/ui'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,6 +39,8 @@ interface Stats {
   editsThisWeek: number
   successRate: number | null
   needsBackendRate: number | null
+  pendingReview: number
+  moderation: Moderation
   byStatus: Record<string, number>
 }
 
@@ -62,6 +65,7 @@ const cost = (u: UsageByModel[] | null) => (u ?? []).reduce((s, x) => s + (x.cos
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'secondary' | 'destructive'> = {
   applied: 'success',
   proposed: 'secondary',
+  'pending-review': 'warning',
   'pending-admin': 'warning',
   'in-progress': 'warning',
   'rolled-back': 'secondary',
@@ -69,8 +73,11 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'secondary' | 'dest
   failed: 'destructive',
 }
 
+const label = (tr: Translate, prefix: 'status' | 'verdict', value: string) => tr(`${prefix}.${value}` as UiKey)
+
 /** /admin: every agent request of the app, what happened to it, and the admin's levers. */
-export function Admin({ appId }: { appId: string }) {
+export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale }) {
+  const tr = useMemo(() => translator(locale), [locale])
   const call = useAdminApi(appId)
   const [rows, setRows] = useState<RequestRow[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
@@ -94,81 +101,117 @@ export function Admin({ appId }: { appId: string }) {
     return () => clearInterval(t)
   }, [load])
 
+  const setModeration = async (moderation: Moderation) => {
+    try {
+      await call('/admin/settings', { method: 'PUT', body: JSON.stringify({ moderation }) })
+      await load()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  const appQuery = appId !== 'demo-crm' ? `app=${encodeURIComponent(appId)}` : ''
+  const langQuery = locale !== 'en' ? `lang=${locale}` : ''
+  const query = [appQuery, langQuery].filter(Boolean).join('&')
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" lang={locale}>
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
             <span className="text-lg font-semibold">Acme CRM</span>
-            <span className="text-xs text-muted-foreground">morphkit admin · {appId}</span>
+            <span className="text-xs text-muted-foreground">
+              {tr('admin.title')} · {appId}
+            </span>
           </div>
-          <a className="text-sm text-muted-foreground hover:underline" href={`/${appId !== 'demo-crm' ? `?app=${encodeURIComponent(appId)}` : ''}`}>
-            Back to the app
+          <a className="text-sm text-muted-foreground hover:underline" href={`/${query ? `?${query}` : ''}`}>
+            {tr('admin.back')}
           </a>
         </div>
       </header>
       <main className="mx-auto grid max-w-6xl gap-6 px-6 py-6" data-testid="admin">
-        <div className="grid gap-4 sm:grid-cols-4" data-testid="admin-stats">
-          <Stat label="Edits this week" value={String(stats?.editsThisWeek ?? '—')} testId="stat-edits" />
-          <Stat label="Requests this week" value={String(stats?.total ?? '—')} testId="stat-total" />
-          <Stat label="Success rate" value={pct(stats?.successRate ?? null)} testId="stat-success" />
-          <Stat label="Needs backend" value={pct(stats?.needsBackendRate ?? null)} testId="stat-backend" />
+        <div className="grid gap-4 sm:grid-cols-5" data-testid="admin-stats">
+          <Stat label={tr('admin.stat.edits')} value={String(stats?.editsThisWeek ?? '—')} testId="stat-edits" />
+          <Stat label={tr('admin.stat.total')} value={String(stats?.total ?? '—')} testId="stat-total" />
+          <Stat label={tr('admin.stat.success')} value={pct(stats?.successRate ?? null)} testId="stat-success" />
+          <Stat label={tr('admin.stat.backend')} value={pct(stats?.needsBackendRate ?? null)} testId="stat-backend" />
+          <Stat label={tr('admin.stat.review')} value={String(stats?.pendingReview ?? '—')} testId="stat-review" />
         </div>
+        <label className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm" data-testid="admin-moderation">
+          <input
+            type="checkbox"
+            className="mt-1"
+            data-testid="admin-moderation-toggle"
+            checked={stats?.moderation === 'review'}
+            disabled={!stats}
+            onChange={(e) => void setModeration(e.target.checked ? 'review' : 'off')}
+          />
+          <span>
+            <span className="font-medium">{tr('admin.moderation')}</span>
+            <span className="block text-xs text-muted-foreground">{tr('admin.moderation.hint')}</span>
+          </span>
+        </label>
         {error && <p className="text-sm text-red-700">Store-server: {error}</p>}
         <Card>
           <CardHeader>
-            <CardTitle>Requests</CardTitle>
-            <CardDescription>What users asked the agent for. Open a row for the diff and the tool log.</CardDescription>
+            <CardTitle>{tr('admin.requests')}</CardTitle>
+            <CardDescription>{tr('admin.requests.hint')}</CardDescription>
           </CardHeader>
           <CardContent>
             <table className="w-full text-sm" data-testid="admin-requests">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr className="border-b border-border">
-                  <th className="py-2 pr-3 font-medium">When</th>
-                  <th className="py-2 pr-3 font-medium">User</th>
-                  <th className="py-2 pr-3 font-medium">Request</th>
-                  <th className="py-2 pr-3 font-medium">Verdict</th>
-                  <th className="py-2 pr-3 font-medium">Status</th>
-                  <th className="py-2 pr-3 text-right font-medium">Cost</th>
+                  <th className="py-2 pr-3 font-medium">{tr('admin.col.when')}</th>
+                  <th className="py-2 pr-3 font-medium">{tr('admin.col.user')}</th>
+                  <th className="py-2 pr-3 font-medium">{tr('admin.col.request')}</th>
+                  <th className="py-2 pr-3 font-medium">{tr('admin.col.verdict')}</th>
+                  <th className="py-2 pr-3 font-medium">{tr('admin.col.status')}</th>
+                  <th className="py-2 pr-3 text-right font-medium">{tr('admin.col.cost')}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-6 text-center text-muted-foreground">
-                      No requests yet. Ask the agent something in the app.
+                      {tr('admin.empty')}
                     </td>
                   </tr>
                 )}
                 {rows.map((r) => (
                   <Fragment key={r.id}>
                     <tr
-                      className={cn('cursor-pointer border-b border-border align-top hover:bg-muted', open === r.id && 'bg-muted')}
+                      className={cn(
+                        'cursor-pointer border-b border-border align-top hover:bg-muted',
+                        r.status === 'pending-review' && 'bg-amber-50',
+                        open === r.id && 'bg-muted',
+                      )}
                       onClick={() => setOpen(open === r.id ? null : r.id)}
                       data-testid="admin-row"
                       data-request-id={r.id}
                       data-status={r.status}
                       data-verdict={r.verdict}
                     >
-                      <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">{new Date(r.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">
+                        {new Date(r.createdAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
                       <td className="py-2 pr-3">{r.userId}</td>
                       <td className="py-2 pr-3">
                         {r.text}
                         <div className="text-xs text-muted-foreground">{r.summary}</div>
                       </td>
                       <td className="py-2 pr-3">
-                        <Badge variant={r.verdict === 'ok' ? 'success' : r.verdict === 'needs-backend' ? 'warning' : 'destructive'}>{r.verdict}</Badge>
+                        <Badge variant={r.verdict === 'ok' ? 'success' : r.verdict === 'needs-backend' ? 'warning' : 'destructive'}>{label(tr, 'verdict', r.verdict)}</Badge>
                       </td>
                       <td className="py-2 pr-3" data-testid="admin-status">
-                        <Badge variant={STATUS_VARIANT[r.status] ?? 'secondary'}>{r.status}</Badge>
-                        {r.isHead && <span className="ml-1 text-xs text-muted-foreground">live</span>}
+                        <Badge variant={STATUS_VARIANT[r.status] ?? 'secondary'}>{label(tr, 'status', r.status)}</Badge>
+                        {r.isHead && <span className="ml-1 text-xs text-muted-foreground">{tr('admin.live')}</span>}
                       </td>
                       <td className="py-2 pr-3 text-right tabular-nums">{r.provider === 'scripted' ? 'scripted' : `$${cost(r.usage).toFixed(4)}`}</td>
                     </tr>
                     {open === r.id && (
                       <tr>
                         <td colSpan={6} className="border-b border-border bg-background p-4">
-                          <RequestDetail id={r.id} call={call} onChanged={load} />
+                          <RequestDetail id={r.id} call={call} tr={tr} onChanged={load} />
                         </td>
                       </tr>
                     )}
@@ -196,7 +239,7 @@ function Stat({ label, value, testId }: { label: string; value: string; testId: 
   )
 }
 
-function RequestDetail({ id, call, onChanged }: { id: string; call: ReturnType<typeof useAdminApi>; onChanged: () => Promise<void> }) {
+function RequestDetail({ id, call, tr, onChanged }: { id: string; call: ReturnType<typeof useAdminApi>; tr: Translate; onChanged: () => Promise<void> }) {
   const [d, setD] = useState<Detail | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -205,17 +248,17 @@ function RequestDetail({ id, call, onChanged }: { id: string; call: ReturnType<t
     void load()
   }, [load])
 
-  const act = async (action: 'rollback' | 'reject' | 'approve', label: string) => {
+  const act = async (action: 'rollback' | 'reject' | 'approve', done: string) => {
     try {
       await call(`/admin/requests/${id}/${action}`, { method: 'POST', body: '{}' })
-      setMsg(label)
+      setMsg(done)
       await Promise.all([load(), onChanged()])
     } catch (e) {
       setMsg((e as Error).message)
     }
   }
 
-  if (!d) return <p className="text-sm text-muted-foreground">Loading…</p>
+  if (!d) return <p className="text-sm text-muted-foreground">{tr('admin.loading')}</p>
   const r = d.request
   const after = d.snapshot?.files ?? r.files ?? {}
   const before = d.parent?.files ?? {}
@@ -226,19 +269,24 @@ function RequestDetail({ id, call, onChanged }: { id: string; call: ReturnType<t
   return (
     <div className="grid gap-4" data-testid="admin-detail">
       <div className="flex flex-wrap items-center gap-2">
+        {r.status === 'pending-review' && (
+          <Button size="sm" data-testid="admin-approve" onClick={() => void act('approve', tr('admin.done.approve'))}>
+            {tr('admin.approve')}
+          </Button>
+        )}
         {r.isHead && (
-          <Button size="sm" variant="outline" data-testid="admin-rollback" onClick={() => void act('rollback', 'Rolled back for the user.')}>
-            Roll back for {r.userId}
+          <Button size="sm" variant="outline" data-testid="admin-rollback" onClick={() => void act('rollback', tr('admin.done.rollback'))}>
+            {tr('admin.rollback', { user: r.userId })}
           </Button>
         )}
         {r.status !== 'rejected' && r.status !== 'rolled-back' && (
-          <Button size="sm" variant="outline" data-testid="admin-reject" onClick={() => void act('reject', 'Rejected.')}>
-            Reject
+          <Button size="sm" variant="outline" data-testid="admin-reject" onClick={() => void act('reject', tr('admin.done.reject'))}>
+            {tr('admin.reject')}
           </Button>
         )}
         {r.status === 'pending-admin' && (
-          <Button size="sm" data-testid="admin-approve" onClick={() => void act('approve', 'Taken into work.')}>
-            Take into work
+          <Button size="sm" data-testid="admin-approve" onClick={() => void act('approve', tr('admin.done.take'))}>
+            {tr('admin.take')}
           </Button>
         )}
         {msg && (
@@ -248,28 +296,30 @@ function RequestDetail({ id, call, onChanged }: { id: string; call: ReturnType<t
         )}
         <span className="ml-auto text-xs text-muted-foreground">
           {r.provider}/{r.model} · classified {r.classification ?? '—'} · {r.timings?.totalMs ?? '—'} ms
-          {r.usage?.map((u) => ` · ${u.model}: ${u.inputTokens} in / ${u.outputTokens} out / ${u.cacheReadTokens} cached`).join('')}
+          {r.usage?.map((u) => ` · ${u.model}: ${u.inputTokens} in / ${u.outputTokens} out${u.thinkingTokens ? ` (${u.thinkingTokens} thinking)` : ''} / ${u.cacheReadTokens} cached`).join('')}
         </span>
       </div>
-      {r.error && <p className="text-sm text-red-700">Browser: {r.error}</p>}
+      {r.error && <p className="text-sm text-red-700">{tr(r.verdict === 'failed' && !r.snapshotId ? 'admin.agentError' : 'admin.browserError', { error: r.error })}</p>}
 
       <div>
-        <h4 className="mb-2 text-sm font-semibold">Changes {d.snapshot ? 'vs the previous version' : '(proposed, not applied)'}</h4>
-        {changed.length === 0 && <p className="text-sm text-muted-foreground">No file changes.</p>}
+        <h4 className="mb-2 text-sm font-semibold">
+          {tr('admin.changes')} {d.snapshot ? tr('admin.changes.vsParent') : tr('admin.changes.proposed')}
+        </h4>
+        {changed.length === 0 && <p className="text-sm text-muted-foreground">{tr('admin.changes.none')}</p>}
         {changed.map((p) => (
           <FileDiff key={p} path={p} before={before[p] ?? ''} after={after[p] ?? ''} />
         ))}
       </div>
 
       <div>
-        <h4 className="mb-2 text-sm font-semibold">Tool log</h4>
+        <h4 className="mb-2 text-sm font-semibold">{tr('admin.log')}</h4>
         <table className="w-full text-xs" data-testid="admin-log">
           <thead className="text-left text-muted-foreground">
             <tr>
               <th className="pr-2">#</th>
-              <th className="pr-2">Tool</th>
-              <th className="pr-2">Input</th>
-              <th className="pr-2">Result</th>
+              <th className="pr-2">{tr('admin.log.tool')}</th>
+              <th className="pr-2">{tr('admin.log.input')}</th>
+              <th className="pr-2">{tr('admin.log.result')}</th>
               <th className="pr-2 text-right">ms</th>
             </tr>
           </thead>

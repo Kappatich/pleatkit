@@ -23,15 +23,31 @@ export interface AnthropicProviderOptions {
 }
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5'
+/**
+ * max_tokens of one call caps thinking plus visible output together, so it stays generous: the edit's budget
+ * of visible tokens is enforced by the loop between calls (DECISIONS item 11). 16k keeps non-streaming calls
+ * well inside the SDK's request-time limits.
+ */
+export const MAX_TOKENS_PER_CALL = 16_000
 export const DEFAULT_CLASSIFIER_MODEL = 'claude-haiku-5-5'
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01'
 
-function usageOf(u: { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null }): TokenUsage {
+interface WireUsage {
+  input_tokens?: number | null
+  output_tokens?: number | null
+  cache_read_input_tokens?: number | null
+  cache_creation_input_tokens?: number | null
+  output_tokens_details?: { thinking_tokens?: number | null } | null
+}
+
+function usageOf(u: WireUsage): TokenUsage {
+  const thinking = u.output_tokens_details?.thinking_tokens
   return {
     inputTokens: u.input_tokens ?? 0,
     outputTokens: u.output_tokens ?? 0,
     cacheReadTokens: u.cache_read_input_tokens ?? 0,
     cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+    ...(typeof thinking === 'number' ? { thinkingTokens: thinking } : {}),
   }
 }
 
@@ -118,7 +134,7 @@ export class AnthropicProvider implements ModelProvider {
         const msg = await this.client.beta.messages.create(
           {
             model: this.model,
-            max_tokens: Math.max(1024, Math.min(options.maxOutputTokens, 8192)),
+            max_tokens: MAX_TOKENS_PER_CALL,
             thinking: { type: 'adaptive' },
             output_config: { effort: this.effort },
             system,
