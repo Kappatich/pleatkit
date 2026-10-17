@@ -23,6 +23,7 @@ interface RequestRow {
   timings: { totalMs?: number } | null
   snapshotId: string | null
   error: string | null
+  attachments: { images: number; imageBytes: number; targetDomChars: number } | null
   createdAt: string
   toolCalls: number
   isHead: boolean
@@ -299,6 +300,11 @@ function RequestDetail({ id, call, tr, onChanged }: { id: string; call: ReturnTy
           {r.usage?.map((u) => ` · ${u.model}: ${u.inputTokens} in / ${u.outputTokens} out${u.thinkingTokens ? ` (${u.thinkingTokens} thinking)` : ''} / ${u.cacheReadTokens} cached`).join('')}
         </span>
       </div>
+      {r.attachments && (r.attachments.images > 0 || r.attachments.targetDomChars > 0) && (
+        <p className="text-sm text-muted-foreground" data-testid="admin-attachments">
+          {tr('admin.attachments', { images: r.attachments.images, kb: Math.round(r.attachments.imageBytes / 1024), dom: r.attachments.targetDomChars })}
+        </p>
+      )}
       {r.error && <p className="text-sm text-red-700">{tr(r.verdict === 'failed' && !r.snapshotId ? 'admin.agentError' : 'admin.browserError', { error: r.error })}</p>}
 
       <div>

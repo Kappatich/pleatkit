@@ -15,10 +15,14 @@ export interface OpenAICompatibleOptions {
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  content: string | null | ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[]
   tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[]
   tool_call_id?: string
 }
+
+/** Responses carry plain text; only requests use content parts (images). */
+const textOf = (c: ChatMessage['content'] | undefined): string =>
+  typeof c === 'string' ? c : Array.isArray(c) ? c.map((p) => (p.type === 'text' ? p.text : '')).join('') : ''
 
 interface ChatResponse {
   model?: string
@@ -79,7 +83,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       },
       signal,
     )
-    const text = r.choices[0]?.message.content ?? ''
+    const text = textOf(r.choices[0]?.message.content)
     try {
       const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)) as { label?: string; reason?: string }
       const label = parsed.label === 'ui' || parsed.label === 'needs-backend' ? parsed.label : 'unclear'
@@ -92,7 +96,12 @@ export class OpenAICompatibleProvider implements ModelProvider {
   start(prompt: PromptParts, tools: ToolSpec[]): ModelSession {
     const messages: ChatMessage[] = [
       { role: 'system', content: `${prompt.instructions}\n\n${prompt.cached}` },
-      { role: 'user', content: prompt.user },
+      {
+        role: 'user',
+        content: prompt.images?.length
+          ? [...prompt.images.map((i) => ({ type: 'image_url' as const, image_url: { url: `data:${i.mediaType};base64,${i.data}` } })), { type: 'text' as const, text: prompt.user }]
+          : prompt.user,
+      },
     ]
     const toolDefs = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema, strict: true } }))
     let pendingText: string | null = null
@@ -122,7 +131,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         })
         const f = choice.finish_reason
         const stop: ModelTurn['stop'] = f === 'tool_calls' ? 'tool_use' : f === 'stop' ? 'end_turn' : f === 'length' ? 'max_tokens' : f === 'content_filter' ? 'refusal' : 'other'
-        return { text: choice.message.content ?? '', toolCalls, stop: toolCalls.length ? 'tool_use' : stop, usage: usageOf(r.usage), model: r.model ?? this.model }
+        return { text: textOf(choice.message.content), toolCalls, stop: toolCalls.length ? 'tool_use' : stop, usage: usageOf(r.usage), model: r.model ?? this.model }
       },
     }
   }

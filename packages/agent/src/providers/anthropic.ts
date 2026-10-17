@@ -106,7 +106,14 @@ export class AnthropicProvider implements ModelProvider {
   }
 
   start(prompt: PromptParts, tools: ToolSpec[]): ModelSession {
-    const messages: MessageParam[] = [{ role: 'user', content: prompt.user }]
+    // screenshots go first, then the text that refers to them
+    const first: MessageParam['content'] = prompt.images?.length
+      ? [
+          ...prompt.images.map((i) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: i.mediaType, data: i.data } })),
+          { type: 'text' as const, text: prompt.user },
+        ]
+      : prompt.user
+    const messages: MessageParam[] = [{ role: 'user', content: first }]
     // Tools render first, then system; the single breakpoint on the last system block caches tools +
     // instructions + readonly sources + core types. The user message (dynamic files, request) varies.
     const system: Anthropic.Beta.BetaTextBlockParam[] = [

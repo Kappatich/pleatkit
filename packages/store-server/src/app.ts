@@ -33,6 +33,10 @@ export function openStore(options: StoreOptions = {}): { db: StoreDb; close: () 
   const sqlite = new Database(file)
   sqlite.pragma('journal_mode = WAL')
   sqlite.exec(schema.DDL)
+  for (const { table, column, type } of schema.ADDED_COLUMNS) {
+    const has = (sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === column)
+    if (!has) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
+  }
   return { db: drizzle(sqlite, { schema }), close: () => sqlite.close() }
 }
 
@@ -233,6 +237,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
         files: b.files ?? null,
         snapshotId: null,
         error: typeof b.error === 'string' ? b.error.slice(0, 2000) : null,
+        attachments: b.attachments && typeof b.attachments === 'object' ? b.attachments : null,
         adminNote: null,
         createdAt: t,
         updatedAt: t,

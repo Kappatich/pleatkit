@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global document */ // page.evaluate callbacks run in the browser
 // Renders site/index.html and site/ru.html headless (Chromium via the demo's Playwright), fails on console errors or failed
 // requests, and writes screenshots to docs/screenshots/site-*.png (desktop light and dark, mobile; Russian page).
 // Serves site/ on a free local port for the duration of the run; nothing is shown on screen.

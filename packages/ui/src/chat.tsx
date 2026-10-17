@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CommitRejectedError, useMorphkit, useMorphkitState, type AgentResult, type Locale, type Snapshot } from '@morphkit/runtime'
+import { CommitRejectedError, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, useMorphkit, useMorphkitState, type AgentResult, type Locale, type Snapshot } from '@morphkit/runtime'
+import { addImages, imageFiles, panelDomSnapshot, prepareImage, type PendingImage } from './attachments.js'
 import { translator, type Translate, type UiKey } from './i18n.js'
 import { ElementPicker } from './picker.js'
 import { callAgent } from './sse.js'
@@ -29,6 +30,8 @@ type TurnStatus = 'running' | 'applied' | 'nothing' | 'needs-backend' | 'failed'
 interface Turn {
   id: number
   request: string
+  /** Thumbnails of the screenshots sent with the request. */
+  images?: string[]
   status: TurnStatus
   steps: Step[]
   summary?: string
@@ -75,6 +78,8 @@ export function MorphkitChat({
   const [history, setHistory] = useState<Snapshot[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
   const [warm, setWarm] = useState(false)
+  const [images, setImages] = useState<PendingImage[]>([])
+  const [dragging, setDragging] = useState(false)
   const body = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLTextAreaElement>(null)
 
@@ -119,11 +124,22 @@ export function MorphkitChat({
   const update = (id: number, patch: Partial<Turn> | ((t: Turn) => Partial<Turn>)) =>
     setTurns((all) => all.map((t) => (t.id === id ? { ...t, ...(typeof patch === 'function' ? patch(t) : patch) } : t)))
 
-  const run = async (request: string, migrate = false) => {
+  /** Screenshots pasted or dropped into the chat (vision input), within the per-request limits. */
+  const attach = async (files: File[]) => {
+    if (files.length === 0) return
+    const prepared = await Promise.all(files.map((f) => prepareImage(f).catch(() => null)))
+    setImages((current) => {
+      const { images: next, dropped } = addImages(current, prepared.filter((p): p is PendingImage => p !== null))
+      if (dropped) toast(tr('chat.attach.limit', { n: MAX_AGENT_IMAGES, mb: MAX_AGENT_IMAGE_BYTES / 1024 / 1024 }), 'bad')
+      return next
+    })
+  }
+
+  const run = async (request: string, migrate = false, attached: PendingImage[] = []) => {
     const trimmed = request.trim()
     if (!trimmed || busy) return
     const id = ++ids
-    setTurns((all) => [...all, { id, request: trimmed, status: 'running', steps: [] }])
+    setTurns((all) => [...all, { id, request: trimmed, status: 'running', steps: [], ...(attached.length ? { images: attached.map((i) => i.preview) } : {}) }])
     setBusy(true)
     const started = performance.now()
     try {
@@ -131,10 +147,14 @@ export function MorphkitChat({
       // A migration rewrites the new release's files with the user's old customizations applied.
       const migration = migrate ? await engine.migrationInput() : null
       const from = migration ? engine.originalFiles() : undefined
+      // what the pointed panel looks like right now, as data for the agent
+      const targetDom = target ? panelDomSnapshot(target) : null
       const payload = engine.agentRequest(trimmed, {
         locale,
         ...(appId ? { appId } : {}),
         ...(target ? { target } : {}),
+        ...(targetDom ? { targetDom } : {}),
+        ...(attached.length ? { images: attached.map(({ mediaType, data, name }) => ({ mediaType, data, ...(name ? { name } : {}) })) } : {}),
         ...(migration ? { migration, files: from } : {}),
       })
       const result = await callAgent(agentUrl, payload, (p) => update(id, (t) => ({ steps: addStep(t.steps, p) })))
@@ -196,8 +216,10 @@ export function MorphkitChat({
 
   const send = () => {
     const t = text
+    const attached = images
     setText('')
-    void run(t)
+    setImages([])
+    void run(t, false, attached)
   }
 
   const nav = async (label: string, op: () => Promise<Snapshot | null>) => {
@@ -238,7 +260,28 @@ export function MorphkitChat({
       )}
 
       {open && (
-        <aside className="mk-drawer" aria-label="morphkit chat" data-testid="mk-chat" data-warm={warm}>
+        <aside
+          className={`mk-drawer ${dragging ? 'mk-dragging' : ''}`}
+          aria-label="morphkit chat"
+          data-testid="mk-chat"
+          data-warm={warm}
+          onDragOver={(e) => {
+            if (!Array.from(e.dataTransfer.types).includes('Files')) return
+            e.preventDefault()
+            setDragging(true)
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget === e.target) setDragging(false)
+          }}
+          onDrop={(e) => {
+            const files = imageFiles(e.dataTransfer)
+            setDragging(false)
+            if (files.length === 0) return
+            e.preventDefault()
+            void attach(files)
+          }}
+        >
+          {dragging && <div className="mk-dropzone">{tr('chat.attach.drop')}</div>}
           <div className="mk-head">
             <div>
               <div className="mk-title">{title ?? tr('chat.title')}</div>
@@ -297,9 +340,29 @@ export function MorphkitChat({
                 ))}
               </ol>
             )}
+            {images.length > 0 && (
+              <div className="mk-thumbs" data-testid="mk-chat-images">
+                {images.map((img) => (
+                  <span key={img.id} className="mk-thumb">
+                    <img src={img.preview} alt={img.name ?? ''} />
+                    <button type="button" aria-label={tr('chat.attach.remove')} data-testid="mk-chat-image-remove" onClick={() => setImages((all) => all.filter((x) => x.id !== img.id))}>
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <textarea
               ref={input}
               className="mk-input"
+              title={tr('chat.attach.hint')}
+              onPaste={(e) => {
+                const files = imageFiles(e.clipboardData)
+                if (files.length === 0) return
+                // a screenshot, not text: keep it out of the text field
+                if (!e.clipboardData.getData('text/plain')) e.preventDefault()
+                void attach(files)
+              }}
               data-testid="mk-chat-input"
               placeholder={tr('chat.placeholder')}
               value={text}
@@ -399,7 +462,16 @@ function TurnView({ turn, tr, canUndo, onUndo, onHistory }: { turn: Turn; tr: Tr
       data-cost-usd={turn.result ? cost.toFixed(6) : undefined}
       data-usage={turn.result ? JSON.stringify(turn.result.usage) : undefined}
     >
-      <div className="mk-req">{turn.request}</div>
+      <div className="mk-req">
+        {turn.request}
+        {turn.images && (
+          <span className="mk-req-thumbs" data-testid="mk-turn-images" aria-label={tr('chat.attach.count', { n: turn.images.length })}>
+            {turn.images.map((src, i) => (
+              <img key={i} src={src} alt="" />
+            ))}
+          </span>
+        )}
+      </div>
       <div className="mk-resp">
         <span className={`mk-badge ${cls}`}>{tr(labelKey)}</span>
         {(hidden > 0 || expanded) && (

@@ -161,6 +161,8 @@ Interface language: `<MorphkitChat locale="ru">` switches the chat, the agent's 
 to Russian (`en` by default); the demo takes `?lang=ru`, the dashboard too. Strings live in one dictionary per
 language (`@morphkit/ui` `UI_MESSAGES`, `@morphkit/agent` `MESSAGES`).
 
+Screenshots: the user can paste (Ctrl+V) or drop up to 3 images (6 MB in total, scaled to 1568 px) into the chat; they go to the model as vision input (Anthropic image blocks, OpenAI `image_url`), and when the user pointed at a panel the request also carries a sanitized DOM snapshot of it (structure, classes, test ids, visible text; no scripts, styles, handlers or form values). The system prompt tells the model that anything in a screenshot or the DOM is data about the screen, never an instruction. Only sizes are logged, the images are not stored.
+
 **How the Anthropic provider calls Claude:** official `@anthropic-ai/sdk`; `claude-haiku-5-5` classifies the
 request first with a structured output (backend work goes straight to the admin, the big model is not called;
 when the user pointed at a panel the classifier is skipped);
