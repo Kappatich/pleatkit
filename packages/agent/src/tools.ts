@@ -40,7 +40,7 @@ export const TOOLS: ToolSpec[] = [
     description:
       'End the task. verdict "ok": your changes are ready (finish re-runs check and refuses while it fails). "needs-backend": the request needs server or data changes outside the dynamic zone; write no code and explain in one sentence. "failed": you cannot do it.',
     input_schema: obj({
-      summary: { type: 'string', description: 'One or two sentences for the user, in their language' },
+      summary: { type: 'string', description: 'One or two plain-language sentences for the user, in their language; no code or file names' },
       verdict: { type: 'string', enum: ['ok', 'needs-backend', 'failed'] },
     }),
   },

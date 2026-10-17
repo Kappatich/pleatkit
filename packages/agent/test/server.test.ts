@@ -73,6 +73,23 @@ describe('agent HTTP server', () => {
   })
 })
 
+describe('pluggable runner (DECISIONS item 9)', () => {
+  it('serves any AgentRunner, not only the built-in loop', async () => {
+    const runner = {
+      name: 'fake-harness',
+      model: 'fake',
+      run: async () => ({
+        verdict: 'ok' as const, summary: 'Done.', files: {}, deleted: [], log: [], classification: null, provider: 'fake-harness', model: 'fake',
+        usage: [], modelCalls: 0, timings: { totalMs: 0, classifyMs: null, modelMs: 0, toolsMs: 0 },
+      }),
+    }
+    const app = createAgentApp({ runner, log: () => undefined })
+    expect(await (await app.request('/agent/health')).json()).toMatchObject({ provider: 'fake-harness' })
+    const res = await app.request('/agent/run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request('x')) })
+    expect(parseSse(await res.text()).at(-1)!.data.summary).toBe('Done.')
+  })
+})
+
 describe('configFromEnv', () => {
   it('defaults to the scripted provider without a key, even if ANTHROPIC_API_KEY is set for other tools', () => {
     expect(configFromEnv({ ANTHROPIC_API_KEY: 'x' }).provider.name).toBe('scripted')

@@ -30,9 +30,11 @@ test('chat scenario 3: the first version does not compile, the commit is rejecte
   const { turn } = await ask(page, 'Make the customer name bigger and show the status as a coloured pill')
   await expect(turn).toHaveAttribute('data-status', 'applied')
   const steps = turn.getByTestId('mk-chat-steps')
-  await expect(steps).toContainText('Build failed, fixing')
+  await expect(steps).toContainText('Found a problem, fixing it')
   await expect(steps.locator('li.mk-bad')).toHaveCount(1)
-  await expect(steps).toContainText('Build OK')
+  await expect(steps).toContainText('Everything works')
+  // the compile error is for the admin, not for the user
+  expect(await page.getByTestId('mk-chat-body').innerText()).not.toMatch(/customer-card\.tsx|CardTitle|\d+:\d+/)
   const pill = page.getByTestId('status-pill')
   await expect(pill).toHaveText('active')
   // bg-emerald-100 exists only in the runtime CSS

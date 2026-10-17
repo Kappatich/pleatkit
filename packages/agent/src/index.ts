@@ -1,5 +1,5 @@
 export { createAgentApp, reportRun, type AgentServerOptions } from './server.js'
-export { runAgent, validateRequest, DEFAULT_LIMITS, type AgentLimits, type RunOptions } from './loop.js'
+export { runAgent, loopRunner, validateRequest, describe, humanName, DEFAULT_LIMITS, type AgentLimits, type AgentRunner, type RunOptions } from './loop.js'
 export { configFromEnv, type AgentConfig } from './config.js'
 export { AnthropicProvider, DEFAULT_MODEL, DEFAULT_CLASSIFIER_MODEL, type AnthropicProviderOptions } from './providers/anthropic.js'
 export { OpenAICompatibleProvider, type OpenAICompatibleOptions } from './providers/openai.js'

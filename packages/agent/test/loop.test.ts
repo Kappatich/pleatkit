@@ -56,7 +56,11 @@ describe('runAgent with the scripted provider', () => {
     expect(r.modelCalls).toBe(3)
     expect(r.log.map((l) => l.tool)).toEqual(['read_file', 'write_file', 'check', 'finish'])
     expect(r.log[1]!.input).toEqual({ path: CARD, bytes: GOOD_CARD.length })
-    expect(events).toEqual(expect.arrayContaining(['Understanding the request', 'Reading customer-card.tsx', 'Writing customer-card.tsx', 'Checking the build', 'Build OK']))
+    expect(events).toEqual(
+      expect.arrayContaining(['Understanding the request', 'Looking at the customer card', 'Changing the customer card', 'Checking that everything still works', 'Everything works']),
+    )
+    // the end user never sees code, file names or compiler output (DECISIONS item 10)
+    for (const e of events) expect(e).not.toMatch(/\.tsx?\b|src\/|import |=>|<\w/)
   })
 
   it('scenario 2: the classifier sends backend work straight to the admin without the main model', async () => {
@@ -66,6 +70,21 @@ describe('runAgent with the scripted provider', () => {
     expect(r.summary).toContain('server')
     expect(r.modelCalls).toBe(0)
     expect(r.files).toEqual({})
+  })
+
+  it('progress lines stay plain language even while fixing compile errors', async () => {
+    const provider = scripted({
+      name: 'broken',
+      turns: [
+        { text: 'const x = <div>', calls: [{ tool: 'write_file', input: { path: CARD, content: BROKEN_CARD } }, { tool: 'check', input: {} }] },
+        { calls: [{ tool: 'finish', input: { verdict: 'failed', summary: 'x' } }] },
+      ],
+    })
+    const events: { type: string; text: string }[] = []
+    await runAgent(request('broken'), provider, { onProgress: (p) => events.push(p) })
+    expect(events.map((e) => e.text)).toContain('Found a problem, fixing it')
+    expect(JSON.stringify(events)).not.toContain('customer-card.tsx')
+    expect(JSON.stringify(events)).not.toContain('<div>')
   })
 
   it('scenario 3: a commit that does not compile is rejected, the agent gets the error and fixes it', async () => {

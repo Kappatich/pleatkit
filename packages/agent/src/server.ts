@@ -2,11 +2,14 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { streamSSE } from 'hono/streaming'
 import type { AgentResult, AgentRunRequest, RequestStatus } from '@morphkit/runtime/compiler'
-import { runAgent, validateRequest, type AgentLimits } from './loop.js'
+import { loopRunner, validateRequest, type AgentLimits, type AgentRunner } from './loop.js'
 import type { ModelProvider } from './types.js'
 
 export interface AgentServerOptions {
-  provider: ModelProvider
+  /** The built-in loop over a model provider... */
+  provider?: ModelProvider
+  /** ...or any other harness (takes precedence). */
+  runner?: AgentRunner
   limits?: Partial<AgentLimits>
   /** @morphkit/store-server base URL; when set, every run is logged there (request, verdict, tool log). */
   storeUrl?: string | null
@@ -51,10 +54,12 @@ export async function reportRun(storeUrl: string, req: AgentRunRequest, result: 
 
 export function createAgentApp(options: AgentServerOptions) {
   const log = options.log ?? ((line: string) => console.log(line))
+  const runner = options.runner ?? (options.provider ? loopRunner(options.provider) : null)
+  if (!runner) throw new Error('createAgentApp needs a provider or a runner')
   const app = new Hono().basePath(options.basePath ?? '/agent')
   if (options.corsOrigin) app.use('*', cors({ origin: options.corsOrigin }))
 
-  app.get('/health', (c) => c.json({ ok: true, provider: options.provider.name, model: options.provider.model, store: Boolean(options.storeUrl) }))
+  app.get('/health', (c) => c.json({ ok: true, provider: runner.name, model: runner.model, store: Boolean(options.storeUrl) }))
 
   app.post('/run', async (c) => {
     let req: AgentRunRequest
@@ -68,7 +73,7 @@ export function createAgentApp(options: AgentServerOptions) {
       stream.onAbort(() => abort.abort(new Error('client disconnected')))
       const send = (event: string, data: unknown) => stream.writeSSE({ event, data: JSON.stringify(data) }).catch(() => undefined)
       try {
-        const result = await runAgent(req, options.provider, { limits: options.limits, signal: abort.signal, onProgress: (p) => void send('progress', p) })
+        const result = await runner.run(req, { limits: options.limits, signal: abort.signal, onProgress: (p) => void send('progress', p) })
         let requestId: string | null = null
         if (options.storeUrl) {
           requestId = await reportRun(options.storeUrl, req, result).catch((e: Error) => {

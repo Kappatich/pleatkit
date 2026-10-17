@@ -1,23 +1,23 @@
 {
-  "measuredAt": "2026-10-17T20:13:59.548Z",
+  "measuredAt": "2026-10-17T20:19:45.025Z",
   "browser": "chromium headless shell 156.0.8078.4",
   "esbuildVersion": "0.28.2",
   "wasmBytes": 13978850,
-  "initColdMs": 528,
-  "initFromCacheMs": 58,
-  "firstCheckWallMs": 1184,
-  "firstCheckCompileMs": 219,
+  "initColdMs": 554,
+  "initFromCacheMs": 57,
+  "firstCheckWallMs": 1203,
+  "firstCheckCompileMs": 227,
   "warmCheckMs3Files": [
-    23.7,
-    35.6,
-    21.5,
-    19.3,
-    18.3
+    20.2,
+    32.9,
+    22.7,
+    24.4,
+    19
   ],
-  "commitToRenderMs": 158,
-  "engineCommitMs": 96,
+  "commitToRenderMs": 246,
+  "engineCommitMs": 112,
   "swapMs": 2,
-  "tailwindInitMs": 27,
-  "tailwindCssBuildMs": 10.3,
+  "tailwindInitMs": 34,
+  "tailwindCssBuildMs": 10.2,
   "tailwindCssBytes": 11180
 }
