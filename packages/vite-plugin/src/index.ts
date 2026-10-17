@@ -101,16 +101,24 @@ export default function morphkit(options: MorphkitOptions): Plugin {
 
     config(userConfig) {
       const appRoot = path.resolve(userConfig.root ?? process.cwd())
-      let canPrebundle = false
+      const include: string[] = []
       try {
         const req = createRequire(path.join(appRoot, 'package.json'))
-        createRequire(req.resolve('@morphkit/runtime/package.json')).resolve('esbuild-wasm')
-        canPrebundle = true
+        createRequire(req.resolve('@morphkit/runtime/package.json')).resolve('esbuild-wasm/esm/browser.js')
+        // The compiler is imported lazily on the first check; prebundle it up front.
+        include.push('@morphkit/runtime > esbuild-wasm/esm/browser.js', '@morphkit/runtime > idb')
       } catch {
         // runtime not installed in this app
       }
-      // Prebundle the lazily imported compiler so Vite doesn't re-optimize and reload on the first commit.
-      return canPrebundle ? { optimizeDeps: { include: ['@morphkit/runtime > esbuild-wasm', '@morphkit/runtime > idb'] } } : {}
+      // Zone files are reached only through virtual modules, which Vite's dependency scanner skips.
+      // Scan them explicitly so their dependencies don't trigger a re-optimize + page reload later.
+      const entries = userConfig.optimizeDeps?.entries ?? ['**/*.html']
+      return {
+        optimizeDeps: {
+          include,
+          entries: [...(Array.isArray(entries) ? entries : [entries]), ...o.dynamic, ...o.readonly],
+        },
+      }
     },
 
     configResolved(resolved) {
