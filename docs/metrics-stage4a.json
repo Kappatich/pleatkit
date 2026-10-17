@@ -1,29 +1,29 @@
 {
-  "measuredAt": "2026-10-17T22:13:06.369Z",
+  "measuredAt": "2026-10-17T22:23:14.519Z",
   "browser": "chromium headless shell 156.0.8078.4",
   "note": "chat scenario 1, scripted provider, localhost; send -> new card painted. server: the agent compiles, signs and stores the bundle at the end of the run, the browser downloads it (SRI) and swaps. browser: esbuild-wasm + Tailwind in the page.",
   "server": {
-    "medianTotalMs": 95,
-    "medianAgentMs": 46,
-    "medianCommitAndPaintMs": 46,
+    "medianTotalMs": 98,
+    "medianAgentMs": 50,
+    "medianCommitAndPaintMs": 38,
     "totalMs": [
-      98,
-      81,
-      97,
-      95,
-      70
+      99,
+      78,
+      113,
+      83,
+      98
     ]
   },
   "browserCompile": {
-    "medianTotalMs": 94,
-    "medianAgentMs": 23,
-    "medianCommitAndPaintMs": 66,
+    "medianTotalMs": 82,
+    "medianAgentMs": 24,
+    "medianCommitAndPaintMs": 58,
     "totalMs": [
-      80,
-      94,
-      94,
-      97,
-      80
+      81,
+      81,
+      117,
+      82,
+      87
     ]
   }
 }

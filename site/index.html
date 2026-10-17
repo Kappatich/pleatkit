@@ -10,209 +10,94 @@
 <meta property="og:image" content="poster.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c3aed'/%3E%3Cpath d='M8 22V10l8 7 8-7v12' stroke='white' stroke-width='3' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
-<style>
-  :root {
-    --bg: #ffffff;
-    --bg-soft: #f6f7fb;
-    --card: #ffffff;
-    --text: #0f172a;
-    --muted: #556070;
-    --line: #e3e7ef;
-    --accent: #6d28d9;
-    --accent-soft: #ede9fe;
-    --accent-text: #5b21b6;
-    --code-bg: #0f172a;
-    --code-text: #e2e8f0;
-    --good: #15803d;
-    --warn-bg: #fef3c7;
-    --warn-text: #92400e;
-    --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px rgba(15, 23, 42, .06);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b0f17;
-      --bg-soft: #111827;
-      --card: #131a26;
-      --text: #e6e9ef;
-      --muted: #9aa4b2;
-      --line: #243042;
-      --accent: #a78bfa;
-      --accent-soft: #2a2141;
-      --accent-text: #c4b5fd;
-      --code-bg: #070a10;
-      --code-text: #d7dce5;
-      --good: #4ade80;
-      --warn-bg: #3a2a0c;
-      --warn-text: #fcd34d;
-      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
-    }
-  }
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  a { color: var(--accent-text); }
-  code, pre { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: .86em; }
-  :not(pre) > code { background: var(--bg-soft); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
-  header.top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 58px; gap: 16px; }
-  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
-  .logo svg { flex: none; }
-  nav.links { display: flex; gap: 22px; align-items: center; font-size: 15px; }
-  nav.links a { color: var(--muted); text-decoration: none; }
-  nav.links a:hover { color: var(--text); }
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--card); white-space: nowrap; }
-  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
-  .btn:hover { filter: brightness(1.08); }
-  nav.links .btn { color: var(--text); }
-  nav.links .btn.primary { color: var(--bg); padding: 7px 14px; }
-
-  .hero { padding: 72px 0 36px; text-align: center; }
-  .eyebrow { display: inline-block; font-size: 14px; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); padding: 4px 12px; border-radius: 999px; margin-bottom: 18px; }
-  h1 { font-size: clamp(34px, 5.6vw, 60px); line-height: 1.08; letter-spacing: -.02em; margin: 0 auto 18px; max-width: 900px; }
-  h1 em { font-style: normal; color: var(--accent); }
-  .lead { font-size: clamp(17px, 2.1vw, 20px); color: var(--muted); max-width: 760px; margin: 0 auto 28px; }
-  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-
-  .contrast { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 44px auto 0; max-width: 900px; text-align: left; }
-  .contrast > div { border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; background: var(--card); }
-  .contrast h3 { margin: 0 0 6px; font-size: 16px; }
-  .contrast p { margin: 0; color: var(--muted); font-size: 15px; }
-  .contrast .them h3 { color: var(--muted); }
-  .contrast .us { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-
-  section { padding: 64px 0; }
-  section.soft { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  h2 { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -.01em; margin: 0 0 10px; }
-  .sub { color: var(--muted); margin: 0 0 32px; max-width: 760px; }
-
-  .video { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: #000; }
-  .video video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 800; }
-  .note { font-size: 14px; color: var(--muted); margin-top: 10px; }
-
-  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); }
-  .card h3 { margin: 0 0 6px; font-size: 18px; }
-  .card p { margin: 0; color: var(--muted); font-size: 15px; }
-  .zone { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; margin-bottom: 10px; }
-  .z-dyn { background: var(--accent-soft); color: var(--accent-text); }
-  .z-ro { background: var(--warn-bg); color: var(--warn-text); }
-  .z-core { background: var(--bg-soft); color: var(--muted); border: 1px solid var(--line); }
-
-  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; counter-reset: flow; }
-  .flow > div { position: relative; padding: 16px 16px 16px 16px; border-radius: 12px; border: 1px dashed var(--line); background: var(--card); font-size: 15px; color: var(--muted); }
-  .flow strong { display: block; color: var(--text); margin-bottom: 4px; }
-
-  ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: step; display: grid; gap: 18px; }
-  ol.steps > li { counter-increment: step; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; }
-  ol.steps > li::before { content: counter(step); width: 34px; height: 34px; border-radius: 50%; background: var(--text); color: var(--bg); display: grid; place-items: center; font-weight: 700; }
-  ol.steps h3 { margin: 4px 0 6px; font-size: 17px; }
-  ol.steps p { margin: 0 0 8px; color: var(--muted); font-size: 15px; }
-  pre { margin: 0; background: var(--code-bg); color: var(--code-text); padding: 14px 16px; border-radius: 10px; overflow-x: auto; line-height: 1.5; }
-
-  .pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: stretch; }
-  .plan { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); }
-  .plan.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset, var(--shadow); }
-  .plan h3 { margin: 0; font-size: 20px; }
-  .price { font-size: 34px; font-weight: 800; margin: 10px 0 2px; letter-spacing: -.02em; }
-  .price small { font-size: 15px; font-weight: 500; color: var(--muted); }
-  .plan .for { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
-  .plan ul { margin: 0 0 20px; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 15px; }
-  .plan li { padding-left: 24px; position: relative; }
-  .plan li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
-  .plan .btn { margin-top: auto; justify-content: center; }
-  .tag { font-size: 12px; font-weight: 600; color: var(--warn-text); background: var(--warn-bg); padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
-
-  .faq { display: grid; gap: 10px; max-width: 860px; }
-  details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0 18px; }
-  summary { cursor: pointer; padding: 15px 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
-  summary::-webkit-details-marker { display: none; }
-  summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 20px; line-height: 1; }
-  details[open] summary::after { content: "–"; }
-  details > div { padding: 0 0 16px; color: var(--muted); font-size: 15px; }
-  details > div p { margin: 0 0 10px; }
-
-  .numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 28px; }
-  .numbers div { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--card); }
-  .numbers b { display: block; font-size: 22px; }
-  .numbers span { font-size: 13px; color: var(--muted); }
-
-  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: 14px; }
-  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-
-  @media (max-width: 860px) {
-    nav.links a:not(.btn) { display: none; }
-    .contrast, .grid3, .pricing { grid-template-columns: minmax(0, 1fr); }
-    .flow, .numbers { grid-template-columns: 1fr 1fr; }
-    .hero { padding-top: 48px; }
-    section { padding: 48px 0; }
-  }
-  @media (max-width: 480px) {
-    body { font-size: 16px; }
-    .wrap { padding: 0 16px; }
-    .flow, .numbers { grid-template-columns: minmax(0, 1fr); }
-    ol.steps > li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  }
-
-  .cta-more { margin: 14px 0 0; font-size: 15px; color: var(--muted); }
-  nav.links a.lang { font-weight: 700; color: var(--accent-text); }
-  #demo { padding-top: 8px; }
-  .pain { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
-  .pain h2 { font-size: clamp(22px, 2.6vw, 28px); margin-bottom: 14px; }
-  .pain .card, .grid2 .card { margin-bottom: 12px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
-  #how ol.steps { margin-top: 18px; }
-  .plan p { color: var(--muted); font-size: 15px; margin: 0 0 18px; }
-  .ctas { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 16px; }
-  .ctas .card { display: flex; flex-direction: column; gap: 8px; }
-  .ctas .card p { flex: 1; }
-  .main-cta { border-color: var(--accent); }
-  @media (max-width: 860px) {
-    .pain, .grid2, .ctas { grid-template-columns: minmax(0, 1fr); }
-    nav.links a.lang { display: inline; }
-  }
-</style>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f3efe6'/%3E%3Cpath d='M0 32L32 0M-8 24L24 -8M8 40L40 8' stroke='%23f0532d' stroke-width='3'/%3E%3Crect x='9' y='9' width='14' height='14' fill='%23f3efe6' stroke='%2315120f' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="morphkit.css">
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="logo" href="#">
-      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#7c3aed"/><path d="M8 22V10l8 7 8-7v12" stroke="#fff" stroke-width="3" fill="none" stroke-linejoin="round"/></svg>
-      morphkit
-    </a>
+    <a class="logo" href="#"><span class="mark" aria-hidden="true"></span>morphkit</a>
     <nav class="links" aria-label="Sections">
       <a href="#demo">Demo</a>
       <a href="#how">How it works</a>
       <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
       <a class="lang" href="ru.html" hreflang="ru" lang="ru">RU</a>
-      <a class="btn primary" href="https://github.com/Kappatich/morphkit">GitHub</a>
+      <a class="btn quiet" href="https://github.com/Kappatich/morphkit">GitHub</a>
     </nav>
   </div>
 </header>
 
 <main>
   <div class="wrap hero">
-    <span class="eyebrow">Open source · MIT · React + Vite</span>
-    <h1>Your users ask for a different screen. <em>The agent builds it for them, and only for them.</em></h1>
-    <p class="lead">morphkit lets an AI agent rewrite the React panels you mark as editable, inside your running app. Each user gets their own version, with undo, history and an admin log.</p>
-    <div class="cta">
-      <a class="btn primary" href="https://github.com/Kappatich/morphkit#run-the-demo">Run the demo locally</a>
-      <a class="btn" href="#demo">Watch the demo</a>
+    <div class="copy">
+      <span class="label">Open source · MIT · React + Vite · <b>v0.1 early</b></span>
+      <h1>Your users ask for a different screen. <em>The agent builds it for them, and only for them.</em></h1>
+      <p class="lead">morphkit lets an AI agent rewrite the React panels you mark as editable, inside your running app. Each user gets their own version, with undo, history and an admin log.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/Kappatich/morphkit#run-the-demo">Run the demo locally</a>
+        <a class="btn" href="#demo">Watch the demo</a>
+      </div>
+      <p class="cta-more"><a href="https://github.com/Kappatich/morphkit#install-into-your-own-vite--react-project-5-steps">Add it to your Vite app</a> · <a href="#pilot">Book a pilot for your B2B app</a></p>
     </div>
-    <p class="cta-more"><a href="https://github.com/Kappatich/morphkit#install-into-your-own-vite--react-project-5-steps">Add it to your Vite app</a> · <a href="#pilot">Book a pilot for your B2B app</a></p>
+
+    <div class="live" data-live>
+      <div class="sheet">
+        <div class="sheet-head">
+          <span class="label"><b>zone: dynamic</b> · customer-card.tsx</span>
+          <span class="label">user: alice</span>
+        </div>
+        <div class="zone-hatch">
+          <div class="panel" aria-live="polite"></div>
+        </div>
+        <div class="ruler" aria-label="Version ruler"></div>
+      </div>
+      <div class="prompt">
+        <div class="prompt-bar" aria-hidden="true">
+          <span class="gt">&gt;</span>
+          <span class="text empty">e.g. show the phone and city in the customer card</span>
+          <span class="cursor"></span>
+        </div>
+        <div class="recipes" role="group" aria-label="Try a request">
+          <button class="recipe" data-recipe="fields" data-request="In the customer card add phone, city and source">add phone, city, source</button>
+          <button class="recipe" data-recipe="red" data-request="Highlight an overdue payment date in red">overdue in red</button>
+          <button class="recipe" data-recipe="deals" data-request="Show the deals under the card">deals under the card</button>
+          <button class="recipe" data-recipe="compact" data-request="Make the card more compact">compact layout</button>
+          <button class="recipe" data-recipe="note" data-request="Add a notes field to the card">a notes field</button>
+          <button class="recipe" data-recipe="backend" data-request="Add a discount field and recompute the total on the server">discount on the server</button>
+        </div>
+        <div class="progress" aria-live="polite"></div>
+        <div class="live-actions">
+          <button class="btn" data-undo disabled>Undo</button>
+          <button class="btn quiet" data-reset disabled>Reset to original</button>
+        </div>
+        <p class="live-foot">Scripted on this page, so it runs with no model. In the app the agent writes the code, the browser compiles it, and bob keeps his own card.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="dims" aria-label="Measured in the demo app">
+      <div class="dim"><i></i><b>≈100 ms</b><span>compile to paint, after the code arrives</span></div>
+      <div class="dim"><i></i><b>24 ms</b><span>re-check of three edited files</span></div>
+      <div class="dim"><i></i><b>1 user</b><span>per version; nobody else sees the edit</span></div>
+      <div class="dim"><i></i><b>0 lines</b><span>of code shown to the end user</span></div>
+    </div>
   </div>
 
   <section id="demo">
     <div class="wrap">
+      <div class="section-head"><span class="label">01 / demo</span><h2>Forty-six seconds, four scenes</h2></div>
       <div class="video">
         <video controls preload="none" playsinline poster="poster.jpg" width="1280" height="800">
           <source src="demo.mp4" type="video/mp4">
           <a href="demo.mp4">Download the demo (MP4, 1 MB)</a>
         </video>
       </div>
-      <p class="note">46 seconds, recorded headless from the demo app. The agent replays recorded model answers, so the demo runs without a key; compiling, committing, undo, storage and the dashboard are real.</p>
+      <p class="note">Recorded headless from the demo app. The agent replays recorded model answers, so the demo runs without a key; compiling, committing, undo, storage and the dashboard are real.</p>
     </div>
   </section>
 
@@ -220,34 +105,44 @@
     <div class="wrap pain">
       <div>
         <h2>You build the app</h2>
-        <div class="card"><h3>The backlog is small requests.</h3><p>Move the date up. Add the phone number. Make overdue dates red. Each takes ten minutes of code and half a day of context switching. They never stop.</p></div>
-        <div class="card"><h3>Every request is one person's taste.</h3><p>Alice wants the compact table and Bob hates it. Whichever you ship, the other one files a ticket. A setting for every preference turns your code into a settings page.</p></div>
-        <div class="card"><h3>Agents write code, but only for you.</h3><p>During the day you trust Claude or Codex with your repo. Your users get a fixed screen and a feedback form.</p></div>
+        <div class="card"><span class="label">01 / backlog</span><h3>The backlog is small requests.</h3><p>Move the date up. Add the phone number. Make overdue dates red. Each takes ten minutes of code and half a day of context switching. They never stop.</p></div>
+        <div class="card"><span class="label">02 / taste</span><h3>Every request is one person's taste.</h3><p>Alice wants the compact table and Bob hates it. Whichever you ship, the other one files a ticket. A setting for every preference turns your code into a settings page.</p></div>
+        <div class="card"><span class="label">03 / agents</span><h3>Agents write code, but only for you.</h3><p>During the day you trust Claude or Codex with your repo. Your users get a fixed screen and a feedback form.</p></div>
       </div>
       <div>
         <h2>You own the product</h2>
-        <div class="card"><h3>Every big customer wants a fork.</h3><p>One wants the deal value in the list view. Another wants the approval column gone. Saying yes means custom branches. Saying no comes back at renewal.</p></div>
-        <div class="card"><h3>Your settings stop at columns and colors.</h3><p>Anything that needs a different layout goes to the engineering queue, next to the roadmap. It waits there for a quarter.</p></div>
-        <div class="card"><h3>You can't see what people actually want.</h3><p>Requests arrive by email, on calls and in Slack. Nobody counts them, so the roadmap follows whoever spoke last.</p></div>
+        <div class="card"><span class="label">04 / forks</span><h3>Every big customer wants a fork.</h3><p>One wants the deal value in the list view. Another wants the approval column gone. Saying yes means custom branches. Saying no comes back at renewal.</p></div>
+        <div class="card"><span class="label">05 / settings</span><h3>Your settings stop at columns and colors.</h3><p>Anything that needs a different layout goes to the engineering queue, next to the roadmap. It waits there for a quarter.</p></div>
+        <div class="card"><span class="label">06 / signal</span><h3>You can't see what people actually want.</h3><p>Requests arrive by email, on calls and in Slack. Nobody counts them, so the roadmap follows whoever spoke last.</p></div>
       </div>
     </div>
   </section>
 
   <section id="how">
     <div class="wrap">
-      <h2>How it works</h2>
-      <ol class="steps">
-        <li><div><h3>Mark the zones.</h3><p>In <code>vite.config.ts</code> you list the files the agent may rewrite and the files it may read. Everything else stays closed: the agent sees only its type declarations.</p></div></li>
-        <li><div><h3>The user asks.</h3><p>They open the chat, point at a panel and type what they want. A small model sorts the request first. Backend work goes to your admin queue and no code gets written.</p></div></li>
-        <li><div><h3>The agent drafts and the code is checked.</h3><p>The agent cannot finish until the whole zone compiles. The browser compiles it again and swaps the panel in without a reload, in about 100 ms from compile to paint once the code arrives.</p></div></li>
-        <li><div><h3>The edit stays, and can be undone.</h3><p>It is saved as that user's snapshot with undo, history and reset. Your admin sees the request, the diff and the agent's tool log, and can roll it back.</p></div></li>
-      </ol>
+      <div class="section-head"><span class="label">02 / mechanism</span><h2>How it works</h2></div>
+      <div class="zones">
+        <ol class="steps">
+          <li><div><h3>Mark the zones.</h3><p>In <code>vite.config.ts</code> you list the files the agent may rewrite and the files it may read. Everything else stays closed: the agent sees only its type declarations.</p></div></li>
+          <li><div><h3>The user asks.</h3><p>They open the chat, point at a panel and type what they want. A small model sorts the request first. Backend work goes to your admin queue and no code gets written.</p></div></li>
+          <li><div><h3>The agent drafts and the code is checked.</h3><p>The agent cannot finish until the whole zone compiles. The browser compiles it again and swaps the panel in without a reload, in about 100 ms from compile to paint once the code arrives.</p></div></li>
+          <li><div><h3>The edit stays, and can be undone.</h3><p>It is saved as that user's snapshot with undo, history and reset. Your admin sees the request, the diff and the agent's tool log, and can roll it back.</p></div></li>
+        </ol>
+        <div>
+          <div class="zone-map" aria-label="Zone map of an app">
+            <div class="core"><b>core</b><small>compiled · the agent sees only .d.ts</small></div>
+            <div class="ro"><b>readonly</b><small>api.ts, ui/ · read, never written</small></div>
+            <div class="dyn"><b>dynamic</b><small>customer-card.tsx · the agent rewrites</small></div>
+          </div>
+          <p class="note">One config line decides what is hatched. Writes outside the hatch are refused by the tool itself, not by a prompt.</p>
+        </div>
+      </div>
     </div>
   </section>
 
   <section id="not" class="soft">
     <div class="wrap">
-      <h2>What it is not</h2>
+      <div class="section-head"><span class="label">03 / not this</span><h2>What it is not</h2></div>
       <div class="grid2">
         <div class="card"><h3>A component catalog.</h3><p>With json-render, A2UI or CopilotKit, an agent builds screens from blocks you defined in advance. That is safe, but it stops at what you predicted. In morphkit the agent writes new code inside files you allowed, behind compile checks, zones and undo. If a catalog covers your users' requests, use a catalog.</p></div>
         <div class="card"><h3>An app builder.</h3><p>Lovable and Bolt change an app for its creator, and then you deploy. morphkit changes the running app for one end user. Your repository and your release stay as they are.</p></div>
@@ -259,7 +154,7 @@
 
   <section id="install">
     <div class="wrap">
-      <h2>Install in five steps</h2>
+      <div class="section-head"><span class="label">04 / install</span><h2>Install in five steps</h2></div>
       <p class="sub">Any Vite + React project. Full guide and options in the <a href="https://github.com/Kappatich/morphkit#readme">README</a>.</p>
       <ol class="steps">
         <li><div><h3>Install the packages</h3>
@@ -290,8 +185,8 @@ pnpm add -D @morphkit/vite-plugin @morphkit/agent</pre></div></li>
 
   <section id="pricing" class="soft">
     <div class="wrap">
-      <h2>Pricing</h2>
-      <p class="sub">Early prices, will change after the first pilots.</p>
+      <div class="section-head"><span class="label">05 / pricing</span><h2>Early prices</h2></div>
+      <p class="sub">They will change after the first pilots.</p>
       <div class="pricing">
         <div class="plan">
           <h3>Free</h3>
@@ -313,13 +208,13 @@ pnpm add -D @morphkit/vite-plugin @morphkit/agent</pre></div></li>
           <a class="btn" href="#pilot">Book a pilot</a>
         </div>
       </div>
-      <p class="note"><em>Token cost: your provider bills you directly. On Sonnet 5.5 with prompt caching we estimate $0.03 to $0.07 per edit. We will publish a measured number.</em></p>
+      <p class="note">Token cost: your provider bills you directly. On Sonnet 5.5 with prompt caching we estimate $0.03 to $0.07 per edit. We will publish a measured number.</p>
     </div>
   </section>
 
   <section id="faq">
     <div class="wrap">
-      <h2>FAQ</h2>
+      <div class="section-head"><span class="label">06 / faq</span><h2>Questions a senior engineer asks</h2></div>
       <div class="faq">
         <details><summary>Can a generated edit attack other users or leak data?</summary><div><p>An edit runs only in the browser of the user who asked for it, so a bad edit can reach only that user. The agent can write only to dynamic files, and imports are limited to a list you control. With <code>connect-src 'self'</code> in your CSP, edit code cannot call other hosts. Edits shared between users can run in a sandboxed iframe that has no access to the page, cookies or storage. Static rules for generated code (no eval, no requests to other hosts, imports only from your list) run at every check, and an edit that breaks one is refused.</p></div></details>
         <details><summary>Where does the model key live?</summary><div><p>In the environment of your agent server and nowhere else. The browser talks to your <code>/agent</code> endpoint and never sees the key. You bring your own key.</p></div></details>
@@ -336,6 +231,7 @@ pnpm add -D @morphkit/vite-plugin @morphkit/agent</pre></div></li>
   <section id="pilot" class="soft">
     <div class="wrap ctas">
       <div class="card main-cta">
+        <span class="label">next step</span>
         <h3>Run the demo locally.</h3>
         <p><code>pnpm install &amp;&amp; pnpm dev</code>. You don't need a key: the agent replays recorded answers. Open <code>/admin</code> to see every edit.</p>
         <a class="btn primary" href="https://github.com/Kappatich/morphkit#run-the-demo">Get the code</a>
@@ -360,5 +256,6 @@ pnpm add -D @morphkit/vite-plugin @morphkit/agent</pre></div></li>
     <span><a href="ru.html" hreflang="ru" lang="ru">По-русски</a></span>
   </div>
 </footer>
+<script src="demo.js" defer></script>
 </body>
 </html>
