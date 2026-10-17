@@ -1,0 +1,42 @@
+{
+  "name": "@morphkit/store-server",
+  "version": "0.1.0",
+  "description": "morphkit cloud store: per-user snapshots, heads, compiled bundles and the agent request log, with admin actions (Hono + Drizzle, SQLite for the demo)",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "morphkit-store": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.5",
+    "better-sqlite3": "^12.4.1",
+    "drizzle-orm": "^0.45.0",
+    "hono": "^4.10.0"
+  },
+  "devDependencies": {
+    "@morphkit/runtime": "workspace:*",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.18.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
