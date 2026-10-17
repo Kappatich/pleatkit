@@ -24,6 +24,8 @@ Zones:
 
 Dynamic code may import only: relative paths to other dynamic files, and these host modules: ${externals}. No other packages. Talk to the server only through the typed client in the readonly zone.
 
+check also enforces static rules, and finish refuses while any is broken: no eval, new Function or string timers; no document.cookie; no dangerouslySetInnerHTML, innerHTML, outerHTML, insertAdjacentHTML or document.write; fetch, WebSocket, EventSource and sendBeacon only with a relative URL written as a string; no XMLHttpRequest; no import() of URLs or computed specifiers.
+
 Stack: React 19 function components and hooks, TypeScript (TSX), Tailwind CSS 4 utility classes (any utility, including arbitrary values such as w-[120px] or text-[13px]) and the shadcn-style components from @/components/ui/*. Inline styles are allowed.
 
 Entities carry a free-form \`meta: Record<string, unknown>\` field. Showing, formatting, highlighting, filtering, sorting or editing values that already exist (including anything in meta, saved through the readonly client) is UI work you can do.

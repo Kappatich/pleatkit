@@ -9,6 +9,7 @@ import {
   type EsbuildApi,
   type FileMap,
 } from '@morphkit/runtime/compiler'
+import { staticCheck } from './static-check.js'
 
 const WRITABLE_EXT = /\.(tsx|ts|jsx|js|css|json)$/
 const nativeEsbuild = async () => esbuild as unknown as EsbuildApi
@@ -119,6 +120,8 @@ export class Workspace {
     const result = await this.compiler.compile(this.files)
     let errors = result.errors
     if (result.ok) errors = await this.missingDefaults()
+    // static rules (no eval, no remote requests, allowed imports only, ...): refused like compile errors
+    errors = [...errors, ...staticCheck(this.files, this.input.context)]
     this.lastCheck = { ok: errors.length === 0, errors, timeMs: performance.now() - started }
     this.dirtySinceCheck = false
     return this.lastCheck
