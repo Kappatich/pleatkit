@@ -21,8 +21,15 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
 
   // progress streamed from the agent, in order
   const steps = turn.getByTestId('mk-chat-steps')
-  for (const s of ['Understanding the request', 'Reading format.ts', 'Writing customer-card.tsx', 'Checking the build', 'Build OK']) await expect(steps).toContainText(s)
+  for (const s of ['Understanding the request', "Looking at the app's data and helpers", 'Changing the customer card', 'Checking that everything still works', 'Everything works']) {
+    await expect(steps).toContainText(s)
+  }
   await expect(turn.getByTestId('mk-chat-summary')).toContainText('overdue payment date is highlighted in red')
+  // the end user never sees code, file names or diffs in the chat (DECISIONS item 10)
+  const chatText = await page.getByTestId('mk-chat-body').innerText()
+  expect(chatText).not.toMatch(/\.tsx?\b|src\/|import |export |=>|<\/?[A-Za-z]|className|customer\.meta/)
+  await expect(turn.getByTestId('mk-turn-undo')).toBeEnabled()
+  await expect(turn.getByTestId('mk-turn-history')).toBeVisible()
 
   // CSS for classes the edit introduced, compiled in the browser: palette colour + arbitrary values
   const due = card.getByTestId('due-date')
@@ -46,8 +53,8 @@ test('chat scenario 1: agent adds phone/city/source and a red overdue date; Tail
   )
   recordMetrics('chatScenario1', { provider: 'scripted', requestToRerenderMs: totalMs, agentMs, commitMs, wallClockMs: wallMs, runtimeCssBytes: runtimeCss.length })
 
-  // undo from the chat
-  await page.getByTestId('mk-chat-undo').click()
+  // undo from the result in the chat
+  await turn.getByTestId('mk-turn-undo').click()
   await expect(card.getByTestId('phone')).toHaveCount(0)
   await expect(page.getByTestId('mk-toast').filter({ hasText: 'Undone' })).toBeVisible()
   await page.getByTestId('mk-chat-history').click()

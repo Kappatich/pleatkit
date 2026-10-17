@@ -36,6 +36,8 @@ Otherwise implement it:
 3. Call check, fix any errors it reports.
 4. Call finish with verdict "ok" and a one or two sentence summary in the user's language. finish re-runs the check and refuses while the code does not compile or a panel lost its default export.
 
+The user is not a developer and never sees code: write summaries (and the needs-backend sentence) in plain language about what changed on their screen, without code, file names or technical terms.
+
 Work efficiently: you have at most 12 model calls and 90 seconds. Several tool calls in one turn run in order, so write_file followed by check in the same turn is fine.`
 }
 
@@ -82,4 +84,4 @@ Label the request:
 - "ui": doable entirely in the panels' frontend code.
 - "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs.
 - "unclear": cannot tell.
-Reason: one short sentence the user will read, in the language of the request.`
+Reason: one short plain-language sentence the user will read, in the language of the request, without code or technical terms.`

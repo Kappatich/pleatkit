@@ -24,22 +24,51 @@ export interface RunOptions {
   signal?: AbortSignal
 }
 
-const base = (p: unknown) => (typeof p === 'string' ? p.replace(/^.*\//, '') : '?')
+/** `src/dynamic/customer-card.tsx` → "the customer card"; non-panel files get a generic name. */
+export function humanName(path: unknown, req: Pick<AgentRunRequest, 'context' | 'components'>): string {
+  if (typeof path !== 'string') return 'the page'
+  const root = req.context.dynamicRoots.find((r) => path.startsWith(r))
+  if (root && req.components.includes(path)) {
+    return 'the ' + path.slice(root.length).replace(/\.\w+$/, '').replace(/[-_/]+/g, ' ').trim()
+  }
+  if (root) return 'a helper of the page'
+  return "the app's data and helpers"
+}
 
-function describe(call: ToolCall): string {
+/** Plain-language progress line for a tool call. Never code or file paths: the end user reads these. */
+export function describe(call: ToolCall, req: Pick<AgentRunRequest, 'context' | 'components'>): string {
   switch (call.name) {
     case 'list_files':
-      return 'Looking at the files'
+      return 'Looking around the page'
     case 'read_file':
-      return `Reading ${base(call.input.path)}`
+      return `Looking at ${humanName(call.input.path, req)}`
     case 'write_file':
-      return `Writing ${base(call.input.path)}`
+      return `Changing ${humanName(call.input.path, req)}`
     case 'check':
-      return 'Checking the build'
+      return 'Checking that everything still works'
     case 'finish':
-      return 'Finishing'
+      return 'Wrapping up'
     default:
-      return call.name
+      return 'Working'
+  }
+}
+
+/**
+ * Something that turns one request into an AgentResult. The built-in loop (`loopRunner`) drives any
+ * ModelProvider through the five tools; another harness (e.g. the Claude Agent SDK, TASKS stage 2.5) can be
+ * plugged into the server by implementing this, reusing `Workspace` and `ToolRunner` for the same tools.
+ */
+export interface AgentRunner {
+  readonly name: string
+  readonly model: string
+  run(req: AgentRunRequest, options?: RunOptions): Promise<Omit<AgentResult, 'requestId'>>
+}
+
+export function loopRunner(provider: ModelProvider, defaults: Partial<AgentLimits> = {}): AgentRunner {
+  return {
+    name: provider.name,
+    model: provider.model,
+    run: (req, options = {}) => runAgent(req, provider, { ...options, limits: { ...defaults, ...options.limits } }),
   }
 }
 
@@ -79,7 +108,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
 
   const runner = new ToolRunner(ws, (entry, call) => {
     if (call.name === 'check' || (call.name === 'finish' && !entry.ok)) {
-      progress({ type: 'check', ok: entry.ok && !entry.result.startsWith('FAILED'), errors: ws.lastCheck?.errors ?? [], text: entry.ok && !entry.result.startsWith('FAILED') ? 'Build OK' : 'Build failed, fixing' })
+      const ok = entry.ok && !entry.result.startsWith('FAILED')
+      progress({ type: 'check', ok, errorCount: ws.lastCheck?.errors.length ?? 0, text: ok ? 'Everything works' : 'Found a problem, fixing it' })
     }
   })
 
@@ -110,14 +140,14 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         if (c.usage && c.model) meter.add(c.model, c.usage)
         classification = c.label
         timings.classifyMs = performance.now() - t
-        progress({ type: 'classified', label: c.label, text: c.label === 'needs-backend' ? 'Needs a server change' : 'UI change' })
+        progress({ type: 'classified', label: c.label, text: c.label === 'needs-backend' ? 'This needs a change on the server' : 'This can be done on the page' })
         if (c.label === 'needs-backend') {
           return done('needs-backend', c.reason || 'This needs a change on the server, so I passed it to the administrator.')
         }
       } catch (e) {
         if (signal.aborted) throw e
         timings.classifyMs = performance.now() - t
-        progress({ type: 'status', text: `Classifier unavailable (${(e as Error).message}); continuing` })
+        progress({ type: 'status', text: 'Thinking it over' })
       }
     }
 
@@ -141,7 +171,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       modelCalls++
       meter.add(turn.model, turn.usage)
       usedOutput += turn.usage.outputTokens
-      if (turn.text.trim()) progress({ type: 'model', turn: modelCalls, text: turn.text.trim().slice(0, 300) })
+      // The model's own text is not forwarded: it may contain code. It stays out of the user's view.
       if (turn.stop === 'refusal') {
         stopReason = 'refusal'
         break
@@ -158,7 +188,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       }
       const tt = performance.now()
       for (const call of turn.toolCalls) {
-        progress({ type: 'tool', turn: modelCalls, tool: call.name, text: describe(call) })
+        progress({ type: 'tool', turn: modelCalls, tool: call.name, text: describe(call, req) })
         results.push(await runner.run(call, modelCalls))
         if (runner.finished) break
       }

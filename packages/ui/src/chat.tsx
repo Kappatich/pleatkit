@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CommitRejectedError, useMorphkit, useMorphkitState, type AgentProgress, type AgentResult, type CompileError, type Snapshot } from '@morphkit/runtime'
+import { CommitRejectedError, useMorphkit, useMorphkitState, type AgentProgress, type AgentResult, type Snapshot } from '@morphkit/runtime'
 import { ElementPicker } from './picker.js'
 import { callAgent } from './sse.js'
 import { useMorphkitUiStyles } from './styles.js'
@@ -31,7 +31,8 @@ interface Turn {
   status: TurnStatus
   steps: Step[]
   summary?: string
-  errors?: CompileError[]
+  /** Snapshot this turn produced, so its Undo button acts only while it is the current version. */
+  snapshotId?: string
   /** Send → re-render, and the agent's own share. */
   timing?: { totalMs: number; agentMs: number; commitMs: number }
   result?: AgentResult
@@ -116,7 +117,7 @@ export function MorphkitChat({
   const addStep = (id: number, p: AgentProgress) =>
     update(id, (t) => {
       if (p.type === 'check') return { steps: [...t.steps, { text: p.text, tone: p.ok ? 'good' : 'bad' }] }
-      if (p.type === 'model' && t.steps.at(-1)?.text === p.text) return {}
+      if (t.steps.at(-1)?.text === p.text) return {}
       return { steps: [...t.steps, { text: p.text }] }
     })
 
@@ -135,7 +136,7 @@ export function MorphkitChat({
       const payload = engine.agentRequest(trimmed, { ...(appId ? { appId } : {}), ...(target ? { target } : {}), ...(migration ? { migration, files: from } : {}) })
       const result = await callAgent(agentUrl, payload, (p) => addStep(id, p))
       const agentMs = performance.now() - started
-      update(id, { result, summary: result.summary })
+      update(id, { result, summary: plain(result.summary) })
 
       if (result.verdict === 'needs-backend') {
         update(id, { status: 'needs-backend' })
@@ -160,12 +161,13 @@ export function MorphkitChat({
         // wait for React to paint the swapped modules before stopping the clock
         await new Promise((r) => requestAnimationFrame(() => r(null)))
         const now = performance.now()
-        update(id, { status: 'applied', timing: { totalMs: now - started, agentMs, commitMs: now - commitStarted } })
+        update(id, { status: 'applied', snapshotId: snapshot.id, timing: { totalMs: now - started, agentMs, commitMs: now - commitStarted } })
         toast('Applied')
         if (result.requestId) void engine.linkRequest(result.requestId, { snapshotId: snapshot.id, status: 'applied' }).catch(() => undefined)
       } catch (e) {
         const errors = e instanceof CommitRejectedError ? e.errors : [{ file: '', line: 0, column: 0, text: (e as Error).message }]
-        update(id, { status: 'rejected', errors })
+        // the details go to the admin's request log, not to the user
+        update(id, { status: 'rejected', summary: 'The change did not pass the final check in your browser, so nothing was changed.' })
         engine.draft.discard()
         toast('The change did not compile in the browser; nothing was applied', 'bad')
         if (result.requestId) {
@@ -174,7 +176,8 @@ export function MorphkitChat({
         }
       }
     } catch (e) {
-      update(id, { status: 'failed', summary: (e as Error).message })
+      console.warn('[morphkit] agent request failed', e)
+      update(id, { status: 'failed', summary: 'Something went wrong on our side and nothing was changed. Please try again.' })
     } finally {
       setBusy(false)
     }
@@ -255,7 +258,13 @@ export function MorphkitChat({
               </div>
             )}
             {turns.map((t) => (
-              <TurnView key={t.id} turn={t} />
+              <TurnView
+                key={t.id}
+                turn={t}
+                canUndo={!busy && t.snapshotId !== undefined && t.snapshotId === head?.id && state.canUndo}
+                onUndo={() => void nav('Undone', () => engine.undo())}
+                onHistory={() => setShowHistory(true)}
+              />
             ))}
           </div>
 
@@ -343,7 +352,15 @@ const BADGE: Record<TurnStatus, [string, string]> = {
   rejected: ['Did not compile', 'mk-b-bad'],
 }
 
-function TurnView({ turn }: { turn: Turn }) {
+/** Model summaries are meant for the user; strip anything that still looks like code. */
+function plain(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]*)`/g, '$1')
+    .trim()
+}
+
+function TurnView({ turn, canUndo, onUndo, onHistory }: { turn: Turn; canUndo: boolean; onUndo: () => void; onHistory: () => void }) {
   const [label, cls] = BADGE[turn.status]
   const cost = turn.result?.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0) ?? 0
   return (
@@ -373,21 +390,15 @@ function TurnView({ turn }: { turn: Turn }) {
             {turn.summary}
           </div>
         )}
-        {turn.errors && (
-          <ul className="mk-errors">
-            {turn.errors.map((e, i) => (
-              <li key={i}>
-                {e.file}
-                {e.line ? `:${e.line}:${e.column}` : ''} {e.text}
-              </li>
-            ))}
-          </ul>
-        )}
-        {turn.result && turn.status !== 'running' && (
-          <div className="mk-meta">
-            {turn.timing ? `${(turn.timing.totalMs / 1000).toFixed(1)} s to apply · ` : ''}
-            {turn.result.modelCalls} model call{turn.result.modelCalls === 1 ? '' : 's'} · {turn.result.log.length} tool calls
-            {cost > 0 ? ` · $${cost.toFixed(4)}` : ''}
+        {turn.status === 'applied' && (
+          <div className="mk-row" style={{ marginTop: 6 }}>
+            <button type="button" className="mk-btn" data-testid="mk-turn-undo" disabled={!canUndo} onClick={onUndo}>
+              Undo
+            </button>
+            <button type="button" className="mk-btn" data-testid="mk-turn-history" onClick={onHistory}>
+              History
+            </button>
+            {turn.timing && <span className="mk-meta">applied in {(turn.timing.totalMs / 1000).toFixed(1)} s</span>}
           </div>
         )}
       </div>

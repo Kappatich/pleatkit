@@ -1,7 +1,7 @@
 // Wire protocol between the browser (@morphkit/ui) and the agent server (@morphkit/agent).
 // Types only, so both sides agree without the browser depending on Node code.
 
-import type { CompileError, FileMap, MorphkitManifest } from './types.js'
+import type { FileMap, MorphkitManifest } from './types.js'
 
 export type AgentVerdict = 'ok' | 'needs-backend' | 'failed'
 export type RequestClass = 'ui' | 'needs-backend' | 'unclear'
@@ -89,12 +89,16 @@ export interface AgentResult {
   stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'refusal' | 'no-finish' | 'error'
 }
 
+/**
+ * Progress shown to the end user. `text` is always a plain-language line ("Looking at the customer card");
+ * never code, file paths or compiler output, which stay in the result's tool log for the admin (DECISIONS item 10).
+ */
 export type AgentProgress =
   | { type: 'status'; text: string }
   | { type: 'classified'; label: RequestClass; text: string }
   | { type: 'model'; turn: number; text: string }
   | { type: 'tool'; turn: number; tool: string; text: string; ok?: boolean }
-  | { type: 'check'; ok: boolean; errors: CompileError[]; text: string }
+  | { type: 'check'; ok: boolean; errorCount: number; text: string }
 
 /** SSE events of `POST /agent/run`: `event: progress|result|error`, `data: <json>`. */
 export type AgentEvent = { event: 'progress'; data: AgentProgress } | { event: 'result'; data: AgentResult } | { event: 'error'; data: { message: string } }
