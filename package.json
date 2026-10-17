@@ -18,7 +18,8 @@
     "agent:live": "node scripts/anthropic-live.mjs",
     "e2e:live": "pnpm --filter @morphkit/demo-crm e2e live-anthropic",
     "demo:video": "pnpm build:packages && node scripts/record-demo.mjs",
-    "site:check": "node scripts/site-check.mjs"
+    "site:check": "node scripts/site-check.mjs",
+    "doctor": "node packages/cli/dist/cli.js doctor --root apps/demo-crm"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

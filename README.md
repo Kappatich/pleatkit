@@ -21,6 +21,7 @@ Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Progress and measurement
 | `@morphkit/runtime` | `<MorphkitProvider>`, `<Dynamic>`, snapshot engine (draft/check/commit/undo/redo/reset), esbuild-wasm compiler, Tailwind 4 in the browser, `LocalStore` (IndexedDB) and `HttpStore` | morphkit (public, MIT) |
 | `@morphkit/ui` | chat drawer, "point at a panel" picker, history, undo/reset, toasts, stale-version banner | morphkit (public, MIT) |
 | `@morphkit/agent` | Node agent server: model loop with zone-checked tools, server-side check, SSE progress, providers `anthropic` / `openai-compatible` / `scripted` | morphkit (public, MIT) |
+| `@morphkit/cli` | `morphkit doctor`: checks an app's morphkit setup and prints fixes | morphkit (public, MIT) |
 | `@morphkit/store-server` | snapshots, heads, bundles and the request log per user; admin actions; Hono + Drizzle (SQLite in the demo) | **morphkit-cloud** (private) |
 | `apps/demo-crm` | demo CRM with two users, three dynamic panels and an `/admin` dashboard | morphkit (public) |
 
@@ -128,6 +129,8 @@ const store = new LocalStore()   // or new HttpStore({ baseUrl: '/morphkit-store
 ```bash
 MORPHKIT_API_KEY=<key> npx morphkit-agent        # http://localhost:8789/agent
 ```
+
+**Check the setup:** `npx morphkit doctor` (package `@morphkit/cli`, run in the app folder after `vite build`) checks the plugin and zones, a single React 19 shared with the runtime, that every `<Dynamic id>` has a file with a default export, that externals resolve, that a CSP (if any) allows `blob:` and `'wasm-unsafe-eval'`, and that no API key is in the client bundle or a `VITE_` variable. It prints a fix for each problem and exits with 1 when something fails.
 
 Optional: `npx morphkit-store` (store-server, SQLite) plus `HttpStore` for server-side snapshots, cross-device
 versions and the admin dashboard; set `MORPHKIT_STORE_URL` on the agent so every run is logged there.
