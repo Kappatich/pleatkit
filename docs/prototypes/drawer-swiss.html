@@ -61,8 +61,9 @@
   .ruler { display: none; padding: 0 16px 10px; border-bottom: 1px solid var(--rule); }
   .ruler.open { display: block; }
   .tt { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-  .tt th { text-align: left; font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 8px 0 6px; border-bottom: 1px solid var(--ink); }
-  .tt td { padding: 7px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
+  .tt th { text-align: left; font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 8px 12px 6px 0; border-bottom: 1px solid var(--ink); }
+  .tt td { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
+  .tt th:last-child, .tt td:last-child { padding-right: 0; }
   .tt .r { text-align: right; }
   .tt .v { font: 700 13px var(--mono); color: var(--ink); width: 36px; }
   .tt .t { font: 500 12.5px var(--mono); }
