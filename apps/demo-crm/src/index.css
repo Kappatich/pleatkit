@@ -39,37 +39,4 @@ body {
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
-/* /admin is morphkit's own surface: "cyanotype" light sheet (docs/DESIGN.md). The CRM itself keeps the customer's neutral look. */
-.mk-admin {
-  --background: #f4f7fc;
-  --foreground: #0d2b5c;
-  --card: #ffffff;
-  --primary: #0d2b5c;
-  --primary-foreground: #f4f7fc;
-  --muted: #e9eef8;
-  --muted-foreground: #3a5486;
-  --border: #9fb4d9;
-  --ring: #ffcf1f;
-  --mk-signal: #ffcf1f;
-  background-color: var(--background);
-  color: var(--foreground);
-  background-image: linear-gradient(#c6d3ea 1px, transparent 1px), linear-gradient(90deg, #c6d3ea 1px, transparent 1px);
-  background-size: 96px 96px;
-  font-family: "Archivo", "Helvetica Neue", Arial, system-ui, sans-serif;
-}
-.mk-admin [class*="rounded"] { border-radius: 0 !important; }
-.mk-admin [class*="shadow"] { box-shadow: none !important; }
-.mk-admin header { background: #ffffff; border-bottom: 1px solid #9fb4d9; }
-.mk-admin .mk-admin-mark { display: inline-block; width: 14px; height: 14px; margin-left: 4px; border: 1.5px solid #0d2b5c; background: repeating-linear-gradient(-45deg, #ffcf1f 0 2px, transparent 2px 6px); vertical-align: -2px; }
-.mk-admin thead th, .mk-admin .bg-card > div > p.text-muted-foreground, .mk-admin label .text-xs { font-family: "Azeret Mono", ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; font-size: 10.5px; color: #6b82ad; }
-.mk-admin .bg-card { position: relative; border: 1px solid #9fb4d9; background: #fff; }
-.mk-admin .bg-card::before, .mk-admin .bg-card::after { content: ""; position: absolute; width: 9px; height: 9px; border: 0 solid #0d2b5c; pointer-events: none; }
-.mk-admin .bg-card::before { left: -1px; top: -1px; border-left-width: 1.5px; border-top-width: 1.5px; }
-.mk-admin .bg-card::after { right: -1px; bottom: -1px; border-right-width: 1.5px; border-bottom-width: 1.5px; }
-.mk-admin .bg-card h3 { letter-spacing: -.02em; }
-.mk-admin tr[data-status="pending-review"] { background: rgba(255,207,31,.18) !important; box-shadow: inset 4px 0 0 #ffcf1f; }
-.mk-admin tbody tr:hover { background: #e9eef8; }
-.mk-admin button, .mk-admin a.button { border-radius: 0 !important; font-family: "Azeret Mono", ui-monospace, Menlo, monospace; font-size: 12px; letter-spacing: .02em; }
-.mk-admin .rounded-full { border-radius: 0; font-family: "Azeret Mono", ui-monospace, Menlo, monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; border: 1px solid currentColor; background: transparent !important; }
-.mk-admin pre, .mk-admin code { border-radius: 0; }
-.mk-admin pre, .mk-admin code, .mk-admin .font-mono, .mk-admin table.font-mono *, .mk-admin [class*="font-mono"] { text-transform: none !important; letter-spacing: 0 !important; font-size: inherit; color: inherit; }
+/* /admin is morphkit's own surface, design v3: src/core/admin.css. The CRM itself keeps the customer's neutral look. */

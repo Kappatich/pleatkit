@@ -36,8 +36,8 @@ test('admin dashboard: counters, diff vs parent, tool log, and rolling a user ba
   await expect(page.getByTestId('admin-row')).toHaveCount(2)
   await expect(page.getByTestId('stat-edits')).toHaveText('1')
   await expect(page.getByTestId('stat-total')).toHaveText('2')
-  await expect(page.getByTestId('stat-success')).toHaveText('50%')
-  await expect(page.getByTestId('stat-backend')).toHaveText('50%')
+  await expect(page.getByTestId('stat-backend')).toHaveText('1')
+  await expect(page.getByTestId('admin-stats')).toContainText('This week: 2 requests · 1 applied · 1 needs backend')
 
   const alice = page.getByTestId('admin-row').filter({ hasText: 'alice' })
   await expect(alice).toHaveAttribute('data-status', 'applied')

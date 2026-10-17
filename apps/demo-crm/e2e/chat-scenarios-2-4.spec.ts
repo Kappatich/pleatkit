@@ -18,7 +18,7 @@ test('chat scenario 2: a backend request goes to the admin, the app does not cha
   const row = page.getByTestId('admin-row').first()
   await expect(row).toHaveAttribute('data-verdict', 'needs-backend')
   await expect(row).toHaveAttribute('data-status', 'pending-admin')
-  await expect(page.getByTestId('stat-backend')).toHaveText('100%')
+  await expect(page.getByTestId('stat-backend')).toHaveText('1')
   await row.click()
   await page.getByTestId('admin-approve').click()
   await expect(row).toHaveAttribute('data-status', 'in-progress')
