@@ -87,7 +87,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
     const text = textOf(r.choices[0]?.message.content)
     try {
       const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)) as { label?: string; reason?: string; question?: string; options?: string[] }
-      const label = parsed.label === 'ui' || parsed.label === 'needs-backend' ? parsed.label : 'unclear'
+      const label = parsed.label === 'ui' || parsed.label === 'needs-backend' || parsed.label === 'off-topic' ? parsed.label : 'unclear'
       return { label, reason: parsed.reason ?? '', ...(label === 'unclear' ? clarifyOf(parsed) : {}), usage: usageOf(r.usage), model: r.model ?? this.classifierModel }
     } catch {
       return { label: 'unclear', reason: '', usage: usageOf(r.usage), model: r.model ?? this.classifierModel }

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { STORE_URL } from './morphkit'
+import { AUTH, STORE_URL, tokenFor } from './morphkit'
 
 interface RequestRow {
   id: string
@@ -48,9 +48,11 @@ interface Stats {
 function useAdminApi(appId: string) {
   return useCallback(
     async <T,>(path: string, init?: RequestInit): Promise<T> => {
-      const res = await fetch(`${STORE_URL}${path}`, {
+      // `?auth=token`: an admin token from the demo's backend; otherwise the development header
+      const auth: Record<string, string> = AUTH === 'token' ? { authorization: `Bearer ${await tokenFor('admin', 'admin')}` } : { 'x-morphkit-admin': '1' }
+      const res = await fetch(`${STORE_URL}/v1${path}`, {
         ...init,
-        headers: { 'x-morphkit-admin': '1', 'x-morphkit-app': appId, 'content-type': 'application/json', ...init?.headers },
+        headers: { ...auth, 'x-morphkit-app': appId, 'content-type': 'application/json', ...init?.headers },
       })
       const body = (await res.json().catch(() => ({}))) as T & { error?: string }
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)
@@ -72,6 +74,7 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'secondary' | 'dest
   'rolled-back': 'secondary',
   rejected: 'destructive',
   failed: 'destructive',
+  refused: 'secondary',
 }
 
 const label = (tr: Translate, prefix: 'status' | 'verdict', value: string) => tr(`${prefix}.${value}` as UiKey)

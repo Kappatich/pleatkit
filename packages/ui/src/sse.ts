@@ -44,12 +44,12 @@ export async function callAgent(
   agentUrl: string,
   body: AgentRunRequest,
   onProgress: (p: AgentProgress) => void,
-  options: { signal?: AbortSignal; fetch?: typeof fetch } = {},
+  options: { signal?: AbortSignal; fetch?: typeof fetch; headers?: Record<string, string> } = {},
 ): Promise<AgentResult> {
   const f = options.fetch ?? ((...a) => globalThis.fetch(...a))
-  const res = await f(`${agentUrl.replace(/\/$/, '')}/run`, {
+  const res = await f(`${agentUrl.replace(/\/$/, '')}/v1/run`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+    headers: { 'content-type': 'application/json', accept: 'text/event-stream', ...options.headers },
     body: JSON.stringify(body),
     signal: options.signal,
   })

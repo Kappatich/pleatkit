@@ -32,6 +32,11 @@ const en = {
   limitOutput: 'The change turned out too large for one request and nothing was changed. Try asking for a smaller part of it.',
   refused: 'I cannot help with this request, so nothing was changed.',
   noFinish: 'I could not finish this change, so nothing was changed.',
+  limitCost: 'This change turned out more expensive than one request may be, so nothing was changed. Try asking for a smaller part of it.',
+  offTopic: 'I can only change how this app looks and works for you. Ask me about its pages and panels.',
+  quotaUser: 'You have reached today’s limit of changes. It refills over the day; please try again later.',
+  quotaApp: 'Customizing is paused for this app for now because today’s limit is reached. Please try again later.',
+  disabled: 'Customizing is switched off for this app right now.',
 }
 
 export type MessageKey = keyof typeof en
@@ -64,6 +69,11 @@ const ru: Record<MessageKey, string> = {
   limitOutput: 'Изменение оказалось слишком большим для одного запроса, ничего не изменено. Попробуйте попросить часть.',
   refused: 'С этим запросом я помочь не могу, ничего не изменено.',
   noFinish: 'Не смог довести изменение до конца, ничего не изменено.',
+  limitCost: 'Изменение оказалось дороже, чем разрешено для одного запроса, ничего не изменено. Попробуйте попросить часть.',
+  offTopic: 'Я могу менять только то, как это приложение выглядит и работает у вас. Спросите про его страницы и панели.',
+  quotaUser: 'На сегодня лимит изменений исчерпан. Он восстанавливается в течение дня, попробуйте позже.',
+  quotaApp: 'Настройка в этом приложении временно приостановлена: дневной лимит исчерпан. Попробуйте позже.',
+  disabled: 'Настройка интерфейса в этом приложении сейчас выключена.',
 }
 
 export const MESSAGES: Record<Locale, Record<MessageKey, string>> = { en, ru }

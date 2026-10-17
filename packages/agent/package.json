@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Agent server for morphkit: model loop with zone-checked file tools, server-side esbuild check, SSE progress",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kappatich/morphkit.git",
+    "directory": "packages/agent"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -39,5 +44,9 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

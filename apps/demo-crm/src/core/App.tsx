@@ -5,7 +5,7 @@ import { api, type Customer, type Deal } from '@/readonly/api'
 import { formatDate } from '@/readonly/format'
 import { cn } from '@/lib/utils'
 import { Admin } from './Admin'
-import { AGENT_URL, APP_ID, morphkitConfig, storeFor, USERS, type UserId } from './morphkit'
+import { AGENT_URL, APP_ID, AUTH, morphkitConfig, storeFor, tokenFor, USERS, type UserId } from './morphkit'
 
 function readParams() {
   const params = new URLSearchParams(location.search)
@@ -82,7 +82,11 @@ function Crm() {
         </header>
         <CrmPage isolated={isolated} />
       </div>
-      {dev ? <DevPanel /> : <MorphkitChat agentUrl={AGENT_URL} appId={APP_ID} locale={LOCALE} examples={EXAMPLES[LOCALE]} />}
+      {dev ? (
+        <DevPanel />
+      ) : (
+        <MorphkitChat agentUrl={AGENT_URL} appId={APP_ID} locale={LOCALE} examples={EXAMPLES[LOCALE]} {...(AUTH === 'token' ? { token: () => tokenFor(user) } : {})} />
+      )}
     </MorphkitProvider>
   )
 }

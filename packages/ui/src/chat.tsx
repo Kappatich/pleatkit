@@ -23,9 +23,14 @@ export interface MorphkitChatProps {
   launcherLabel?: string
   /** Shift the page left while the drawer is open so the panels being changed stay visible. Default true. */
   pushContent?: boolean
+  /**
+   * The user token for the agent server (production, V1 A1): the same short-lived JWT your backend mints for
+   * store-server, or a function returning a fresh one. Sent as `Authorization: Bearer …`.
+   */
+  token?: string | (() => string | Promise<string>)
 }
 
-type TurnStatus = 'running' | 'applied' | 'nothing' | 'needs-backend' | 'failed' | 'rejected' | 'clarify'
+type TurnStatus = 'running' | 'applied' | 'nothing' | 'needs-backend' | 'failed' | 'rejected' | 'clarify' | 'refused'
 
 interface Turn {
   id: number
@@ -70,6 +75,7 @@ export function MorphkitChat({
   defaultOpen = false,
   launcherLabel,
   pushContent = true,
+  token,
 }: MorphkitChatProps) {
   useMorphkitUiStyles()
   const tr = useMemo(() => translator(locale), [locale])
@@ -174,7 +180,10 @@ export function MorphkitChat({
         ...(attached.length ? { images: attached.map(({ mediaType, data, name }) => ({ mediaType, data, ...(name ? { name } : {}) })) } : {}),
         ...(migration ? { migration, files: from } : {}),
       })
-      const result = await callAgent(agentUrl, payload, (p) => update(id, (t) => ({ steps: addStep(t.steps, p) })))
+      const bearer = typeof token === 'function' ? await token() : token
+      const result = await callAgent(agentUrl, payload, (p) => update(id, (t) => ({ steps: addStep(t.steps, p) })), {
+        headers: { ...(bearer ? { authorization: `Bearer ${bearer}` } : {}), 'idempotency-key': `run-${engine.userId}-${Date.now().toString(36)}-${id}-${Math.random().toString(36).slice(2, 8)}` },
+      })
       const agentMs = performance.now() - started
       // the agent's last "Thinking" line is over once the result is in
       update(id, (t) => ({ result, summary: plain(result.summary), steps: t.steps.filter((s) => !s.transient) }))
@@ -187,6 +196,11 @@ export function MorphkitChat({
       if (result.verdict === 'needs-backend') {
         update(id, { status: 'needs-backend' })
         toast(tr('toast.admin'), 'admin')
+        return
+      }
+      if (result.verdict === 'refused') {
+        // off-topic, over the quota or switched off: one fixed reply, nothing was run
+        update(id, { status: 'refused' })
         return
       }
       if (result.verdict !== 'ok') {
@@ -440,6 +454,9 @@ export function MorphkitChat({
                 {tr('chat.reset')}
               </button>
             </div>
+            <div className="mk-disclaimer" data-testid="mk-chat-disclaimer">
+              {tr('chat.disclaimer')}
+            </div>
           </div>
         </aside>
       )}
@@ -475,6 +492,7 @@ const BADGE: Record<TurnStatus, [UiKey, string]> = {
   failed: ['badge.failed', 'mk-b-bad'],
   rejected: ['badge.rejected', 'mk-b-bad'],
   clarify: ['badge.clarify', 'mk-b-run'],
+  refused: ['badge.refused', 'mk-b-bad'],
 }
 
 /** Model summaries are meant for the user; strip anything that still looks like code. */

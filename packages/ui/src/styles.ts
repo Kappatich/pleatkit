@@ -32,6 +32,7 @@ const CSS = `
 .mk-details { display: block; border: 0; background: transparent; padding: 0; margin: 2px 0; font: inherit; font-size: 12px; color: #5b21b6; cursor: pointer; text-decoration: underline; }
 .mk-example { border: 0; padding: 0; text-align: left; color: #5b21b6; background: transparent; }
 .mk-summary { margin-top: 4px; }
+.mk-disclaimer { font-size: 11px; color: #64748b; text-align: center; }
 .mk-clarify { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
 .mk-thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
 .mk-thumb { position: relative; display: inline-block; }

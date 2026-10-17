@@ -52,15 +52,19 @@ describe('agent HTTP server', () => {
   it('logs the run in store-server and returns its request id', async () => {
     const original = globalThis.fetch
     const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      if (String(input).startsWith('http://store.test')) return new Response(JSON.stringify({ id: 'req_42' }), { status: 201, headers: { 'content-type': 'application/json' } })
+      const url = String(input)
+      const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+      if (url === 'http://store.test/v1/quota') return json({ ok: true, tokens: {} })
+      if (url === 'http://store.test/v1/plan') return json({ plan: null, limits: {} })
+      if (url.startsWith('http://store.test')) return json({ id: 'req_42' }, 201)
       return original(input, init)
     })
     const app = createAgentApp({ provider, storeUrl: 'http://store.test', log: () => undefined })
     const res = await app.request('/agent/run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request('phone')) })
     const result = parseSse(await res.text()).at(-1)!.data as AgentResult
     expect(result.requestId).toBe('req_42')
-    const [url, init] = spy.mock.calls[0]!
-    expect(url).toBe('http://store.test/requests')
+    const [url, init] = spy.mock.calls.find(([u]) => String(u).endsWith('/requests'))!
+    expect(url).toBe('http://store.test/v1/requests')
     const body = JSON.parse(String(init!.body))
     expect(body).toMatchObject({ userId: 'alice', text: 'phone', verdict: 'ok', status: 'proposed' })
     expect(body.log.length).toBe(3)

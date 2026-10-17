@@ -1,8 +1,13 @@
 {
   "name": "@morphkit/cli",
   "version": "0.1.0",
-  "description": "morphkit command line: `morphkit doctor` checks an app's morphkit setup and prints fixes",
+  "description": "morphkit command line: `morphkit doctor` checks an app's setup, `morphkit keys` makes app keys, `morphkit export` exports data",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kappatich/morphkit.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,7 +21,9 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -24,7 +31,8 @@
   },
   "dependencies": {
     "@morphkit/vite-plugin": "workspace:*",
-    "tinyglobby": "^0.2.15"
+    "tinyglobby": "^0.2.15",
+    "@morphkit/runtime": "workspace:*"
   },
   "peerDependencies": {
     "vite": "^6.0.0"
@@ -36,5 +44,9 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }
