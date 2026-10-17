@@ -1,21 +1,21 @@
 {
   "chatScenario1": {
     "provider": "scripted",
-    "requestToRerenderMs": 186,
-    "agentMs": 114,
-    "commitMs": 71,
-    "wallClockMs": 311,
+    "requestToRerenderMs": 89,
+    "agentMs": 28,
+    "commitMs": 61,
+    "wallClockMs": 136,
     "runtimeCssBytes": 11180
   },
-  "measuredAt": "2026-10-17T20:19:25.186Z",
+  "measuredAt": "2026-10-17T20:24:24.489Z",
   "chatScenario2": {
     "provider": "scripted",
-    "wallClockMs": 80
+    "wallClockMs": 207
   },
   "chatScenario1Cold": {
     "provider": "scripted",
-    "requestToRerenderMs": 894,
-    "agentMs": 107,
-    "commitMs": 787
+    "requestToRerenderMs": 290,
+    "agentMs": 28,
+    "commitMs": 261
   }
 }
