@@ -57,17 +57,19 @@
   .ico.close { grid-column: 4; }
   .head.undone .ico.redo { display: grid; }
 
-  /* version ruler (shown when history open) */
-  .ruler { display: none; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 10px 16px 12px; border-bottom: 1px solid var(--rule); }
-  .ruler.open { display: grid; }
-  .ruler .lbl { font: 500 12px var(--sans); color: var(--ink-2); }
-  .ruler .lbl.now { color: var(--ink); font-weight: 700; }
-  .ruler .track { position: relative; height: 24px; }
-  .ruler .track::before { content: ""; position: absolute; left: 0; right: 0; top: 11px; border-top: 1px solid var(--ink); }
-  .ruler .dot { position: absolute; top: 6px; width: 12px; height: 12px; border: 1.5px solid var(--ink); background: var(--paper); border-radius: 50%; transform: translateX(-50%); cursor: pointer; padding: 0; }
-  .ruler .dot.cur { background: var(--red); border-color: var(--red); }
-  .ruler .dot:hover { background: var(--ink); }
-  .ruler .dot[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 50%; transform: translateX(-50%); top: 18px; white-space: nowrap; background: var(--ink); color: var(--paper); font: 500 11px var(--sans); padding: 3px 7px; z-index: 3; }
+  /* version history as a timetable (SBB-style: tabular columns, hairlines, the current row marked) */
+  .ruler { display: none; padding: 0 16px 10px; border-bottom: 1px solid var(--rule); }
+  .ruler.open { display: block; }
+  .tt { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .tt th { text-align: left; font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 8px 0 6px; border-bottom: 1px solid var(--ink); }
+  .tt td { padding: 7px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
+  .tt .r { text-align: right; }
+  .tt .v { font: 700 13px var(--mono); color: var(--ink); width: 36px; }
+  .tt .t { font: 500 12.5px var(--mono); }
+  .tt tr.now td { color: var(--ink); font-weight: 500; border-bottom: 2px solid var(--red); }
+  .tt .here { font: 700 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--red-ink); }
+  .tt .go { font: 500 12px var(--sans); border: 0; background: transparent; color: var(--ink-3); cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; border-radius: 0; }
+  .tt .go:hover { color: var(--ink); }
 
   .feed { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
   .hint { color: var(--ink-2); font-size: 13.5px; max-width: 36ch; }
@@ -166,14 +168,15 @@
     </header>
 
     <div class="ruler" id="ruler" aria-label="Version history">
-      <span class="lbl">Original</span>
-      <div class="track">
-        <button class="dot" style="left:0" data-tip="Original" aria-label="Back to original"></button>
-        <button class="dot" style="left:33%" data-tip="Phone, city, source · 2:41"></button>
-        <button class="dot" style="left:66%" data-tip="Overdue in red · 2:42"></button>
-        <button class="dot cur" style="left:100%" data-tip="Deals under the card · 2:44" aria-current="true"></button>
-      </div>
-      <span class="lbl now">Now</span>
+      <table class="tt">
+        <thead><tr><th>Version</th><th>Change</th><th class="r">Time</th><th class="r"></th></tr></thead>
+        <tbody>
+          <tr><td class="v">v0</td><td>Original</td><td class="r t">—</td><td class="r"><button class="go" aria-label="Back to original">Restore</button></td></tr>
+          <tr><td class="v">v1</td><td>Phone, city, source</td><td class="r t">14:41</td><td class="r"><button class="go">Restore</button></td></tr>
+          <tr><td class="v">v2</td><td>Overdue in red</td><td class="r t">14:42</td><td class="r"><button class="go">Restore</button></td></tr>
+          <tr class="now" aria-current="true"><td class="v">v3</td><td>Deals under the card</td><td class="r t">14:44</td><td class="r"><span class="here">now</span></td></tr>
+        </tbody>
+      </table>
     </div>
 
     <div class="feed">
@@ -232,6 +235,7 @@
   </div>
   <div><h2>Что от швейцарского плаката</h2>
     <p>Флаговая верстка, одна гарнитура, жирный заголовок, чёрные линейки как структура, никаких скруглений и теней.</p>
+    <p><b>От швейцарского расписания (SBB):</b> история версий как таблица расписания: колонка версии, что изменилось, время табличными цифрами, текущая строка подчёркнута красным, «Restore» вместо кнопок.</p>
     <p>Один красный: только текущая версия и кнопка отправки. Всё остальное чёрное и серое.</p>
     <p>Выделение зоны на странице: красная рамка с подписью в моноширинном и кнопка EDIT в углу панели, видна при наведении.</p>
   </div>
@@ -284,7 +288,6 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !inField) { e.preventDefault(); if (e.shiftKey) document.querySelector('.ico.redo').click(); else undo.click(); }
   });
   Array.prototype.slice.call(document.querySelectorAll('.chip')).forEach(function (c) { c.addEventListener('click', function () { setState('typing'); ta.value = c.textContent; autosize(); send.classList.add('active'); }); });
-  Array.prototype.slice.call(document.querySelectorAll('.ruler .dot')).forEach(function (d) { d.addEventListener('click', function () { Array.prototype.slice.call(document.querySelectorAll('.ruler .dot')).forEach(function (x) { x.classList.remove('cur'); x.removeAttribute('aria-current'); }); d.classList.add('cur'); d.setAttribute('aria-current', 'true'); }); });
   setState('empty');
 })();
 </script>
