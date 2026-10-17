@@ -239,7 +239,7 @@
       <ol class="steps">
         <li><div><h3>Mark the zones.</h3><p>In <code>vite.config.ts</code> you list the files the agent may rewrite and the files it may read. Everything else stays closed: the agent sees only its type declarations.</p></div></li>
         <li><div><h3>The user asks.</h3><p>They open the chat, point at a panel and type what they want. A small model sorts the request first. Backend work goes to your admin queue and no code gets written.</p></div></li>
-        <li><div><h3>The agent drafts and the code is checked.</h3><p>The agent cannot finish until the whole zone compiles. The browser compiles it again and swaps the panel in without a reload, in 30–40 ms once the code arrives.</p></div></li>
+        <li><div><h3>The agent drafts and the code is checked.</h3><p>The agent cannot finish until the whole zone compiles. The browser compiles it again and swaps the panel in without a reload, in about 100 ms from compile to paint once the code arrives.</p></div></li>
         <li><div><h3>The edit stays, and can be undone.</h3><p>It is saved as that user's snapshot with undo, history and reset. Your admin sees the request, the diff and the agent's tool log, and can roll it back.</p></div></li>
       </ol>
     </div>
