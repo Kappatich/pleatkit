@@ -40,6 +40,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "acorn": "^8.15.0",
+    "acorn-jsx": "^5.3.2",
     "esbuild-wasm": "0.28.2",
     "idb": "^8.0.3"
   },
@@ -56,11 +58,6 @@
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.14",
     "vitest": "^3.2.4"
-  },
-  "peerDependenciesMeta": {
-    "react-dom": {
-      "optional": true
-    }
   },
   "publishConfig": {
     "access": "public",

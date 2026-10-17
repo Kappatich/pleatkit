@@ -18,10 +18,17 @@ const files = (map: FileMap) =>
 export const PROMPT_VERSION = '2026-10-18.4a'
 
 /** Stable instructions: identical for every request of the same app, so they cache well. */
-export function instructions(req: Pick<AgentRunRequest, 'context'>): string {
+/** The run's limits as the prompt states them (code review 06 §4: the text used to say "12 calls, 90 s" whatever the config). */
+export interface PromptLimits {
+  maxModelCalls: number
+  timeoutMs: number
+}
+const DEFAULT_PROMPT_LIMITS: PromptLimits = { maxModelCalls: 12, timeoutMs: 90_000 }
+
+export function instructions(req: Pick<AgentRunRequest, 'context'>, limits: PromptLimits = DEFAULT_PROMPT_LIMITS): string {
   const roots = req.context.dynamicRoots.join(', ')
   const externals = req.context.externals.join(', ')
-  return `You are the morphkit UI agent. A user of this web app asks for a change to their own personal version of the interface. You edit only the dynamic zone; your result is compiled in the user's browser and swapped in without a reload. Other users are not affected.
+  return `You are the morphkit UI agent. A user of this web app asks for a change to their own personal version of the interface. You edit only the dynamic zone; your result is compiled (on the server, or in the user's browser) and swapped in without a reload. Other users are not affected.
 
 Zones:
 - dynamic (${roots}): you may create and replace files here. A panel file src/dynamic/<id>.tsx is mounted by the host app as <Dynamic id="<id>" props={...}>: it must keep a default-exported React component, and the props it receives are fixed by the host (read the current code to see them).
@@ -48,7 +55,7 @@ The user may attach screenshots of their screen, and when they point at a panel 
 
 The user is not a developer and never sees code: write summaries (and the needs-backend sentence) in plain language about what changed on their screen, without code, file names or technical terms.
 
-Work efficiently: you have at most 12 model calls and 90 seconds. Several tool calls in one turn run in order, so write_file followed by check in the same turn is fine.`
+Work efficiently: you have at most ${limits.maxModelCalls} model calls and ${Math.round(limits.timeoutMs / 1000)} seconds. Several tool calls in one turn run in order, so write_file followed by check in the same turn is fine.`
 }
 
 /** Readonly sources and core types: large, stable, cached together with the instructions. */
@@ -86,8 +93,8 @@ export function userMessage(req: AgentRunRequest): string {
   return parts.join('\n\n')
 }
 
-export function buildPrompt(req: AgentRunRequest): PromptParts {
-  return { instructions: instructions(req), cached: cachedContext(req), user: userMessage(req), ...(req.images?.length ? { images: req.images } : {}) }
+export function buildPrompt(req: AgentRunRequest, limits: PromptLimits = DEFAULT_PROMPT_LIMITS): PromptParts {
+  return { instructions: instructions(req, limits), cached: cachedContext(req), user: userMessage(req), ...(req.images?.length ? { images: req.images } : {}) }
 }
 
 /** Compact description of the app for the request classifier. */

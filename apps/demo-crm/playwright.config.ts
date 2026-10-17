@@ -64,6 +64,8 @@ export default defineConfig({
         MORPHKIT_AGENT_PORT: AGENT_PORT,
         MORPHKIT_STORE_URL: `http://localhost:${STORE_PORT}`,
         MORPHKIT_FIXTURES: path.join(here, 'e2e', 'fixtures', 'agent'),
+        // the static rules, readonly sources and core types come from the build, not from the browser (06 item 8)
+        MORPHKIT_MANIFEST: path.join(here, 'dist', 'morphkit.manifest.json'),
         MORPHKIT_APP_ID: SECURE_APP,
         MORPHKIT_APP_KEY: secure.appKey,
         MORPHKIT_JWT_SECRET: secure.jwtSecret,

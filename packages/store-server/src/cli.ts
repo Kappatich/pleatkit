@@ -9,6 +9,7 @@ import { sweepAlive24h } from './ledger.js'
 // MORPHKIT_MODERATION: off (default) | review: agent edits apply at once but wait for an admin's review
 // MORPHKIT_APP_ID / MORPHKIT_APP_KEY / MORPHKIT_JWT_SECRET (or MORPHKIT_APPS): credentials, required with NODE_ENV=production
 // MORPHKIT_DEMO_HEADERS=0 turns the demo headers off in development too
+// MORPHKIT_STORE_BODY_LIMIT: largest request body in bytes (default 4 MiB; larger bodies get 413)
 // MORPHKIT_REGION (default local) and MORPHKIT_ENVIRONMENT (default production with NODE_ENV=production, else development): recorded on every row (F2)
 let auth
 try {
@@ -22,7 +23,8 @@ const port = Number(process.env.MORPHKIT_STORE_PORT ?? 8790)
 const { db, close } = openStore({ file })
 const region = process.env.MORPHKIT_REGION ?? 'local'
 const environment = process.env.MORPHKIT_ENVIRONMENT ?? (auth.production ? 'production' : 'development')
-const app = createStoreApp(db, { moderation: process.env.MORPHKIT_MODERATION === 'review' ? 'review' : 'off', auth, region, environment })
+const bodyLimitBytes = Number(process.env.MORPHKIT_STORE_BODY_LIMIT) || undefined
+const app = createStoreApp(db, { moderation: process.env.MORPHKIT_MODERATION === 'review' ? 'review' : 'off', auth, region, environment, ...(bodyLimitBytes ? { bodyLimitBytes } : {}) })
 // F3: `edit.alive24h` for applied edits that are still in their user's version a day later (hourly, idempotent)
 const sweep = () => {
   try {

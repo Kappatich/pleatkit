@@ -10,7 +10,7 @@ import { generateTailwindModule } from './tailwind.js'
 import { track } from './telemetry.js'
 
 export type { MorphkitManifest, MorphkitOptions, ManifestFile, ZonesOptions } from './manifest.js'
-export { buildManifest, expandExternals, globRoot, findImports } from './manifest.js'
+export { buildManifest, expandExternals, globRoot, findImports, normalizeZones, designSystemDigest, dataContractsDigest } from './manifest.js'
 export { extractTailwindBlocks, generateTailwindModule } from './tailwind.js'
 export { buildIsolatedHost } from './isolated.js'
 export { track, telemetryStatus, sanitizeProps, TELEMETRY_ENDPOINT, type TelemetryOptions, type TelemetryProps } from './telemetry.js'
@@ -162,6 +162,10 @@ function createPlugin(options: MorphkitOptions): Plugin {
           `export { default as isolated } from 'virtual:morphkit/isolated'`,
           `export const compile = ${JSON.stringify(o.compile)}`,
           `export const publicKey = ${JSON.stringify(o.publicKey)}`,
+          // development builds keep an inline source map for edits; production ones do not (code review 06 item 7)
+          `export const dev = ${JSON.stringify(config.command === 'serve')}`,
+          `export const isolateEdits = ${JSON.stringify(o.isolateEdits)}`,
+          `export const sendDomText = ${JSON.stringify(o.sendDomText)}`,
         ].join('\n')
       case 'virtual:morphkit/manifest':
         return `export default ${JSON.stringify(getManifest())}`

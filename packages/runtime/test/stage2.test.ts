@@ -111,7 +111,8 @@ describe('engine, Stage 2 additions', () => {
     engine.draft.write(CARD, `export function CustomerCard() { return null }`)
     const err = (await engine.draft.commit().catch((e: unknown) => e)) as CommitRejectedError
     expect(err).toBeInstanceOf(CommitRejectedError)
-    expect(err.errors.map((e) => e.text)).toEqual([`no default export in ${CARD}`])
+    expect(err.errors.map((e) => e.text)).toEqual([expect.stringContaining(`no default export in ${CARD}`)])
+    expect(err.errors[0]!.rule).toBe('default-export')
     expect(engine.getState().head).toBeNull()
     expect(engine.getState().usingFallback).toBe(true)
   })

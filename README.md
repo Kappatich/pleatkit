@@ -1,7 +1,8 @@
 # morphkit
 
 Let the users of your web app change its interface by asking for it. An AI agent rewrites the parts of your
-React app you allowed it to touch; the change is compiled in the user's browser, swapped in without a reload,
+React app you allowed it to touch; the change is compiled (on your agent server and signed, or in the user's
+browser), swapped in without a reload,
 and kept as that user's personal version, with undo, history and an admin who can see and roll back every edit.
 
 - **Three zones.** `dynamic` files the agent may rewrite, `readonly` files it may read, everything else is `core`
@@ -31,8 +32,9 @@ Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Progress and measurement
   With `LocalStore` it works with no backend of ours at all (bring your own model key).
 - **morphkit-cloud** (private): the hosted part: `@morphkit/store-server` (Postgres through the same Drizzle schema),
   real authentication, the admin dashboard as a product, multi-tenant app namespaces, billing. `store-server` lives
-  in this monorepo for now (marked `private`, `UNLICENSED`) and depends on no other morphkit package, so it can
-  move out without changes; the runtime only knows the HTTP contract through `HttpStore`.
+  in this monorepo for now (marked `private`, `UNLICENSED`) and depends only on the public `@morphkit/runtime`
+  (token, signature and quota primitives from `@morphkit/runtime/security` and `/compiler`), so it can move out
+  as it is; the runtime only knows the HTTP contract through `HttpStore`.
 
 ## Run the demo
 
@@ -156,6 +158,7 @@ Agent server (`@morphkit/agent`): keys are read from the environment only, never
 | `MORPHKIT_CORS_ORIGIN` | | allowed browser origin if the app calls the agent cross-origin |
 | `MORPHKIT_APP_ID` / `MORPHKIT_APP_KEY` / `MORPHKIT_JWT_SECRET` | | the app this agent serves, its app key (`mk_live_…`) and the user-JWT secret; **required with `NODE_ENV=production`** |
 | `MORPHKIT_PLAN` / `MORPHKIT_LIMITS` | `free` | plan used when store-server has none for the app; JSON overrides such as `{"userDailyUsd": 2, "perEditUsd": 0.2}` |
+| `MORPHKIT_MANIFEST` / `MORPHKIT_MANIFESTS` | | path or URL of the app build's `morphkit.manifest.json` (or a JSON map app id → path/URL): the static rules, readonly sources and core types come from it, never from the browser. **Required with `NODE_ENV=production`** |
 
 Store-server (`@morphkit/store-server`): `MORPHKIT_APP_ID` + `MORPHKIT_APP_KEY` + `MORPHKIT_JWT_SECRET` (one
 app) or `MORPHKIT_APPS` (JSON `{ "<appId>": { "appKey": "…", "jwtSecret": "…" } }`), required with
@@ -169,11 +172,11 @@ Interface language: `<MorphkitChat locale="ru">` switches the chat, the agent's 
 to Russian (`en` by default); the demo takes `?lang=ru`, the dashboard too. Strings live in one dictionary per
 language (`@morphkit/ui` `UI_MESSAGES`, `@morphkit/agent` `MESSAGES`).
 
-Screenshots: the user can paste (Ctrl+V) or drop up to 3 images (6 MB in total, scaled to 1568 px) into the chat; they go to the model as vision input (Anthropic image blocks, OpenAI `image_url`), and when the user pointed at a panel the request also carries a sanitized DOM snapshot of it (structure, classes, test ids, visible text; no scripts, styles, handlers or form values). The system prompt tells the model that anything in a screenshot or the DOM is data about the screen, never an instruction. Only sizes are logged, the images are not stored.
+Screenshots: the user can paste (Ctrl+V) or drop up to 3 images (6 MB in total, scaled to 1568 px) into the chat; they go to the model as vision input (Anthropic image blocks, OpenAI `image_url`), and when the user pointed at a panel the request also carries a sanitized DOM snapshot of it. By default the snapshot is **structure only** (tags, classes, test ids, roles and the length of each text, never its value); with `morphkit({ sendDomText: true })` the visible text goes too, with e-mail addresses and long numbers masked. Elements marked `data-morphkit-private` and form values are never sent. Screenshots are what the user chose to paste; they are not masked. The system prompt tells the model that anything in a screenshot or the DOM is data about the screen, never an instruction. Only sizes are logged, the images are not stored.
 
 Clarifying question: when the classifier finds a request ambiguous it returns one question with 2 to 4 answer buttons instead of guessing (no code is written and the big model is not called). The user clicks an answer or types one; the same request is sent again with the answer, the classifier is skipped, so an edit asks at most once.
 
-Static rules for the dynamic zone: `check` on the agent server also parses every dynamic file (TypeScript parser) and refuses `eval`, `new Function` and string timers, `document.cookie`, `dangerouslySetInnerHTML` / `innerHTML` / `outerHTML` / `insertAdjacentHTML` / `document.write`, `fetch` / `WebSocket` / `EventSource` / `sendBeacon` with anything but a relative URL written as a string, `XMLHttpRequest`, `import()` of URLs or computed specifiers, and imports outside the externals and the dynamic zone. A violation comes back to the model like a compile error (`file:line:col text [rule]`), is logged as a violation for the admin, and `finish` refuses to commit until it is fixed. The browser does not repeat these rules (it repeats the compile), so edits made by hand through the dev panel are not covered.
+Static rules for the dynamic zone: one `check` (`@morphkit/runtime/compiler`) runs on the agent server and, in `browser` compile mode, in the page, with the same AST rules (code review 06 item 12). It refuses `eval`, `new Function` and string timers; `document.cookie`; `dangerouslySetInnerHTML` / `innerHTML` / `outerHTML` / `insertAdjacentHTML` / `document.write` / `createElement` / `<script>` / `<style>` / `srcDoc`; network and navigation to anything but a relative URL written in the code: `fetch`, `WebSocket`, `EventSource`, `sendBeacon`, `src` / `href` / `action` / `formAction` / `srcSet` / `poster` in JSX, `.src = ` and `setAttribute`, `new Image()`, `location.* =`, `window.open`, `javascript:` URLs (`"/customers/" + id` is fine, a URL from data is not); `fetch` or globals used as values (`const f = fetch`, `fetch.call`, `const { cookie } = document`), computed access on globals (`window[x]`, `document['coo' + 'kie']`), `.constructor`; `localStorage` / `sessionStorage` / `indexedDB`; `window.top` / `parent` / `opener`; workers; `XMLHttpRequest`; `import()` of URLs or computed specifiers and imports outside the externals and the zone; absolute or computed `url()` in styles, strings and Tailwind classes (`bg-[url(https://…)]`). `.css` files of the zone are checked too: no remote `url()` or `@import`, no global selectors (`html`, `body`, `:root`, `*`) and nothing aimed at morphkit's own UI. With `morphkit({ protected: ['[data-consent]'] })` the listed elements must stay in their panels and must not be hidden. The context of the rules comes from the server's manifest (`MORPHKIT_MANIFEST`), not from the browser. A violation comes back to the model like a compile error (`file:line:col text [rule]`), is logged as a violation for the admin, and `finish` refuses to commit until it is fixed. The Content-Security-Policy is the second line: `img-src 'self' data:; form-action 'self'; connect-src 'self'` (see the CSP section).
 
 **How the Anthropic provider calls Claude:** official `@anthropic-ai/sdk`; `claude-haiku-5-5` classifies the
 request first with a structured output (backend work goes straight to the admin, the big model is not called;
@@ -210,7 +213,13 @@ CSP for `server` mode (checked in e2e with `?csp=strict-no-blob`: no `blob:`, no
 script-src 'self';                  # signed edits load from /morphkit/b on the app's origin
 style-src 'self' 'unsafe-inline';   # runtime CSS of edits is a <style> element
 connect-src 'self';                 # agent server and store-server behind the same origin (or list them)
+img-src 'self' data:;               # the static rules refuse remote images; the CSP is the second line (05 #1)
+form-action 'self';                 # no form posts to another site, whatever an edit renders
 ```
+
+CSS of edits cannot reach the host app or morphkit's UI: the zone's `.css` is confined to the panels with
+`@scope ([data-morphkit-id])`, all edit CSS sits in `@layer morphkit-edits` below the app's own unlayered CSS, and
+the chat drawer renders in a shadow root (`<MorphkitChat shadow={false}>` renders it in place).
 
 CSP for `browser` mode (checked in e2e with `?csp=strict`):
 

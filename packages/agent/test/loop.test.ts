@@ -31,7 +31,7 @@ describe('Workspace', () => {
   it('reports panels that lost their default export, and unknown packages', async () => {
     const ws = new Workspace(request('x'))
     ws.write(CARD, `export function CustomerCard() { return null }`)
-    expect((await ws.check()).errors.map((e) => e.text)).toEqual([`no default export in ${CARD}`])
+    expect((await ws.check()).errors.map((e) => e.text)).toEqual([expect.stringContaining(`no default export in ${CARD}`)])
     ws.write(CARD, `import _ from 'lodash'\nexport default () => _`)
     expect((await ws.check()).errors[0]!.text).toContain('Package "lodash" is not available')
   })

@@ -1,4 +1,5 @@
 import type { BundleCache, CompiledBundle, Snapshot, SnapshotStore } from '../types.js'
+import { HeadConflictError } from '../errors.js'
 import { clone } from '../util.js'
 
 /** In-memory store for tests and SSR. */
@@ -30,7 +31,9 @@ export class MemoryStore implements SnapshotStore {
     this.snapshots.set(snapshot.id, clone(snapshot))
   }
 
-  async setHead(userId: string, id: string): Promise<void> {
+  async setHead(userId: string, id: string, expectedHeadId?: string | null): Promise<void> {
+    const current = this.heads.get(userId) ?? null
+    if (expectedHeadId !== undefined && expectedHeadId !== current) throw new HeadConflictError(expectedHeadId, current)
     this.heads.set(userId, id)
   }
 

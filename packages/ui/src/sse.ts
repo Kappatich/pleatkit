@@ -39,20 +39,40 @@ export class AgentRequestError extends Error {
   }
 }
 
-/** `POST <agentUrl>/run` and follow the SSE stream until the result. */
-export async function callAgent(
-  agentUrl: string,
-  body: AgentRunRequest,
-  onProgress: (p: AgentProgress) => void,
-  options: { signal?: AbortSignal; fetch?: typeof fetch; headers?: Record<string, string> } = {},
-): Promise<AgentResult> {
+/** JSON of one SSE event, or null when a proxy mangled it (code review 06 item 10: never a SyntaxError). */
+function parseData<T>(data: string): T | null {
+  try {
+    return JSON.parse(data) as T
+  } catch {
+    return null
+  }
+}
+
+export interface CallAgentOptions {
+  /** Cancels the run: the request is aborted, and the agent server stops the model (code review 06 item 5). */
+  signal?: AbortSignal
+  fetch?: typeof fetch
+  headers?: Record<string, string>
+  /** Called once when the agent server answers 401 (the user token expired): a fresh token, sent on the retry. */
+  onAuthExpired?: () => string | null | undefined | Promise<string | null | undefined>
+}
+
+/** `POST <agentUrl>/run` and follow the SSE stream until the result. Keepalive comments are skipped. */
+export async function callAgent(agentUrl: string, body: AgentRunRequest, onProgress: (p: AgentProgress) => void, options: CallAgentOptions = {}): Promise<AgentResult> {
   const f = options.fetch ?? ((...a) => globalThis.fetch(...a))
-  const res = await f(`${agentUrl.replace(/\/$/, '')}/v1/run`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'text/event-stream', ...options.headers },
-    body: JSON.stringify(body),
-    signal: options.signal,
-  })
+  const send = (headers: Record<string, string> = {}) =>
+    f(`${agentUrl.replace(/\/$/, '')}/v1/run`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'text/event-stream', ...options.headers, ...headers },
+      body: JSON.stringify(body),
+      signal: options.signal,
+    })
+  let res = await send()
+  if (res.status === 401 && options.onAuthExpired) {
+    // brainstorm 05 #19: the token expired mid-session; the same Idempotency-Key makes the retry safe
+    const fresh = await options.onAuthExpired()
+    if (fresh) res = await send({ authorization: `Bearer ${fresh}` })
+  }
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
     let message = text
@@ -66,9 +86,13 @@ export async function callAgent(
   let result: AgentResult | null = null
   let error: string | null = null
   await readSse(res.body, (m) => {
-    if (m.event === 'progress') onProgress(JSON.parse(m.data) as AgentProgress)
-    else if (m.event === 'result') result = JSON.parse(m.data) as AgentResult
-    else if (m.event === 'error') error = (JSON.parse(m.data) as { message: string }).message
+    if (m.event === 'progress') {
+      const p = parseData<AgentProgress>(m.data)
+      if (p) onProgress(p)
+    } else if (m.event === 'result') {
+      result = parseData<AgentResult>(m.data)
+      if (!result) error = 'The agent sent a result that could not be read'
+    } else if (m.event === 'error') error = parseData<{ message: string }>(m.data)?.message ?? 'The agent reported an error'
   })
   if (error) throw new AgentRequestError(error)
   if (!result) throw new AgentRequestError('The agent closed the connection without a result')

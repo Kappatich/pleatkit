@@ -1,10 +1,14 @@
 import { index, primaryKey, sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
 
-/** A full snapshot of one user's dynamic zone (same shape as `Snapshot` in @morphkit/runtime, plus appId). */
+/**
+ * A full snapshot of one user's dynamic zone (same shape as `Snapshot` in @morphkit/runtime, plus appId).
+ * Insert-only (code review 06 item 7): the primary key is (app, id), so an id known from another app never
+ * reaches this app's row, and a trigger refuses any UPDATE except linking the agent request.
+ */
 export const snapshots = sqliteTable(
   'snapshots',
   {
-    id: text('id').primaryKey(),
+    id: text('id').notNull(),
     appId: text('app_id').notNull(),
     userId: text('user_id').notNull(),
     parentId: text('parent_id'),
@@ -24,7 +28,7 @@ export const snapshots = sqliteTable(
     /** F4: shape version of the snapshot. */
     schemaVersion: integer('schema_version').notNull().default(1),
   },
-  (t) => [index('snapshots_by_user').on(t.appId, t.userId, t.id)],
+  (t) => [primaryKey({ columns: [t.appId, t.id] }), index('snapshots_by_user').on(t.appId, t.userId, t.id)],
 )
 
 export const heads = sqliteTable(
@@ -238,10 +242,10 @@ export const ADDED_COLUMNS: { table: string; column: string; type: string }[] = 
 // Plain DDL so the demo needs no migration tool; keep in sync with the tables above.
 export const DDL = `
 CREATE TABLE IF NOT EXISTS snapshots (
-  id TEXT PRIMARY KEY, app_id TEXT NOT NULL, user_id TEXT NOT NULL, parent_id TEXT, files TEXT NOT NULL,
+  id TEXT NOT NULL, app_id TEXT NOT NULL, user_id TEXT NOT NULL, parent_id TEXT, files TEXT NOT NULL,
   message TEXT NOT NULL, author TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL, base_hash TEXT, request_id TEXT,
   org_id TEXT NOT NULL DEFAULT 'default', region TEXT NOT NULL DEFAULT 'local', environment TEXT NOT NULL DEFAULT 'development',
-  base_files TEXT, schema_version INTEGER NOT NULL DEFAULT 1
+  base_files TEXT, schema_version INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (app_id, id)
 );
 CREATE INDEX IF NOT EXISTS snapshots_by_user ON snapshots (app_id, user_id, id);
 CREATE TABLE IF NOT EXISTS heads (
@@ -298,4 +302,27 @@ CREATE TABLE IF NOT EXISTS app_plans (
 CREATE TABLE IF NOT EXISTS bundles (
   app_id TEXT NOT NULL, hash TEXT NOT NULL, js TEXT NOT NULL, css TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (app_id, hash)
 );
+`
+
+/** Run after DDL and ADDED_COLUMNS: snapshots are insert-only (the agent request may be linked once). */
+export const SNAPSHOT_TRIGGERS = `
+CREATE TRIGGER IF NOT EXISTS snapshots_insert_only BEFORE UPDATE OF id, app_id, user_id, parent_id, files, message, author, created_at, status, base_hash, base_files, schema_version, org_id ON snapshots
+BEGIN SELECT RAISE(ABORT, 'snapshots are insert-only'); END;
+CREATE TRIGGER IF NOT EXISTS snapshots_link_once BEFORE UPDATE OF request_id ON snapshots WHEN OLD.request_id IS NOT NULL AND OLD.request_id IS NOT NEW.request_id
+BEGIN SELECT RAISE(ABORT, 'snapshots are insert-only'); END;
+`
+
+/** Databases from before Stage 4b have `id` alone as the primary key of snapshots: rebuild with (app_id, id). */
+export const SNAPSHOT_PK_MIGRATION = `
+CREATE TABLE snapshots_4b (
+  id TEXT NOT NULL, app_id TEXT NOT NULL, user_id TEXT NOT NULL, parent_id TEXT, files TEXT NOT NULL,
+  message TEXT NOT NULL, author TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL, base_hash TEXT, request_id TEXT,
+  org_id TEXT NOT NULL DEFAULT 'default', region TEXT NOT NULL DEFAULT 'local', environment TEXT NOT NULL DEFAULT 'development',
+  base_files TEXT, schema_version INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (app_id, id)
+);
+INSERT INTO snapshots_4b (id, app_id, user_id, parent_id, files, message, author, created_at, status, base_hash, request_id, org_id, region, environment, base_files, schema_version)
+  SELECT id, app_id, user_id, parent_id, files, message, author, created_at, status, base_hash, request_id, org_id, region, environment, base_files, schema_version FROM snapshots;
+DROP TABLE snapshots;
+ALTER TABLE snapshots_4b RENAME TO snapshots;
+CREATE INDEX IF NOT EXISTS snapshots_by_user ON snapshots (app_id, user_id, id);
 `

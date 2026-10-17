@@ -68,3 +68,13 @@ describe('helpers', () => {
     expect(findImports(src)).toEqual(['a', 'b', './c.css', '@/d', 'e', 'f'])
   })
 })
+
+describe('zone globs are validated (code review 06 item 11)', () => {
+  it('normalizes ./ and backslashes, refuses globs that cannot work', async () => {
+    const { normalizeZones } = await import('../src/manifest.js')
+    expect(normalizeZones(['./src/dynamic/**', String.raw`src\readonly\**`], 'dynamic')).toEqual(['src/dynamic/**', 'src/readonly/**'])
+    expect(() => normalizeZones(['/abs/src/**'], 'dynamic')).toThrow(/zones.dynamic/)
+    expect(() => normalizeZones(['../other/**'], 'readonly')).toThrow(/leaves the project/)
+    expect(() => normalizeZones(['**/*.tsx'], 'dynamic')).toThrow(/no fixed directory/)
+  })
+})

@@ -1,4 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import { HeadConflictError } from '../errors.js'
 import type { BundleCache, CompiledBundle, Snapshot, SnapshotStore } from '../types.js'
 
 interface MorphkitDB extends DBSchema {
@@ -45,8 +46,18 @@ export class LocalStore implements SnapshotStore {
     await (await this.db).put('snapshots', snapshot)
   }
 
-  async setHead(userId: string, id: string): Promise<void> {
-    await (await this.db).put('heads', { userId, id })
+  async setHead(userId: string, id: string, expectedHeadId?: string | null): Promise<void> {
+    const db = await this.db
+    // compare-and-set in one transaction, so two tabs of this browser cannot overwrite each other's head
+    const tx = db.transaction('heads', 'readwrite')
+    const current = (await tx.store.get(userId))?.id ?? null
+    if (expectedHeadId !== undefined && expectedHeadId !== current) {
+      tx.abort()
+      await tx.done.catch(() => undefined)
+      throw new HeadConflictError(expectedHeadId, current)
+    }
+    await tx.store.put({ userId, id })
+    await tx.done
   }
 
   bundleCache: BundleCache = {

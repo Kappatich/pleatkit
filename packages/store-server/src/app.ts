@@ -2,9 +2,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import Database from 'better-sqlite3'
-import { and, desc, eq, gte } from 'drizzle-orm'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { Hono, type Context } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { applyQuotaOps, signingKeyFromAppKey, sriDigest, verifyBundleSignature, type BundleSignature, type QuotaOp } from '@morphkit/runtime/compiler'
 import { AuthError, resolveCaller, type AuthOptions, type Caller } from './auth.js'
 import { buildExport } from './export.js'
@@ -35,7 +36,12 @@ export interface StoreAppOptions {
   region?: string
   /** F2: environment recorded when the caller does not say (`MORPHKIT_ENVIRONMENT`). Default `development`. */
   environment?: string
+  /** Largest request body, bytes (`MORPHKIT_STORE_BODY_LIMIT`). Default 4 MiB. */
+  bodyLimitBytes?: number
 }
+
+/** A snapshot of a big zone is a few hundred KB; a request log with tool results stays well under this. */
+export const DEFAULT_BODY_LIMIT = 4 * 1024 * 1024
 
 export interface StoreOptions {
   /** SQLite file, or `:memory:` (default). */
@@ -52,6 +58,10 @@ export function openStore(options: StoreOptions = {}): { db: StoreDb; close: () 
     const has = (sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === column)
     if (!has) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
   }
+  // Stage 4b: snapshots keyed by (app_id, id) and insert-only
+  const pk = (sqlite.prepare('PRAGMA table_info(snapshots)').all() as { name: string; pk: number }[]).filter((c) => c.pk > 0).map((c) => c.name)
+  if (!pk.includes('app_id')) sqlite.transaction(() => sqlite.exec(schema.SNAPSHOT_PK_MIGRATION))()
+  sqlite.exec(schema.SNAPSHOT_TRIGGERS)
   return { db: drizzle(sqlite, { schema }), close: () => sqlite.close() }
 }
 
@@ -78,9 +88,6 @@ function toSnapshot(r: SnapshotRow) {
 }
 
 const STATUSES = ['proposed', 'applied', 'pending-review', 'clarifying', 'rejected', 'pending-admin', 'in-progress', 'rolled-back', 'failed', 'refused'] as const
-/** What an admin should look at first: edits awaiting review, then backend requests, then the rest. */
-const PRIORITY: Record<string, number> = { 'pending-review': 2, 'pending-admin': 1 }
-const priority = (status: string) => PRIORITY[status] ?? 0
 const now = () => new Date().toISOString()
 
 type Env = { Variables: { caller: Caller } }
@@ -166,6 +173,8 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     }
     await next()
   })
+  // Bodies are read only after the caller is known, and never beyond the limit (code review 06 item 7): 413
+  api.use('*', bodyLimit({ maxSize: options.bodyLimitBytes ?? DEFAULT_BODY_LIMIT, onError: (c) => c.json({ error: 'request body is too large' }, 413) }))
   // F5: writes with an Idempotency-Key run once; retries get the stored response
   api.use('*', idempotencyMiddleware(db))
 
@@ -244,48 +253,81 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json(toSnapshot(snap))
   })
 
+  /**
+   * Store a snapshot. Insert-only (code review 06 item 7): the same id again with the same content is a no-op
+   * (a retry), with other content 409. The server decides what the client must not: when it was made, its
+   * status (`applied` or `rejected`, nothing else) and its author (`base` only without a parent, `admin` only
+   * for an admin acting on another user, otherwise `agent` or `user` as the client says).
+   */
   api.put('/snapshots/:id', async (c) => {
     const who = caller(c)
-    const body = await c.req.json<ReturnType<typeof toSnapshot>>()
-    if (body.id !== c.req.param('id')) return c.json({ error: 'id mismatch' }, 400)
-    if (!canSee(who, body.userId)) return c.json({ error: 'forbidden' }, 403)
-    const existing = getSnapshot(who.appId, body.id)
-    if (existing && existing.userId !== body.userId) return c.json({ error: 'forbidden' }, 403)
-    if (body.parentId) {
-      const parent = getSnapshot(who.appId, body.parentId)
+    const body = await c.req.json<ReturnType<typeof toSnapshot>>().catch(() => null)
+    if (!body || typeof body !== 'object') return c.json({ error: 'body must be a JSON snapshot' }, 400)
+    if (body.id !== c.req.param('id') || typeof body.id !== 'string' || body.id.length > 64) return c.json({ error: 'id mismatch' }, 400)
+    if (typeof body.userId !== 'string' || !canSee(who, body.userId)) return c.json({ error: 'forbidden' }, 403)
+    const files = body.files as Record<string, unknown> | undefined
+    if (!files || typeof files !== 'object' || Object.values(files).some((s) => typeof s !== 'string')) return c.json({ error: 'files must map paths to strings' }, 400)
+    const parentId = typeof body.parentId === 'string' ? body.parentId : null
+    if (parentId) {
+      const parent = getSnapshot(who.appId, parentId)
       if (!parent || parent.userId !== body.userId) return c.json({ error: 'parent not found for this user' }, 400)
+    }
+    const status = body.status === 'rejected' ? 'rejected' : 'applied'
+    const author = !parentId ? 'base' : who.admin && who.userId !== body.userId ? 'admin' : body.author === 'agent' ? 'agent' : 'user'
+    const existing = getSnapshot(who.appId, body.id)
+    if (existing) {
+      const same = existing.userId === body.userId && existing.parentId === parentId && existing.status === status && JSON.stringify(existing.files) === JSON.stringify(files)
+      return same ? c.body(null, 204) : c.json({ error: 'snapshots are insert-only: this id exists with other content', code: 'immutable' }, 409)
     }
     const row = {
       id: body.id,
       appId: who.appId,
       userId: body.userId,
-      parentId: body.parentId ?? null,
-      files: body.files,
-      message: body.message ?? '',
-      author: body.author,
-      createdAt: body.createdAt ?? now(),
-      status: body.status,
-      baseHash: body.baseHash ?? null,
-      requestId: body.requestId ?? null,
+      parentId,
+      files: files as Record<string, string>,
+      message: String(body.message ?? '').slice(0, 2000),
+      author,
+      createdAt: now(),
+      status,
+      baseHash: typeof body.baseHash === 'string' ? body.baseHash : null,
+      requestId: null as string | null,
       orgId: who.orgId,
       ...place(who),
       baseFiles: body.baseFiles && typeof body.baseFiles === 'object' ? body.baseFiles : null,
       schemaVersion: typeof body.schemaVersion === 'number' ? body.schemaVersion : 1,
     }
-    db.insert(snapshots).values(row).onConflictDoUpdate({ target: snapshots.id, set: row }).run()
-    audited(who, existing ? 'snapshot.update' : 'snapshot.create', 'snapshot', body.id, { userId: body.userId, parentId: row.parentId, status: row.status, author: row.author, files: Object.keys(row.files ?? {}).length })
+    // a request id is kept only when it is a request of this user in this app
+    if (typeof body.requestId === 'string') {
+      const req = getRequest(who.appId, body.requestId)
+      if (req && req.userId === body.userId) row.requestId = req.id
+    }
+    db.insert(snapshots).values(row).run()
+    audited(who, 'snapshot.create', 'snapshot', body.id, { userId: body.userId, parentId: row.parentId, status: row.status, author: row.author, files: Object.keys(row.files).length })
     return c.body(null, 204)
   })
 
-  api.post('/snapshots/:id/head', (c) => {
+  /**
+   * Move a user's head. With `{ expectedHeadId }` in the body (code review 06 item 6) it is a compare-and-set:
+   * when the head is not that snapshot any more (another tab or device, an admin rollback), 409 with
+   * `code: 'head-conflict'` and the actual head, and nothing changes.
+   */
+  api.post('/snapshots/:id/head', async (c) => {
     const who = caller(c)
     const snap = getSnapshot(who.appId, c.req.param('id'))
     if (!snap) return c.json({ error: 'not found' }, 404)
     if (!canSee(who, snap.userId)) return c.json({ error: 'forbidden' }, 403)
     if (snap.status === 'rejected') return c.json({ error: 'a rejected snapshot cannot become the head' }, 409)
-    const before = getHead(who.appId, snap.userId)
+    const b = await c.req.json<{ expectedHeadId?: string | null }>().catch(() => ({}) as { expectedHeadId?: string | null })
+    const cas = b && typeof b === 'object' && 'expectedHeadId' in b
+    const swapped = db.transaction(() => {
+      const before = getHead(who.appId, snap.userId)
+      if (cas && (before?.snapshotId ?? null) !== (b.expectedHeadId ?? null)) return { conflict: true as const, actual: before?.snapshotId ?? null }
+      setHead(who.appId, snap.userId, snap.id, who.orgId)
+      return { conflict: false as const, before }
+    })
+    if (swapped.conflict) return c.json({ error: 'the head moved since this client read it', code: 'head-conflict', expected: b.expectedHeadId ?? null, actual: swapped.actual }, 409)
+    const before = swapped.before
     const old = before ? getSnapshot(who.appId, before.snapshotId) : undefined
-    setHead(who.appId, snap.userId, snap.id, who.orgId)
     audited(who, 'head.set', 'head', snap.userId, { from: before?.snapshotId ?? null, to: snap.id })
     // the user undid an agent edit: its snapshot left the head for its parent (F3)
     if (old?.requestId && old.parentId === snap.id) event(who, 'edit.reverted', snap.userId, old.requestId, { props: { by: 'user' } })
@@ -451,7 +493,8 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     if (b.snapshotId) {
       const snap = getSnapshot(who.appId, b.snapshotId)
       if (!snap || snap.userId !== req.userId) return c.json({ error: 'snapshot not found for this user' }, 400)
-      db.update(snapshots).set({ requestId: req.id }).where(eq(snapshots.id, snap.id)).run()
+      // the one metadata column of an insert-only snapshot: the request it came from, linked once
+      if (!snap.requestId) db.update(snapshots).set({ requestId: req.id }).where(and(eq(snapshots.appId, who.appId), eq(snapshots.id, snap.id))).run()
     }
     // under moderation an applied edit stays applied for the user, but waits for the admin's review
     const status = b.status === 'applied' && moderationOf(who.appId) === 'review' ? 'pending-review' : b.status
@@ -473,17 +516,18 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     const who = caller(c)
     const status = c.req.query('status')
     const limit = Math.min(Number(c.req.query('limit') ?? 100) || 100, 1000)
+    // edits awaiting review and backend requests first, newest first within each group: ordered in SQL before
+    // the limit, and whether each is live comes from one join (code review 06 item 7, no N+1)
     const rows = db
-      .select()
+      .select({ r: requests, headSnapshot: heads.snapshotId })
       .from(requests)
+      .leftJoin(heads, and(eq(heads.appId, requests.appId), eq(heads.userId, requests.userId)))
       .where(status ? and(eq(requests.appId, who.appId), eq(requests.status, status)) : eq(requests.appId, who.appId))
-      .orderBy(desc(requests.createdAtMs))
+      .orderBy(sql`CASE ${requests.status} WHEN 'pending-review' THEN 2 WHEN 'pending-admin' THEN 1 ELSE 0 END DESC`, desc(requests.createdAtMs))
       .limit(limit)
       .all()
-    // edits awaiting review and backend requests first, newest first within each group (stable sort)
-    rows.sort((a, b) => priority(b.status) - priority(a.status))
     // the list stays light: no files, log only as a count
-    return c.json(rows.map(({ files: _files, log, ...r }) => ({ ...r, toolCalls: log.length, isHead: isHead(who.appId, r.userId, r.snapshotId) })))
+    return c.json(rows.map(({ r: { files: _files, log, ...r }, headSnapshot }) => ({ ...r, toolCalls: log.length, isHead: Boolean(r.snapshotId) && headSnapshot === r.snapshotId })))
   })
 
   api.get('/admin/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId), default: defaultModeration }))

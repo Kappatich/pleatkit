@@ -31,6 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@morphkit/runtime": "workspace:*",
     "picomatch": "^4.0.3",
     "tinyglobby": "^0.2.15",
     "typescript": "~5.9.3",

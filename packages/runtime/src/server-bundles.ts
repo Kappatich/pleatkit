@@ -57,7 +57,11 @@ export interface ServerBundlesOptions {
   /** Bundles must be signed by this key (base64url ed25519); null accepts unsigned bundles (development). */
   publicKey: string | null
   /** User token for the agent server (production). */
-  token?: () => Promise<string | undefined> | string | undefined
+  token?: ((options?: { refresh?: boolean }) => Promise<string | undefined> | string | undefined) | string
+  /** A fresh token after the agent server answered 401 (brainstorm 05 #19). */
+  onAuthExpired?: () => Promise<string | null | undefined> | string | null | undefined
+  /** Timeout of a compile request, ms. Default 60 000. Bundle files: 15 000. */
+  timeoutMs?: number
   fetch?: typeof fetch
 }
 
@@ -92,9 +96,8 @@ export class ServerBundles {
     components: string[]
     check?: boolean
   }): Promise<ServerCompileResult> {
-    const token = typeof this.o.token === 'function' ? await this.o.token() : this.o.token
     const m = body.manifest
-    const res = await this.fetchFn(`${this.o.agentUrl.replace(/\/$/, '')}/v1/compile`, {
+    const send = async (token: string | null | undefined) => this.fetchFn(`${this.o.agentUrl.replace(/\/$/, '')}/v1/compile`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({
@@ -106,7 +109,13 @@ export class ServerBundles {
         context: { alias: m.alias, externals: m.externals, externalPatterns: m.externalPatterns, dynamicRoots: m.dynamicRoots, namespace: this.o.namespace, ...(m.css ? { css: m.css } : {}) },
         ...(body.check ? { check: true } : {}),
       }),
+      signal: AbortSignal.timeout(this.o.timeoutMs ?? 60_000),
     })
+    let res = await send(typeof this.o.token === 'function' ? await this.o.token() : this.o.token)
+    if (res.status === 401) {
+      const fresh = this.o.onAuthExpired ? await this.o.onAuthExpired() : typeof this.o.token === 'function' ? await this.o.token({ refresh: true }) : null
+      if (fresh) res = await send(fresh)
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`morphkit: the agent server could not compile (${res.status}): ${text.slice(0, 300)}`)
@@ -120,7 +129,7 @@ export class ServerBundles {
    * Null when the server has no such bundle.
    */
   async load(key: string, filesHash: string): Promise<CompiledBundle | null> {
-    const res = await this.fetchFn(this.urlOf(key, 'json'))
+    const res = await this.fetchFn(this.urlOf(key, 'json'), { signal: AbortSignal.timeout(15_000) })
     if (res.status === 404) return null
     if (!res.ok) throw new Error(`morphkit: could not load the bundle signature (${res.status})`)
     const sig = (await res.json()) as BundleSignature
@@ -135,7 +144,7 @@ export class ServerBundles {
     }
     if (p.app !== this.o.namespace) throw new BundleVerificationError(`the bundle was made for app "${p.app}"`)
     if (p.filesHash !== filesHash) throw new BundleVerificationError('the bundle was made from other files')
-    const cssRes = await this.fetchFn(this.urlOf(key, 'css'))
+    const cssRes = await this.fetchFn(this.urlOf(key, 'css'), { signal: AbortSignal.timeout(15_000) })
     if (!cssRes.ok) throw new Error(`morphkit: could not load the bundle CSS (${cssRes.status})`)
     const css = await cssRes.text()
     if ((await sriDigest(css)) !== p.css) throw new BundleVerificationError('the bundle CSS does not match its signed digest')

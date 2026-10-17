@@ -30,6 +30,8 @@ const { result, commands } = concurrently(
         MORPHKIT_AGENT_PORT: ports.agent,
         MORPHKIT_STORE_URL: `http://localhost:${ports.store}`,
         MORPHKIT_FIXTURES: process.env.MORPHKIT_FIXTURES ?? path.join(root, 'e2e', 'fixtures', 'agent'),
+        // the dev server serves the manifest; the agent re-reads it (code review 06 item 8)
+        MORPHKIT_MANIFEST: process.env.MORPHKIT_MANIFEST ?? `http://localhost:${ports.web}/morphkit.manifest.json`,
       },
       prefixColor: 'magenta',
     },

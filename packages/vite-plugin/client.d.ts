@@ -71,4 +71,10 @@ declare module 'virtual:morphkit' {
   export const compile: 'server' | 'browser'
   /** Public key bundles must be signed with, or null. */
   export const publicKey: string | null
+  /** `vite serve`: edits compiled in the browser keep an inline source map. */
+  export const dev: boolean
+  /** Every edited panel runs in the sandboxed iframe. */
+  export const isolateEdits: boolean
+  /** The visible text of a pointed panel goes to the agent (default false: structure only). */
+  export const sendDomText: boolean
 }

@@ -67,10 +67,17 @@ export function startIsolatedHost(options: IsolatedHostOptions): void {
   const root = createRoot(container)
   let modules = byId(options.fallback, options.dynamicRoots)
 
-  window.addEventListener('message', async (event: MessageEvent<IsolatedRenderMessage>) => {
+  // One message at a time (code review 06 item 10): a slow bundle import for version N must not finish after
+  // version N+1 and render the older code.
+  let queue: Promise<void> = Promise.resolve()
+  window.addEventListener('message', (event: MessageEvent<IsolatedRenderMessage>) => {
     // Only the embedding page may drive this frame.
     if (event.source !== window.parent || event.data?.type !== 'morphkit:render') return
     const msg = event.data
+    queue = queue.then(() => handle(msg)).catch(() => undefined)
+  })
+
+  const handle = async (msg: IsolatedRenderMessage): Promise<void> => {
     try {
       const ns = msg.namespace ?? 'default'
       if (!registryFor(ns)) installExternals(options.externals, ns)
@@ -98,7 +105,7 @@ export function startIsolatedHost(options: IsolatedHostOptions): void {
       </Boundary>,
     )
     post({ type: 'morphkit:rendered', version: msg.version })
-  })
+  }
 
   let last = -1
   const report = () => {

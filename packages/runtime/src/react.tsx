@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -46,6 +47,8 @@ export interface MorphkitProviderProps {
   publicKey?: string | null
   /** User token for server compiles (production): the same token as for store-server. */
   token?: EngineOptions['token']
+  /** Called when a server answers 401 (the token expired): return a fresh token (brainstorm 05 #19). */
+  onAuthExpired?: EngineOptions['onAuthExpired']
   /** Language of the safe-mode banner. Default `en`. */
   locale?: 'en' | 'ru'
   /** Show the safe-mode banner (V1 B2). Default true. */
@@ -66,12 +69,20 @@ export function MorphkitProvider({
   bundleUrl,
   publicKey,
   token,
+  onAuthExpired,
   locale = 'en',
   safeModeBanner = true,
   children,
 }: MorphkitProviderProps) {
-  const make = () =>
-    new MorphkitEngine({
+  // the latest token functions, without rebuilding the engine when the host passes new closures
+  const auth = useRef({ token, onAuthExpired })
+  auth.current = { token, onAuthExpired }
+  // One engine per user and configuration, made during render: switching users never unmounts the host's tree
+  // (code review 06 item 11), the new user's panels show their placeholder until the head is loaded. The engine
+  // constructor has no side effects (StrictMode may build two); listeners are attached in an effect.
+  const engine = useMemo(
+    () =>
+      new MorphkitEngine({
       config,
       store,
       userId,
@@ -81,25 +92,22 @@ export function MorphkitProvider({
       ...(compile ? { compile } : {}),
       ...(agentUrl ? { agentUrl } : {}),
       ...(bundleUrl ? { bundleUrl } : {}),
-      ...(publicKey !== undefined ? { publicKey } : {}),
-      ...(token ? { token } : {}),
-    })
-  // One engine per user; switching users swaps the whole engine.
-  const [engine, setEngine] = useState(make)
-  const current = engine.userId === userId ? engine : null
+        ...(publicKey !== undefined ? { publicKey } : {}),
+        ...(token ? { token: (o?: { refresh?: boolean }) => (typeof auth.current.token === 'function' ? auth.current.token(o) : auth.current.token) } : {}),
+        ...(onAuthExpired ? { onAuthExpired: () => auth.current.onAuthExpired?.() } : {}),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- token functions are read through the ref above
+    [config, store, userId, compiler, loader, namespace, compile, agentUrl, bundleUrl, publicKey, Boolean(token), Boolean(onAuthExpired)],
+  )
 
-  useEffect(() => {
-    if (!current) setEngine(make())
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the engine is rebuilt only when the user changes
-  }, [current, config, store, userId, compiler, loader])
-
+  useEffect(() => engine.attach(), [engine])
   useEffect(() => {
     void engine.init()
   }, [engine])
 
-  if (!current) return null
+  const value = useMemo(() => ({ engine, autoRollbackMs }), [engine, autoRollbackMs])
   return (
-    <MorphkitContext.Provider value={{ engine: current, autoRollbackMs }}>
+    <MorphkitContext.Provider value={value}>
       {safeModeBanner && <SafeModeBanner locale={locale} />}
       {children}
     </MorphkitContext.Provider>
@@ -160,21 +168,27 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
       }),
     [engine],
   )
+  const panelVersion = state.panelVersions[id] ?? 0
   useLayoutEffect(() => {
     const s = saved.current
-    if (!s || !container.current) return
     saved.current = null
+    // only a panel whose code changed was remounted and needs its inputs and scroll back
+    if (!s || !container.current) return
     restorePanel(container.current, s)
-  }, [state.version])
+  }, [panelVersion])
 
   // Until the user's head is known, show the placeholder rather than flash the original version.
   if (state.status === 'loading') return <div data-morphkit-id={id} data-morphkit-loading="">{loading}</div>
 
   const headId = state.head?.parentId && !state.usingFallback ? state.head.id : null
   const stale = state.stalePanels.includes(id) ? '' : undefined
-  if (isolated) {
+  // "modified" marker for the UI and support (brainstorm 05 #12): this panel's code is an edit
+  const modified = headId && engine.diagnostics().modifiedPanels.includes(id) ? '' : undefined
+  // code review 06 item 8: with `isolateEdits`, every edited panel runs in the sandboxed frame
+  const runIsolated = isolated || (Boolean(engine.config.isolateEdits) && headId !== null && Boolean(engine.isolatedHostUrl()))
+  if (runIsolated) {
     return (
-      <div data-morphkit-id={id} data-morphkit-isolated="" data-morphkit-stale={stale} style={{ display: 'contents' }}>
+      <div data-morphkit-id={id} data-morphkit-isolated="" data-morphkit-stale={stale} data-morphkit-modified={modified} style={{ display: 'contents' }}>
         <IsolatedFrame id={id} props={props ?? {}} headId={headId} autoRollbackMs={autoRollbackMs} />
       </div>
     )
@@ -182,8 +196,8 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
 
   const C = state.modules[id]?.default as ComponentType<Record<string, unknown>> | undefined
   return (
-    <div ref={container} data-morphkit-id={id} data-morphkit-stale={stale} style={{ display: 'contents' }}>
-      <PanelBoundary key={state.version} id={id} headId={headId} autoRollbackMs={autoRollbackMs} engine={engine}>
+    <div ref={container} data-morphkit-id={id} data-morphkit-stale={stale} data-morphkit-modified={modified} style={{ display: 'contents' }}>
+      <PanelBoundary key={panelVersion} id={id} headId={headId} autoRollbackMs={autoRollbackMs} engine={engine}>
         {C ? <C {...props} /> : <MissingComponent id={id} />}
       </PanelBoundary>
     </div>

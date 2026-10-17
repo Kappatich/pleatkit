@@ -1,6 +1,10 @@
-import { Compiler, isScript, type CompilerMetrics } from './compiler.js'
+import { isComponentExport } from './component.js'
+import { Compiler, isScript, type CompilerMetrics, type CompileOptions } from './compiler.js'
+import { COMPILER_VERSION } from './constants.js'
 import { CssCompiler, type CssMetrics } from './css.js'
+import { HeadConflictError, withTimeout } from './errors.js'
 import { applyCss, defaultLoader, installExternals, type BundleLoader } from './loader.js'
+import { isWritablePath, WRITABLE_EXT } from './paths.js'
 import type { AgentRunRequest } from './protocol.js'
 import { browserBootStorage, HEARTBEAT_MS, PAGE_ID, previousLoadFailed, readBoot, safeModeRequested, writeBoot, type BootStorage } from './safe-mode.js'
 import { sha256Hex } from './security.js'
@@ -21,11 +25,16 @@ import type {
 } from './types.js'
 import { clone, hashFiles, ulid } from './util.js'
 
-const WRITABLE_EXT = /\.(tsx|ts|jsx|js|css|json)$/
+export { WRITABLE_EXT }
 /** Version of the Snapshot shape written by this runtime (F4). 2: `baseFiles`, `schemaVersion`. */
 export const SNAPSHOT_SCHEMA_VERSION = 2
+/** How long the first load may wait for the store before the original version is shown (code review 06 item 1). */
+export const STORE_TIMEOUT_MS = 5_000
+/** Evaluated bundles kept in memory, so undo/redo between recent versions does not import them again (06 item 10). */
+export const MODULE_CACHE_SIZE = 8
 
 export class CommitRejectedError extends Error {
+  readonly code = 'commit-rejected'
   constructor(
     readonly errors: CompileError[],
     readonly snapshot: Snapshot,
@@ -36,11 +45,14 @@ export class CommitRejectedError extends Error {
 }
 
 export class ZoneViolationError extends Error {
+  readonly code = 'zone-violation'
   constructor(path: string) {
     super(`"${path}" is outside the dynamic zone and cannot be written`)
     this.name = 'ZoneViolationError'
   }
 }
+
+export { HeadConflictError }
 
 export interface Draft {
   message: string
@@ -60,8 +72,13 @@ export interface EngineState {
   head: Snapshot | null
   /** component id (`customer-card`) → module namespace */
   modules: Record<string, ModuleNamespace>
-  /** Increments on every module swap; error boundaries reset on change. */
+  /** Increments on every module swap (isolated frames resend their bundle on change). */
   version: number
+  /**
+   * Per panel: changes only when that panel's code changed (code review 06 item 10), so a swap remounts the
+   * panels the edit touched and keeps the others, with their state, as they are.
+   */
+  panelVersions: Record<string, number>
   usingFallback: boolean
   draft: Draft | null
   canUndo: boolean
@@ -82,6 +99,35 @@ export interface EngineState {
   disabled: boolean
   /** F6 `edits.enabled: false`: users keep their versions but cannot make new edits. */
   editsEnabled: boolean
+  /** The store did not answer the last load (code review 06 item 1); `refresh()` tries again. */
+  offline: boolean
+  /** "Show the original" is on (brainstorm 05 #12): the original version is shown, the head is unchanged. */
+  previewingOriginal: boolean
+}
+
+/** What support and the user need to identify the version on screen (brainstorm 05 #12). */
+export interface EngineDiagnostics {
+  app: string
+  userId: string
+  /** The head snapshot, or null before the first edit. */
+  snapshotId: string | null
+  /** Last 8 characters of the snapshot id: short enough to read out in a ticket. */
+  shortId: string | null
+  /** The screen differs from the app's original version. */
+  modified: boolean
+  /** Panels whose own file differs from the original. */
+  modifiedPanels: string[]
+  /** A shared (non-panel) file of the zone differs from the original. */
+  helpersModified: boolean
+  author: SnapshotAuthor | null
+  message: string | null
+  createdAt: string | null
+  bundle: string | null
+  compileMode: CompileMode
+  safeMode: SafeModeState['reason'] | null
+  stale: boolean
+  offline: boolean
+  previewingOriginal: boolean
 }
 
 export interface EngineMetrics extends CompilerMetrics, CssMetrics {
@@ -94,7 +140,7 @@ export interface EngineMetrics extends CompilerMetrics, CssMetrics {
 }
 
 export interface CompilerLike {
-  compile(files: FileMap): Promise<CompileResult>
+  compile(files: FileMap, options?: CompileOptions): Promise<CompileResult>
   readonly metrics: CompilerMetrics
 }
 
@@ -117,6 +163,8 @@ export interface EngineOptions {
   publicKey?: string | null
   /** User token for server compiles (production). */
   token?: ServerBundlesOptions['token']
+  /** Called when the agent server refuses the token (expired): return a fresh one (brainstorm 05 #19). */
+  onAuthExpired?: ServerBundlesOptions['onAuthExpired']
   /** Server-compile client (tests inject one). */
   serverBundles?: ServerBundles
   /** In browser mode, compile on the server when esbuild-wasm cannot load (default true when an agent URL is known). */
@@ -128,6 +176,8 @@ export interface EngineOptions {
   heartbeatMs?: number
   /** Id of this page load (tests simulate a reload with another one). */
   pageId?: string
+  /** How long a load waits for the store before showing the original version. Default 5 s. */
+  storeTimeoutMs?: number
 }
 
 export interface CommitOptions {
@@ -135,6 +185,20 @@ export interface CommitOptions {
   requestId?: string
   /** A bundle the agent server already compiled for these files (compile: 'server'), saving a round trip. */
   bundle?: { key: string; filesHash: string }
+  /**
+   * The head the edit was made from (code review 06 item 6): the agent was asked from head A; if the head is B
+   * now (another tab, an admin rollback, an auto-rollback), the commit is refused with HeadConflictError.
+   */
+  expectedHeadId?: string | null
+}
+
+/** A plan for taking back one earlier edit (brainstorm 05 #13). */
+export interface RevertPlan {
+  target: Snapshot
+  /** The new files when the edit can be taken back mechanically (nothing later touched its files). */
+  files: FileMap | null
+  /** Otherwise: what to send to the agent (`agentRequest(text, { revert })`). */
+  revert: NonNullable<AgentRunRequest['revert']>
 }
 
 function summarize({ bundle: _bundle, ...rest }: CompileResult): Omit<CompileResult, 'bundle'> {
@@ -160,6 +224,26 @@ export function changedPaths(a: Record<string, string>, b: Record<string, string
 }
 
 /**
+ * Identity of a release for edits (code review 06 item 5): the original dynamic files plus everything else that
+ * changes what they compile to (readonly sources, externals, aliases, Tailwind theme, compiler, CSS mode). A
+ * snapshot made on another release is `stale`; when none of its files changed in the release it is carried over
+ * (recompiled) by itself.
+ */
+export async function releaseHash(filesHash: string, ctxHash: string, cssMode: string): Promise<string> {
+  return sha256Hex(JSON.stringify(['mk-release', 1, filesHash, ctxHash, COMPILER_VERSION, cssMode]))
+}
+
+/** 32-bit FNV-1a: a cheap signature of panel sources (not a security hash). */
+function fnv(s: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
+}
+
+/**
  * Framework-agnostic core: snapshots, draft → check → commit, undo/redo/reset and module swapping.
  * All state-changing operations run one at a time through an internal queue.
  */
@@ -167,12 +251,15 @@ export class MorphkitEngine {
   readonly userId: string
   /** App instance namespace (V1 B6): its own externals registry, stylesheet and boot record. */
   readonly namespace: string
+  readonly config: MorphkitConfig
   private readonly store: SnapshotStore
-  private readonly config: MorphkitConfig
   private readonly compiler: CompilerLike
   private readonly loader: BundleLoader
   private readonly css: CssCompiler
   private readonly baseFiles: FileMap
+  /** Hash of the original dynamic files only ("is this the original version?"). */
+  private readonly originalHash: Promise<string>
+  /** Release identity: written into snapshots as `baseHash`, compared for `stale`. */
   private readonly baseHash: Promise<string>
   private readonly baseFileHashes: Promise<Record<string, string>>
   private readonly ctxHash: Promise<string>
@@ -184,6 +271,7 @@ export class MorphkitEngine {
   private readonly heartbeatMs: number
   private readonly forceSafe: boolean
   private readonly pageId: string
+  private readonly storeTimeoutMs: number
   private heartbeat: ReturnType<typeof setTimeout> | null = null
   private mode: CompileMode
   private readonly mounted = new Map<string, number>()
@@ -193,6 +281,12 @@ export class MorphkitEngine {
   private queue: Promise<unknown> = Promise.resolve()
   private listeners = new Set<() => void>()
   private timings = { lastCheckMs: null as number | null, lastCommitMs: null as number | null, lastSwapMs: null as number | null, lastServerCompileMs: null as number | null }
+  /** Evaluated bundles by key, least recently used first. */
+  private readonly moduleCache = new Map<string, { modules: Record<string, ModuleNamespace>; bundle: CompiledBundle }>()
+  private loads = 0
+  /** Per panel: signature of the code it was built from, and whether that was the original version. */
+  private panelSigs: Record<string, string> = {}
+  private panelSeq = 0
   private state: EngineState
 
   constructor(options: EngineOptions) {
@@ -206,34 +300,43 @@ export class MorphkitEngine {
     const agentUrl = options.agentUrl ?? '/agent'
     this.server =
       options.serverBundles ??
-      new ServerBundles({ agentUrl, bundleUrl: options.bundleUrl ?? '/morphkit/b', namespace: this.namespace, publicKey, ...(options.token ? { token: options.token } : {}) })
+      new ServerBundles({
+        agentUrl,
+        bundleUrl: options.bundleUrl ?? '/morphkit/b',
+        namespace: this.namespace,
+        publicKey,
+        ...(options.token ? { token: options.token } : {}),
+        ...(options.onAuthExpired ? { onAuthExpired: options.onAuthExpired } : {}),
+      })
     this.autoFallback = options.autoFallback ?? true
     const m = options.config.manifest
-    this.compiler = options.compiler ?? new Compiler({ ...m, namespace: this.namespace }, { wasmURL: options.config.wasmURL })
+    this.baseFiles = Object.fromEntries(m.dynamic.map((f) => [f.path, f.source]))
+    this.compiler =
+      options.compiler ??
+      new Compiler(
+        { ...m, namespace: this.namespace, ...(m.protected ? { protected: m.protected, base: this.baseFiles } : {}) },
+        // an inline source map only while developing (code review 06 item 7)
+        { wasmURL: options.config.wasmURL, sourcemap: options.config.dev ? 'inline' : false },
+      )
     this.loader = options.loader ?? defaultLoader
     this.css = options.cssCompiler ?? new CssCompiler(options.config.css)
-    this.baseFiles = Object.fromEntries(m.dynamic.map((f) => [f.path, f.source]))
-    this.baseHash = hashFiles(this.baseFiles)
+    this.originalHash = hashFiles(this.baseFiles)
     this.baseFileHashes = fileHashes(this.baseFiles)
     this.ctxHash = contextHash(m, Object.fromEntries(m.readonly.map((f) => [f.path, f.source])))
+    this.baseHash = Promise.all([this.originalHash, this.ctxHash]).then(([f, c]) => releaseHash(f, c, this.css.mode))
     this.registry = installExternals(options.config.externals, this.namespace)
     this.boot = options.bootStorage !== undefined ? options.bootStorage : browserBootStorage()
     this.bootKey = `morphkit:boot:${this.namespace}:${this.userId}`
     this.heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS
     this.forceSafe = options.safeMode ?? safeModeRequested()
     this.pageId = options.pageId ?? PAGE_ID
-    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-      // leaving on purpose before the version mounted is not a crash
-      window.addEventListener('pagehide', () => {
-        const rec = readBoot(this.boot, this.bootKey)
-        if (rec && !rec.mounted && rec.closedAt === undefined) writeBoot(this.boot, this.bootKey, { ...rec, closedAt: Date.now() })
-      })
-    }
+    this.storeTimeoutMs = options.storeTimeoutMs ?? STORE_TIMEOUT_MS
     this.state = {
       status: 'loading',
       head: null,
       modules: this.fallbackModules(),
       version: 0,
+      panelVersions: {},
       usingFallback: true,
       draft: null,
       canUndo: false,
@@ -247,6 +350,28 @@ export class MorphkitEngine {
       flags: {},
       disabled: false,
       editsEnabled: true,
+      offline: false,
+      previewingOriginal: false,
+    }
+  }
+
+  /**
+   * Page-level listeners of this engine (safe mode's `pagehide`). The constructor has no side effects, so React
+   * may build an engine during render (StrictMode builds two); `<MorphkitProvider>` attaches the one it uses in
+   * an effect and detaches it on cleanup. Returns the detach function.
+   */
+  attach(): () => void {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return () => undefined
+    // leaving on purpose before the version mounted is not a crash
+    const onHide = () => {
+      const rec = readBoot(this.boot, this.bootKey)
+      if (rec && !rec.mounted && rec.closedAt === undefined) writeBoot(this.boot, this.bootKey, { ...rec, closedAt: Date.now() })
+    }
+    window.addEventListener('pagehide', onHide)
+    return () => {
+      // the engine is let go (another user signed in, the provider unmounted): that is leaving on purpose too
+      onHide()
+      window.removeEventListener('pagehide', onHide)
     }
   }
 
@@ -277,6 +402,11 @@ export class MorphkitEngine {
     return { ...this.compiler.metrics, ...this.css.metrics, ...this.timings }
   }
 
+  /** Evaluated bundles held in memory and how many bundles were evaluated in total (code review 06 item 10). */
+  moduleStats(): { cached: number; loads: number; limit: number } {
+    return { cached: this.moduleCache.size, loads: this.loads, limit: MODULE_CACHE_SIZE }
+  }
+
   /** `tailwind` when edits get runtime-compiled Tailwind CSS, `palette` otherwise. */
   get cssMode(): 'tailwind' | 'palette' {
     return this.css.mode
@@ -287,7 +417,7 @@ export class MorphkitEngine {
     return this.mode
   }
 
-  /** Hash of the app's current base snapshot. */
+  /** Release identity of the app (what new snapshots record as `baseHash`). */
   currentBaseHash(): Promise<string> {
     return this.baseHash
   }
@@ -304,6 +434,38 @@ export class MorphkitEngine {
       'morphkit.bundle': this.bundleId ?? 'base',
       'morphkit.compile': this.mode,
       ...(this.state.safeMode ? { 'morphkit.safeMode': this.state.safeMode.reason } : {}),
+    }
+  }
+
+  /**
+   * The version on screen, for a "modified" marker, a snapshot id in the drawer and in support tickets
+   * (brainstorm 05 #12). The UI renders it; the engine only reports.
+   */
+  diagnostics(): EngineDiagnostics {
+    const s = this.state
+    const head = s.head
+    const roots = this.config.manifest.dynamicRoots
+    const panels = new Set(this.requiredComponents(head?.files ?? this.baseFiles))
+    const files = head?.files ?? this.baseFiles
+    const changed = [...new Set([...Object.keys(files), ...Object.keys(this.baseFiles)])].filter((p) => files[p] !== this.baseFiles[p])
+    const live = Boolean(head?.parentId) && !s.usingFallback
+    return {
+      app: this.namespace,
+      userId: this.userId,
+      snapshotId: head?.id ?? null,
+      shortId: head ? head.id.slice(-8) : null,
+      modified: live && changed.length > 0,
+      modifiedPanels: live ? changed.filter((p) => panels.has(p)).map((p) => componentId(p, roots)).sort() : [],
+      helpersModified: live && changed.some((p) => !panels.has(p)),
+      author: head?.author ?? null,
+      message: head?.message ?? null,
+      createdAt: head?.createdAt ?? null,
+      bundle: this.bundleId,
+      compileMode: this.mode,
+      safeMode: s.safeMode?.reason ?? null,
+      stale: s.stale,
+      offline: s.offline,
+      previewingOriginal: s.previewingOriginal,
     }
   }
 
@@ -329,7 +491,7 @@ export class MorphkitEngine {
       // One throwaway build: the first compile after init is several times slower while V8 tiers up the
       // wasm code. Doing it while the user types makes the first real commit as fast as later ones.
       const files = this.files()
-      await Promise.all([this.compiler.compile(files).catch(() => null), this.css.build(files).catch(() => '')])
+      await Promise.all([this.compiler.compile(files, { rules: false }).catch(() => null), this.css.build(files).catch(() => '')])
     })()
     this.warming.catch(() => {
       this.warming = null
@@ -391,6 +553,8 @@ export class MorphkitEngine {
         ...(m.css ? { css: m.css } : {}),
       },
       components: this.requiredComponents(files),
+      // the head this request is made from: the commit is refused if it moved meanwhile (code review 06 item 6)
+      expectedHeadId: this.state.head?.id ?? null,
       // the agent server compiles and signs the result too, so the commit is a download (V1 B1)
       ...(this.mode === 'server' ? { compile: true } : {}),
       ...extra,
@@ -428,15 +592,31 @@ export class MorphkitEngine {
   }
 
   private async loadHead(): Promise<void> {
+    // Flags and the head in parallel, each within the store timeout: a store that is down or hangs must not
+    // keep the panels on their placeholder (code review 06 item 1). The original version is shown instead.
+    const [flagsR, headR] = await Promise.allSettled([
+      this.store.flags ? withTimeout(this.store.flags(), this.storeTimeoutMs, 'the morphkit store (flags)') : Promise.resolve({} as Record<string, unknown>),
+      withTimeout(this.store.head(this.userId), this.storeTimeoutMs, 'the morphkit store'),
+    ])
     // F6: the kill switch wins over everything; a store that cannot answer leaves the defaults
-    const flags = this.store.flags ? await this.store.flags().catch(() => ({}) as Record<string, unknown>) : {}
+    const flags = flagsR.status === 'fulfilled' ? flagsR.value : {}
     const disabled = flags['morphkit.enabled'] === false
     this.set({ flags, disabled, editsEnabled: !disabled && flags['edits.enabled'] !== false })
     if (disabled) {
       if (!this.state.usingFallback) this.swap(this.fallbackModules(), null, true, this.state.head)
-      return this.set({ status: 'ready' })
+      return this.set({ status: 'ready', offline: false })
     }
-    const head = await this.store.head(this.userId)
+    if (headR.status === 'rejected') {
+      const message = (headR.reason as Error)?.message ?? String(headR.reason)
+      return this.set({
+        status: 'ready',
+        offline: true,
+        error: `Could not reach the morphkit store (${message}); showing the ${this.state.usingFallback ? 'original' : 'last loaded'} version`,
+      })
+    }
+    const wasOffline = this.state.offline
+    this.set({ offline: false, ...(wasOffline ? { error: null } : {}) })
+    const head = headR.value
     if (!head) {
       if (this.state.head) this.swap(this.fallbackModules(), null, true, null)
       return this.set({ status: 'ready', head: null, stale: false, stalePanels: [] })
@@ -464,8 +644,8 @@ export class MorphkitEngine {
   }
 
   /**
-   * Re-read the head from the store, e.g. after an admin rolled the user back on the server.
-   * Does nothing while a draft is open.
+   * Re-read the head from the store, e.g. after an admin rolled the user back on the server, or after the store
+   * was unreachable. Does nothing while a draft is open.
    */
   refresh(): Promise<void> {
     return this.enqueue(async () => {
@@ -486,6 +666,20 @@ export class MorphkitEngine {
       } catch (e) {
         this.set({ error: `Could not load your version, showing the original: ${(e as Error).message}` })
       }
+    })
+  }
+
+  /** "Show the original" (brainstorm 05 #12): the original version on screen without moving the head; off restores. */
+  previewOriginal(on: boolean): Promise<void> {
+    return this.enqueue(async () => {
+      if (on === this.state.previewingOriginal) return
+      const head = this.state.head
+      if (on) {
+        this.swap(this.fallbackModules(), null, true, head)
+        return this.set({ previewingOriginal: true })
+      }
+      this.set({ previewingOriginal: false })
+      if (head && !this.state.safeMode && !this.state.disabled) await this.activate(head)
     })
   }
 
@@ -513,9 +707,10 @@ export class MorphkitEngine {
       else delete files[p]
     }
     try {
-      await this.commitFiles(files, 'Carried over to the new version of the app', head.id, 'user', {})
+      await this.commitFiles(files, 'Carried over to the new version of the app', head.id, 'user', {}, head.id)
       return true
-    } catch {
+    } catch (e) {
+      if (e instanceof HeadConflictError) throw e
       // it does not compile on the new release: the user decides (reset or ask the agent)
       return [...new Set(touched.filter(isScript).map((p) => componentId(p, roots)))]
     }
@@ -538,17 +733,41 @@ export class MorphkitEngine {
     return this.bundle
   }
 
+  /**
+   * Swap the live modules. Panels whose code did not change keep their module namespace (and so their React
+   * state); only changed panels get a new `panelVersions` entry and remount (code review 06 item 10).
+   */
   private swap(modules: Record<string, ModuleNamespace>, bundle: CompiledBundle | null, usingFallback: boolean, head: Snapshot | null, bundleId: string | null = null): void {
     const roots = this.config.manifest.dynamicRoots
     const css = bundle?.css ?? ''
     this.bundle = usingFallback ? null : bundle
     this.bundleId = usingFallback ? null : bundleId
     const byId: Record<string, ModuleNamespace> = {}
-    for (const [path, ns] of Object.entries(modules)) byId[componentId(path, roots)] = ns
+    if (usingFallback) Object.assign(byId, modules)
+    else for (const [path, ns] of Object.entries(modules)) byId[componentId(path, roots)] = ns
+    const files = usingFallback ? this.baseFiles : (head?.files ?? this.baseFiles)
+    const panelPaths = new Set(this.requiredComponents(files))
+    const shared = fnv(
+      Object.keys(files)
+        .filter((p) => !panelPaths.has(p))
+        .sort()
+        .map((p) => `${p}\0${files[p]}`)
+        .join('\0'),
+    )
+    const sigs: Record<string, string> = {}
+    const versions: Record<string, number> = { ...this.state.panelVersions }
+    for (const p of Object.keys(files)) {
+      if (!isScript(p)) continue
+      const id = componentId(p, roots)
+      sigs[id] = `${usingFallback ? 'base' : 'edit'}:${shared}:${fnv(files[p]!)}`
+      if (this.panelSigs[id] === sigs[id] && this.state.modules[id]) byId[id] = this.state.modules[id]!
+      else versions[id] = ++this.panelSeq
+    }
+    this.panelSigs = sigs
     // V1 B4: panels capture their inputs and scroll before the swap and restore them after it
     for (const l of this.swapListeners) l()
     applyCss(css, this.namespace)
-    this.set({ modules: usingFallback ? modules : byId, usingFallback, version: this.state.version + 1, head, error: null })
+    this.set({ modules: byId, panelVersions: versions, usingFallback, version: this.state.version + 1, head, error: null })
   }
 
   private swapListeners = new Set<() => void>()
@@ -559,10 +778,23 @@ export class MorphkitEngine {
     return () => this.swapListeners.delete(listener)
   }
 
-  private async loadBundle(bundle: CompiledBundle): Promise<Record<string, ModuleNamespace>> {
+  /** Evaluate a bundle, or take it from the module cache (undo/redo between recent versions imports nothing). */
+  private async loadBundle(bundle: CompiledBundle, key: string | null): Promise<Record<string, ModuleNamespace>> {
     const started = performance.now()
+    const hit = key ? this.moduleCache.get(key) : undefined
+    if (hit) {
+      this.moduleCache.delete(key!)
+      this.moduleCache.set(key!, hit)
+      this.timings.lastSwapMs = performance.now() - started
+      return hit.modules
+    }
     await this.registry.ensure(bundle.externals)
     const modules = await this.loader(bundle)
+    this.loads++
+    if (key) {
+      this.moduleCache.set(key, { modules, bundle })
+      while (this.moduleCache.size > MODULE_CACHE_SIZE) this.moduleCache.delete(this.moduleCache.keys().next().value!)
+    }
     this.timings.lastSwapMs = performance.now() - started
     return modules
   }
@@ -586,9 +818,15 @@ export class MorphkitEngine {
     writeBoot(this.boot, this.bootKey, null)
   }
 
+  private compileOptions(files: FileMap): CompileOptions {
+    return { components: this.requiredComponents(files) }
+  }
+
   /** The bundle of these files: server mode loads (or has the agent server compile) a signed one; browser mode compiles here. */
   private async bundleFor(files: FileMap, filesHash: string, snapshot: Snapshot): Promise<{ bundle: CompiledBundle; key: string }> {
     const key = await this.key(filesHash)
+    const cached = this.moduleCache.get(key)
+    if (cached) return { bundle: cached.bundle, key }
     if (this.mode === 'server') {
       let bundle = await this.server!.load(key, filesHash)
       if (!bundle) {
@@ -599,18 +837,19 @@ export class MorphkitEngine {
       }
       return { bundle, key }
     }
-    let bundle = await this.store.bundleCache.get(key)
+    let bundle = await this.store.bundleCache.get(key).catch(() => null)
     if (!bundle) {
       let result: CompileResult
       try {
-        result = await this.compiler.compile(files)
+        result = await this.compiler.compile(files, this.compileOptions(files))
       } catch (e) {
         if (this.fallBackToServer(e)) return this.bundleFor(files, filesHash, snapshot)
         throw e
       }
       if (!result.ok || !result.bundle) throw new CommitRejectedError(result.errors, snapshot)
       bundle = await this.withCss(result.bundle, files)
-      await this.store.bundleCache.put(key, bundle).catch(() => undefined)
+      // best effort: a cache that cannot store must not fail the load (code review 06 item 7)
+      void this.store.bundleCache.put(key, bundle).catch(() => undefined)
     }
     return { bundle, key }
   }
@@ -622,12 +861,12 @@ export class MorphkitEngine {
   /** Make the snapshot's modules live: base → fallback bundle, otherwise a cached, loaded or freshly compiled bundle. */
   private async activate(snapshot: Snapshot): Promise<void> {
     const hash = await hashFiles(snapshot.files)
-    if (hash === (await this.baseHash)) {
+    if (hash === (await this.originalHash)) {
       this.endBoot()
       return this.swap(this.fallbackModules(), null, true, snapshot)
     }
     const { bundle, key } = await this.bundleFor(snapshot.files, hash, snapshot)
-    const modules = await this.loadBundle(bundle)
+    const modules = await this.loadBundle(bundle, key)
     this.beginBoot(snapshot.id)
     this.swap(modules, bundle, false, snapshot, key)
   }
@@ -638,18 +877,19 @@ export class MorphkitEngine {
     return { ...bundle, css: [bundle.css, tailwind].filter(Boolean).join('\n') }
   }
 
-  /** Default-export check for panels, on the evaluated modules, before the head moves. */
+  /**
+   * Default-export check for panels, on the evaluated modules, before the head moves. The same rule as the
+   * static one in `check` (a function, or memo/forwardRef/lazy; never a number or a plain object).
+   */
   private missingDefaults(modules: Record<string, ModuleNamespace>, files: FileMap): CompileError[] {
     return this.requiredComponents(files)
-      .filter((path) => {
-        const d = modules[path]?.default
-        return !(typeof d === 'function' || (typeof d === 'object' && d !== null))
-      })
+      .filter((path) => !isComponentExport(modules[path]?.default))
       .map((path) => ({
         file: path,
         line: 0,
         column: 0,
         text: path in files ? `no default export in ${path}` : `${path} was removed, but a <Dynamic> panel needs it`,
+        rule: 'default-export',
       }))
   }
 
@@ -677,12 +917,25 @@ export class MorphkitEngine {
     return s
   }
 
+  /**
+   * Move the stored head with compare-and-set (code review 06 item 6). On a conflict the head is reloaded from
+   * the store after the current operation, and HeadConflictError is thrown.
+   */
+  private async setHeadCas(id: string, expected: string | null): Promise<void> {
+    try {
+      await this.store.setHead(this.userId, id, expected)
+    } catch (e) {
+      const conflict = e instanceof HeadConflictError || (e as { status?: number })?.status === 409
+      if (!conflict) throw e
+      void this.enqueue(() => this.loadHead())
+      throw e instanceof HeadConflictError ? e : new HeadConflictError(expected, null)
+    }
+  }
+
   // --- draft ---
 
   private isWritable(path: string): boolean {
-    if (path.includes('..') || path.startsWith('/') || path.includes('\\')) return false
-    if (!WRITABLE_EXT.test(path)) return false
-    return this.config.manifest.dynamicRoots.some((r) => path.startsWith(r))
+    return isWritablePath(path, this.config.manifest.dynamicRoots)
   }
 
   private requireDraft(): Draft {
@@ -723,14 +976,29 @@ export class MorphkitEngine {
       this.set({ lastCheck: summarize(result) })
       return result
     },
-    /** check + store + set head + swap. Throws CommitRejectedError if the draft does not compile or evaluate. */
+    /**
+     * check + store + set head + swap. Throws CommitRejectedError if the draft does not compile or evaluate,
+     * HeadConflictError if the head moved since the draft (or the agent request) was made.
+     */
     commit: (author: SnapshotAuthor = 'user', options: CommitOptions = {}): Promise<Snapshot> =>
       this.enqueue(async () => {
         if (!this.state.editsEnabled) throw new Error('morphkit: edits are switched off for this app (flags)')
         const draft = this.requireDraft()
-        const snapshot = await this.commitFiles(draft.files, draft.message, draft.parentId, author, options)
-        this.set({ draft: null })
-        return snapshot
+        const current = this.state.head?.id ?? null
+        const expected = options.expectedHeadId !== undefined ? options.expectedHeadId : draft.parentId
+        if (expected !== current) {
+          this.set({ draft: null })
+          void this.enqueue(() => this.loadHead())
+          throw new HeadConflictError(expected, current)
+        }
+        try {
+          const snapshot = await this.commitFiles(draft.files, draft.message, draft.parentId, author, options, current)
+          this.set({ draft: null })
+          return snapshot
+        } catch (e) {
+          if (e instanceof HeadConflictError) this.set({ draft: null })
+          throw e
+        }
       }),
     discard: (): void => this.set({ draft: null }),
   }
@@ -742,7 +1010,7 @@ export class MorphkitEngine {
       return { ok: r.ok, errors: r.errors, warnings: [], hash, timeMs: r.timeMs }
     }
     try {
-      return await this.compiler.compile(files)
+      return await this.compiler.compile(files, this.compileOptions(files))
     } catch (e) {
       if (this.fallBackToServer(e)) return this.checkFiles(files)
       throw e
@@ -750,7 +1018,7 @@ export class MorphkitEngine {
   }
 
   /** The commit itself: compile (here or on the server), evaluate, check exports, store, move the head, swap. */
-  private async commitFiles(files: FileMap, message: string, draftParent: string | null, author: SnapshotAuthor, options: CommitOptions): Promise<Snapshot> {
+  private async commitFiles(files: FileMap, message: string, draftParent: string | null, author: SnapshotAuthor, options: CommitOptions, expectedHead: string | null): Promise<Snapshot> {
     const started = performance.now()
     const filesHash = await hashFiles(files)
     const parentId = draftParent ?? (await this.ensureBase()).id
@@ -779,7 +1047,7 @@ export class MorphkitEngine {
 
     let bundle: CompiledBundle
     let key: string
-    const isBase = filesHash === (await this.baseHash)
+    const isBase = filesHash === (await this.originalHash)
     if (isBase) {
       bundle = { js: '', css: '' }
       key = 'base'
@@ -802,9 +1070,9 @@ export class MorphkitEngine {
       key = await this.key(filesHash)
       let result: CompileResult
       try {
-        result = await this.compiler.compile(files)
+        result = await this.compiler.compile(files, this.compileOptions(files))
       } catch (e) {
-        if (this.fallBackToServer(e)) return this.commitFiles(files, message, draftParent, author, options)
+        if (this.fallBackToServer(e)) return this.commitFiles(files, message, draftParent, author, options, expectedHead)
         throw e
       }
       this.timings.lastCheckMs = result.timeMs
@@ -818,13 +1086,16 @@ export class MorphkitEngine {
       modules = this.config.fallback
     } else {
       try {
-        modules = await this.loadBundle(bundle)
+        modules = await this.loadBundle(bundle, key)
       } catch (e) {
         return reject([{ file: '', line: 0, column: 0, text: `Module failed to evaluate: ${(e as Error).message}` }])
       }
     }
     const missing = this.missingDefaults(modules, files)
-    if (missing.length > 0) return reject(missing)
+    if (missing.length > 0) {
+      this.moduleCache.delete(key)
+      return reject(missing)
+    }
     if (!isBase && this.mode === 'browser') {
       try {
         bundle = await this.withCss(bundle, files)
@@ -832,11 +1103,15 @@ export class MorphkitEngine {
         return reject([{ file: '', line: 0, column: 0, text: `CSS generation failed: ${(e as Error).message}` }])
       }
     }
+    // the cached entry gets the bundle with its final CSS (browser mode adds Tailwind after evaluation)
+    const entry = this.moduleCache.get(key)
+    if (entry) entry.bundle = bundle
     await this.store.put(snapshot)
-    if (!isBase && this.mode === 'browser') await this.store.bundleCache.put(key, bundle).catch(() => undefined)
-    await this.store.setHead(this.userId, snapshot.id)
+    // best effort, not awaited: the cache must never fail or delay a commit (code review 06 item 7)
+    if (!isBase && this.mode === 'browser') void this.store.bundleCache.put(key, bundle).catch(() => undefined)
+    await this.setHeadCas(snapshot.id, expectedHead)
     this.redoStack = []
-    this.set({ lastCheck, stale: false, stalePanels: [], safeMode: null })
+    this.set({ lastCheck, stale: false, stalePanels: [], safeMode: null, previewingOriginal: false })
     if (isBase) {
       this.endBoot()
       this.swap(this.fallbackModules(), null, true, snapshot)
@@ -850,31 +1125,40 @@ export class MorphkitEngine {
 
   // --- navigation ---
 
-  private async moveHead(target: Snapshot): Promise<Snapshot> {
+  /** Returns false when the head moved elsewhere meanwhile (it is reloaded instead). */
+  private async moveHead(target: Snapshot): Promise<boolean> {
+    try {
+      await this.setHeadCas(target.id, this.state.head?.id ?? null)
+    } catch (e) {
+      if (e instanceof HeadConflictError) return false
+      throw e
+    }
     await this.activate(target)
-    await this.store.setHead(this.userId, target.id)
-    this.set({ head: target, stale: await this.isStale(target), stalePanels: [], safeMode: null })
-    return target
+    this.set({ head: target, stale: await this.isStale(target), stalePanels: [], safeMode: null, previewingOriginal: false })
+    return true
   }
 
-  /** head = head.parent. Returns the new head, or null if there is nothing to undo. */
+  private async undoNow(): Promise<Snapshot | null> {
+    const head = this.state.head
+    if (!head?.parentId) return null
+    const parent = await this.store.get(head.parentId)
+    if (!(await this.moveHead(parent))) return null
+    this.redoStack.push(head.id)
+    this.set({})
+    return parent
+  }
+
+  /** head = head.parent. Returns the new head, or null if there is nothing to undo (or the head moved elsewhere). */
   undo(): Promise<Snapshot | null> {
-    return this.enqueue(async () => {
-      const head = this.state.head
-      if (!head?.parentId) return null
-      const parent = await this.store.get(head.parentId)
-      await this.moveHead(parent)
-      this.redoStack.push(head.id)
-      this.set({})
-      return parent
-    })
+    return this.enqueue(() => this.undoNow())
   }
 
   redo(): Promise<Snapshot | null> {
     return this.enqueue(async () => {
       const id = this.redoStack.pop()
       if (!id) return null
-      return this.moveHead(await this.store.get(id))
+      const target = await this.store.get(id)
+      return (await this.moveHead(target)) ? target : null
     })
   }
 
@@ -888,27 +1172,77 @@ export class MorphkitEngine {
       if (!head) return head
       if (this.state.stale) {
         const fresh = await this.ensureBase()
-        await this.moveHead(fresh)
+        if (!(await this.moveHead(fresh))) return null
         this.redoStack = []
         this.set({})
         return fresh
       }
       if (!head.parentId) return head
       const base = await this.root(head)
-      await this.moveHead(base)
+      if (!(await this.moveHead(base))) return null
       this.redoStack.push(head.id)
       this.set({})
       return base
     })
   }
 
-  /** Undo only if `snapshotId` is still the head (used by error boundaries; safe to call repeatedly). */
+  /**
+   * Undo only if `snapshotId` is still the head (used by error boundaries; safe to call repeatedly). The check
+   * runs inside the queue (code review 06 item 3): two crashed panels of one edit undo it once, not twice.
+   */
   rollback(snapshotId: string): Promise<Snapshot | null> {
-    if (this.state.head?.id !== snapshotId) return Promise.resolve(null)
-    return this.undo().then((s) => {
+    return this.enqueue(async () => {
+      if (this.state.head?.id !== snapshotId) return null
+      const s = await this.undoNow()
       this.redoStack = this.redoStack.filter((id) => id !== snapshotId)
       this.set({})
       return s
+    })
+  }
+
+  /**
+   * How to take back one earlier edit while keeping the ones after it (brainstorm 05 #13). When no later edit
+   * touched its files, the plan carries the new files and `revert()` applies them; otherwise the agent gets the
+   * edit's diff to reverse on the current files (`agentRequest(text, { revert: plan.revert })`).
+   */
+  async revertPlan(snapshotId: string): Promise<RevertPlan> {
+    const head = this.state.head
+    if (!head) throw new Error('morphkit: nothing to undo yet')
+    const chain: string[] = []
+    for (let s: Snapshot | null = head; s; s = s.parentId ? await this.store.get(s.parentId) : null) chain.push(s.id)
+    if (!chain.includes(snapshotId)) throw new Error('morphkit: that edit is not part of the current version')
+    const target = await this.store.get(snapshotId)
+    if (!target.parentId) throw new Error('morphkit: the original version cannot be undone')
+    const parent = await this.store.get(target.parentId)
+    const paths = [...new Set([...Object.keys(parent.files), ...Object.keys(target.files)])].filter((p) => parent.files[p] !== target.files[p]).sort()
+    const before: FileMap = {}
+    const after: FileMap = {}
+    for (const p of paths) {
+      if (p in parent.files) before[p] = parent.files[p]!
+      if (p in target.files) after[p] = target.files[p]!
+    }
+    const untouchedSince = paths.every((p) => head.files[p] === target.files[p])
+    let files: FileMap | null = null
+    if (untouchedSince) {
+      files = clone(head.files)
+      for (const p of paths) {
+        if (p in parent.files) files[p] = parent.files[p]!
+        else delete files[p]
+      }
+    }
+    return { target, files, revert: { snapshotId, message: target.message, before, after } }
+  }
+
+  /** Take back an earlier edit when it can be done without the agent; returns null when the agent is needed. */
+  revert(snapshotId: string): Promise<Snapshot | null> {
+    return this.revertPlan(snapshotId).then((plan) => {
+      if (!plan.files) return null
+      const files = plan.files
+      return this.enqueue(async () => {
+        const head = this.state.head
+        if (!head) return null
+        return this.commitFiles(files, `Undid: ${plan.target.message}`.slice(0, 200), head.id, 'user', {}, head.id)
+      })
     })
   }
 

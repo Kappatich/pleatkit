@@ -1,3 +1,4 @@
+import { layeredCss } from './css-scope.js'
 import { EXTERNALS_GLOBAL } from './constants.js'
 import type { CompiledBundle, ExternalEntry, ModuleNamespace } from './types.js'
 
@@ -99,8 +100,13 @@ export async function importUrl(url: string, integrity?: string): Promise<Record
       el.integrity = integrity
       el.crossOrigin = 'anonymous'
       el.setAttribute('data-morphkit-bundle', '')
+      // the element stays as a record of what ran and with which digest; the module cache of the engine keeps
+      // their number small (a version already loaded is not imported again)
       el.onload = () => resolve()
-      el.onerror = () => reject(new Error(`morphkit: the bundle ${url} failed to load or did not match its signed digest`))
+      el.onerror = () => {
+        el.remove()
+        reject(new Error(`morphkit: the bundle ${url} failed to load or did not match its signed digest`))
+      }
       document.head.appendChild(el)
     })
   }
@@ -112,7 +118,8 @@ export async function importUrl(url: string, integrity?: string): Promise<Record
 const STYLE_ATTR = 'data-morphkit-css'
 
 /** The runtime CSS of edits, one `<style>` per app instance (V1 B6). */
-export function applyCss(css: string, namespace = 'default'): void {
+export function applyCss(rawCss: string, namespace = 'default'): void {
+  const css = layeredCss(rawCss)
   if (typeof document === 'undefined') return
   let el = document.querySelector<HTMLStyleElement>(`style[${STYLE_ATTR}="${CSS.escape(namespace)}"]`)
   if (!css) {

@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { streamSSE } from 'hono/streaming'
 import type { AgentRefusal, AgentResult, AgentRunRequest, RequestStatus } from '@morphkit/runtime/compiler'
@@ -6,6 +7,7 @@ import { AgentAuthError, identify, type AgentAuth, type Identity } from './auth.
 import { BundleService, type CompileInput } from './bundle.js'
 import { t, type MessageKey } from './i18n.js'
 import { loopRunner, validateRequest, type AgentLimits, type AgentRunner } from './loop.js'
+import { resolveManifest, trustedInput, type ManifestSource } from './manifest.js'
 import { MemoryQuotaBackend, Quotas, resolvePlan, StoreQuotaBackend, type PlanLimits } from './quota.js'
 import { StoreClient } from './store-client.js'
 import type { ModelProvider } from './types.js'
@@ -33,7 +35,19 @@ export interface AgentServerOptions {
   basePath?: string
   log?: (line: string) => void
   fetch?: typeof fetch
+  /**
+   * The app's manifest as the server knows it (code review 06 item 8): context of the static rules, readonly
+   * sources and core types come from here, never from the request body. MORPHKIT_MANIFEST in the CLI.
+   */
+  manifest?: ManifestSource | null
+  /** SSE comment sent while a run is quiet, so proxies with an idle timeout keep the stream open. Default 15 s. */
+  heartbeatMs?: number
+  /** Largest request body, bytes. Default 16 MiB (three screenshots and a large zone fit). */
+  bodyLimitBytes?: number
 }
+
+export const SSE_HEARTBEAT_MS = 15_000
+export const DEFAULT_AGENT_BODY_LIMIT = 16 * 1024 * 1024
 
 function statusFor(result: Omit<AgentResult, 'requestId'>): RequestStatus {
   if (result.verdict === 'needs-backend') return 'pending-admin'
@@ -154,6 +168,27 @@ export function createAgentApp(options: AgentServerOptions) {
 
   const app = new Hono().basePath(options.basePath ?? '/agent')
   if (options.corsOrigin) app.use('*', cors({ origin: options.corsOrigin, allowHeaders: ['content-type', 'authorization', 'idempotency-key'] }))
+  app.use('*', bodyLimit({ maxSize: options.bodyLimitBytes ?? DEFAULT_AGENT_BODY_LIMIT, onError: (c) => c.json({ error: 'request body is too large' }, 413) }))
+  const heartbeatMs = options.heartbeatMs ?? SSE_HEARTBEAT_MS
+
+  /**
+   * Authenticate before the body is parsed (code review 06 item 7): with credentials and a bearer token, the token
+   * is verified first; an unauthenticated call in production never gets its JSON parsed.
+   */
+  const preAuth = async (c: Context): Promise<Identity | Response | null> => {
+    const authz = c.req.header('authorization')
+    if (!auth.credentials) return null
+    if (!authz) {
+      if (auth.production) return c.json({ error: 'authentication required: send the user token as Authorization: Bearer <token>' }, 401)
+      return null
+    }
+    try {
+      return await identify(authz, {}, auth)
+    } catch (e) {
+      if (e instanceof AgentAuthError) return c.json({ error: e.message }, e.status)
+      throw e
+    }
+  }
 
   const health = (c: Context) => c.json({ ok: true, provider: runner.name, model: runner.model, store: Boolean(store), auth: Boolean(auth.credentials) })
   app.get('/health', health)
@@ -162,11 +197,18 @@ export function createAgentApp(options: AgentServerOptions) {
   const run = async (c: Context) => {
     let req: AgentRunRequest
     let who: Identity
+    let trusted: ReturnType<typeof trustedInput>
+    const pre = await preAuth(c)
+    if (pre instanceof Response) return pre
     try {
       const body = (await c.req.json()) as Partial<AgentRunRequest>
-      who = await identify(c.req.header('authorization'), body, auth)
+      if (pre && body.userId && body.userId !== pre.userId) throw new AgentAuthError(403, 'the request is for another user than the token')
+      who = pre ?? (await identify(c.req.header('authorization'), body, auth))
       // the token decides who and which app; the body cannot claim another user
       req = validateRequest({ ...body, userId: who.userId, appId: who.appId })
+      // context, readonly sources and core types from the server's manifest, not from the body (06 item 8)
+      trusted = trustedInput(await resolveManifest(options.manifest, who.appId), who.appId, req)
+      req = { ...req, context: trusted.context, readonly: trusted.readonly, coreTypes: trusted.coreTypes, components: trusted.components }
     } catch (e) {
       if (e instanceof AgentAuthError) return c.json({ error: e.message }, e.status)
       return c.json({ error: (e as Error).message }, 400)
@@ -197,6 +239,8 @@ export function createAgentApp(options: AgentServerOptions) {
       const abort = new AbortController()
       stream.onAbort(() => abort.abort(new Error('client disconnected')))
       const send = (event: string, data: unknown) => stream.writeSSE({ event, data: JSON.stringify(data) }).catch(() => undefined)
+      // an SSE comment while the model thinks: proxies (nginx, Cloudflare) close idle streams after 60 to 100 s
+      const beat = setInterval(() => void stream.write(': keepalive\n\n').catch(() => undefined), heartbeatMs)
       try {
         let result: Omit<AgentResult, 'requestId'>
         let plan: PlanLimits | null = null
@@ -210,7 +254,7 @@ export function createAgentApp(options: AgentServerOptions) {
         } else {
           plan = quota?.plan ?? null
           const limits = { ...options.limits, ...(plan ? { maxCostUsd: Math.min(plan.perEditUsd, options.limits?.maxCostUsd ?? Infinity) } : {}) }
-          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p) })
+          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base })
         }
         const cost = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
         if (quotas && cost > 0) await quotas.afterEdit(who, cost).catch((e: Error) => log(`[morphkit-agent] could not record the cost: ${e.message}`))
@@ -234,15 +278,18 @@ export function createAgentApp(options: AgentServerOptions) {
           const files = { ...req.files, ...result.files }
           for (const p of result.deleted) delete files[p]
           const out = await bundles
-            .compile({ appId: who.appId, files, readonly: req.readonly, context: req.context, components: req.components })
+            .compile({ appId: who.appId, files, readonly: req.readonly, context: req.context, components: req.components, protected: trusted.protected, base: trusted.base })
             .catch((e: Error) => (log(`[morphkit-agent] server compile after the run failed: ${e.message}`), null))
           if (out?.ok && out.key) result = { ...result, bundle: { key: out.key, filesHash: out.filesHash, compileMs: out.timeMs } }
         }
+        if (req.expectedHeadId !== undefined) result = { ...result, expectedHeadId: req.expectedHeadId }
         settle?.({ ...result, requestId })
         await send('result', { ...result, requestId })
       } catch (e) {
         fail?.(e as Error)
         await send('error', { message: (e as Error).message })
+      } finally {
+        clearInterval(beat)
       }
     })
   }
@@ -254,9 +301,12 @@ export function createAgentApp(options: AgentServerOptions) {
     let who: Identity
     let input: CompileInput
     let check = false
+    const pre = await preAuth(c)
+    if (pre instanceof Response) return pre
     try {
       const body = (await c.req.json()) as Partial<CompileInput> & { userId?: string; check?: boolean }
-      who = await identify(c.req.header('authorization'), body, auth)
+      if (pre && body.userId && body.userId !== pre.userId) throw new AgentAuthError(403, 'the request is for another user than the token')
+      who = pre ?? (await identify(c.req.header('authorization'), body, auth))
       if (!who.userId) throw new Error('userId is required')
       const isMap = (v: unknown) => typeof v === 'object' && v !== null && Object.values(v).every((s) => typeof s === 'string')
       if (!isMap(body.files) || !isMap(body.readonly ?? {})) throw new Error('files and readonly must map paths to strings')
@@ -265,13 +315,13 @@ export function createAgentApp(options: AgentServerOptions) {
         throw new Error('context { dynamicRoots, externals, externalPatterns, alias } is required')
       }
       check = body.check === true
-      input = {
-        appId: who.appId,
-        files: body.files as Record<string, string>,
+      const t = trustedInput(await resolveManifest(options.manifest, who.appId), who.appId, {
+        context: ctx,
         readonly: (body.readonly ?? {}) as Record<string, string>,
-        context: { ...ctx, namespace: who.appId },
+        coreTypes: {},
         components: Array.isArray(body.components) ? body.components.filter((x): x is string => typeof x === 'string') : [],
-      }
+      })
+      input = { appId: who.appId, files: body.files as Record<string, string>, readonly: t.readonly, context: t.context, components: t.components, protected: t.protected, base: t.base }
     } catch (e) {
       if (e instanceof AgentAuthError) return c.json({ error: e.message }, e.status)
       return c.json({ error: (e as Error).message }, 400)

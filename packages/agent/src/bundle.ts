@@ -29,6 +29,9 @@ export interface CompileInput {
   context: CompileContextWire
   /** Panels that must keep a default export. */
   components: string[]
+  /** Protected elements and the release's original files (brainstorm 05 #20). */
+  protected?: string[]
+  base?: FileMap
 }
 
 export interface CompileOutput {
@@ -87,7 +90,7 @@ export class BundleService {
   async compile(input: CompileInput, options: { check?: boolean } = {}): Promise<CompileOutput> {
     const started = performance.now()
     const context = { ...input.context, namespace: input.context.namespace ?? input.appId }
-    const ws = new Workspace({ files: input.files, readonly: input.readonly, coreTypes: {}, context, components: input.components })
+    const ws = new Workspace({ files: input.files, readonly: input.readonly, coreTypes: {}, context, components: input.components, ...(input.protected?.length ? { protected: input.protected, base: input.base ?? {} } : {}) })
     const check = await ws.check()
     const filesHash = ws.lastHash ?? (await hashFiles(input.files))
     if (!check.ok || !ws.lastBundle) return { ok: false, errors: check.errors, filesHash, timeMs: Math.round(performance.now() - started) }

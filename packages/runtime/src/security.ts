@@ -4,12 +4,14 @@
 // - bundle signatures: ed25519, the private key derived from the app key (`mk_live_…`) with HKDF, so the
 //   app key is the only secret; the public key goes into the app's build and the runtime verifies with it.
 
+import { digest } from './sha.js'
+
 const enc = new TextEncoder()
 const dec = new TextDecoder()
 
 function subtle(): SubtleCrypto {
   const s = globalThis.crypto?.subtle
-  if (!s) throw new Error('morphkit: WebCrypto (crypto.subtle) is not available in this environment')
+  if (!s) throw new Error('morphkit: WebCrypto (crypto.subtle) is not available here; tokens and bundle signatures need a secure context (https:// or localhost)')
   return s
 }
 
@@ -34,11 +36,11 @@ const buf = (b: Uint8Array): ArrayBuffer => b.buffer.slice(b.byteOffset, b.byteO
 
 /** `sha384-<base64>` of a string: the Subresource Integrity form, usable on `<script integrity>`. */
 export async function sriDigest(text: string): Promise<string> {
-  return `sha384-${toBase64(new Uint8Array(await subtle().digest('SHA-384', enc.encode(text))))}`
+  return `sha384-${toBase64(await digest('SHA-384', enc.encode(text)))}`
 }
 
 export async function sha256Hex(text: string): Promise<string> {
-  const d = new Uint8Array(await subtle().digest('SHA-256', enc.encode(text)))
+  const d = await digest('SHA-256', enc.encode(text))
   return [...d].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
