@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Records the 60-second demo headless and converts it to docs/demo.mp4 (H.264, 1280x800).
+// Also refreshes site/demo.mp4 and site/poster.jpg.
 // 1. builds the demo, 2. runs e2e/demo-video.spec.ts with MORPHKIT_VIDEO=1 (Playwright recordVideo, scripted
 // provider paced for reading), 3. ffmpeg webm -> mp4, 4. prints ffprobe's duration and size.
 // Nothing is opened or played on screen. Requires ffmpeg and ffprobe on PATH.
@@ -45,3 +46,8 @@ if (duration > 60 || sizeMb > 15) {
   console.error('the demo must be at most 60 s and 15 MB')
   process.exit(1)
 }
+
+// the landing page serves its own copy (it is deployed without docs/), plus a poster frame
+fs.copyFileSync(mp4, path.join(root, 'site', 'demo.mp4'))
+run('ffmpeg', ['-y', '-loglevel', 'error', '-ss', '13', '-i', mp4, '-frames:v', '1', '-q:v', '4', path.join(root, 'site', 'poster.jpg')])
+console.log('copied to site/demo.mp4 and site/poster.jpg')
