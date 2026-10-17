@@ -1,0 +1,61 @@
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import type { BundleCache, CompiledBundle, Snapshot, SnapshotStore } from '../types.js'
+
+interface MorphkitDB extends DBSchema {
+  snapshots: { key: string; value: Snapshot; indexes: { byUser: string } }
+  heads: { key: string; value: { userId: string; id: string } }
+  bundles: { key: string; value: { hash: string } & CompiledBundle }
+}
+
+/** IndexedDB-backed store for demos and desktop: everything stays in this browser profile. */
+export class LocalStore implements SnapshotStore {
+  private db: Promise<IDBPDatabase<MorphkitDB>>
+
+  constructor(name = 'morphkit') {
+    this.db = openDB<MorphkitDB>(name, 1, {
+      upgrade(db) {
+        const snapshots = db.createObjectStore('snapshots', { keyPath: 'id' })
+        snapshots.createIndex('byUser', 'userId')
+        db.createObjectStore('heads', { keyPath: 'userId' })
+        db.createObjectStore('bundles', { keyPath: 'hash' })
+      },
+    })
+  }
+
+  async head(userId: string): Promise<Snapshot | null> {
+    const db = await this.db
+    const head = await db.get('heads', userId)
+    if (!head) return null
+    return (await db.get('snapshots', head.id)) ?? null
+  }
+
+  async get(id: string): Promise<Snapshot> {
+    const snapshot = await (await this.db).get('snapshots', id)
+    if (!snapshot) throw new Error(`Snapshot ${id} not found`)
+    return snapshot
+  }
+
+  async list(userId: string, limit = 50): Promise<Snapshot[]> {
+    const all = await (await this.db).getAllFromIndex('snapshots', 'byUser', userId)
+    // ULIDs sort by creation time
+    return all.sort((a, b) => (a.id < b.id ? 1 : -1)).slice(0, limit)
+  }
+
+  async put(snapshot: Snapshot): Promise<void> {
+    await (await this.db).put('snapshots', snapshot)
+  }
+
+  async setHead(userId: string, id: string): Promise<void> {
+    await (await this.db).put('heads', { userId, id })
+  }
+
+  bundleCache: BundleCache = {
+    get: async (hash) => {
+      const row = await (await this.db).get('bundles', hash)
+      return row ? { js: row.js, css: row.css } : null
+    },
+    put: async (hash, bundle) => {
+      await (await this.db).put('bundles', { hash, ...bundle })
+    },
+  }
+}

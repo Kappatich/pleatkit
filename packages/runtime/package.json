@@ -1,0 +1,37 @@
+{
+  "name": "@morphkit/runtime",
+  "version": "0.1.0",
+  "description": "Browser runtime for morphkit: snapshots, esbuild-wasm compiler, hot swap of dynamic React components, undo/redo",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "esbuild-wasm": "0.28.2",
+    "idb": "^8.0.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.2.0",
+    "fake-indexeddb": "^6.2.4",
+    "react": "^19.2.0",
+    "vitest": "^3.2.4"
+  }
+}

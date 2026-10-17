@@ -1,0 +1,39 @@
+{
+  "name": "@morphkit/vite-plugin",
+  "version": "0.1.0",
+  "description": "Vite plugin for morphkit: zones, manifest, externals registry and fallback bundle for runtime-editable UI",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./client.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "client.d.ts"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "picomatch": "^4.0.3",
+    "tinyglobby": "^0.2.15",
+    "typescript": "~5.9.3"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/picomatch": "^4.0.2",
+    "vite": "^6.4.1",
+    "vitest": "^3.2.4"
+  }
+}
