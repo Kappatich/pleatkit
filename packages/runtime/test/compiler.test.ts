@@ -10,8 +10,8 @@ describe('Compiler (esbuild-wasm, Node build)', () => {
     expect(r.errors).toEqual([])
     expect(r.ok).toBe(true)
     const js = r.bundle!.js
-    expect(js).toContain('globalThis.__morphkit.require("react/jsx-runtime")')
-    expect(js).toContain('globalThis.__morphkit.require("@/lib/utils")')
+    expect(js).toContain('globalThis.__morphkit.apps["default"].require("react/jsx-runtime")')
+    expect(js).toContain('globalThis.__morphkit.apps["default"].require("@/lib/utils")')
     expect(js).not.toContain('function useState') // React itself is not bundled
     console.log(`[metrics] node esbuild-wasm: init ${compiler.metrics.initMs?.toFixed(0)} ms, compile of ${Object.keys(BASE).length} files ${r.timeMs.toFixed(1)} ms`)
   })

@@ -6,6 +6,7 @@ import {
   virtualFsPlugin,
   type CompileContextWire,
   type CompileError,
+  type CompiledBundle,
   type EsbuildApi,
   type FileMap,
 } from '@morphkit/runtime/compiler'
@@ -47,11 +48,14 @@ export class Workspace {
   private readonly compiler: Compiler
   private dirtySinceCheck = false
   lastCheck: CheckResult | null = null
+  /** Bundle of the last successful check (server compile reuses it, V1 B1). No source map: it is served as is. */
+  lastBundle: CompiledBundle | null = null
+  lastHash: string | null = null
 
   constructor(readonly input: WorkspaceInput) {
     this.files = { ...input.files }
     this.original = { ...input.files }
-    this.compiler = new Compiler(input.context, { loadEsbuild: nativeEsbuild })
+    this.compiler = new Compiler(input.context, { loadEsbuild: nativeEsbuild, sourcemap: false })
   }
 
   zoneOf(path: string): 'dynamic' | 'readonly' | 'core-types' | null {
@@ -118,6 +122,8 @@ export class Workspace {
   async check(): Promise<CheckResult> {
     const started = performance.now()
     const result = await this.compiler.compile(this.files)
+    this.lastBundle = result.ok && result.bundle ? result.bundle : null
+    this.lastHash = result.hash
     let errors = result.errors
     if (result.ok) errors = await this.missingDefaults()
     // static rules (no eval, no remote requests, allowed imports only, ...): refused like compile errors

@@ -8,8 +8,9 @@ import morphkit from '@morphkit/vite-plugin'
 const root = path.dirname(fileURLToPath(import.meta.url))
 
 /**
- * The strict Content Security Policy from the README: no inline scripts, compiled edits from blob: URLs,
- * WebAssembly for esbuild. The demo serves its page under it when the URL has `?csp=strict`.
+ * The Content Security Policies from the README. `?csp=strict`: browser compile mode (edits from blob: URLs,
+ * WebAssembly for esbuild). `?csp=strict-no-blob`: server compile mode (V1 B1): scripts only from the app's
+ * own origin, no blob:, no WebAssembly, no workers.
  */
 const STRICT_CSP = [
   "default-src 'self'",
@@ -19,9 +20,11 @@ const STRICT_CSP = [
   "connect-src 'self'",
   "img-src 'self' data:",
 ].join('; ')
+const STRICT_NO_BLOB_CSP = ["default-src 'self'", "script-src 'self'", "worker-src 'none'", "style-src 'self' 'unsafe-inline'", "connect-src 'self'", "img-src 'self' data:"].join('; ')
 
 const strictCsp: Connect.NextHandleFunction = (req, res, next) => {
   if (req.url && /[?&]csp=strict(&|$)/.test(req.url)) res.setHeader('Content-Security-Policy', STRICT_CSP)
+  if (req.url && /[?&]csp=strict-no-blob(&|$)/.test(req.url)) res.setHeader('Content-Security-Policy', STRICT_NO_BLOB_CSP)
   next()
 }
 
@@ -41,6 +44,8 @@ const proxy = {
   '/api': `http://localhost:${dataPort}`,
   '/agent': `http://localhost:${agentPort}`,
   '/morphkit-store': { target: `http://localhost:${storePort}`, rewrite: (p: string) => p.replace(/^\/morphkit-store/, '') },
+  // signed bundles of server-compiled edits, from the app's own origin (V1 B1)
+  '/morphkit/b': { target: `http://localhost:${storePort}`, rewrite: (p: string) => p.replace(/^\/morphkit\/b/, '/v1/b') },
 }
 
 export default defineConfig({
@@ -59,6 +64,8 @@ export default defineConfig({
       tailwindEntry: 'src/index.css',
       // `<Dynamic isolated>` renders a panel in a sandboxed iframe (?isolated=1 in the demo).
       isolated: true,
+      // edits compile on the agent server and load signed from /morphkit/b (the default; ?compile=browser in the demo)
+      compile: 'server',
     }),
   ],
   resolve: { alias: { '@': path.join(root, 'src') } },

@@ -57,8 +57,20 @@ Cause: a typo in `externals`, or a path that does not exist under `src/`.
 Run: fix the entry in the plugin options; a `*` entry (`@/readonly/*`) needs the folder to exist.
 
 **`[FAIL] csp: … needs 'wasm-unsafe-eval'` or `… needs blob:`.**
-Cause: the app's Content-Security-Policy blocks the compiler (WebAssembly) or compiled edits (`blob:` modules).
-Run: use at least `script-src 'self' blob: 'wasm-unsafe-eval'; worker-src blob:` where the policy is defined (index.html meta or the hosting config).
+Cause: the plugin runs with `compile: 'browser'` and the app's Content-Security-Policy blocks the compiler (WebAssembly) or compiled edits (`blob:` modules).
+Run: drop `compile: 'browser'` (the default `server` mode needs only `script-src 'self'`), or use at least `script-src 'self' blob: 'wasm-unsafe-eval'; worker-src blob:` where the policy is defined (index.html meta or the hosting config).
+
+**Chat says `Applied` nowhere, the console has `could not load the bundle signature (404)` or `failed to load`.**
+Cause: no `/morphkit/b` proxy (compile: 'server' loads signed bundles from it), or it points at the wrong server.
+Run: add the `/morphkit/b` proxy from install.md step 3 (to the agent's `/agent/v1/b`, or to store-server's `/v1/b`).
+
+**Console: `refusing an unsigned or tampered bundle`.**
+Cause: the app was built with a public key (`MORPHKIT_PUBLIC_KEY` / `morphkit({ publicKey })`) but the agent server runs without the matching `MORPHKIT_APP_KEY`, or with another app's key.
+Run: `MORPHKIT_APP_KEY=<key> pnpm exec morphkit keys public` must print the key the app was built with.
+
+**The page shows "Your customized version did not load last time".**
+Cause: safe mode (the user's last load did not mount within 5 s, or the URL has `?morphkit=safe`). The original version is shown on purpose.
+Run: the banner's "Try my version again" or "Reset to the original"; if it comes back, roll the edit back in `/admin`.
 
 **`[FAIL] secrets: … VITE_…KEY is a VITE_ variable` or `… Anthropic API key sk-ant-…`.**
 Cause: a key is in the browser bundle.

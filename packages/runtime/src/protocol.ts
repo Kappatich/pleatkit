@@ -31,8 +31,11 @@ export type RequestClass = 'ui' | 'needs-backend' | 'unclear' | 'off-topic'
 /** Interface languages of the chat and the admin dashboard (DECISIONS item 20). */
 export type Locale = 'en' | 'ru'
 
-/** What the compiler needs to resolve imports exactly like the browser does. */
-export type CompileContextWire = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'>
+/**
+ * What the compiler needs to resolve imports exactly like the browser does, plus the app instance namespace
+ * (V1 B6) and the app's runtime CSS input, for server compiles (V1 B1).
+ */
+export type CompileContextWire = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots' | 'css'> & { namespace?: string }
 
 /** `POST /agent/run` body. The browser is the source of truth for files; the server is stateless. */
 export interface AgentRunRequest {
@@ -66,6 +69,8 @@ export interface AgentRunRequest {
   clarification?: { question: string; answer: string }
   /** Sanitized DOM of the panel the user pointed at, as the user sees it now (data, not instructions). */
   targetDom?: string
+  /** compile: 'server' (V1 B1): compile, sign and store the resulting snapshot at the end of the run. */
+  compile?: boolean
   /** Set when asking the agent to carry the user's edits over to a new app release (stale snapshot). */
   migration?: {
     /** Base files the user's edits were made against. */
@@ -135,6 +140,10 @@ export interface AgentResult {
   stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'cost' | 'refusal' | 'no-finish' | 'error'
   /** For verdict `refused`. */
   refusal?: AgentRefusal
+  /** compile: 'server': the signed bundle of the resulting snapshot, ready under the bundle URL (V1 B1). */
+  bundle?: { key: string; filesHash: string; compileMs: number }
+  /** Version of the agent's instructions (F4). */
+  promptVersion?: string
   /** Technical error behind a failed run (for the admin's log; the user only sees `summary`). */
   error?: string
   /** For verdict `clarify`: the question to show and 2 to 4 short answers as buttons. */

@@ -116,7 +116,8 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
       .where(and(eq(bundleFiles.appId, c.req.param('app')), eq(bundleFiles.key, m[1]!), eq(bundleFiles.owner, '')))
       .get()
     if (!row) return c.json({ error: 'not found' }, 404)
-    const headers = { 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff' }
+    // CORS: isolated panels load bundles from an opaque-origin iframe; the content is public and immutable anyway
+    const headers = { 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff', 'access-control-allow-origin': '*' }
     if (m[2] === 'js') return c.body(row.js, 200, { ...headers, 'content-type': 'text/javascript; charset=utf-8' })
     if (m[2] === 'css') return c.body(row.css, 200, { ...headers, 'content-type': 'text/css; charset=utf-8' })
     return c.json(row.signature ?? {}, 200, headers)

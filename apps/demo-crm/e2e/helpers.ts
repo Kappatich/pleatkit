@@ -26,8 +26,8 @@ export function appFor(page: Page): string {
   return id
 }
 
-export async function openApp(page: Page, user: 'alice' | 'bob' = 'alice', customer = 'Globex'): Promise<void> {
-  await page.goto(`/?user=${user}&dev=1&app=${appFor(page)}`)
+export async function openApp(page: Page, user: 'alice' | 'bob' = 'alice', customer = 'Globex', query = ''): Promise<void> {
+  await page.goto(`/?user=${user}&dev=1&app=${appFor(page)}${query}`)
   await page.getByRole('button', { name: new RegExp(customer) }).click()
   await expect(page.getByTestId('customer-card')).toContainText(customer)
   await expect(page.getByTestId('mk-dev-panel')).toBeVisible()

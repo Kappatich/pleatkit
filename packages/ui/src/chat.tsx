@@ -217,7 +217,8 @@ export function MorphkitChat({
       for (const path of result.deleted) engine.draft.remove(path)
       const commitStarted = performance.now()
       try {
-        const snapshot = await engine.draft.commit('agent', result.requestId ? { requestId: result.requestId } : {})
+        // compile: 'server': the agent already compiled and signed this snapshot, the commit only downloads it
+        const snapshot = await engine.draft.commit('agent', { ...(result.requestId ? { requestId: result.requestId } : {}), ...(result.bundle ? { bundle: result.bundle } : {}) })
         // wait for React to paint the swapped modules before stopping the clock
         await new Promise((r) => requestAnimationFrame(() => r(null)))
         const now = performance.now()

@@ -1,8 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import picomatch from 'picomatch'
 import { globSync } from 'tinyglobby'
 import { emitDeclarations } from './declarations.js'
+import { tailwindInput } from './tailwind.js'
 
 export interface ZonesOptions {
   /** Globs (relative to project root) the agent may edit; compiled at runtime. */
@@ -32,6 +34,19 @@ export interface MorphkitOptions {
   tailwindEntry?: string
   /** Build the iframe host for `<Dynamic isolated>` panels. Default false. */
   isolated?: boolean
+  /**
+   * Where edits are compiled (V1 B1). `server` (default): on the agent server, signed, loaded from
+   * `/morphkit/b/…` with `import()`; the page needs neither WebAssembly nor `blob:`. `browser`: esbuild-wasm in
+   * the page (falls back to the server by itself when WebAssembly cannot load).
+   */
+  compile?: 'server' | 'browser'
+  /**
+   * Public key of the app key (V1 A3, `npx morphkit keys public`): when set, the runtime runs only bundles
+   * signed with it. Default: the MORPHKIT_PUBLIC_KEY environment variable at build time.
+   */
+  publicKey?: string
+  /** Register externals as `() => import()` so big libraries load only when an edit uses them (V1 B6). Default true. */
+  lazyExternals?: boolean
 }
 
 export interface ManifestFile {
@@ -48,6 +63,8 @@ export interface MorphkitManifest {
   externals: string[]
   externalPatterns: string[]
   alias: Record<string, string>
+  /** Runtime CSS input for server compiles and its hash for bundle keys (V1 B1). */
+  css?: { mode: 'tailwind' | 'palette'; input?: string; hash: string }
 }
 
 export const DEFAULT_EXTERNALS = ['react', 'react-dom', 'react/jsx-runtime']
@@ -78,6 +95,9 @@ export function resolveOptions(options: MorphkitOptions) {
     css: options.css ?? 'palette',
     tailwindEntry: options.tailwindEntry ?? 'src/index.css',
     isolated: options.isolated ?? false,
+    compile: options.compile ?? 'server',
+    publicKey: options.publicKey ?? process.env.MORPHKIT_PUBLIC_KEY ?? null,
+    lazyExternals: options.lazyExternals ?? true,
   }
 }
 
@@ -174,5 +194,12 @@ export function buildManifest(root: string, options: MorphkitOptions): MorphkitM
     externals: expandExternals(root, o.externals, o.alias),
     externalPatterns: o.externals,
     alias: o.alias,
+    css: cssInfo(root, o.css, o.tailwindEntry),
   }
+}
+
+function cssInfo(root: string, mode: 'tailwind' | 'palette', entry: string): MorphkitManifest['css'] {
+  if (mode !== 'tailwind') return { mode: 'palette', hash: 'palette' }
+  const input = tailwindInput(root, entry)
+  return { mode: 'tailwind', input, hash: createHash('sha256').update(input).digest('hex').slice(0, 32) }
 }

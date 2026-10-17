@@ -25,6 +25,17 @@ test('A1: with user tokens the chat edit works end to end, and the development h
   await page.getByRole('button', { name: /Globex/ }).click()
   await expect(page.getByTestId('customer-card').getByTestId('phone')).toBeVisible()
 
+  // A3: in this mode the page runs only bundles signed by the app key; a bundle altered on the way is refused
+  // and the original version is shown instead
+  const signature = (await (await request.get((await page.locator('script[data-morphkit-bundle]').first().getAttribute('src'))!.replace(/\.js$/, '.json'))).json()) as { sig?: string }
+  expect(signature.sig).toBeTruthy()
+  await page.route('**/morphkit/b/**/*.css', (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '.x{background:url(https://evil.test/leak)}' }))
+  await page.reload()
+  await page.getByRole('button', { name: /Globex/ }).click()
+  await expect(page.getByTestId('customer-card')).toBeVisible()
+  await expect(page.getByTestId('customer-card').getByTestId('phone')).toHaveCount(0)
+  await page.unroute('**/morphkit/b/**/*.css')
+
   // anyone sending the development headers for this app is refused
   const forged = await request.get('/morphkit-store/v1/heads/alice', { headers: { 'x-morphkit-user': 'alice', 'x-morphkit-app': SECURE_APP } })
   expect(forged.status()).toBe(401)

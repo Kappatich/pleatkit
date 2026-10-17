@@ -78,11 +78,11 @@ function realResolve(fromDir: string, spec: string): string | null {
 
 export function checkReact(root: string, dedupe: string[]): Finding {
   const appReact = realResolve(root, 'react/package.json')
-  if (!appReact) return { id: 'react', status: 'fail', title: 'react is not installed in the app', details: [], fix: 'pnpm add react react-dom (React 19)' }
+  if (!appReact) return { id: 'react', status: 'fail', title: 'react is not installed in the app', details: [], fix: 'pnpm add react react-dom (React 18 or 19)' }
   const version = (JSON.parse(fs.readFileSync(appReact, 'utf8')) as { version: string }).version
   const details = [`app: react ${version}`]
-  let status: Status = Number(version.split('.')[0]) >= 19 ? 'ok' : 'fail'
-  let fix = status === 'fail' ? 'morphkit needs React 19: pnpm add react@19 react-dom@19' : undefined
+  let status: Status = Number(version.split('.')[0]) >= 18 ? 'ok' : 'fail'
+  let fix = status === 'fail' ? 'morphkit needs React 18 or 19: pnpm add react@19 react-dom@19' : undefined
   const runtimePkg = realResolve(root, '@morphkit/runtime/package.json')
   if (!runtimePkg) return { id: 'react', status: 'fail', title: '@morphkit/runtime is not installed', details, fix: 'pnpm add @morphkit/runtime @morphkit/ui' }
   for (const name of ['react', 'react-dom']) {
@@ -171,12 +171,19 @@ export function parseCsp(policy: string): Map<string, string[]> {
   return out
 }
 
-/** Problems of one policy for morphkit: blob: modules, WebAssembly, a blob: worker. */
-export function cspProblems(policy: string): string[] {
+/**
+ * Problems of one policy for morphkit. `browser` compile mode needs blob: modules, WebAssembly and a blob:
+ * worker; `server` mode (the default, V1 B1) only needs the page's own origin for scripts.
+ */
+export function cspProblems(policy: string, compile: 'server' | 'browser' = 'browser'): string[] {
   const csp = parseCsp(policy)
   const script = csp.get('script-src') ?? csp.get('default-src')
   const worker = csp.get('worker-src') ?? csp.get('child-src') ?? script
   const problems: string[] = []
+  if (compile === 'server') {
+    if (script && !script.includes("'self'") && !script.includes('*')) problems.push("script-src needs 'self' (signed edits load from /morphkit/b/ on the app's origin)")
+    return problems
+  }
   if (script) {
     if (!script.includes('blob:')) problems.push("script-src needs blob: (edits load as blob: modules)")
     if (!script.includes("'wasm-unsafe-eval'") && !script.includes("'unsafe-eval'")) problems.push("script-src needs 'wasm-unsafe-eval' (the compiler is WebAssembly)")
@@ -185,15 +192,20 @@ export function cspProblems(policy: string): string[] {
   return problems
 }
 
-const RECOMMENDED_CSP = "script-src 'self' blob: 'wasm-unsafe-eval'; worker-src blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'"
+const RECOMMENDED_CSP = {
+  browser: "script-src 'self' blob: 'wasm-unsafe-eval'; worker-src blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'",
+  server: "script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'",
+}
 
 /** Look for a CSP in index.html and in common hosting files, and check it against what morphkit needs. */
-export function checkCsp(root: string, isolated: boolean): Finding {
+export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'browser' = 'server'): Finding {
+  const recommended = RECOMMENDED_CSP[compile]
   const found: { where: string; policy: string }[] = []
   const html = path.join(root, 'index.html')
   if (fs.existsSync(html)) {
-    const meta = /<meta[^>]+http-equiv=["']Content-Security-Policy["'][^>]*content=["']([^"']+)["']/i.exec(fs.readFileSync(html, 'utf8'))
-    if (meta) found.push({ where: 'index.html <meta>', policy: meta[1]! })
+    // content="…" may hold single quotes ('self') and the other way round
+    const meta = /<meta[^>]+http-equiv=["']Content-Security-Policy["'][^>]*content=(?:"([^"]*)"|'([^']*)')/i.exec(fs.readFileSync(html, 'utf8'))
+    if (meta) found.push({ where: 'index.html <meta>', policy: (meta[1] ?? meta[2])! })
   }
   for (const rel of ['public/_headers', '_headers', 'vercel.json', 'netlify.toml']) {
     const file = path.join(root, rel)
@@ -203,11 +215,11 @@ export function checkCsp(root: string, isolated: boolean): Finding {
   }
   const hints = isolated ? ['isolated panels: serve assets/morphkit-isolated-host-*.js with Access-Control-Allow-Origin: *'] : []
   if (found.length === 0) {
-    return { id: 'csp', status: 'ok', title: 'no Content-Security-Policy found in the app', details: [`if you add one, morphkit needs: ${RECOMMENDED_CSP}`, ...hints] }
+    return { id: 'csp', status: 'ok', title: 'no Content-Security-Policy found in the app', details: [`if you add one, morphkit (compile: '${compile}') needs: ${recommended}`, ...hints] }
   }
-  const problems = found.flatMap((f) => cspProblems(f.policy).map((p) => `${f.where}: ${p}`))
+  const problems = found.flatMap((f) => cspProblems(f.policy, compile).map((p) => `${f.where}: ${p}`))
   return problems.length
-    ? { id: 'csp', status: 'fail', title: 'the Content-Security-Policy blocks runtime edits', details: [...problems, ...hints], fix: `use at least: ${RECOMMENDED_CSP}` }
+    ? { id: 'csp', status: 'fail', title: 'the Content-Security-Policy blocks runtime edits', details: [...problems, ...hints], fix: `use at least: ${recommended}` }
     : { id: 'csp', status: 'ok', title: `CSP allows runtime edits (${found.map((f) => f.where).join(', ')})`, details: hints }
 }
 
@@ -283,7 +295,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
       findings.push(checkExternals(root, manifest))
     }
   }
-  findings.push(checkCsp(root, Boolean(config.options?.isolated)))
+  findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server'))
   findings.push(checkSecrets(root, dist))
   return findings
 }

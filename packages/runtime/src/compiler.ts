@@ -25,11 +25,27 @@ export interface CompilerOptions {
   loadEsbuild?: () => Promise<EsbuildApi>
 }
 
-export type CompileContext = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'>
+export type CompileContext = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'> & {
+  /**
+   * Instance namespace (the app id, V1 B6): compiled code reaches host modules through
+   * `globalThis.__morphkit.apps[namespace]`, so two morphkit apps on one page never share a registry.
+   */
+  namespace?: string
+}
 
-import { EXTERNALS_GLOBAL } from './constants.js'
+import { COMPILER_VERSION, EXTERNALS_GLOBAL } from './constants.js'
 
-export { EXTERNALS_GLOBAL }
+export { COMPILER_VERSION, EXTERNALS_GLOBAL }
+
+/** `globalThis.__morphkit.apps["crm"]`: how compiled code of one app instance reaches its host modules. */
+export const registryExpression = (namespace = 'default'): string => `globalThis.${EXTERNALS_GLOBAL}.apps[${JSON.stringify(namespace)}]`
+
+/**
+ * Appended to every bundle (V1 B7): stack frames of edits read `morphkit://<files hash>/bundle.js`, so error
+ * boundaries and Sentry can tell an edit's code from the app's own code.
+ */
+export const sourceUrlComment = (filesHash: string): string => `\n//# sourceURL=morphkit://${filesHash.slice(0, 16)}/bundle.js\n`
+export const MORPHKIT_FRAME = /morphkit:\/\/|\/morphkit\/b\/|\/v1\/b\//
 const NS_VFS = 'morphkit-vfs'
 const NS_EXTERNAL = 'morphkit-external'
 const NS_ENTRY = 'morphkit-entry'
@@ -112,8 +128,10 @@ export function entrySource(files: FileMap, roots: string[]): string {
   return `${imports.join('\n')}\nexport const modules = {\n${map.join('\n')}\n}\n`
 }
 
-export function virtualFsPlugin(files: FileMap, ctx: CompileContext): Plugin {
+/** @param used collects the host modules the bundle imports (they are resolved before it runs, so externals can be lazy). */
+export function virtualFsPlugin(files: FileMap, ctx: CompileContext, used?: Set<string>): Plugin {
   const resolveCtx: ResolveContext = { files, alias: ctx.alias, externals: ctx.externals, externalPatterns: ctx.externalPatterns }
+  const registry = registryExpression(ctx.namespace)
   return {
     name: 'morphkit-virtual-fs',
     setup(build) {
@@ -138,10 +156,10 @@ export function virtualFsPlugin(files: FileMap, ctx: CompileContext): Plugin {
       }))
 
       // Host modules become tiny CommonJS shims; esbuild's interop then handles default and named imports.
-      build.onLoad({ filter: /.*/, namespace: NS_EXTERNAL }, (args) => ({
-        contents: `module.exports = globalThis.${EXTERNALS_GLOBAL}.require(${JSON.stringify(args.path)})`,
-        loader: 'js',
-      }))
+      build.onLoad({ filter: /.*/, namespace: NS_EXTERNAL }, (args) => {
+        used?.add(args.path)
+        return { contents: `module.exports = ${registry}.require(${JSON.stringify(args.path)})`, loader: 'js' }
+      })
     },
   }
 }
@@ -149,7 +167,10 @@ export function virtualFsPlugin(files: FileMap, ctx: CompileContext): Plugin {
 export class Compiler {
   constructor(
     private readonly ctx: CompileContext,
-    private readonly options: CompilerOptions = {},
+    private readonly options: CompilerOptions & {
+      /** `inline` (browser mode: the edit is debuggable in DevTools) or none (server bundles stay small). */
+      sourcemap?: 'inline' | false
+    } = {},
   ) {}
 
   init(): Promise<EsbuildApi> {
@@ -164,6 +185,7 @@ export class Compiler {
     const hash = await hashFiles(files)
     const esbuild = await this.init()
     const started = performance.now()
+    const used = new Set<string>()
     try {
       const result = await esbuild.build({
         entryPoints: ['morphkit:entry'],
@@ -174,13 +196,20 @@ export class Compiler {
         target: 'es2022',
         outdir: '/out',
         jsx: 'automatic',
-        sourcemap: 'inline',
+        sourcemap: this.options.sourcemap ?? 'inline',
         logLevel: 'silent',
-        plugins: [virtualFsPlugin(files, this.ctx)],
+        plugins: [virtualFsPlugin(files, this.ctx, used)],
       })
-      const js = result.outputFiles.find((f) => f.path.endsWith('.js'))?.text ?? ''
+      const js = (result.outputFiles.find((f) => f.path.endsWith('.js'))?.text ?? '') + sourceUrlComment(hash)
       const css = result.outputFiles.find((f) => f.path.endsWith('.css'))?.text ?? ''
-      return { ok: true, errors: [], warnings: toCompileErrors(result.warnings), hash, timeMs: performance.now() - started, bundle: { js, css } }
+      return {
+        ok: true,
+        errors: [],
+        warnings: toCompileErrors(result.warnings),
+        hash,
+        timeMs: performance.now() - started,
+        bundle: { js, css, externals: [...used].sort() },
+      }
     } catch (e) {
       const failure = e as Partial<BuildFailure>
       if (!Array.isArray(failure.errors)) throw e

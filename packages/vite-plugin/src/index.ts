@@ -53,12 +53,22 @@ function importPath(root: string, spec: string, alias: Record<string, string>): 
   return rel === null ? spec : toPosix(path.join(root, rel))
 }
 
-export function generateExternals(manifest: MorphkitManifest, root: string): string {
+/**
+ * The externals registry. Lazy (default, V1 B6): `spec: () => import(spec)`, so a library only edits use (an
+ * icon set, a chart library) is loaded when such an edit runs, not with the app; modules the app imports
+ * anyway resolve to the chunk it already has.
+ */
+export function generateExternals(manifest: MorphkitManifest, root: string, lazy = false): string {
   const lines: string[] = []
   const entries: string[] = []
   manifest.externals.forEach((spec, i) => {
-    lines.push(`import * as e${i} from ${JSON.stringify(importPath(root, spec, manifest.alias))}`)
-    entries.push(`  ${JSON.stringify(spec)}: e${i},`)
+    const from = JSON.stringify(importPath(root, spec, manifest.alias))
+    if (lazy) {
+      entries.push(`  ${JSON.stringify(spec)}: () => import(${from}),`)
+    } else {
+      lines.push(`import * as e${i} from ${from}`)
+      entries.push(`  ${JSON.stringify(spec)}: e${i},`)
+    }
   })
   return `${lines.join('\n')}\nexport default {\n${entries.join('\n')}\n}\n`
 }
@@ -145,11 +155,13 @@ function createPlugin(options: MorphkitOptions): Plugin {
           `export { default as wasmURL } from 'virtual:morphkit/wasm-url'`,
           `export { default as css } from 'virtual:morphkit/css'`,
           `export { default as isolated } from 'virtual:morphkit/isolated'`,
+          `export const compile = ${JSON.stringify(o.compile)}`,
+          `export const publicKey = ${JSON.stringify(o.publicKey)}`,
         ].join('\n')
       case 'virtual:morphkit/manifest':
         return `export default ${JSON.stringify(getManifest())}`
       case 'virtual:morphkit/externals':
-        return generateExternals(getManifest(), root)
+        return generateExternals(getManifest(), root, o.lazyExternals)
       case 'virtual:morphkit/fallback':
         return generateFallback(getManifest(), root)
       case 'virtual:morphkit/wasm-url': {

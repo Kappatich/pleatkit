@@ -1,0 +1,18 @@
+{
+  "name": "@morphkit/react18-smoke",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "V1 B6: @morphkit/runtime renders with React 18 (peer range ^18 || ^19)",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@morphkit/runtime": "workspace:*",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

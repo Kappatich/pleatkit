@@ -1,6 +1,8 @@
 // `@morphkit/runtime/compiler`: the React-free part of the runtime, safe to import in Node.
 // The agent server uses it to check code with exactly the same virtual-fs and externals as the browser.
-export { Compiler, toCompileErrors, virtualFsPlugin, entrySource, isScript } from './compiler.js'
+export { Compiler, toCompileErrors, virtualFsPlugin, entrySource, isScript, sourceUrlComment, registryExpression, COMPILER_VERSION, MORPHKIT_FRAME } from './compiler.js'
+export { bundleKey, contextHash, type BundleKeyInput } from './server-bundles.js'
+export { ESBUILD_VERSION, BUNDLE_FORMAT } from './constants.js'
 export type { CompilerMetrics, CompilerOptions, EsbuildApi, CompileContext } from './compiler.js'
 export { resolveSpecifier, matchesExternal, applyAlias, loaderFor } from './vfs.js'
 export { hashFiles, ulid } from './util.js'

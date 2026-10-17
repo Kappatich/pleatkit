@@ -77,19 +77,24 @@ function matchBrace(css: string, open: number): number {
 
 export const TAILWIND_STYLESHEETS = ['tailwindcss/theme.css', 'tailwindcss/utilities.css'] as const
 
-/** Source of `virtual:morphkit/tailwind`: the compiler, the input CSS and the stylesheets it imports. */
-export function generateTailwindModule(root: string, entry: string): string {
-  const req = createRequire(path.join(root, 'package.json'))
-  const stylesheets: Record<string, string> = {}
-  for (const id of TAILWIND_STYLESHEETS) stylesheets[id] = fs.readFileSync(req.resolve(id), 'utf8')
+/** Input CSS of the runtime Tailwind compiler: theme and utilities layers plus the app's own blocks. */
+export function tailwindInput(root: string, entry: string): string {
   const entryPath = path.join(root, entry)
   const blocks = fs.existsSync(entryPath) ? extractTailwindBlocks(fs.readFileSync(entryPath, 'utf8')) : []
-  const input = [
+  return [
     '@layer theme, base, components, utilities;',
     '@import "tailwindcss/theme.css" layer(theme);',
     '@import "tailwindcss/utilities.css" layer(utilities);',
     ...blocks,
   ].join('\n')
+}
+
+/** Source of `virtual:morphkit/tailwind`: the compiler, the input CSS and the stylesheets it imports. */
+export function generateTailwindModule(root: string, entry: string): string {
+  const req = createRequire(path.join(root, 'package.json'))
+  const stylesheets: Record<string, string> = {}
+  for (const id of TAILWIND_STYLESHEETS) stylesheets[id] = fs.readFileSync(req.resolve(id), 'utf8')
+  const input = tailwindInput(root, entry)
   return [
     `export { compile } from 'tailwindcss'`,
     `import manifest from 'virtual:morphkit/manifest'`,

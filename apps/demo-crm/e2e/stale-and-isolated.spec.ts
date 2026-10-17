@@ -8,12 +8,14 @@ interface Manifest {
 
 /**
  * Pretend alice customized the card on the previous release of the app: her snapshots were made against a
- * base whose deals table differed, so their baseHash is not today's.
+ * base whose deals table (and, unless `cardUnchanged`, the card she changed) differed, so their baseHash is
+ * not today's.
  */
-async function seedStaleHead(page: Page): Promise<void> {
+async function seedStaleHead(page: Page, options: { cardUnchanged?: boolean } = {}): Promise<void> {
   const manifest = (await (await page.request.get('/morphkit.manifest.json')).json()) as Manifest
   const oldBase = Object.fromEntries(manifest.dynamic.map((f) => [f.path, f.source]))
   oldBase['src/dynamic/deals-table.tsx'] += '\n// previous release\n'
+  if (!options.cardUnchanged) oldBase[CARD] += '\n// previous release\n'
   const headers = { 'x-morphkit-user': 'alice', 'x-morphkit-app': appFor(page) }
   const put = async (id: string, parentId: string | null, files: Record<string, string>, message: string) => {
     const res = await page.request.put(`/morphkit-store/snapshots/${id}`, {
@@ -27,6 +29,18 @@ async function seedStaleHead(page: Page): Promise<void> {
   expect((await page.request.post('/morphkit-store/snapshots/01OLDEDIT00000000000000000/head', { headers })).status()).toBe(204)
 }
 
+test('B5: a release that changed only other files carries the edits over by itself, no banner', async ({ page }) => {
+  await page.goto(`/?app=${appFor(page)}`)
+  await seedStaleHead(page, { cardUnchanged: true })
+  await openCrm(page)
+  await expect(page.getByTestId('customer-card').getByTestId('phone')).toHaveText('+1 555 0102')
+  await expect(page.getByTestId('mk-stale')).toBeHidden()
+  // the carried-over version is a new snapshot on today's base; undo goes back to the old one
+  await page.getByTestId('mk-chat-open').click()
+  await page.getByTestId('mk-chat-history').click()
+  await expect(page.getByTestId('mk-history')).toContainText('Carried over to the new version of the app')
+})
+
 test('stale snapshot after a release: banner, and the agent carries the edits over to the new base', async ({ page }) => {
   await page.goto(`/?app=${appFor(page)}`)
   await seedStaleHead(page)
@@ -34,6 +48,9 @@ test('stale snapshot after a release: banner, and the agent carries the edits ov
   const banner = page.getByTestId('mk-stale')
   await expect(banner).toBeVisible()
   await expect(banner).toContainText('The app was updated')
+  // only the panel both sides changed is marked (V1 B5)
+  await expect(page.locator('[data-morphkit-id="customer-card"]')).toHaveAttribute('data-morphkit-stale', '')
+  await expect(page.locator('[data-morphkit-id="deals-table"]')).not.toHaveAttribute('data-morphkit-stale', '')
   // her version still renders meanwhile
   await expect(page.getByTestId('customer-card').getByTestId('phone')).toHaveText('+1 555 0102')
   await shot(page, '11-stale-banner.png')

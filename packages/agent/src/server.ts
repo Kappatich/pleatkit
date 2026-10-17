@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { streamSSE } from 'hono/streaming'
 import type { AgentRefusal, AgentResult, AgentRunRequest, RequestStatus } from '@morphkit/runtime/compiler'
 import { AgentAuthError, identify, type AgentAuth, type Identity } from './auth.js'
+import { BundleService, type CompileInput } from './bundle.js'
 import { t, type MessageKey } from './i18n.js'
 import { loopRunner, validateRequest, type AgentLimits, type AgentRunner } from './loop.js'
 import { MemoryQuotaBackend, Quotas, resolvePlan, StoreQuotaBackend, type PlanLimits } from './quota.js'
@@ -102,6 +103,8 @@ export function createAgentApp(options: AgentServerOptions) {
           return p ? resolvePlan(p.plan ?? options.plan?.name, { ...options.plan?.limits, ...p.limits }) : fallbackPlan()
         }))
 
+  const bundles = new BundleService(auth.credentials, store)
+
   const app = new Hono().basePath(options.basePath ?? '/agent')
   if (options.corsOrigin) app.use('*', cors({ origin: options.corsOrigin, allowHeaders: ['content-type', 'authorization', 'idempotency-key'] }))
 
@@ -150,6 +153,16 @@ export function createAgentApp(options: AgentServerOptions) {
           `[morphkit-agent] ${who.userId}: ${result.verdict} in ${result.timings.totalMs} ms, ${result.modelCalls} model calls, ` +
             `${result.log.length} tool calls${cost ? `, $${cost.toFixed(4)}` : ''} (${result.provider}/${result.model})`,
         )
+        // compile: 'server' (V1 B1): compile, sign and store the resulting snapshot now, so the browser's commit
+        // is a download of a verified bundle
+        if (req.compile && result.verdict === 'ok' && (Object.keys(result.files).length > 0 || result.deleted.length > 0 || req.migration)) {
+          const files = { ...req.files, ...result.files }
+          for (const p of result.deleted) delete files[p]
+          const out = await bundles
+            .compile({ appId: who.appId, files, readonly: req.readonly, context: req.context, components: req.components })
+            .catch((e: Error) => (log(`[morphkit-agent] server compile after the run failed: ${e.message}`), null))
+          if (out?.ok && out.key) result = { ...result, bundle: { key: out.key, filesHash: out.filesHash, compileMs: out.timeMs } }
+        }
         await send('result', { ...result, requestId })
       } catch (e) {
         await send('error', { message: (e as Error).message })
@@ -158,6 +171,57 @@ export function createAgentApp(options: AgentServerOptions) {
   }
   app.post('/run', run)
   app.post('/v1/run', run)
+
+  /** Compile, sign and store one snapshot (server compile mode, V1 B1); `check: true` only reports errors. */
+  app.post('/v1/compile', async (c) => {
+    let who: Identity
+    let input: CompileInput
+    let check = false
+    try {
+      const body = (await c.req.json()) as Partial<CompileInput> & { userId?: string; check?: boolean }
+      who = await identify(c.req.header('authorization'), body, auth)
+      if (!who.userId) throw new Error('userId is required')
+      const isMap = (v: unknown) => typeof v === 'object' && v !== null && Object.values(v).every((s) => typeof s === 'string')
+      if (!isMap(body.files) || !isMap(body.readonly ?? {})) throw new Error('files and readonly must map paths to strings')
+      const ctx = body.context
+      if (!ctx || !Array.isArray(ctx.dynamicRoots) || !Array.isArray(ctx.externals) || !Array.isArray(ctx.externalPatterns) || typeof ctx.alias !== 'object') {
+        throw new Error('context { dynamicRoots, externals, externalPatterns, alias } is required')
+      }
+      check = body.check === true
+      input = {
+        appId: who.appId,
+        files: body.files as Record<string, string>,
+        readonly: (body.readonly ?? {}) as Record<string, string>,
+        context: { ...ctx, namespace: who.appId },
+        components: Array.isArray(body.components) ? body.components.filter((x): x is string => typeof x === 'string') : [],
+      }
+    } catch (e) {
+      if (e instanceof AgentAuthError) return c.json({ error: e.message }, e.status)
+      return c.json({ error: (e as Error).message }, 400)
+    }
+    if (quotas && !check) {
+      const q = await quotas.beforeCompile(who)
+      if (!q.ok) return c.json({ error: 'over the daily compile limit', retryAfterMs: q.retryAfterMs ?? null }, 429)
+    }
+    try {
+      return c.json(await bundles.compile(input, { check }))
+    } catch (e) {
+      log(`[morphkit-agent] compile failed: ${(e as Error).message}`)
+      return c.json({ error: 'compile failed' }, 500)
+    }
+  })
+
+  /** Signed bundles this process compiled (or store-server has), for apps that proxy `/morphkit/b` to the agent. */
+  app.get('/v1/b/:app/:file', async (c) => {
+    const f = await bundles.file(c.req.param('app'), c.req.param('file'))
+    if (!f) return c.json({ error: 'not found' }, 404)
+    return c.body(f.body, 200, {
+      'content-type': f.type,
+      'cache-control': 'public, max-age=31536000, immutable',
+      'x-content-type-options': 'nosniff',
+      'access-control-allow-origin': '*',
+    })
+  })
 
   return app
 }

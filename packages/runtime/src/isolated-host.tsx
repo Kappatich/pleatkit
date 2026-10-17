@@ -4,11 +4,11 @@
 
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { applyCss, importBundle, installExternals } from './loader.js'
-import type { ModuleNamespace } from './types.js'
+import { applyCss, importBundle, importUrl, installExternals, registryFor } from './loader.js'
+import type { ExternalEntry, ModuleNamespace } from './types.js'
 
 export interface IsolatedHostOptions {
-  externals: Record<string, ModuleNamespace>
+  externals: Record<string, ExternalEntry>
   /** Base modules by path (the original version of the dynamic zone). */
   fallback: Record<string, ModuleNamespace>
   dynamicRoots: string[]
@@ -20,7 +20,12 @@ export interface IsolatedRenderMessage {
   id: string
   props: Record<string, unknown>
   version: number
+  /** App instance namespace the bundle was compiled for (V1 B6). */
+  namespace?: string
   js?: string | null
+  /** Server bundle: loaded by URL with this SRI digest instead of `js`. */
+  url?: string
+  integrity?: string
   css?: string
 }
 
@@ -67,8 +72,16 @@ export function startIsolatedHost(options: IsolatedHostOptions): void {
     if (event.source !== window.parent || event.data?.type !== 'morphkit:render') return
     const msg = event.data
     try {
+      const ns = msg.namespace ?? 'default'
+      if (!registryFor(ns)) installExternals(options.externals, ns)
       if (msg.js === null) modules = byId(options.fallback, options.dynamicRoots)
-      else if (typeof msg.js === 'string') modules = byId(await importBundle(msg.js), options.dynamicRoots)
+      else if (msg.url) {
+        await registryFor(ns)!.ensure()
+        modules = byId(await importUrl(msg.url, msg.integrity), options.dynamicRoots)
+      } else if (typeof msg.js === 'string') {
+        await registryFor(ns)!.ensure()
+        modules = byId(await importBundle(msg.js), options.dynamicRoots)
+      }
       if (msg.css !== undefined) applyCss(msg.css)
     } catch (e) {
       post({ type: 'morphkit:error', message: `Module failed to load: ${(e as Error).message}`, version: msg.version })

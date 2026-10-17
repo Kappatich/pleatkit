@@ -12,6 +12,10 @@ export const APP_ID = params.get('app') ?? 'demo-crm'
 export const STORE_KIND: 'http' | 'local' = params.get('store') === 'local' ? 'local' : 'http'
 export const STORE_URL = '/morphkit-store'
 export const AGENT_URL = '/agent'
+/** Signed server bundles, proxied to store-server's /v1/b (V1 B1). */
+export const BUNDLE_URL = '/morphkit/b'
+/** `?compile=browser`: esbuild-wasm in the page instead of the agent server (the plugin's default is `server`). */
+export const COMPILE: 'browser' | 'server' | null = params.get('compile') === 'browser' ? 'browser' : params.get('compile') === 'server' ? 'server' : null
 
 /**
  * `?auth=token`: the production path (V1 A1). The demo's backend mints a 15-minute user token
