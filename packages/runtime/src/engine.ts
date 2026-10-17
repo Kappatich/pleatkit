@@ -159,8 +159,11 @@ export class MorphkitEngine {
 
   // --- lifecycle ---
 
+  private initPromise: Promise<void> | null = null
+
+  /** Load the user's head. Idempotent. */
   init(): Promise<void> {
-    return this.enqueue(async () => {
+    return (this.initPromise ??= this.enqueue(async () => {
       const head = await this.store.head(this.userId)
       if (!head) return this.set({ status: 'ready' })
       try {
@@ -169,7 +172,7 @@ export class MorphkitEngine {
       } catch (e) {
         this.set({ status: 'ready', head, error: `Could not load your version, showing the original: ${(e as Error).message}` })
       }
-    })
+    }))
   }
 
   private fallbackModules(): Record<string, ModuleNamespace> {

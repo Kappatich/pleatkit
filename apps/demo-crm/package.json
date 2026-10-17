@@ -1,0 +1,37 @@
+{
+  "name": "@morphkit/demo-crm",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n data,web -c blue,green \"tsx watch server/index.ts\" \"vite\"",
+    "dev:data": "tsx server/index.ts",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "preview": "vite preview",
+    "e2e": "vite build && playwright test"
+  },
+  "dependencies": {
+    "@morphkit/runtime": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@hono/node-server": "^1.19.5",
+    "@morphkit/vite-plugin": "workspace:*",
+    "@playwright/test": "^1.56.1",
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.1",
+    "hono": "^4.10.0",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.20.6",
+    "vite": "^6.4.1"
+  }
+}
