@@ -87,3 +87,45 @@ test('screenshot input: at most 3 per request', async ({ page }) => {
   await expect(page.getByTestId('mk-chat-images').locator('img')).toHaveCount(3)
   await expect(page.getByTestId('mk-toast').filter({ hasText: 'Up to 3 screenshots' })).toBeVisible()
 })
+
+test('clarifying question: an ambiguous request gets one question with buttons, the answer makes the edit', async ({ page }) => {
+  await openCrm(page)
+  await openChat(page)
+  const input = page.getByTestId('mk-chat-input')
+  await input.fill('Make the important thing in the customer card stand out')
+  await page.getByTestId('mk-chat-send').click()
+  const question = page.getByTestId('mk-chat-turn').first()
+  await expect(question).toHaveAttribute('data-status', 'clarify')
+  await expect(question.getByTestId('mk-chat-summary')).toHaveText('What should stand out in the customer card?')
+  const options = question.getByTestId('mk-clarify-option')
+  await expect(options).toHaveText(['The overdue payment date', 'The customer status', 'The email address'])
+  // nothing changed yet
+  await expect(page.getByTestId('due-date')).not.toHaveClass(/bg-red-600/)
+
+  await options.first().click()
+  const edit = page.getByTestId('mk-chat-turn').nth(1)
+  await expect(edit.locator('.mk-req')).toHaveText('The overdue payment date')
+  await expect(edit).toHaveAttribute('data-status', 'applied')
+  await expect(question.getByTestId('mk-clarify')).toContainText('Answered: The overdue payment date')
+  await expect(question.getByTestId('mk-clarify-option')).toHaveCount(0)
+  await expect(page.getByTestId('due-date')).toHaveClass(/bg-red-600/)
+  // the edit's steps show no second question: the classifier was skipped
+  await expect(edit.getByTestId('mk-chat-steps')).not.toContainText('Understanding the request')
+
+  await page.goto(adminUrl(page))
+  await expect(page.locator('[data-testid="admin-row"][data-status="clarifying"]')).toHaveCount(1)
+  await expect(page.locator('[data-testid="admin-row"][data-status="applied"]')).toContainText('(answer: The overdue payment date)')
+})
+
+test('clarifying question: a typed reply answers it too', async ({ page }) => {
+  await openCrm(page)
+  await openChat(page)
+  await page.getByTestId('mk-chat-input').fill('please make it stand out')
+  await page.getByTestId('mk-chat-send').click()
+  await expect(page.getByTestId('mk-chat-turn').first()).toHaveAttribute('data-status', 'clarify')
+  await page.getByTestId('mk-chat-input').fill('the overdue date, in red')
+  await page.getByTestId('mk-chat-send').click()
+  await expect(page.getByTestId('mk-chat-turn').nth(1)).toHaveAttribute('data-status', 'applied')
+  await expect(page.getByTestId('mk-chat-turn')).toHaveCount(2)
+  await expect(page.getByTestId('due-date')).toHaveClass(/bg-red-600/)
+})

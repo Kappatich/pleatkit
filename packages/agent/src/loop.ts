@@ -101,6 +101,10 @@ export function validateRequest(body: unknown): AgentRunRequest {
     throw new Error('context { dynamicRoots, externals, externalPatterns, alias } is required')
   }
   const images = validateImages(b.images)
+  const cl = b.clarification as { question?: unknown; answer?: unknown } | undefined
+  if (cl !== undefined && (typeof cl !== 'object' || cl === null || typeof cl.question !== 'string' || typeof cl.answer !== 'string' || !cl.answer.trim())) {
+    throw new Error('clarification must be { question, answer } strings')
+  }
   if (b.targetDom !== undefined && typeof b.targetDom !== 'string') throw new Error('targetDom must be a string')
   return {
     ...b,
@@ -147,6 +151,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   let modelCalls = 0
   let stopReason: AgentResult['stopReason']
   let error: string | undefined
+  let clarify: AgentResult['clarify']
 
   const runner = new ToolRunner(ws, (entry, call) => {
     if (call.name === 'check' || (call.name === 'finish' && !entry.ok)) {
@@ -177,12 +182,14 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       timings: { ...timings, modelMs: Math.round(timings.modelMs), toolsMs: Math.round(timings.toolsMs), classifyMs: timings.classifyMs === null ? null : Math.round(timings.classifyMs) },
       ...(stopReason ? { stopReason } : {}),
       ...(error ? { error } : {}),
+      ...(clarify ? { clarify } : {}),
     }
   }
 
   try {
     // Pointing at a panel already says "this is about the page": skip the classifier (DECISIONS item 17).
-    if (options.classify !== false && !req.migration && !req.target) {
+    // After the user answered the clarifying question it is skipped too: one question per edit at most.
+    if (options.classify !== false && !req.migration && !req.target && !req.clarification) {
       progress({ type: 'status', text: t(lang, 'understanding') })
       const startedAt = performance.now()
       try {
@@ -190,9 +197,15 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         if (c.usage && c.model) meter.add(c.model, c.usage)
         classification = c.label
         timings.classifyMs = performance.now() - startedAt
-        progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : 'classifiedUi') })
+        const ask = c.label === 'unclear' && c.question && c.options && c.options.length >= 2
+        progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : ask ? 'classifiedUnclear' : 'classifiedUi') })
         if (c.label === 'needs-backend') {
           return done('needs-backend', c.reason || t(lang, 'needsBackendDefault'))
+        }
+        if (ask) {
+          // one question with buttons instead of a guess; nothing is changed and the big model is not called
+          clarify = { question: c.question!, options: c.options! }
+          return done('clarify', c.question!)
         }
       } catch (e) {
         if (signal.aborted) throw e

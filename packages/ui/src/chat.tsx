@@ -25,11 +25,17 @@ export interface MorphkitChatProps {
   pushContent?: boolean
 }
 
-type TurnStatus = 'running' | 'applied' | 'nothing' | 'needs-backend' | 'failed' | 'rejected'
+type TurnStatus = 'running' | 'applied' | 'nothing' | 'needs-backend' | 'failed' | 'rejected' | 'clarify'
 
 interface Turn {
   id: number
   request: string
+  /** What the bubble shows when it differs from the request (the answer to a clarifying question). */
+  display?: string
+  /** The agent asked one question before changing anything; `answered` once the user picked an answer. */
+  clarify?: { question: string; options: string[]; answered?: string }
+  /** The original request and screenshots, to send again with the answer. */
+  origin?: { request: string; attached: PendingImage[] }
   /** Thumbnails of the screenshots sent with the request. */
   images?: string[]
   status: TurnStatus
@@ -135,11 +141,21 @@ export function MorphkitChat({
     })
   }
 
-  const run = async (request: string, migrate = false, attached: PendingImage[] = []) => {
+  const run = async (request: string, migrate = false, attached: PendingImage[] = [], clarification?: { question: string; answer: string }) => {
     const trimmed = request.trim()
     if (!trimmed || busy) return
     const id = ++ids
-    setTurns((all) => [...all, { id, request: trimmed, status: 'running', steps: [], ...(attached.length ? { images: attached.map((i) => i.preview) } : {}) }])
+    setTurns((all) => [
+      ...all,
+      {
+        id,
+        request: trimmed,
+        ...(clarification ? { display: clarification.answer } : {}),
+        status: 'running',
+        steps: [],
+        ...(attached.length && !clarification ? { images: attached.map((i) => i.preview) } : {}),
+      },
+    ])
     setBusy(true)
     const started = performance.now()
     try {
@@ -154,6 +170,7 @@ export function MorphkitChat({
         ...(appId ? { appId } : {}),
         ...(target ? { target } : {}),
         ...(targetDom ? { targetDom } : {}),
+        ...(clarification ? { clarification } : {}),
         ...(attached.length ? { images: attached.map(({ mediaType, data, name }) => ({ mediaType, data, ...(name ? { name } : {}) })) } : {}),
         ...(migration ? { migration, files: from } : {}),
       })
@@ -162,6 +179,11 @@ export function MorphkitChat({
       // the agent's last "Thinking" line is over once the result is in
       update(id, (t) => ({ result, summary: plain(result.summary), steps: t.steps.filter((s) => !s.transient) }))
 
+      if (result.verdict === 'clarify' && result.clarify) {
+        // one question with buttons; the answer re-sends the same request (the agent never asks twice)
+        update(id, { status: 'clarify', clarify: result.clarify, origin: { request: trimmed, attached } })
+        return
+      }
       if (result.verdict === 'needs-backend') {
         update(id, { status: 'needs-backend' })
         toast(tr('toast.admin'), 'admin')
@@ -214,10 +236,26 @@ export function MorphkitChat({
     }
   }
 
+  /** The open clarifying question, if the last turn asked one and it is not answered yet. */
+  const lastTurn = turns.at(-1)
+  const openQuestion = lastTurn?.status === 'clarify' && lastTurn.clarify && !lastTurn.clarify.answered ? lastTurn : null
+
+  const answer = (turn: Turn, reply: string) => {
+    if (!turn.clarify || !turn.origin || !reply.trim()) return
+    const { question } = turn.clarify
+    update(turn.id, { clarify: { ...turn.clarify, answered: reply.trim() } })
+    void run(turn.origin.request, false, turn.origin.attached, { question, answer: reply.trim() })
+  }
+
   const send = () => {
     const t = text
-    const attached = images
     setText('')
+    // text typed after a question is the answer to it
+    if (openQuestion) {
+      answer(openQuestion, t)
+      return
+    }
+    const attached = images
     setImages([])
     void run(t, false, attached)
   }
@@ -321,6 +359,8 @@ export function MorphkitChat({
                 canUndo={!busy && t.snapshotId !== undefined && t.snapshotId === head?.id && state.canUndo}
                 onUndo={() => void nav(tr('toast.undone'), () => engine.undo())}
                 onHistory={() => setShowHistory(true)}
+                onAnswer={(reply) => answer(t, reply)}
+                canAnswer={!busy && t === openQuestion}
               />
             ))}
           </div>
@@ -434,6 +474,7 @@ const BADGE: Record<TurnStatus, [UiKey, string]> = {
   'needs-backend': ['badge.needs-backend', 'mk-b-admin'],
   failed: ['badge.failed', 'mk-b-bad'],
   rejected: ['badge.rejected', 'mk-b-bad'],
+  clarify: ['badge.clarify', 'mk-b-run'],
 }
 
 /** Model summaries are meant for the user; strip anything that still looks like code. */
@@ -444,7 +485,23 @@ function plain(text: string): string {
     .trim()
 }
 
-function TurnView({ turn, tr, canUndo, onUndo, onHistory }: { turn: Turn; tr: Translate; canUndo: boolean; onUndo: () => void; onHistory: () => void }) {
+function TurnView({
+  turn,
+  tr,
+  canUndo,
+  onUndo,
+  onHistory,
+  onAnswer,
+  canAnswer,
+}: {
+  turn: Turn
+  tr: Translate
+  canUndo: boolean
+  onUndo: () => void
+  onHistory: () => void
+  onAnswer: (reply: string) => void
+  canAnswer: boolean
+}) {
   const [expanded, setExpanded] = useState(false)
   const [labelKey, cls] = BADGE[turn.status]
   const cost = turn.result?.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0) ?? 0
@@ -463,7 +520,7 @@ function TurnView({ turn, tr, canUndo, onUndo, onHistory }: { turn: Turn; tr: Tr
       data-usage={turn.result ? JSON.stringify(turn.result.usage) : undefined}
     >
       <div className="mk-req">
-        {turn.request}
+        {turn.display ?? turn.request}
         {turn.images && (
           <span className="mk-req-thumbs" data-testid="mk-turn-images" aria-label={tr('chat.attach.count', { n: turn.images.length })}>
             {turn.images.map((src, i) => (
@@ -490,6 +547,24 @@ function TurnView({ turn, tr, canUndo, onUndo, onHistory }: { turn: Turn; tr: Tr
         {turn.summary && (
           <div className="mk-summary" data-testid="mk-chat-summary">
             {turn.summary}
+          </div>
+        )}
+        {turn.clarify && (
+          <div className="mk-clarify" data-testid="mk-clarify">
+            {turn.clarify.answered ? (
+              <div className="mk-meta">{tr('chat.clarify.answered', { answer: turn.clarify.answered })}</div>
+            ) : (
+              <>
+                <div className="mk-row">
+                  {turn.clarify.options.map((o) => (
+                    <button key={o} type="button" className="mk-btn" data-testid="mk-clarify-option" disabled={!canAnswer} onClick={() => onAnswer(o)}>
+                      {o}
+                    </button>
+                  ))}
+                </div>
+                <div className="mk-meta">{tr('chat.clarify.other')}</div>
+              </>
+            )}
           </div>
         )}
         {turn.review && (

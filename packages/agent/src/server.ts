@@ -23,6 +23,7 @@ export interface AgentServerOptions {
 function statusFor(result: Omit<AgentResult, 'requestId'>): RequestStatus {
   if (result.verdict === 'needs-backend') return 'pending-admin'
   if (result.verdict === 'failed') return 'failed'
+  if (result.verdict === 'clarify') return 'clarifying'
   return Object.keys(result.files).length > 0 || result.deleted.length > 0 ? 'proposed' : 'applied'
 }
 
@@ -33,7 +34,7 @@ export async function reportRun(storeUrl: string, req: AgentRunRequest, result: 
     headers: { 'content-type': 'application/json', 'x-morphkit-user': req.userId, 'x-morphkit-app': req.appId ?? 'default', 'x-morphkit-agent': '1' },
     body: JSON.stringify({
       userId: req.userId,
-      text: req.request,
+      text: req.clarification ? `${req.request}\n(answer: ${req.clarification.answer})` : req.request,
       target: req.target ?? null,
       verdict: result.verdict,
       summary: result.summary,

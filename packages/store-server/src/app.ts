@@ -59,7 +59,7 @@ function toSnapshot(r: SnapshotRow) {
   }
 }
 
-const STATUSES = ['proposed', 'applied', 'pending-review', 'rejected', 'pending-admin', 'in-progress', 'rolled-back', 'failed'] as const
+const STATUSES = ['proposed', 'applied', 'pending-review', 'clarifying', 'rejected', 'pending-admin', 'in-progress', 'rolled-back', 'failed'] as const
 /** What an admin should look at first: edits awaiting review, then backend requests, then the rest. */
 const PRIORITY: Record<string, number> = { 'pending-review': 2, 'pending-admin': 1 }
 const priority = (status: string) => PRIORITY[status] ?? 0

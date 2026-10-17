@@ -1,5 +1,6 @@
 import type { TokenUsage } from '@morphkit/runtime/compiler'
 import { CLASSIFIER_INSTRUCTIONS } from '../prompt.js'
+import { clarifyOf } from './anthropic.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
 
 export interface OpenAICompatibleOptions {
@@ -76,7 +77,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       {
         model: this.classifierModel,
         messages: [
-          { role: 'system', content: `${CLASSIFIER_INSTRUCTIONS}\nAnswer with JSON only: {"label": "...", "reason": "..."}` },
+          { role: 'system', content: `${CLASSIFIER_INSTRUCTIONS}\nAnswer with JSON only: {"label": "...", "reason": "...", "question": "...", "options": ["..."]}` },
           { role: 'user', content: `${input.context}\n\n<request>\n${input.request}\n</request>` },
         ],
         response_format: { type: 'json_object' },
@@ -85,9 +86,9 @@ export class OpenAICompatibleProvider implements ModelProvider {
     )
     const text = textOf(r.choices[0]?.message.content)
     try {
-      const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)) as { label?: string; reason?: string }
+      const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)) as { label?: string; reason?: string; question?: string; options?: string[] }
       const label = parsed.label === 'ui' || parsed.label === 'needs-backend' ? parsed.label : 'unclear'
-      return { label, reason: parsed.reason ?? '', usage: usageOf(r.usage), model: r.model ?? this.classifierModel }
+      return { label, reason: parsed.reason ?? '', ...(label === 'unclear' ? clarifyOf(parsed) : {}), usage: usageOf(r.usage), model: r.model ?? this.classifierModel }
     } catch {
       return { label: 'unclear', reason: '', usage: usageOf(r.usage), model: r.model ?? this.classifierModel }
     }

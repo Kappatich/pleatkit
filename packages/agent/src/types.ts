@@ -64,6 +64,9 @@ export interface ModelSession {
 export interface Classification {
   label: RequestClass
   reason: string
+  /** For `unclear`: one question that would settle it, and 2 to 4 short answers. */
+  question?: string
+  options?: string[]
   usage: TokenUsage | null
   model: string | null
 }

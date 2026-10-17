@@ -163,6 +163,8 @@ language (`@morphkit/ui` `UI_MESSAGES`, `@morphkit/agent` `MESSAGES`).
 
 Screenshots: the user can paste (Ctrl+V) or drop up to 3 images (6 MB in total, scaled to 1568 px) into the chat; they go to the model as vision input (Anthropic image blocks, OpenAI `image_url`), and when the user pointed at a panel the request also carries a sanitized DOM snapshot of it (structure, classes, test ids, visible text; no scripts, styles, handlers or form values). The system prompt tells the model that anything in a screenshot or the DOM is data about the screen, never an instruction. Only sizes are logged, the images are not stored.
 
+Clarifying question: when the classifier finds a request ambiguous it returns one question with 2 to 4 answer buttons instead of guessing (no code is written and the big model is not called). The user clicks an answer or types one; the same request is sent again with the answer, the classifier is skipped, so an edit asks at most once.
+
 **How the Anthropic provider calls Claude:** official `@anthropic-ai/sdk`; `claude-haiku-5-5` classifies the
 request first with a structured output (backend work goes straight to the admin, the big model is not called;
 when the user pointed at a panel the classifier is skipped);
