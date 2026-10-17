@@ -51,7 +51,12 @@ export interface SnapshotStore {
   /** Newest first. */
   list(userId: string, limit?: number): Promise<Snapshot[]>
   put(snapshot: Snapshot): Promise<void>
-  setHead(userId: string, id: string): Promise<void>
+  /**
+   * Move the user's head. With `expectedHeadId` (code review 06 item 6) the store moves it only if the head is
+   * still that snapshot (`null`: the user has no head yet) and throws HeadConflictError otherwise: another tab,
+   * device, admin rollback or auto-rollback moved it in between.
+   */
+  setHead(userId: string, id: string, expectedHeadId?: string | null): Promise<void>
   bundleCache: BundleCache
   /**
    * Optional: attach the outcome of an agent request (logged by the agent server) to the snapshot it
@@ -136,6 +141,12 @@ export interface MorphkitManifest {
    * server can compile CSS for server bundles too, and its hash for bundle keys. Missing on older builds.
    */
   css?: { mode: 'tailwind' | 'palette'; input?: string; hash: string }
+  /** Selectors of elements edits must keep visible (brainstorm 05 #20), e.g. `[data-consent]`. */
+  protected?: string[]
+  /** Design-system profile for the agent (brainstorm 05 #10, 04 §1): one line per component, from `.d.ts`. */
+  designSystem?: { digest: string; docs?: string }
+  /** Data contracts for the agent: entities and client methods, from the readonly zone's `.d.ts`. */
+  dataContracts?: { digest: string }
 }
 
 export type ModuleNamespace = Record<string, unknown>
@@ -204,4 +215,16 @@ export interface MorphkitConfig {
    * it, and edits are always compiled on the server. `npx morphkit keys public` prints it.
    */
   publicKey?: string | null
+  /** Development build (`vite serve`): browser compiles keep an inline source map. Production bundles have none. */
+  dev?: boolean
+  /**
+   * Render every panel whose live version is an edit inside the sandboxed iframe, as `<Dynamic isolated>` would
+   * (code review 06 item 8). Default false (same realm, the demo's mode); needs `isolated: true` in the plugin.
+   */
+  isolateEdits?: boolean
+  /**
+   * Send the visible text of the panel the user points at to the agent (brainstorm 05 #3). Default false: only
+   * the structure (tags, classes, test ids, text lengths) leaves the page; `data-morphkit-private` subtrees never do.
+   */
+  sendDomText?: boolean
 }

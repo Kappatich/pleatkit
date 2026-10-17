@@ -1,11 +1,11 @@
 import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_DOM_CHARS } from '@morphkit/runtime/compiler'
-import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, RequestClass } from '@morphkit/runtime/compiler'
+import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, FileMap, RequestClass } from '@morphkit/runtime/compiler'
 import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
 import { buildPrompt, classifierContext, PROMPT_VERSION } from './prompt.js'
 import { ToolRunner, TOOLS } from './tools.js'
 import type { ModelProvider, ModelTurn, ToolCall, ToolResult } from './types.js'
-import { Workspace } from './workspace.js'
+import { Workspace, type TypecheckFn } from './workspace.js'
 
 export interface AgentLimits {
   /** Model calls in the main loop. */
@@ -31,10 +31,18 @@ export function visibleOutputTokens(turn: Pick<ModelTurn, 'text' | 'toolCalls' |
   return { tokens: Math.min(out, Math.ceil(chars / 3.5)), estimated: true }
 }
 
+/** The result a cut-off tool call gets instead of running. */
+export const CUT_OFF = 'Not run: your reply hit the output limit while writing this call, so it was cut off. Nothing was written. Make smaller changes: edit_file for a part of a file, or one file per call.'
+
 export const DEFAULT_LIMITS: AgentLimits = { maxModelCalls: 12, timeoutMs: 90_000, maxOutputTokens: 8_000, maxCostUsd: Number.POSITIVE_INFINITY }
 
 export interface RunOptions {
   limits?: Partial<AgentLimits>
+  /** Protected elements and the release's original files, from the server manifest (brainstorm 05 #20). */
+  protected?: string[]
+  base?: FileMap
+  /** Type check against the app's `.d.ts` after a clean compile (brainstorm 05 #4). */
+  typecheck?: TypecheckFn | null
   /** Run the cheap classifier first (default true). Migrations skip it. */
   classify?: boolean
   onProgress?: (p: AgentProgress) => void
@@ -146,7 +154,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   const timeout = AbortSignal.timeout(limits.timeoutMs)
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout
   const meter = new UsageMeter()
-  const ws = new Workspace(req)
+  const ws = new Workspace({ ...req, ...(options.protected?.length ? { protected: options.protected, base: options.base ?? {} } : {}) }, options.typecheck ?? null)
   const timings = { totalMs: 0, classifyMs: null as number | null, modelMs: 0, toolsMs: 0 }
   const output = { visibleTokens: 0, thinkingTokens: 0, limit: limits.maxOutputTokens, estimated: false }
   let classification: RequestClass | null = null
@@ -225,7 +233,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       }
     }
 
-    const session = provider.start(buildPrompt(req), TOOLS, { request: req.request })
+    const session = provider.start(buildPrompt(req, limits), TOOLS, { request: req.request })
     let results: ToolResult[] = []
     let nudged = false
     while (!runner.finished) {
@@ -257,6 +265,19 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         break
       }
       results = []
+      // Output cut off by max_tokens (code review 06 item 10): the last tool call may be incomplete (a half-written
+      // file), so it is not run; the model is told, and gets a result for it so the conversation stays valid.
+      let cutOff: ToolCall | null = null
+      if (turn.stop === 'max_tokens' && turn.toolCalls.length > 0) cutOff = turn.toolCalls.pop()!
+      if (turn.stop === 'max_tokens' && turn.toolCalls.length === 0 && !cutOff) {
+        session.say('Your reply was cut off at the output limit. Continue with smaller tool calls (edit_file for part of a file).')
+        continue
+      }
+      if (turn.toolCalls.length === 0 && cutOff) {
+        runner.note(cutOff, modelCalls, CUT_OFF)
+        results.push({ id: cutOff.id, ok: false, content: CUT_OFF })
+        continue
+      }
       if (turn.toolCalls.length === 0) {
         if (nudged) {
           stopReason = 'no-finish'
@@ -271,6 +292,10 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         progress({ type: 'tool', turn: modelCalls, tool: call.name, text: describe(call, req) })
         results.push(await runner.run(call, modelCalls))
         if (runner.finished) break
+      }
+      if (cutOff && !runner.finished) {
+        runner.note(cutOff, modelCalls, CUT_OFF)
+        results.push({ id: cutOff.id, ok: false, content: CUT_OFF })
       }
       timings.toolsMs += performance.now() - tt
     }

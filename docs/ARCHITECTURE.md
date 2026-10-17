@@ -75,6 +75,8 @@ export default defineConfig({
 
 ## 4. `@morphkit/runtime` (браузер)
 
+Состояние на этап 4b; отклонения от первоначального плана внесены сюда же (DECISIONS 43).
+
 ### 4.1. Типы
 
 ```ts
@@ -84,92 +86,87 @@ interface Snapshot {
   parentId: string | null
   userId: string
   files: FileMap        // полный снимок dynamic
-  message: string       // что попросил пользователь / что сделал агент
-  author: 'base' | 'agent' | 'user' | 'admin'
-  createdAt: string
-  status: 'applied' | 'rejected' | 'pending-admin'
+  message: string
+  author: 'base' | 'agent' | 'user' | 'admin'      // store-server проверяет: base только без родителя, admin только админ
+  createdAt: string                                // ставит store-server
+  status: 'applied' | 'rejected' | 'pending-admin' // от клиента принимается только applied | rejected
+  baseHash?: string     // идентичность релиза: исходные dynamic + readonly, externals, alias, тема Tailwind, компилятор
+  baseFiles?: Record<string, string>               // хеши по файлам (V1 B5)
+  requestId?: string; schemaVersion?: number
 }
 interface SnapshotStore {
   head(userId): Promise<Snapshot | null>
   get(id): Promise<Snapshot>
   list(userId, limit?): Promise<Snapshot[]>
-  put(snapshot): Promise<void>
-  setHead(userId, id): Promise<void>
-  bundleCache: { get(hash): Promise<string | null>, put(hash, js): Promise<void> }
+  put(snapshot): Promise<void>                     // снимки insert-only
+  setHead(userId, id, expectedHeadId?): Promise<void> // CAS: HeadConflictError, если head сдвинулся
+  bundleCache: { get(key): Promise<CompiledBundle | null>, put(key, bundle): Promise<void> } // best effort
+  linkRequest?(...); flags?(): Promise<Record<string, unknown>>
 }
 ```
 
-### 4.2. Компилятор
+### 4.2. Компиляция и `check`
 
-- `esbuild-wasm`, грузится лениво при первом `commit`, wasm кешируется через Cache API. Инициализация один раз.
-- Плагин `virtual-fs`: резолвит `@/` → `/src/`, пробует `.tsx/.ts/.css`, читает из `FileMap`. Всё из `externals` помечается `external: true`.
-- Формат вывода: `iife` c `globalName` не нужен, используем `format: 'esm'` и загрузку через `import(blobUrl)`. Externals переписываются на `window.__morphkit.externals['react']` через небольшой banner/footer или через import map (import map проще: `<script type="importmap">` с blob URL на модули-шимы, которые экспортируют из реестра).
-- Результат: `{ js, css, hash }`. Hash = sha256 по отсортированному `FileMap`, по нему кеш бандла в `SnapshotStore.bundleCache`.
-- Ошибки компиляции возвращаются структурированно: `{ file, line, column, text }[]`.
+- Режим по умолчанию `server` (DECISIONS 22): агент компилирует нативным esbuild, подписывает ed25519 и кладёт в store-server; браузер грузит `/morphkit/b/<app>/<key>.js` через `<script integrity>` + `import()`. Режим `browser`: esbuild-wasm в странице, при ошибке wasm сам уходит на `server`.
+- **Один `check` для браузера и сервера** (`Compiler.compile` в `@morphkit/runtime/compiler`, code review 06 п. 12): сборка virtual-fs с externals, затем статические правила, защищённые элементы и правило default export по одному AST (esbuild `transform` снимает TypeScript, acorn + acorn-jsx разбирают, позиции возвращаются по source map). В браузере модуль правил грузится лениво, только в режиме `browser`.
+- Ключ бандла: версия компилятора, формат, namespace, CSS-режим, `contextHash` (readonly, externals, alias, корни зон, хеш темы Tailwind) и хеш файлов. `baseHash` снимка считается из тех же частей, поэтому релиз с новым readonly API или темой делает снимки устаревшими, и они переносятся сами (B5).
+- CSS правок: `.css` зоны оборачивается в `@scope ([data-morphkit-id])` при компиляции, весь CSS правок кладётся в `@layer morphkit-edits` (несвязанный CSS хоста всегда сильнее). UI morphkit рендерится в shadow root (`MorphkitUiRoot`), поэтому CSS правки не может его спрятать.
+- Без `crypto.subtle` (http не на localhost) хеши считаются на JS; подпись бандлов проверить нельзя, и с `publicKey` правки отклоняются (doctor `secure-context`).
+- Inline source map только в dev-сборке (`virtual:morphkit` `dev`).
 
 ### 4.3. Реестр динамических компонентов
 
 ```tsx
-<MorphkitProvider store={...} userId={...} manifest={manifest} isolated={false}>
+<MorphkitProvider config={config} store={store} userId={userId} token={...} onAuthExpired={...}>
   <Dynamic id="customer-card" props={{ customer }} />
 </MorphkitProvider>
 ```
 
-- `id` соответствует файлу `src/dynamic/<id>.tsx` с `export default`.
-- Provider держит `Map<id, React.ComponentType>`; при смене head перезагружает модуль и вызывает `forceUpdate` подписчиков `Dynamic`.
-- `ErrorBoundary` вокруг каждого `Dynamic`: если компонент упал в рантайме (не на компиляции), показываем плашку «правка сломала панель» с кнопкой «откатить», и автоматически откатываем через 10 с, если пользователь не нажал «оставить».
-- `isolated` режим: `Dynamic` рендерит iframe с `srcdoc`, внутрь передаются props через `postMessage` (только сериализуемые), стили через тот же css. Для демо достаточно одного компонента в этом режиме.
+- Движок создаётся в `useMemo` по пользователю и конфигурации; конструктор без побочных эффектов, слушатели подключает `engine.attach()` в эффекте. Смена пользователя не размонтирует дерево хоста.
+- Store недоступен или висит: через 5 с (`storeTimeoutMs`) состояние `ready`, исходная версия, `offline: true`; `refresh()` пробует снова. У `HttpStore` таймаут на каждый запрос и один повтор после 401 со свежим токеном.
+- Подмена модулей: LRU-кеш из 8 вычисленных бандлов (undo/redo без повторного `import()`), `panelVersions` по панелям: перемонтируются только панели, чей код изменился.
+- `ErrorBoundary` вокруг каждой панели, откат только по вине правки (B3); `rollback` проверяет head внутри очереди, две упавшие панели откатывают одну правку один раз.
+- `isolated`: iframe `sandbox="allow-scripts"` со скриптом-хостом отдельным файлом (DECISIONS 16); сообщения в iframe обрабатываются по одному. `isolateEdits` в плагине отправляет в iframe каждую изменённую панель; по умолчанию выключено (тот же realm, граница это правила + CSP).
 
-### 4.4. API рантайма (используется агентом через сервер и UI)
+### 4.4. API рантайма
 
 ```ts
-const pm = useMorphkit()
-pm.draft.start(message)               // копия head в черновик
-pm.draft.write(path, source)          // только пути внутри dynamic
-pm.draft.read(path)
-pm.draft.list()
-pm.draft.check(): Promise<CompileResult>   // компилирует, не применяет
-pm.draft.commit(): Promise<Snapshot>       // check + put + setHead + swap
-pm.draft.discard()
-pm.undo()                              // head = head.parentId (если есть)
-pm.redo()                              // по локальной истории навигации
-pm.history(): Snapshot[]
-pm.reset()                             // head = base
+const engine = useMorphkit()
+engine.draft.start(message) / write(path, source) / read / list / check() / commit(author, { requestId, bundle, expectedHeadId }) / discard()
+engine.undo() / redo() / reset() / rollback(snapshotId)
+engine.revertPlan(snapshotId) / revert(snapshotId)   // откат правки из середины цепочки (05 #13)
+engine.previewOriginal(on)                          // «показать оригинал», head не меняется (05 #12)
+engine.diagnostics()                                // id снимка, «изменено», панели, режим, offline (05 #12)
+engine.agentRequest(text, extra)                    // с expectedHeadId
+engine.history() / tags() / moduleStats() / refresh()
 ```
 
-Агент на сервере **не держит** своё состояние файлов: он вызывает те же операции через HTTP на `@morphkit/agent`, который проксирует в браузер по SSE/WebSocket? Нет, проще: **браузер является источником правды для черновика**. Поток такой:
+Браузер остаётся источником правды для файлов, сервер агента stateless по файлам:
 
-1. UI отправляет на сервер агента `POST /agent/run { userId, request, files: draft.list() с исходниками, readonly, coreTypes }`.
-2. Сервер запускает цикл модели. Инструменты `read_file`, `write_file`, `check` работают над **копией файлов в памяти сервера**; `check` на сервере делает `esbuild` (нативный, быстрый) с тем же плагином virtual-fs и теми же externals.
-3. По окончании сервер отвечает `{ files: FileMap (изменённые), summary, log, verdict: 'ok' | 'needs-backend' | 'failed' }` и стримит прогресс по SSE для UI.
-4. Браузер пишет изменённые файлы в черновик, делает `draft.check()` (esbuild-wasm) и `commit()`. Так одна и та же проверка выполняется дважды, но зато рантайм не зависит от сервера для undo/истории, а сервер агента stateless.
+1. Чат отправляет `POST /agent/v1/run` с файлами, `expectedHeadId` и (при указании на панель) DOM-снимком панели. По умолчанию в DOM-снимке только структура: теги, классы, test id и длины текстов; текст только при `sendDomText: true` (почта и номера маскируются), поддеревья `data-morphkit-private` и значения полей никогда (05 #3).
+2. Агент берёт контекст правил, readonly и `.d.ts` из своего манифеста (`MORPHKIT_MANIFEST`), а не из тела запроса; работает над копией файлов в памяти; `check` тот же, что в браузере.
+3. Результат: `{ files, verdict: ok | partial | needs-backend | not-editable | declined | failed | clarify | refused, expectedHeadId, bundle? }`, прогресс по SSE с комментарием-heartbeat каждые 15 с. Отмена в чате обрывает запрос, сервер прерывает вызов модели.
+4. Браузер коммитит только поверх того же head (`expectedHeadId`, CAS на `setHead`); при конфликте head перечитывается и правка не применяется.
 
 ---
 
 ## 5. `@morphkit/agent` (Node)
 
-- Hono-сервер, один эндпоинт `POST /agent/run` (SSE-ответ) + `GET /health`.
-- Провайдеры: интерфейс `ModelProvider { run(ctx, tools): AsyncIterable<Event> }`. Реализации в MVP: `anthropic` (официальный SDK, модель по умолчанию `claude-sonnet-5-5`, thinking adaptive, effort `medium`; классификатор запроса на `claude-haiku-5-5`), `openai-compatible` (base URL + key, покрывает OpenAI и OpenRouter). Ключи только из env: `MORPHKIT_PROVIDER`, `MORPHKIT_API_KEY`, `MORPHKIT_MODEL`, `MORPHKIT_BASE_URL`.
-- Если ключа нет: провайдер `scripted` для тестов и демо без сети: берёт сценарий из `fixtures/*.json` (запрос → набор файлов), чтобы весь пайплайн можно было прогнать в CI.
-- Инструменты (строгие схемы, `strict: true`):
-  - `list_files()` → пути dynamic + readonly с пометкой зоны;
-  - `read_file(path)`;
-  - `write_file(path, content)` → только dynamic, иначе ошибка инструмента (и это логируется как нарушение);
-  - `check()` → результат компиляции;
-  - `finish(summary, verdict)`.
-- Системная инструкция: правила зон, стек (React 19, Tailwind 4, shadcn), «если запрос требует изменений вне dynamic или новых данных с сервера, не пиши код, вызови finish с verdict `needs-backend` и объясни пользователю одной фразой». Передаём `coreTypes` и список generic-полей сущностей (`meta: Record<string, unknown>`), чтобы простые фичи делались без бэкенда (идея автора из комментариев).
-- Классификатор (Haiku): перед основным циклом один вызов «ui / needs-backend / unclear». `needs-backend` сразу уходит в дашборд, без траты токенов большой модели.
-- Лимиты: максимум 12 обращений к модели, таймаут 90 с, бюджет вывода 8k токенов на правку. Журнал всех вызовов инструментов сохраняется в ответе (`log`) и в store-server.
-- Кеширование промпта: системная инструкция + readonly + coreTypes в одном `cache_control` блоке.
+- Hono: `POST /agent/v1/run` (SSE), `POST /agent/v1/compile`, `GET /agent/v1/b/:app/:file`, `GET /agent/health`. Тело ограничено (16 МБ по умолчанию, 413), токен проверяется до разбора JSON.
+- Провайдеры: `anthropic` (SDK, `claude-sonnet-5-5`, adaptive thinking, effort `medium`; классификатор `claude-haiku-5-5`), `openai-compatible`, `scripted` (фикстуры, без сети). Ключи только из env.
+- Инструменты (строгие схемы): `list_files`, `read_file`, `write_file`, `check`, `finish`. Результаты инструментов не длиннее 24 000 символов, ошибки дедуплицируются, не больше 10.
+- `max_tokens` одного вызова = остаток видимого бюджета правки + 8k на размышление (не больше 16k). Ответ, обрезанный по `max_tokens`, не исполняет последний вызов инструмента: модель получает об этом результат.
+- Лимиты из конфигурации (по умолчанию 12 вызовов, 90 с, 8k видимых токенов, $ на правку по тарифу); текст промпта берёт их оттуда же.
+- В production сервер не стартует без ключа приложения, секрета JWT и `MORPHKIT_MANIFEST`.
 
 ---
 
 ## 6. `@morphkit/store-server` и дашборд
 
-- Hono + Drizzle. Таблицы: `snapshots` (как `Snapshot` + `appId`), `requests` (`id, userId, text, verdict, summary, log json, snapshotId?, status: applied|rejected|pending-admin|rolled-back`), `bundles` (`hash, js, css`).
-- Эндпоинты: `GET/PUT /snapshots`, `POST /snapshots/:id/head`, `GET /requests`, `POST /requests/:id/approve|reject|rollback`, `GET/PUT /bundles/:hash`.
-- Авторизация в демо: заголовок `x-morphkit-user`, админ по `x-morphkit-admin: 1`. Настоящую авторизацию не делаем, это оговорено в README.
-- Дашборд `/admin` в demo-crm: таблица запросов (пользователь, текст, вердикт, время, статус), раскрытие строки показывает diff файлов снимка относительно родителя и журнал инструментов, кнопки «откатить у пользователя», «отклонить», для `pending-admin` «взять в работу». Счётчики сверху: правок за неделю, доля успешных, доля `needs-backend`.
+- Hono + Drizzle, SQLite. Таблицы: `snapshots` (PK `(app_id, id)`, insert-only: триггер запрещает UPDATE всего, кроме однократной привязки `request_id`), `heads`, `requests`, `bundle_files` (ключ, владелец, подпись; публичные только подписанные агентом), `events` и `audit` (append-only), `flags`, `idempotency`, `quota_buckets`, `app_plans`, `app_settings`. Старая таблица `bundles` не используется.
+- Эндпоинты под `/v1/`: снимки и головы (`POST /snapshots/:id/head` с `expectedHeadId` это CAS, 409 `head-conflict`), бандлы, запросы, квоты, события, флаги, админ (`/admin/requests` сортирует в SQL и считает `isHead` одним join), аудит, экспорт.
+- Авторизация: ключ приложения (сервер→сервер), JWT пользователя, демо-заголовки только вне production. Тело запроса ограничено (4 МБ по умолчанию, 413) и читается после авторизации.
+- Дашборд `/admin` в demo-crm: таблица запросов, diff, журнал инструментов, откат, отклонение, «взять в работу».
 
 ---
 

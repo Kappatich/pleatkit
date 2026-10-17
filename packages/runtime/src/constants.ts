@@ -6,5 +6,5 @@ export const EXTERNALS_GLOBAL = '__morphkit'
  * and on the agent server, V1 B6), the bundle format and the externals shim. Part of every bundle key (F4).
  */
 export const ESBUILD_VERSION = '0.28.2'
-export const BUNDLE_FORMAT = 3
+export const BUNDLE_FORMAT = 4
 export const COMPILER_VERSION = `esbuild@${ESBUILD_VERSION}+f${BUNDLE_FORMAT}`

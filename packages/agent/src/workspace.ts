@@ -1,18 +1,6 @@
 import * as esbuild from 'esbuild'
-import {
-  Compiler,
-  isScript,
-  toCompileErrors,
-  virtualFsPlugin,
-  type CompileContextWire,
-  type CompileError,
-  type CompiledBundle,
-  type EsbuildApi,
-  type FileMap,
-} from '@morphkit/runtime/compiler'
-import { staticCheck } from './static-check.js'
+import { Compiler, isWritablePath, type CompileContextWire, type CompileError, type CompiledBundle, type EsbuildApi, type FileMap } from '@morphkit/runtime/compiler'
 
-const WRITABLE_EXT = /\.(tsx|ts|jsx|js|css|json)$/
 const nativeEsbuild = async () => esbuild as unknown as EsbuildApi
 
 export class ZoneError extends Error {
@@ -35,7 +23,13 @@ export interface WorkspaceInput {
   context: CompileContextWire
   /** Dynamic files that must keep a default export. */
   components: string[]
+  /** Selectors of protected elements and the release's original files (brainstorm 05 #20). */
+  protected?: string[]
+  base?: FileMap
 }
+
+/** Extra check after a clean compile (type errors against the app's `.d.ts`, brainstorm 05 #4). */
+export type TypecheckFn = (files: FileMap, input: WorkspaceInput) => Promise<CompileError[]>
 
 /**
  * The agent's in-memory copy of the user's files. Writes are allowed only inside the dynamic zone;
@@ -52,10 +46,16 @@ export class Workspace {
   lastBundle: CompiledBundle | null = null
   lastHash: string | null = null
 
-  constructor(readonly input: WorkspaceInput) {
+  constructor(
+    readonly input: WorkspaceInput,
+    private readonly typecheck: TypecheckFn | null = null,
+  ) {
     this.files = { ...input.files }
     this.original = { ...input.files }
-    this.compiler = new Compiler(input.context, { loadEsbuild: nativeEsbuild, sourcemap: false })
+    this.compiler = new Compiler(
+      { ...input.context, ...(input.protected?.length ? { protected: input.protected, base: input.base ?? {} } : {}) },
+      { loadEsbuild: nativeEsbuild, sourcemap: false },
+    )
   }
 
   zoneOf(path: string): 'dynamic' | 'readonly' | 'core-types' | null {
@@ -81,9 +81,7 @@ export class Workspace {
   }
 
   isWritable(path: string): boolean {
-    if (path.includes('..') || path.startsWith('/') || path.includes('\\')) return false
-    if (!WRITABLE_EXT.test(path)) return false
-    return this.input.context.dynamicRoots.some((r) => path.startsWith(r))
+    return isWritablePath(path, this.input.context.dynamicRoots)
   }
 
   write(path: string, content: string): void {
@@ -119,56 +117,26 @@ export class Workspace {
     return { ...this.files }
   }
 
+  /**
+   * The shared `check` of @morphkit/runtime (code review 06 item 12): the same bundle step, static rules,
+   * protected elements and default-export rule as the browser, with native esbuild.
+   */
   async check(): Promise<CheckResult> {
     const started = performance.now()
-    const result = await this.compiler.compile(this.files)
+    const result = await this.compiler.compile(this.files, { components: this.input.components })
     this.lastBundle = result.ok && result.bundle ? result.bundle : null
     this.lastHash = result.hash
     let errors = result.errors
-    if (result.ok) errors = await this.missingDefaults()
-    // static rules (no eval, no remote requests, allowed imports only, ...): refused like compile errors
-    errors = [...errors, ...staticCheck(this.files, this.input.context)]
+    if (result.ok && this.typecheck) errors = await this.typecheck(this.files, this.input)
     this.lastCheck = { ok: errors.length === 0, errors, timeMs: performance.now() - started }
+    if (errors.length) this.lastBundle = null
     this.dirtySinceCheck = false
     return this.lastCheck
   }
-
-  /** Static export analysis: one esbuild pass with every panel as an entry point and a metafile. */
-  private async missingDefaults(): Promise<CompileError[]> {
-    const required = this.input.components.filter(isScript)
-    const missing: CompileError[] = required
-      .filter((p) => !(p in this.files))
-      .map((p) => ({ file: p, line: 0, column: 0, text: `${p} was removed, but a <Dynamic> panel needs it` }))
-    const present = required.filter((p) => p in this.files)
-    if (present.length === 0) return missing
-    try {
-      const r = await esbuild.build({
-        entryPoints: present.map((p) => '/' + p),
-        bundle: true,
-        write: false,
-        format: 'esm',
-        platform: 'browser',
-        outdir: '/out',
-        jsx: 'automatic',
-        metafile: true,
-        logLevel: 'silent',
-        plugins: [virtualFsPlugin(this.files, this.input.context) as unknown as esbuild.Plugin],
-      })
-      const exportsByEntry = new Map<string, string[]>()
-      for (const out of Object.values(r.metafile.outputs)) {
-        if (out.entryPoint) exportsByEntry.set(out.entryPoint.replace(/^[\w-]+:/, '').replace(/^\//, ''), out.exports)
-      }
-      for (const p of present) {
-        if (!(exportsByEntry.get(p) ?? []).includes('default')) missing.push({ file: p, line: 0, column: 0, text: `no default export in ${p}` })
-      }
-    } catch (e) {
-      const failure = e as { errors?: esbuild.Message[] }
-      if (Array.isArray(failure.errors)) return [...missing, ...toCompileErrors(failure.errors as never)]
-      throw e
-    }
-    return missing
-  }
 }
 
-export const formatErrors = (errors: CompileError[]): string =>
-  errors.map((e) => (e.line ? `${e.file}:${e.line}:${e.column} ${e.text}` : `${e.file ? e.file + ': ' : ''}${e.text}`)).join('\n')
+/** Errors for the model: deduplicated, at most 10 (brainstorm 04 §2), with how many more there were. */
+export const formatErrors = (errors: CompileError[]): string => {
+  const lines = [...new Set(errors.map((e) => (e.line ? `${e.file}:${e.line}:${e.column} ${e.text}` : `${e.file ? e.file + ': ' : ''}${e.text}`)))]
+  return lines.length > 10 ? [...lines.slice(0, 10), `… and ${lines.length - 10} more`].join('\n') : lines.join('\n')
+}

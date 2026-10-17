@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CommitRejectedError, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, useMorphkit, useMorphkitState, type AgentResult, type Locale, type Snapshot } from '@morphkit/runtime'
+import { APPLY_VERDICTS, CommitRejectedError, HeadConflictError, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MorphkitUiRoot, useMorphkit, useMorphkitState, type AgentResult, type Locale, type Snapshot } from '@morphkit/runtime'
 import { addImages, imageFiles, panelDomSnapshot, prepareImage, type PendingImage } from './attachments.js'
 import { translator, type Translate, type UiKey } from './i18n.js'
 import { ElementPicker } from './picker.js'
@@ -28,6 +28,13 @@ export interface MorphkitChatProps {
    * store-server, or a function returning a fresh one. Sent as `Authorization: Bearer …`.
    */
   token?: string | (() => string | Promise<string>)
+  /** Called when the agent server answers 401 (the token expired, brainstorm 05 #19): return a fresh token. */
+  onAuthExpired?: () => string | null | undefined | Promise<string | null | undefined>
+  /**
+   * Render the drawer in a shadow root (code review 06 item 9), so the CSS of an edit cannot hide or restyle it.
+   * Default true; false renders in place.
+   */
+  shadow?: boolean
 }
 
 type TurnStatus = 'running' | 'applied' | 'nothing' | 'needs-backend' | 'failed' | 'rejected' | 'clarify' | 'refused'
@@ -76,6 +83,8 @@ export function MorphkitChat({
   launcherLabel,
   pushContent = true,
   token,
+  onAuthExpired,
+  shadow = true,
 }: MorphkitChatProps) {
   useMorphkitUiStyles()
   const tr = useMemo(() => translator(locale), [locale])
@@ -94,6 +103,24 @@ export function MorphkitChat({
   const [dragging, setDragging] = useState(false)
   const body = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLTextAreaElement>(null)
+  /** The running request; Cancel (and leaving the page) aborts it, and the agent server stops the model. */
+  const running = useRef<AbortController | null>(null)
+  useEffect(() => () => running.current?.abort(), [])
+  // Another user signed in (the provider keeps the host's tree mounted, code review 06 item 11): the chat of the
+  // previous user must not stay on screen, and their running request is cancelled.
+  const userKey = `${engine.namespace}\0${engine.userId}`
+  const firstUser = useRef(userKey)
+  useEffect(() => {
+    if (firstUser.current === userKey) return
+    firstUser.current = userKey
+    running.current?.abort()
+    setTurns([])
+    setImages([])
+    setHistory([])
+    setShowHistory(false)
+    setText('')
+    setOpen(defaultOpen)
+  }, [userKey, defaultOpen])
 
   const toast = useCallback((t: string, tone: Toast['tone'] = 'ok') => {
     const id = ++ids
@@ -164,13 +191,16 @@ export function MorphkitChat({
     ])
     setBusy(true)
     const started = performance.now()
+    const abort = new AbortController()
+    running.current = abort
     try {
       const target = PANEL_TAG.exec(trimmed)?.[1]
       // A migration rewrites the new release's files with the user's old customizations applied.
       const migration = migrate ? await engine.migrationInput() : null
       const from = migration ? engine.originalFiles() : undefined
       // what the pointed panel looks like right now, as data for the agent
-      const targetDom = target ? panelDomSnapshot(target) : null
+      // structure only unless the app allows text (sendDomText); private subtrees never (brainstorm 05 #3)
+      const targetDom = target ? panelDomSnapshot(target, document, undefined, engine.config.sendDomText === true) : null
       const payload = engine.agentRequest(trimmed, {
         locale,
         ...(appId ? { appId } : {}),
@@ -183,6 +213,8 @@ export function MorphkitChat({
       const bearer = typeof token === 'function' ? await token() : token
       const result = await callAgent(agentUrl, payload, (p) => update(id, (t) => ({ steps: addStep(t.steps, p) })), {
         headers: { ...(bearer ? { authorization: `Bearer ${bearer}` } : {}), 'idempotency-key': `run-${engine.userId}-${Date.now().toString(36)}-${id}-${Math.random().toString(36).slice(2, 8)}` },
+        signal: abort.signal,
+        ...(onAuthExpired ? { onAuthExpired } : {}),
       })
       const agentMs = performance.now() - started
       // the agent's last "Thinking" line is over once the result is in
@@ -198,12 +230,13 @@ export function MorphkitChat({
         toast(tr('toast.admin'), 'admin')
         return
       }
-      if (result.verdict === 'refused') {
-        // off-topic, over the quota or switched off: one fixed reply, nothing was run
+      if (result.verdict === 'refused' || result.verdict === 'declined' || result.verdict === 'not-editable') {
+        // off-topic, over the quota, switched off, declined or about a part that is not open for edits
         update(id, { status: 'refused' })
         return
       }
-      if (result.verdict !== 'ok') {
+      // `partial`: the UI part is applied like `ok`, the rest went to the admin with the request
+      if (!APPLY_VERDICTS.includes(result.verdict)) {
         update(id, { status: 'failed' })
         return
       }
@@ -218,11 +251,18 @@ export function MorphkitChat({
       const commitStarted = performance.now()
       try {
         // compile: 'server': the agent already compiled and signed this snapshot, the commit only downloads it
-        const snapshot = await engine.draft.commit('agent', { ...(result.requestId ? { requestId: result.requestId } : {}), ...(result.bundle ? { bundle: result.bundle } : {}) })
+        // only on top of the head the request was made from (code review 06 item 6)
+        const expectedHeadId = result.expectedHeadId !== undefined ? result.expectedHeadId : payload.expectedHeadId
+        const snapshot = await engine.draft.commit('agent', {
+          ...(result.requestId ? { requestId: result.requestId } : {}),
+          ...(result.bundle ? { bundle: result.bundle } : {}),
+          ...(expectedHeadId !== undefined ? { expectedHeadId } : {}),
+        })
         // wait for React to paint the swapped modules before stopping the clock
         await new Promise((r) => requestAnimationFrame(() => r(null)))
         const now = performance.now()
         update(id, { status: 'applied', snapshotId: snapshot.id, timing: { totalMs: now - started, agentMs, commitMs: now - commitStarted } })
+        if (result.verdict === 'partial') toast(tr('toast.admin'), 'admin')
         if (!result.requestId) {
           toast(tr('toast.applied'))
           return
@@ -233,6 +273,12 @@ export function MorphkitChat({
         if (review) update(id, { review: true })
         toast(tr(review ? 'toast.appliedReview' : 'toast.applied'))
       } catch (e) {
+        if (e instanceof HeadConflictError) {
+          engine.draft.discard()
+          update(id, { status: 'failed', summary: tr('chat.conflictSummary') })
+          if (result.requestId) void engine.linkRequest(result.requestId, { status: 'failed', error: 'head moved during the run (another tab or an admin rollback)' }).catch(() => undefined)
+          return
+        }
         const errors = e instanceof CommitRejectedError ? e.errors : [{ file: '', line: 0, column: 0, text: (e as Error).message }]
         // the details go to the admin's request log, not to the user
         update(id, { status: 'rejected', summary: tr('chat.rejectedSummary') })
@@ -244,9 +290,14 @@ export function MorphkitChat({
         }
       }
     } catch (e) {
+      if (abort.signal.aborted) {
+        update(id, (t) => ({ status: 'nothing', summary: tr('chat.cancelledSummary'), steps: t.steps.filter((s) => !s.transient) }))
+        return
+      }
       console.warn('[morphkit] agent request failed', e)
       update(id, (t) => ({ status: 'failed', summary: tr('chat.failedSummary'), steps: t.steps.filter((s) => !s.transient) }))
     } finally {
+      if (running.current === abort) running.current = null
       setBusy(false)
     }
   }
@@ -286,6 +337,7 @@ export function MorphkitChat({
   if (state.disabled) return null
   const editsOff = !state.editsEnabled
   return (
+    <MorphkitUiRoot shadow={shadow}>
     <div className="mk-root" data-morphkit-ui-layer="" lang={locale}>
       {state.stale && (
         <div className="mk-stale" role="status" data-testid="mk-stale">
@@ -437,8 +489,16 @@ export function MorphkitChat({
               <button type="button" className={`mk-btn ${picking ? 'mk-on' : ''}`} data-testid="mk-chat-pick" disabled={busy} onClick={() => setPicking(true)}>
                 {tr('chat.pick')}
               </button>
-              <button type="button" className="mk-btn mk-primary" data-testid="mk-chat-send" disabled={busy || editsOff || !text.trim()} onClick={send}>
-                {busy ? tr('chat.working') : tr('chat.send')}
+              <button
+                type="button"
+                className="mk-btn mk-primary"
+                data-testid="mk-chat-send"
+                data-busy={busy || undefined}
+                title={busy ? tr('chat.cancel') : undefined}
+                disabled={busy ? !running.current : editsOff || !text.trim()}
+                onClick={busy ? () => running.current?.abort() : send}
+              >
+                {busy ? tr('chat.cancel') : tr('chat.send')}
               </button>
             </div>
             <div className="mk-row">
@@ -485,6 +545,7 @@ export function MorphkitChat({
         ))}
       </div>
     </div>
+    </MorphkitUiRoot>
   )
 }
 

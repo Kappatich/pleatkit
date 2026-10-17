@@ -11,7 +11,7 @@ const VERSION = '0.1.0'
 const event = (name: string, props: Record<string, string | number | boolean> = {}) => track(name, props, { source: { package: '@morphkit/cli', version: VERSION } })
 
 const HELP = `Usage:
-  morphkit doctor [--root <dir>] [--dist <dir>] [--json]
+  morphkit doctor [--root <dir>] [--dist <dir>] [--url <app url>] [--json]
   morphkit ping [--url http://localhost:5173]
   morphkit keys new | public
   morphkit export --store <url> --app <id> [--user <id>] [--out <file>]
@@ -23,6 +23,7 @@ doctor checks the morphkit setup of a Vite + React app and prints what to fix:
   externals  every module the dynamic code may import resolves
   csp        a Content-Security-Policy, if any, allows what the compile mode needs
   secrets    no API key in the built client bundle or in VITE_ variables
+  secure-context  https or localhost (WebCrypto); plain http works but is slower and cannot verify signed edits
 
 ping checks the running app end to end: the manifest it serves, the agent behind its /agent proxy, and
 one agent run over SSE (the agent is asked to change nothing).
@@ -85,7 +86,8 @@ async function main(argv: string[]): Promise<number> {
   }
   const root = path.resolve(flag('--root') ?? process.cwd())
   const dist = flag('--dist')
-  const findings = await doctor({ root, ...(dist ? { dist } : {}) })
+  const url = flag('--url')
+  const findings = await doctor({ root, ...(dist ? { dist } : {}), ...(url ? { url } : {}) })
   if (rest.includes('--json')) console.log(JSON.stringify({ root, findings }, null, 2))
   else console.log(formatFindings(findings, root))
   const failed = findings.filter((f) => f.status === 'fail')

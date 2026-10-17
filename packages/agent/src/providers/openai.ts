@@ -1,4 +1,5 @@
 import type { TokenUsage } from '@morphkit/runtime/compiler'
+import { perCallMaxTokens } from './budget.js'
 import { CLASSIFIER_INSTRUCTIONS } from '../prompt.js'
 import { clarifyOf } from './anthropic.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
@@ -115,7 +116,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         if (pendingText) messages.push({ role: 'user', content: pendingText })
         pendingText = null
         const r = await this.chat(
-          { model: this.model, messages, tools: toolDefs, tool_choice: 'auto', max_completion_tokens: 16_000 },
+          { model: this.model, messages, tools: toolDefs, tool_choice: 'auto', max_completion_tokens: perCallMaxTokens(options.maxOutputTokens) },
           options.signal,
         )
         const choice = r.choices[0]
@@ -132,7 +133,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
         })
         const f = choice.finish_reason
         const stop: ModelTurn['stop'] = f === 'tool_calls' ? 'tool_use' : f === 'stop' ? 'end_turn' : f === 'length' ? 'max_tokens' : f === 'content_filter' ? 'refusal' : 'other'
-        return { text: textOf(choice.message.content), toolCalls, stop: toolCalls.length ? 'tool_use' : stop, usage: usageOf(r.usage), model: r.model ?? this.model }
+        // a cut-off reply stays max_tokens even with tool calls: the last one may be incomplete
+        return { text: textOf(choice.message.content), toolCalls, stop: stop === 'max_tokens' ? 'max_tokens' : toolCalls.length ? 'tool_use' : stop, usage: usageOf(r.usage), model: r.model ?? this.model }
       },
     }
   }

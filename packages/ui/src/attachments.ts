@@ -1,4 +1,4 @@
-import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_DOM_CHARS, type AgentImage } from '@morphkit/runtime'
+import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_DOM_CHARS, panelDomSnapshot as runtimePanelDom, type AgentImage } from '@morphkit/runtime'
 
 /** A screenshot waiting in the chat input: what is sent, plus a data URL for the thumbnail. */
 export interface PendingImage extends AgentImage {
@@ -79,52 +79,11 @@ export function addImages(current: PendingImage[], incoming: PendingImage[]): { 
   return { images, dropped }
 }
 
-const KEEP_ATTRS = /^(class|data-testid|role|aria-[\w-]+|title|alt|type|href|colspan|rowspan|disabled|checked|placeholder)$/
-const DROP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'LINK', 'META'])
-const MAX_TEXT = 160
-
 /**
- * Sanitized markup of the panel the user pointed at, as they see it now: structure, classes, test ids and
- * visible text (trimmed), no scripts, styles, event handlers or form values. Sent as data, never instructions.
+ * Sanitized markup of the panel the user pointed at (data, never instructions). Structure only by default; the
+ * visible text only with `includeText` (the app's `sendDomText`), and never `data-morphkit-private` subtrees or
+ * form values (brainstorm 05 #3). The serializer lives in @morphkit/runtime.
  */
-export function panelDomSnapshot(id: string, root: ParentNode = document, max = MAX_TARGET_DOM_CHARS): string | null {
-  const host = root.querySelector(`[data-morphkit-id="${CSS.escape(id)}"]`)
-  if (!host) return null
-  const out: string[] = []
-  let size = 0
-  const push = (s: string) => {
-    out.push(s)
-    size += s.length
-  }
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-  const walk = (node: Node, depth: number) => {
-    if (size > max) return
-    if (node.nodeType === 3) {
-      const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim()
-      if (text) push(esc(text.length > MAX_TEXT ? text.slice(0, MAX_TEXT) + '…' : text))
-      return
-    }
-    if (node.nodeType !== 1) return
-    const el = node as Element
-    if (DROP_TAGS.has(el.tagName)) return
-    const tag = el.tagName.toLowerCase()
-    if (tag === 'iframe') {
-      push(`<iframe title="${esc(el.getAttribute('title') ?? '')}"></iframe>`)
-      return
-    }
-    if (tag === 'svg') {
-      push('<svg/>')
-      return
-    }
-    const attrs = Array.from(el.attributes)
-      .filter((a) => KEEP_ATTRS.test(a.name))
-      .map((a) => ` ${a.name}="${esc(a.value.slice(0, 200))}"`)
-      .join('')
-    push(`${depth ? '\n' + '  '.repeat(Math.min(depth, 12)) : ''}<${tag}${attrs}>`)
-    for (const child of Array.from(el.childNodes)) walk(child, depth + 1)
-    push(`</${tag}>`)
-  }
-  for (const child of Array.from(host.childNodes)) walk(child, 0)
-  const html = out.join('').trim()
-  return html.length > max ? html.slice(0, max) + '\n<!-- truncated -->' : html
+export function panelDomSnapshot(id: string, root: ParentNode = document, max = MAX_TARGET_DOM_CHARS, includeText = false): string | null {
+  return runtimePanelDom(id, { root, max, includeText })
 }

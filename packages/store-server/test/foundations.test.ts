@@ -54,7 +54,7 @@ describe('F1/F2/F4: tenant, placement and versions on every record', () => {
     const s = new HttpStore({ baseUrl: 'http://store.test', userId: 'alice', appId: 'crm', token, fetch: ((i: string, init?: RequestInit) => t.app.request(i, init)) as typeof fetch })
     const v = snap('alice', null, { baseFiles: { a: '1' }, schemaVersion: 2 })
     await s.put(v)
-    expect(await s.get(v.id)).toEqual(v)
+    expect(await s.get(v.id)).toEqual({ ...v, createdAt: expect.any(String) })
     const row = t.raw.prepare('SELECT org_id, region, environment, schema_version FROM snapshots WHERE id = ?').all(v.id)[0]
     expect(row).toEqual({ org_id: 'acme', region: 'eu-1', environment: 'production', schema_version: 2 })
     const req = await t.call('/v1/requests', { authorization: `Bearer ${APP_KEY}`, 'x-morphkit-user': 'alice', 'x-morphkit-org': 'acme' }, { method: 'POST', body: JSON.stringify({ userId: 'alice', text: 'x', log: [], promptVersion: '2026-10-18.4a' }) })

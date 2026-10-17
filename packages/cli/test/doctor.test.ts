@@ -99,7 +99,7 @@ describe('morphkit doctor', () => {
   it('passes on the demo app (loads its real vite.config)', async () => {
     const demo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../apps/demo-crm')
     const findings = await doctor({ root: demo })
-    expect(findings.map((f) => f.id)).toEqual(['config', 'react', 'panels', 'externals', 'csp', 'secrets'])
+    expect(findings.map((f) => f.id)).toEqual(['config', 'react', 'panels', 'externals', 'csp', 'secure-context', 'secrets'])
     expect(findings.filter((f) => f.status === 'fail')).toEqual([])
     expect(findings.find((f) => f.id === 'panels')?.details).toContain('<Dynamic id="customer-card">')
   }, 60_000)
@@ -110,4 +110,16 @@ describe('morphkit doctor', () => {
     expect(findings[0]).toMatchObject({ id: 'config', status: 'fail' })
     expect(formatFindings(findings, root)).toMatch(/\[FAIL\] config: no morphkit plugin/)
   }, 60_000)
+})
+
+describe('secure context (code review 06 item 4)', () => {
+  it('warns on plain http off localhost, fails with signed bundles, passes on https and localhost', async () => {
+    const { checkSecureContext } = await import('../src/doctor.js')
+    expect(checkSecureContext('https://crm.example', undefined, true).status).toBe('ok')
+    expect(checkSecureContext('http://localhost:5173', undefined, true).status).toBe('ok')
+    expect(checkSecureContext('http://intranet.corp:8080', undefined, false).status).toBe('warn')
+    expect(checkSecureContext('http://intranet.corp:8080', undefined, true).status).toBe('fail')
+    expect(checkSecureContext(undefined, { host: true, https: false }, false).status).toBe('warn')
+    expect(checkSecureContext(undefined, { host: undefined, https: false }, false).status).toBe('ok')
+  })
 })

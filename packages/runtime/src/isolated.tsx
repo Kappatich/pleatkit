@@ -24,8 +24,11 @@ const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;
 
 /**
  * The frame's document. No inline script (DECISIONS item 16): the host is a separate file, so a strict CSP
- * (`script-src 'self' blob:`, inherited by the srcdoc frame) works without `'unsafe-inline'` or hashes.
- * The frame has an opaque origin, so the request carries `Origin: null` and the file needs CORS.
+ * (`script-src 'self'` with server compiles, plus `blob:` in browser compile mode; the srcdoc frame inherits
+ * the page's policy) works without `'unsafe-inline'` or hashes. The frame has an opaque origin, so the request
+ * carries `Origin: null` and the host file and the bundles need CORS. Panels opt in with `<Dynamic isolated>`,
+ * or all edited panels at once with the plugin's `isolateEdits` (off by default: same realm, faster, and the
+ * static rules plus the CSP are the boundary; see docs/for-agents/production.md).
  */
 export function isolatedSrcdoc(hostUrl: string, css = pageCss()): string {
   const url = new URL(hostUrl, document.baseURI).href

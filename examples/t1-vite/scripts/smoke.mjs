@@ -55,8 +55,9 @@ async function browserCheck() {
     await page.getByTestId('mk-chat-input').fill('Show the status and make overdue orders red')
     await page.getByTestId('mk-chat-send').click()
     const turn = page.getByTestId('mk-chat-turn').first()
-    await page.waitForFunction(() => document.querySelector('[data-testid="mk-chat-turn"]')?.getAttribute('data-status') !== 'running', null, { timeout: 30_000 })
-    const status = await turn.getAttribute('data-status')
+    // the chat renders in a shadow root: Playwright locators pierce it, document.querySelector would not
+    let status = await turn.getAttribute('data-status', { timeout: 30_000 })
+    for (const until = Date.now() + 30_000; status === 'running' && Date.now() < until; status = await turn.getAttribute('data-status')) await sleep(100)
     const color = await page.locator('tr[data-status="overdue"]').evaluate((el) => getComputedStyle(el).color).catch(() => null)
     // the row's text color comes from text-red-700, compiled by Tailwind in the browser at commit
     const ok = status === 'applied' && color !== null && color !== 'rgb(0, 0, 0)' && errors.length === 0

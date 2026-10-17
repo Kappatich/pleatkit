@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { TokenUsage } from '@morphkit/runtime/compiler'
 import { CLASSIFIER_INSTRUCTIONS } from '../prompt.js'
+import { perCallMaxTokens } from './budget.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
 
 type MessageParam = Anthropic.Beta.BetaMessageParam
@@ -23,12 +24,7 @@ export interface AnthropicProviderOptions {
 }
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5'
-/**
- * max_tokens of one call caps thinking plus visible output together, so it stays generous: the edit's budget
- * of visible tokens is enforced by the loop between calls (DECISIONS item 11). 16k keeps non-streaming calls
- * well inside the SDK's request-time limits.
- */
-export const MAX_TOKENS_PER_CALL = 16_000
+export { MAX_TOKENS_PER_CALL } from './budget.js'
 export const DEFAULT_CLASSIFIER_MODEL = 'claude-haiku-5-5'
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01'
 
@@ -150,7 +146,7 @@ export class AnthropicProvider implements ModelProvider {
         const msg = await this.client.beta.messages.create(
           {
             model: this.model,
-            max_tokens: MAX_TOKENS_PER_CALL,
+            max_tokens: perCallMaxTokens(options.maxOutputTokens),
             thinking: { type: 'adaptive' },
             output_config: { effort: this.effort },
             system,

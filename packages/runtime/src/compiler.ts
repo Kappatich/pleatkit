@@ -1,5 +1,7 @@
 import type { BuildFailure, Message, Plugin } from 'esbuild-wasm/esm/browser.js'
 import type { CompileError, CompileResult, FileMap, MorphkitManifest } from './types.js'
+import type { CheckContext, TransformFn } from './check.js'
+import { scopeZoneCss } from './css-scope.js'
 import { hashFiles } from './util.js'
 import { loaderFor, resolveSpecifier, type ResolveContext } from './vfs.js'
 
@@ -8,6 +10,8 @@ export interface EsbuildApi {
   version: string
   build: typeof import('esbuild-wasm/esm/browser.js').build
   initialize?: typeof import('esbuild-wasm/esm/browser.js').initialize
+  /** Used by the shared static check (TypeScript stripped, JSX preserved). */
+  transform: typeof import('esbuild-wasm/esm/browser.js').transform
 }
 
 export interface CompilerMetrics {
@@ -25,7 +29,7 @@ export interface CompilerOptions {
   loadEsbuild?: () => Promise<EsbuildApi>
 }
 
-export type CompileContext = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'> & {
+export type CompileContext = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'> & Pick<CheckContext, 'protected' | 'base'> & {
   /**
    * Instance namespace (the app id, V1 B6): compiled code reaches host modules through
    * `globalThis.__morphkit.apps[namespace]`, so two morphkit apps on one page never share a registry.
@@ -164,11 +168,21 @@ export function virtualFsPlugin(files: FileMap, ctx: CompileContext, used?: Set<
   }
 }
 
+export interface CompileOptions {
+  /** Panels that must keep a default-exported component. */
+  components?: string[]
+  /** Run the static rules (default true). */
+  rules?: boolean
+}
+
 export class Compiler {
   constructor(
     private readonly ctx: CompileContext,
     private readonly options: CompilerOptions & {
-      /** `inline` (browser mode: the edit is debuggable in DevTools) or none (server bundles stay small). */
+      /**
+       * `inline` only while developing (the edit is debuggable in DevTools); none in production builds and on
+       * the server, where an inline map would double the bundle (code review 06 item 7). Default none.
+       */
       sourcemap?: 'inline' | false
     } = {},
   ) {}
@@ -181,11 +195,24 @@ export class Compiler {
     return { ...metrics }
   }
 
-  async compile(files: FileMap): Promise<CompileResult> {
+  /** The context the static rules see. */
+  get checkContext(): CheckContext {
+    return { externals: this.ctx.externals, externalPatterns: this.ctx.externalPatterns, dynamicRoots: this.ctx.dynamicRoots, ...(this.ctx.protected ? { protected: this.ctx.protected } : {}), ...(this.ctx.base ? { base: this.ctx.base } : {}) }
+  }
+
+  /**
+   * The one `check` of morphkit (code review 06 item 12), the same in the browser and on the agent server:
+   * bundle the zone with esbuild (syntax, imports, externals), then the static rules, protected elements and the
+   * default-export rule over the same AST. A bundle is returned only when everything passes.
+   */
+  async compile(files: FileMap, options: CompileOptions = {}): Promise<CompileResult> {
     const hash = await hashFiles(files)
     const esbuild = await this.init()
     const started = performance.now()
     const used = new Set<string>()
+    const transform: TransformFn = (source, o) => esbuild.transform(source, o) as Promise<{ code: string; map: string }>
+    // the rules (acorn) load only where something is checked: the agent server, or the browser in browser mode
+    const rules = options.rules === false ? Promise.resolve([]) : import('./check.js').then((m) => m.staticCheck(files, this.checkContext, transform, { components: options.components ?? [] }))
     try {
       const result = await esbuild.build({
         entryPoints: ['morphkit:entry'],
@@ -196,26 +223,28 @@ export class Compiler {
         target: 'es2022',
         outdir: '/out',
         jsx: 'automatic',
-        sourcemap: this.options.sourcemap ?? 'inline',
+        sourcemap: this.options.sourcemap ?? false,
         logLevel: 'silent',
         plugins: [virtualFsPlugin(files, this.ctx, used)],
       })
+      const errors = await rules
       const js = (result.outputFiles.find((f) => f.path.endsWith('.js'))?.text ?? '') + sourceUrlComment(hash)
-      const css = result.outputFiles.find((f) => f.path.endsWith('.css'))?.text ?? ''
+      const css = scopeZoneCss(result.outputFiles.find((f) => f.path.endsWith('.css'))?.text ?? '')
       return {
-        ok: true,
-        errors: [],
+        ok: errors.length === 0,
+        errors,
         warnings: toCompileErrors(result.warnings),
         hash,
         timeMs: performance.now() - started,
-        bundle: { js, css, externals: [...used].sort() },
+        ...(errors.length === 0 ? { bundle: { js, css, externals: [...used].sort() } } : {}),
       }
     } catch (e) {
       const failure = e as Partial<BuildFailure>
       if (!Array.isArray(failure.errors)) throw e
+      const ruleErrors = await rules.catch(() => [])
       return {
         ok: false,
-        errors: toCompileErrors(failure.errors),
+        errors: [...toCompileErrors(failure.errors), ...ruleErrors.filter((r) => r.rule !== 'default-export')],
         warnings: toCompileErrors(failure.warnings ?? []),
         hash,
         timeMs: performance.now() - started,

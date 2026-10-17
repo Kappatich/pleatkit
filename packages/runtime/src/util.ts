@@ -1,3 +1,4 @@
+import { digest } from './sha.js'
 import type { FileMap } from './types.js'
 
 /** sha256 over the FileMap with sorted keys, so key order never changes the hash. */
@@ -6,8 +7,8 @@ export async function hashFiles(files: FileMap): Promise<string> {
     .sort()
     .map((k) => [k, files[k]])
   const data = new TextEncoder().encode(JSON.stringify(sorted))
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  // WebCrypto when the page has it; a JS fallback on insecure (plain http) pages (code review 06 item 4)
+  return [...(await digest('SHA-256', data))].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 const ENCODING = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'

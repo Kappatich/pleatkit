@@ -8,7 +8,7 @@ import { buildManifest, type MorphkitManifest, type MorphkitOptions } from '@mor
 export type Status = 'ok' | 'warn' | 'fail'
 
 export interface Finding {
-  id: 'config' | 'react' | 'panels' | 'externals' | 'csp' | 'secrets'
+  id: 'config' | 'react' | 'panels' | 'externals' | 'csp' | 'secrets' | 'secure-context' | 'context-budget'
   status: Status
   title: string
   details: string[]
@@ -22,6 +22,8 @@ export interface DoctorOptions {
   dist?: string
   /** For tests: skip loading vite.config and use these options. */
   morphkitOptions?: MorphkitOptions
+  /** Where the app is served (`--url`): plain http:// on another host than localhost has no WebCrypto. */
+  url?: string
 }
 
 export interface LoadedConfig {
@@ -29,6 +31,8 @@ export interface LoadedConfig {
   options: MorphkitOptions | null
   dedupe: string[]
   error?: string
+  /** `server` / `preview` host and https of the Vite config (secure-context check). */
+  served?: { host: string | boolean | undefined; https: boolean }
 }
 
 const CONFIG_FILES = ['vite.config.ts', 'vite.config.mts', 'vite.config.js', 'vite.config.mjs', 'vite.config.cts', 'vite.config.cjs']
@@ -51,7 +55,8 @@ export async function loadViteConfig(root: string): Promise<LoadedConfig> {
     const plugins = (loaded?.config.plugins ?? []).flat(Infinity as 1) as unknown[]
     const plugin = plugins.find((p): p is { name: string; api?: { options?: MorphkitOptions } } => typeof p === 'object' && p !== null && (p as { name?: string }).name === 'morphkit')
     const dedupe = loaded?.config.resolve?.dedupe ?? []
-    return { file, options: plugin?.api?.options ?? null, dedupe }
+    const server = loaded?.config.server ?? {}
+    return { file, options: plugin?.api?.options ?? null, dedupe, served: { host: server.host, https: Boolean(server.https) } }
   } catch (e) {
     return { file, options: null, dedupe: [], error: (e as Error).message.split('\n')[0] }
   }
@@ -223,6 +228,37 @@ export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'b
     : { id: 'csp', status: 'ok', title: `CSP allows runtime edits (${found.map((f) => f.where).join(', ')})`, details: hints }
 }
 
+// --- secure context (code review 06 item 4) ---
+
+const LOCAL = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|.*\.localhost)$/i
+
+/**
+ * WebCrypto (`crypto.subtle`) exists only in secure contexts: https://, or http://localhost. On a plain http://
+ * intranet host morphkit falls back to JS hashing (slower), and signed bundles (`publicKey`) cannot be verified,
+ * so their edits are refused and the original version is shown.
+ */
+export function checkSecureContext(url: string | undefined, served: LoadedConfig['served'], publicKey: boolean): Finding {
+  const details: string[] = []
+  let insecure = false
+  if (url) {
+    try {
+      const u = new URL(url)
+      insecure = u.protocol === 'http:' && !LOCAL.test(u.hostname)
+      details.push(`${u.origin}: ${insecure ? 'not a secure context (no crypto.subtle)' : 'secure context'}`)
+    } catch {
+      details.push(`--url ${url} is not a URL`)
+    }
+  } else if (served && served.host && served.host !== 'localhost' && !served.https) {
+    insecure = true
+    details.push(`the dev server is exposed on ${served.host === true ? 'all interfaces' : served.host} over plain http: other machines get no crypto.subtle`)
+  }
+  if (!insecure) return { id: 'secure-context', status: 'ok', title: url ? 'served from a secure context' : 'no insecure origin found (pass --url to check a deployment)', details }
+  if (publicKey) {
+    return { id: 'secure-context', status: 'fail', title: 'signed bundles cannot be verified on plain http', details, fix: 'serve the app over https (or localhost): with publicKey set, edits are refused without WebCrypto' }
+  }
+  return { id: 'secure-context', status: 'warn', title: 'plain http: hashing falls back to JavaScript', details, fix: 'serve the app over https; morphkit works on http but slower, and production auth (tokens, signed bundles) needs https' }
+}
+
 // --- secrets in the client bundle ---
 
 const KEY_PATTERNS: { name: string; re: RegExp }[] = [
@@ -296,6 +332,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
     }
   }
   findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server'))
+  findings.push(checkSecureContext(options.url, config.served, Boolean(config.options?.publicKey ?? process.env.MORPHKIT_PUBLIC_KEY)))
   findings.push(checkSecrets(root, dist))
   return findings
 }

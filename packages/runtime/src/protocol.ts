@@ -7,7 +7,15 @@ import type { FileMap, MorphkitManifest } from './types.js'
  * `clarify`: the request was ambiguous; the result carries one question with options, nothing was changed.
  * `refused`: not run at all, with a fixed reply (`refusal` says why: off-topic request, quota, kill switch).
  */
-export type AgentVerdict = 'ok' | 'needs-backend' | 'failed' | 'clarify' | 'refused'
+export type AgentVerdict = 'ok' | 'partial' | 'needs-backend' | 'not-editable' | 'declined' | 'failed' | 'clarify' | 'refused'
+
+/**
+ * `partial`: the UI part is done and applied; what is left needs the backend (`backendNote`, for the admin).
+ * `not-editable`: the request is about a part of the screen that is not open for edits (core, not backend).
+ * `declined`: the agent will not do it (harmful, deceptive or against the app's rules); nothing changed.
+ * Verdicts whose files are applied:
+ */
+export const APPLY_VERDICTS: readonly AgentVerdict[] = ['ok', 'partial']
 /** Why a request was refused without running the model loop. */
 export type AgentRefusal = 'off-topic' | 'quota' | 'disabled'
 
@@ -71,6 +79,16 @@ export interface AgentRunRequest {
   targetDom?: string
   /** compile: 'server' (V1 B1): compile, sign and store the resulting snapshot at the end of the run. */
   compile?: boolean
+  /**
+   * The head the request was made from (code review 06 item 6). The result echoes it; the browser commits only
+   * if the head is still this snapshot. `null`: no edits yet.
+   */
+  expectedHeadId?: string | null
+  /**
+   * Take back one earlier edit while keeping the later ones (brainstorm 05 #13): the edit's files before and
+   * after it; the agent reverses that change on the current files.
+   */
+  revert?: { snapshotId: string; message: string; before: FileMap; after: FileMap }
   /** Set when asking the agent to carry the user's edits over to a new app release (stale snapshot). */
   migration?: {
     /** Base files the user's edits were made against. */
@@ -80,7 +98,7 @@ export interface AgentRunRequest {
   }
 }
 
-export type ToolName = 'list_files' | 'read_file' | 'write_file' | 'check' | 'finish'
+export type ToolName = 'list_files' | 'read_file' | 'write_file' | 'edit_file' | 'check' | 'finish'
 
 /** One entry of the tool log, kept in the response and in store-server. */
 export interface ToolLogEntry {
@@ -146,6 +164,14 @@ export interface AgentResult {
   promptVersion?: string
   /** Technical error behind a failed run (for the admin's log; the user only sees `summary`). */
   error?: string
+  /** Echo of the request's `expectedHeadId`: commit only on top of this head. */
+  expectedHeadId?: string | null
+  /** For `partial` (and `needs-backend` from the main loop): what the backend would need, for the admin's wishlist. */
+  backendNote?: string
+  /** Closed-list label of the request (brainstorm 12 A2), from the classifier; L1 facts use it, never the text. */
+  intentLabel?: string
+  /** At most 12 words of what was asked, without names or numbers (L0, for the wishlist map). */
+  gist?: string
   /** For verdict `clarify`: the question to show and 2 to 4 short answers as buttons. */
   clarify?: { question: string; options: string[] }
   /** What came with the request besides text (sizes only; images are not stored). */

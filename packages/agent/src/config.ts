@@ -3,6 +3,7 @@ import { OpenAICompatibleProvider } from './providers/openai.js'
 import { ScriptedProvider } from './providers/scripted.js'
 import { agentAuthFromEnv, type AgentAuth } from './auth.js'
 import type { AgentLimits } from './loop.js'
+import { manifestSourceFromEnv, type ManifestSource } from './manifest.js'
 import type { ModelProvider } from './types.js'
 
 export interface AgentConfig {
@@ -14,6 +15,8 @@ export interface AgentConfig {
   auth: AgentAuth
   /** Plan used when store-server has none for the app (V1 A4, F14). */
   plan: { name?: string; limits?: Record<string, number> }
+  /** The app's manifest on the server (code review 06 item 8); required in production. */
+  manifest: ManifestSource | null
 }
 
 type Env = Record<string, string | undefined>
@@ -39,6 +42,9 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * MORPHKIT_APP_ID, MORPHKIT_APP_KEY, MORPHKIT_JWT_SECRET  credentials; required with NODE_ENV=production
  * MORPHKIT_PLAN        plan name (free | team | unlimited) when store-server has no plan for the app
  * MORPHKIT_LIMITS      JSON overrides of plan limits, e.g. {"userDailyUsd": 2, "perEditUsd": 0.2}
+ * MORPHKIT_MANIFEST    path or URL of the app's dist/morphkit.manifest.json: the static rules, readonly sources and core
+ *                      types come from it, not from the browser (required with NODE_ENV=production);
+ *                      MORPHKIT_MANIFESTS='{"<appId>": "<path or URL>"}' for several apps
  */
 export function configFromEnv(env: Env = process.env): AgentConfig {
   const explicit = env.MORPHKIT_PROVIDER
@@ -74,8 +80,14 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
       throw new Error('MORPHKIT_LIMITS must be JSON, e.g. {"userDailyUsd": 2}')
     }
   }
+  const auth = agentAuthFromEnv(env)
+  const manifest = manifestSourceFromEnv(env)
+  if (auth.production && !manifest) {
+    throw new Error('NODE_ENV=production: refusing to start without MORPHKIT_MANIFEST (the path or URL of the app build\'s morphkit.manifest.json); the browser must not decide what the static rules allow')
+  }
   return {
-    auth: agentAuthFromEnv(env),
+    auth,
+    manifest,
     plan: { ...(env.MORPHKIT_PLAN ? { name: env.MORPHKIT_PLAN } : {}), ...(planLimits ? { limits: planLimits } : {}) },
     provider,
     port: num(env.MORPHKIT_AGENT_PORT) ?? 8789,

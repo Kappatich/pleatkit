@@ -22,6 +22,8 @@ export interface ScriptTurn {
   delayMs?: number
   /** Simulated token usage of this turn (tests of the output budget). */
   usage?: Partial<TokenUsage>
+  /** Why the simulated model stopped (default tool_use): `max_tokens` tests a cut-off reply. */
+  stop?: ModelTurn['stop']
   calls: ScriptCall[]
 }
 
@@ -128,7 +130,7 @@ export class ScriptedProvider implements ModelProvider {
           if (c.contentFile) input.content = fs.readFileSync(path.join(fx!.dir, c.contentFile), 'utf8')
           return { id: `scripted_${++ids}`, name: c.tool, input }
         })
-        return { text: turn.text ?? '', toolCalls, stop: 'tool_use', usage: { ...emptyUsage(), ...turn.usage }, model: fx ? `scripted:${fx.name}` : 'scripted' }
+        return { text: turn.text ?? '', toolCalls, stop: turn.stop ?? 'tool_use', usage: { ...emptyUsage(), ...turn.usage }, model: fx ? `scripted:${fx.name}` : 'scripted' }
       },
     }
   }

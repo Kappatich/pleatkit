@@ -62,6 +62,13 @@ export class ToolRunner {
     private readonly onEvent: (entry: ToolLogEntry, call: ToolCall) => void,
   ) {}
 
+  /** Record a call that was not run (cut off by max_tokens). */
+  note(call: ToolCall, turn: number, why: string): void {
+    const entry: ToolLogEntry = { turn, tool: call.name, input: logInput(call), ok: false, result: why, ms: 0, violation: 'output cut off (max_tokens)' }
+    this.log.push(entry)
+    this.onEvent(entry, call)
+  }
+
   async run(call: ToolCall, turn: number): Promise<ToolResult> {
     const started = performance.now()
     let ok = true
@@ -94,7 +101,7 @@ export class ToolRunner {
     }
     this.log.push(entry)
     this.onEvent(entry, call)
-    return { id: call.id, ok, content }
+    return { id: call.id, ok, content: capResult(content) }
   }
 
   private async exec(call: ToolCall): Promise<string> {
@@ -135,6 +142,15 @@ export class ToolRunner {
         throw new Error(`Unknown tool "${call.name}"`)
     }
   }
+}
+
+/** Longest tool result returned to the model (code review 06 item 10): a huge file or error list must not flood the context. */
+export const MAX_TOOL_RESULT_CHARS = 24_000
+
+export function capResult(content: string): string {
+  if (content.length <= MAX_TOOL_RESULT_CHARS) return content
+  return `${content.slice(0, MAX_TOOL_RESULT_CHARS)}
+… [cut: ${content.length - MAX_TOOL_RESULT_CHARS} more characters of ${content.length}. Work with the part shown; edit_file changes a part of a file without rewriting it.]`
 }
 
 function defaultSummary(v: Finish['verdict']): string {

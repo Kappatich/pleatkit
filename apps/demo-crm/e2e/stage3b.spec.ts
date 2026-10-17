@@ -73,7 +73,9 @@ test('screenshot input: paste and drop images, the request carries them and the 
   expect(body.target).toBe('customer-card')
   const dom = body.targetDom as string
   expect(dom).toContain('data-testid="customer-card"')
-  expect(dom).toContain('Globex')
+  // brainstorm 05 #3: by default only the structure leaves the page, never the customer's data
+  expect(dom).not.toContain('Globex')
+  expect(dom).toMatch(/\[text:\d+\]/)
   expect(dom).not.toMatch(/<script|style=|onclick/i)
 
   await page.goto(adminUrl(page))
