@@ -46,6 +46,9 @@ const en = {
   'badge.needs-backend': 'Sent to admin',
   'badge.failed': 'Not done',
   'badge.rejected': 'Did not compile',
+  'badge.clarify': 'Question',
+  'chat.clarify.other': 'Or type your own answer below.',
+  'chat.clarify.answered': 'Answered: {answer}',
   'toast.applied': 'Applied',
   'toast.appliedReview': 'Applied. An administrator will review it.',
   'toast.undone': 'Undone',
@@ -102,9 +105,11 @@ const en = {
   'status.in-progress': 'in progress',
   'status.rolled-back': 'rolled back',
   'status.failed': 'failed',
+  'status.clarifying': 'asked the user',
   'verdict.ok': 'ok',
   'verdict.needs-backend': 'needs backend',
   'verdict.failed': 'failed',
+  'verdict.clarify': 'question',
 }
 
 export type UiKey = keyof typeof en
@@ -150,6 +155,9 @@ const ru: Record<UiKey, string> = {
   'badge.needs-backend': 'Передано администратору',
   'badge.failed': 'Не сделано',
   'badge.rejected': 'Не собралось',
+  'badge.clarify': 'Вопрос',
+  'chat.clarify.other': 'Или напишите свой ответ ниже.',
+  'chat.clarify.answered': 'Ответ: {answer}',
   'toast.applied': 'Применено',
   'toast.appliedReview': 'Применено. Администратор проверит правку.',
   'toast.undone': 'Отменено',
@@ -205,9 +213,11 @@ const ru: Record<UiKey, string> = {
   'status.in-progress': 'в работе',
   'status.rolled-back': 'откачена',
   'status.failed': 'не удалась',
+  'status.clarifying': 'уточнение у пользователя',
   'verdict.ok': 'ok',
   'verdict.needs-backend': 'нужен бэкенд',
   'verdict.failed': 'не удалось',
+  'verdict.clarify': 'вопрос',
 }
 
 export const UI_MESSAGES: Record<Locale, Record<UiKey, string>> = { en, ru }

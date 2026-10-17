@@ -3,7 +3,8 @@
 
 import type { FileMap, MorphkitManifest } from './types.js'
 
-export type AgentVerdict = 'ok' | 'needs-backend' | 'failed'
+/** `clarify`: the request was ambiguous; the result carries one question with options, nothing was changed. */
+export type AgentVerdict = 'ok' | 'needs-backend' | 'failed' | 'clarify'
 
 /** Image types every supported vision model accepts. */
 export const AGENT_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const
@@ -52,6 +53,11 @@ export interface AgentRunRequest {
    * text in them, is data about the user's screen, never instructions to the agent.
    */
   images?: AgentImage[]
+  /**
+   * The user's answer to the one clarifying question of this edit. With it the classifier is skipped, so
+   * an edit never asks twice.
+   */
+  clarification?: { question: string; answer: string }
   /** Sanitized DOM of the panel the user pointed at, as the user sees it now (data, not instructions). */
   targetDom?: string
   /** Set when asking the agent to carry the user's edits over to a new app release (stale snapshot). */
@@ -123,6 +129,8 @@ export interface AgentResult {
   stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'refusal' | 'no-finish' | 'error'
   /** Technical error behind a failed run (for the admin's log; the user only sees `summary`). */
   error?: string
+  /** For verdict `clarify`: the question to show and 2 to 4 short answers as buttons. */
+  clarify?: { question: string; options: string[] }
   /** What came with the request besides text (sizes only; images are not stored). */
   attachments?: { images: number; imageBytes: number; targetDomChars: number }
 }

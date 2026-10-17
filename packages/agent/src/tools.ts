@@ -47,7 +47,7 @@ export const TOOLS: ToolSpec[] = [
 ]
 
 export interface Finish {
-  verdict: AgentVerdict
+  verdict: Exclude<AgentVerdict, 'clarify'>
   summary: string
 }
 
@@ -114,7 +114,7 @@ export class ToolRunner {
         return r.ok ? `OK: the dynamic zone compiles and every panel has a default export (${r.timeMs.toFixed(0)} ms).` : `FAILED:\n${formatErrors(r.errors)}`
       }
       case 'finish': {
-        const verdict = str('verdict') as AgentVerdict
+        const verdict = str('verdict') as Finish['verdict']
         const summary = str('summary').trim()
         if (!['ok', 'needs-backend', 'failed'].includes(verdict)) throw new Error(`Unknown verdict "${verdict}"`)
         if (verdict === 'ok' && this.ws.changed && this.ws.needsCheck) await this.ws.check()
@@ -131,7 +131,7 @@ export class ToolRunner {
   }
 }
 
-function defaultSummary(v: AgentVerdict): string {
+function defaultSummary(v: Finish['verdict']): string {
   return v === 'ok' ? 'Done.' : v === 'needs-backend' ? 'This needs a change on the server; I passed it to the administrator.' : 'I could not make this change.'
 }
 

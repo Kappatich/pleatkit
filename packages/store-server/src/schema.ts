@@ -41,7 +41,7 @@ export const requests = sqliteTable(
     target: text('target'),
     verdict: text('verdict').notNull(),
     summary: text('summary').notNull(),
-    /** proposed | applied | pending-review | rejected | pending-admin | in-progress | rolled-back | failed */
+    /** proposed | applied | pending-review | clarifying | rejected | pending-admin | in-progress | rolled-back | failed */
     status: text('status').notNull(),
     classification: text('classification'),
     provider: text('provider'),

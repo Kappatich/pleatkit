@@ -56,10 +56,19 @@ const CLASSIFY_SCHEMA = {
   properties: {
     label: { type: 'string', enum: ['ui', 'needs-backend', 'unclear'] },
     reason: { type: 'string' },
+    question: { type: 'string' },
+    options: { type: 'array', items: { type: 'string' } },
   },
-  required: ['label', 'reason'],
+  required: ['label', 'reason', 'question', 'options'],
   additionalProperties: false,
 } as const
+
+/** Question and options of an `unclear` classification, cleaned up (2 to 4 non-empty options). */
+export function clarifyOf(p: { question?: unknown; options?: unknown }): { question?: string; options?: string[] } {
+  const question = typeof p.question === 'string' ? p.question.trim() : ''
+  const options = Array.isArray(p.options) ? p.options.filter((o): o is string => typeof o === 'string' && o.trim() !== '').map((o) => o.trim().slice(0, 80)).slice(0, 4) : []
+  return question && options.length >= 2 ? { question: question.slice(0, 300), options } : {}
+}
 
 /** Claude through the official SDK: adaptive thinking, effort, strict tools, one prompt-cache breakpoint. */
 export class AnthropicProvider implements ModelProvider {
@@ -98,8 +107,8 @@ export class AnthropicProvider implements ModelProvider {
     if (msg.stop_reason === 'refusal') return { label: 'unclear', reason: '', usage, model: msg.model }
     const text = msg.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
     try {
-      const parsed = JSON.parse(text) as { label: Classification['label']; reason: string }
-      return { label: parsed.label, reason: parsed.reason, usage, model: msg.model }
+      const parsed = JSON.parse(text) as { label: Classification['label']; reason: string; question?: string; options?: string[] }
+      return { label: parsed.label, reason: parsed.reason, ...clarifyOf(parsed), usage, model: msg.model }
     } catch {
       return { label: 'unclear', reason: '', usage, model: msg.model }
     }

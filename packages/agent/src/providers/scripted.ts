@@ -13,7 +13,7 @@ export interface ScriptFixture {
   description?: string
   /** Case-insensitive regular expressions; the first fixture with a matching one is used. */
   match: string[]
-  classify?: { label: RequestClass; reason?: string }
+  classify?: { label: RequestClass; reason?: string; question?: string; options?: string[] }
   turns: ScriptTurn[]
 }
 
@@ -74,7 +74,14 @@ export class ScriptedProvider implements ModelProvider {
   async classify(input: ClassifyInput, signal?: AbortSignal): Promise<Classification> {
     if (this.pace.delayMs && signal) await delay(this.pace.delayMs, signal)
     const fx = this.find(input.request)
-    return { label: fx?.classify?.label ?? 'ui', reason: fx?.classify?.reason ?? '', usage: emptyUsage(), model: 'scripted-classifier' }
+    const c = fx?.classify
+    return {
+      label: c?.label ?? 'ui',
+      reason: c?.reason ?? '',
+      ...(c?.question && c.options ? { question: c.question, options: c.options } : {}),
+      usage: emptyUsage(),
+      model: 'scripted-classifier',
+    }
   }
 
   /** What each scripted run received besides text: a model would see the images, the script only notes them. */

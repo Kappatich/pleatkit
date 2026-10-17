@@ -13,7 +13,7 @@ interface RequestRow {
   userId: string
   text: string
   target: string | null
-  verdict: 'ok' | 'needs-backend' | 'failed'
+  verdict: 'ok' | 'needs-backend' | 'failed' | 'clarify'
   summary: string
   status: string
   classification: string | null
@@ -201,7 +201,7 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
                         <div className="text-xs text-muted-foreground">{r.summary}</div>
                       </td>
                       <td className="py-2 pr-3">
-                        <Badge variant={r.verdict === 'ok' ? 'success' : r.verdict === 'needs-backend' ? 'warning' : 'destructive'}>{label(tr, 'verdict', r.verdict)}</Badge>
+                        <Badge variant={r.verdict === 'ok' ? 'success' : r.verdict === 'needs-backend' ? 'warning' : r.verdict === 'clarify' ? 'secondary' : 'destructive'}>{label(tr, 'verdict', r.verdict)}</Badge>
                       </td>
                       <td className="py-2 pr-3" data-testid="admin-status">
                         <Badge variant={STATUS_VARIANT[r.status] ?? 'secondary'}>{label(tr, 'status', r.status)}</Badge>

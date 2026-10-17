@@ -1,0 +1,20 @@
+{
+  "name": "scenario-clarify-stand-out",
+  "description": "Stage 3b: an ambiguous request; the classifier asks one question with options, then the edit runs with the answer.",
+  "match": ["stand out|выдел"],
+  "classify": {
+    "label": "unclear",
+    "reason": "It is not clear which part of the card should stand out.",
+    "question": "What should stand out in the customer card?",
+    "options": ["The overdue payment date", "The customer status", "The email address"]
+  },
+  "turns": [
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/customer-card.tsx" }, "contentFile": "../customer-card.overdue.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "An overdue payment date now stands out in bold white on red." }, "expect": "ok" }] }
+  ]
+}
