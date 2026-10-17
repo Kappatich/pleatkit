@@ -74,6 +74,10 @@ export interface EngineOptions {
   loader?: BundleLoader
 }
 
+function summarize({ bundle: _bundle, ...rest }: CompileResult): Omit<CompileResult, 'bundle'> {
+  return rest
+}
+
 /** `src/dynamic/customer-card.tsx` → `customer-card` */
 export function componentId(path: string, roots: string[]): string {
   const root = roots.find((r) => path.startsWith(r)) ?? ''
@@ -265,7 +269,7 @@ export class MorphkitEngine {
     check: async (): Promise<CompileResult> => {
       const result = await this.compiler.compile(this.requireDraft().files)
       this.timings.lastCheckMs = result.timeMs
-      this.set({ lastCheck: { ...result, bundle: undefined } })
+      this.set({ lastCheck: summarize(result) })
       return result
     },
     /** check + store + set head + swap. Throws CommitRejectedError if the draft does not compile or evaluate. */
@@ -292,7 +296,7 @@ export class MorphkitEngine {
     const reject = async (errors: CompileError[]): Promise<never> => {
       snapshot.status = 'rejected'
       await this.store.put(snapshot)
-      this.set({ lastCheck: { ...result, ok: false, errors, bundle: undefined } })
+      this.set({ lastCheck: { ...summarize(result), ok: false, errors } })
       throw new CommitRejectedError(errors, snapshot)
     }
     if (!result.ok || !result.bundle) return reject(result.errors)
@@ -307,7 +311,7 @@ export class MorphkitEngine {
     await this.store.bundleCache.put(BUNDLE_KEY_PREFIX + result.hash, result.bundle)
     await this.store.setHead(this.userId, snapshot.id)
     this.redoStack = []
-    this.set({ draft: null, lastCheck: { ...result, bundle: undefined } })
+    this.set({ draft: null, lastCheck: summarize(result) })
     this.swap(modules, result.bundle.css, false, snapshot)
     this.timings.lastCommitMs = performance.now() - started
     return snapshot
