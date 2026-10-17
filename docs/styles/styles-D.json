@@ -1,0 +1,810 @@
+[
+ {
+  "id": "d01",
+  "name": "Beck line diagram",
+  "family": "engineering",
+  "origin": "Harry Beck, London Underground diagram (1933) and Johnston roundel",
+  "why_not_ai": "Strict 45/90-degree line work, tick stations versus ring interchanges and the bar-and-ring roundel are a specific 1930s transit grammar no template ships with.",
+  "fits": "The agent's work reads as a train running a line to its terminus, and versions are a branch you can step back along.",
+  "palette": [
+   "#ffffff",
+   "#1c1c1c",
+   "#dc241f",
+   "#0019a8",
+   "#00782a"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#1c1c1c",
+   "accent": "#dc241f",
+   "line": "#0019a8",
+   "ok": "#00782a"
+  },
+  "type": {
+   "display": "Jost",
+   "body": "Jost",
+   "mono": "Jost"
+  },
+  "fonts": [
+   "Jost:wght@400;600"
+  ],
+  "components": [
+   "station tick list",
+   "service notice board",
+   "eastbound line with terminus interchange",
+   "version branch line",
+   "line-key bar buttons",
+   "roundel status"
+  ],
+  "html": "<div class=\"tile s-d01\"><style>\n.s-d01 .w{background:#ffffff;color:#1c1c1c;font:13px/1.35 Jost,sans-serif;padding:12px}\n.s-d01 .hd{display:flex;align-items:baseline;gap:8px;border-bottom:3px solid #0019a8;padding-bottom:5px}\n.s-d01 .hd b{font-size:15px;font-weight:600;letter-spacing:.03em}\n.s-d01 .hd span{margin-left:auto;font-size:11px;border:1px solid #1c1c1c;padding:0 6px}\n.s-d01 .not{background:#0019a8;color:#ffffff;padding:5px 8px;margin:8px 0}\n.s-d01 .not small,.s-d01 .cap{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase}\n.s-d01 .cap{margin-top:8px}\n.s-d01 .sts{margin:4px 0 0 8px;border-left:6px solid #0019a8;padding:1px 0 1px 18px}\n.s-d01 .st{position:relative;margin:3px 0}\n.s-d01 .st:before{content:\"\";position:absolute;left:-18px;top:8px;width:9px;height:3px;background:#0019a8}\n.s-d01 .st i{font-style:normal;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-right:6px}\n.s-d01 .od{background:#dc241f;color:#ffffff;font-size:11px;font-weight:600;padding:0 5px;margin-left:5px;text-transform:uppercase}\n.s-d01 svg{display:block}\n.s-d01 .ft{display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap}\n.s-d01 button{font:600 13px Jost,sans-serif;color:#1c1c1c;background:#ffffff;border:0;padding:2px 0;display:flex;align-items:center;gap:6px;cursor:pointer}\n.s-d01 button i{display:inline-block;width:30px;height:6px;background:#00782a}\n.s-d01 button.u i{background:#ffffff;border:2px solid #1c1c1c;height:6px}\n.s-d01 .rd{position:relative;display:inline-flex;align-items:center;height:30px;padding:0 2px}\n.s-d01 .rd:before{content:\"\";position:absolute;left:50%;top:0;width:30px;height:30px;margin-left:-15px;border:6px solid #dc241f;border-radius:50%;box-sizing:border-box}\n.s-d01 .rd b{position:relative;background:#0019a8;color:#ffffff;font-size:11px;font-weight:600;padding:1px 6px;text-transform:uppercase;letter-spacing:.04em}\n.s-d01 .rd.na:before{border-color:#1c1c1c}\n.s-d01 .rd.na b{background:#dc241f}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div>\n<div class=\"not\"><small>Service notice · from the user</small>Add phone and city; overdue in red</div>\n<span class=\"cap\">Stations on this panel</span>\n<div class=\"sts\">\n<div class=\"st\"><i>Email</i>hank@globex.example</div>\n<div class=\"st\"><i>City</i>Springfield</div>\n<div class=\"st\"><i>Next payment</i>Oct 11, 2026<span class=\"od\">overdue</span></div>\n</div>\n<span class=\"cap\">Agent line · eastbound</span>\n<svg viewBox=\"0 0 336 48\" width=\"336\" height=\"48\" font-family=\"Jost\" font-size=\"11\" fill=\"#1c1c1c\">\n<line x1=\"12\" y1=\"12\" x2=\"300\" y2=\"12\" stroke=\"#dc241f\" stroke-width=\"6\"/>\n<rect x=\"52\" y=\"12\" width=\"3\" height=\"9\" fill=\"#dc241f\"/><rect x=\"170\" y=\"12\" width=\"3\" height=\"9\" fill=\"#dc241f\"/>\n<circle cx=\"296\" cy=\"12\" r=\"8\" fill=\"#ffffff\" stroke=\"#1c1c1c\" stroke-width=\"3\"/>\n<text x=\"53\" y=\"33\" text-anchor=\"middle\">Reading the card</text>\n<text x=\"171\" y=\"33\" text-anchor=\"middle\">Changing the fields</text>\n<text x=\"334\" y=\"33\" text-anchor=\"end\">Checking the build</text>\n<text x=\"334\" y=\"46\" text-anchor=\"end\" fill=\"#00782a\" font-weight=\"600\">TERMINUS · DONE</text>\n</svg>\n<span class=\"cap\">Versions · branch</span>\n<svg viewBox=\"0 0 336 34\" width=\"336\" height=\"34\" font-family=\"Jost\" font-size=\"12\" fill=\"#1c1c1c\">\n<line x1=\"20\" y1=\"10\" x2=\"240\" y2=\"10\" stroke=\"#00782a\" stroke-width=\"6\"/>\n<circle cx=\"20\" cy=\"10\" r=\"6\" fill=\"#ffffff\" stroke=\"#1c1c1c\" stroke-width=\"2.5\"/>\n<circle cx=\"130\" cy=\"10\" r=\"6\" fill=\"#ffffff\" stroke=\"#1c1c1c\" stroke-width=\"2.5\"/>\n<circle cx=\"240\" cy=\"10\" r=\"8\" fill=\"#1c1c1c\" stroke=\"#1c1c1c\" stroke-width=\"2.5\"/>\n<text x=\"20\" y=\"31\" text-anchor=\"middle\">v0</text><text x=\"130\" y=\"31\" text-anchor=\"middle\">v1</text>\n<text x=\"240\" y=\"31\" text-anchor=\"middle\" font-weight=\"600\">v2 · you are here</text>\n</svg>\n<div class=\"ft\"><button><i></i>Apply</button><button class=\"u\"><i></i>Undo</button>\n<span class=\"rd\"><b>Applied</b></span><span class=\"rd na\"><b>Needs admin</b></span></div>\n</div></div>"
+ },
+ {
+  "id": "d02",
+  "name": "Nautical chart",
+  "family": "engineering",
+  "origin": "NOAA / Admiralty nautical charts: cartouche, Notices to Mariners, lateral buoyage",
+  "why_not_ai": "Italic hydrographic lettering, dotted danger circles, buoy light characteristics like \"Fl G 4s\" and edition notes in the margin are conventions only a chart-maker would reach for.",
+  "fits": "Each change is charted, corrected by notice and re-issued as a new edition, which maps exactly to requests, builds and versions.",
+  "palette": [
+   "#d9e9f1",
+   "#f4ecc9",
+   "#1d2a33",
+   "#9b1460",
+   "#1f6b3b"
+  ],
+  "roles": {
+   "bg": "#d9e9f1",
+   "land": "#f4ecc9",
+   "fg": "#1d2a33",
+   "accent": "#9b1460",
+   "ok": "#1f6b3b"
+  },
+  "type": {
+   "display": "EB Garamond",
+   "body": "EB Garamond",
+   "mono": "Courier Prime"
+  },
+  "fonts": [
+   "EB+Garamond:ital,wght@0,400;0,600;1,400",
+   "Courier+Prime:wght@400;700"
+  ],
+  "components": [
+   "chart title cartouche",
+   "danger-circle field mark",
+   "Notice to Mariners slip",
+   "buoyed channel",
+   "edition note",
+   "light-characteristic status",
+   "anchorage button"
+  ],
+  "html": "<div class=\"tile s-d02\"><style>\n.s-d02 .w{background:#d9e9f1;color:#1d2a33;font:14px/1.35 'EB Garamond',serif;padding:10px}\n.s-d02 .ct{background:#f4ecc9;border:3px double #1d2a33;text-align:center;padding:4px 6px;margin:0 30px}\n.s-d02 .ct b{display:block;font-size:15px;letter-spacing:.2em;text-transform:uppercase}\n.s-d02 .ct i{font-size:12px}\n.s-d02 .fl{margin:8px 4px;font-style:italic}\n.s-d02 .fl span{font-style:normal;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-right:6px}\n.s-d02 .dg{display:inline-block;border:2px dotted #9b1460;border-radius:50%;padding:1px 9px;color:#9b1460;margin-left:4px}\n.s-d02 .dg small{font-size:11px}\n.s-d02 .nm{background:#f4ecc9;border:1px solid #1d2a33;padding:4px 7px;font-size:13px}\n.s-d02 .nm b{font:700 11px 'Courier Prime',monospace;display:block}\n.s-d02 svg{display:block;margin:6px 0 2px}\n.s-d02 .ed{font-size:12px;border-top:1px solid #1d2a33;padding-top:3px}\n.s-d02 .ed b{border:1px solid #1d2a33;padding:0 4px;background:#f4ecc9}\n.s-d02 .ft{display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap}\n.s-d02 button{font:600 13px 'EB Garamond',serif;padding:2px 9px;cursor:pointer;border:1px solid #1d2a33;background:#f4ecc9;color:#1d2a33}\n.s-d02 button.a{background:#9b1460;color:#f4ecc9;border-color:#9b1460}\n.s-d02 .lt{font:12px 'Courier Prime',monospace;display:inline-flex;align-items:center;gap:3px}\n.s-d02 .lt.na{color:#9b1460}\n</style><div class=\"w\">\n<div class=\"ct\"><b>morphkit</b><i>customer-card.tsx · dynamic — soundings in fields</i></div>\n<div class=\"fl\"><span>Email</span>hank@globex.example</div>\n<div class=\"fl\"><span>City</span>Springfield</div>\n<div class=\"fl\"><span>Next payment</span>Oct 11, 2026 <em class=\"dg\">overdue <small>(rep)</small></em></div>\n<div class=\"nm\"><b>NOTICE TO MARINERS 41/26</b>Add phone and city; overdue in red</div>\n<svg viewBox=\"0 0 340 62\" width=\"340\" height=\"62\" font-family=\"EB Garamond\" font-style=\"italic\" font-size=\"12\" fill=\"#1d2a33\">\n<path d=\"M10 22 L330 22\" stroke=\"#9b1460\" stroke-width=\"1.5\" stroke-dasharray=\"7 4\"/>\n<path d=\"M44 8 l10 0 l-2 12 l-6 0z\" fill=\"#1f6b3b\"/><text x=\"49\" y=\"40\" text-anchor=\"middle\">\"1\" Reading the card</text>\n<path d=\"M164 8 l10 0 l-2 12 l-6 0z\" fill=\"#1f6b3b\"/><text x=\"169\" y=\"40\" text-anchor=\"middle\">\"3\" Changing the fields</text>\n<path d=\"M284 8 l10 0 l-2 12 l-6 0z\" fill=\"#1f6b3b\"/><path d=\"M296 2 q8 4 0 12 q-4 -6 0 -12z\" fill=\"#9b1460\"/>\n<text x=\"334\" y=\"40\" text-anchor=\"end\">\"5\" Checking the build</text>\n<text x=\"334\" y=\"56\" text-anchor=\"end\" fill=\"#1f6b3b\" font-style=\"normal\" font-family=\"Courier Prime\">Fl G 4s · done</text>\n</svg>\n<div class=\"ed\">1st Ed. v0 · 2nd Ed. v1 · <b>3rd Ed. v2 — current, corr. NM 41/26</b></div>\n<div class=\"ft\"><button class=\"a\">⚓ Apply</button><button>↶ Undo</button>\n<span class=\"lt\"><svg width=\"8\" height=\"12\" viewBox=\"0 0 8 12\"><path d=\"M4 0 q6 6 0 12 q-6 -6 0 -12z\" fill=\"#1f6b3b\"/></svg>Applied Fl G</span>\n<span class=\"lt na\"><svg width=\"8\" height=\"12\" viewBox=\"0 0 8 12\"><path d=\"M4 0 q6 6 0 12 q-6 -6 0 -12z\" fill=\"#9b1460\"/></svg>Needs admin Q</span></div>\n</div></div>"
+ },
+ {
+  "id": "d03",
+  "name": "USGS topo quadrangle",
+  "family": "engineering",
+  "origin": "USGS 7.5-minute topographic quadrangles with purple photorevision overprint (1970s-80s)",
+  "why_not_ai": "Map collar text, brown index contours labelled inline, hachured depression contours and purple photorevision notes come from a printed survey series, not a UI kit.",
+  "fits": "Versions behave like photorevisions overprinted on the same sheet, and progress climbs index contours to the summit.",
+  "palette": [
+   "#fbfaf5",
+   "#222222",
+   "#8a4b17",
+   "#1f5d99",
+   "#7a2e8c"
+  ],
+  "roles": {
+   "bg": "#fbfaf5",
+   "fg": "#222222",
+   "contour": "#8a4b17",
+   "water": "#1f5d99",
+   "revision": "#7a2e8c"
+  },
+  "type": {
+   "display": "Archivo Narrow",
+   "body": "Archivo",
+   "mono": "Roboto Mono"
+  },
+  "fonts": [
+   "Archivo+Narrow:wght@400;600",
+   "Archivo:wght@400;600",
+   "Roboto+Mono:wght@400;500"
+  ],
+  "components": [
+   "quadrangle collar",
+   "feature-symbol field list",
+   "depression-contour mark",
+   "field-check margin note",
+   "labelled index contours",
+   "photorevision overprint",
+   "scale-bar buttons",
+   "road-class legend status"
+  ],
+  "html": "<div class=\"tile s-d03\"><style>\n.s-d03 .w{background:#fbfaf5;color:#222222;font:13px/1.35 Archivo,sans-serif;padding:10px}\n.s-d03 .cl{display:flex;justify-content:space-between;font:11px 'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.06em}\n.s-d03 .cl b{font-size:15px;letter-spacing:.12em}\n.s-d03 .cl em{font-style:normal;text-align:right}\n.s-d03 .mp{border:1.5px solid #222222;margin:5px 0;padding:6px 8px;position:relative}\n.s-d03 .mp:before{content:\"37°30′\";position:absolute;top:-1px;left:-1px;font:11px 'Roboto Mono',monospace;background:#fbfaf5;padding:0 2px}\n.s-d03 .ft1{margin:3px 0 3px 26px}\n.s-d03 .ft1 i{font-style:normal;color:#1f5d99;margin-right:4px}\n.s-d03 .ft1 small{font:11px 'Archivo Narrow',sans-serif;text-transform:uppercase;margin-right:5px}\n.s-d03 .dp{color:#8a4b17;font-weight:600;border:1.5px solid #8a4b17;border-radius:10px;padding:2px 8px 0;background:linear-gradient(90deg,#8a4b17 1px,transparent 1px) 0 0/5px 4px repeat-x}\n.s-d03 svg{display:block}\n.s-d03 .fc{font:italic 12px 'Archivo Narrow',sans-serif;margin:4px 0}\n.s-d03 .pr{color:#7a2e8c;font:11px 'Roboto Mono',monospace;line-height:1.5}\n.s-d03 .pr b{border-bottom:2px solid #7a2e8c}\n.s-d03 .bt{display:flex;margin:8px 0 2px;width:200px}\n.s-d03 button{flex:1;font:600 12px 'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.1em;padding:3px 0;border:1.5px solid #222222;cursor:pointer;background:#fbfaf5;color:#222222}\n.s-d03 button.a{background:#222222;color:#fbfaf5}\n.s-d03 .sc{display:flex;justify-content:space-between;width:200px;font:11px 'Roboto Mono',monospace}\n.s-d03 .lg{border:1px solid #222222;padding:3px 6px;margin-top:6px;font-size:12px;display:flex;gap:12px;align-items:center}\n.s-d03 .lg b{font:600 11px 'Archivo Narrow',sans-serif;letter-spacing:.1em}\n.s-d03 .r1,.s-d03 .r2{display:inline-block;width:26px;vertical-align:middle;margin-right:4px}\n.s-d03 .r1{border-top:3px solid #222222}\n.s-d03 .r2{border-top:2px dashed #222222}\n</style><div class=\"w\">\n<div class=\"cl\"><span>customer-card.tsx · dynamic<br>7.5-minute series</span><em><b>morphkit</b><br>quadrangle</em></div>\n<div class=\"mp\">\n<div class=\"ft1\"><i>△</i><small>Email</small>hank@globex.example</div>\n<div class=\"ft1\"><i>●</i><small>City</small>Springfield</div>\n<div class=\"ft1\"><i>⊙</i><small>Next payment</small>Oct 11, 2026 <span class=\"dp\">overdue</span></div>\n<svg viewBox=\"0 0 320 84\" width=\"320\" height=\"84\" font-family=\"Archivo Narrow\" font-size=\"11\" fill=\"#8a4b17\">\n<path id=\"d03a\" d=\"M4 78 C70 70 120 76 170 62 S280 52 316 58\" fill=\"none\" stroke=\"#8a4b17\" stroke-width=\"0.8\"/>\n<path id=\"d03b\" d=\"M4 56 C70 50 110 56 160 42 S270 32 316 38\" fill=\"none\" stroke=\"#8a4b17\" stroke-width=\"0.8\"/>\n<path id=\"d03c\" d=\"M4 32 C60 26 110 30 150 18 S260 8 316 14\" fill=\"none\" stroke=\"#8a4b17\" stroke-width=\"2\"/>\n<text dy=\"-2\"><textPath href=\"#d03a\" startOffset=\"40\">Reading the card · 400</textPath></text>\n<text dy=\"-2\"><textPath href=\"#d03b\" startOffset=\"80\">Changing the fields · 600</textPath></text>\n<text dy=\"-3\" font-weight=\"600\"><textPath href=\"#d03c\" startOffset=\"110\">Checking the build · 800 ✓ done</textPath></text>\n</svg></div>\n<div class=\"fc\">Field checked 2026: “Add phone and city; overdue in red”</div>\n<div class=\"pr\">v0 mapped 1974 · v1 photorevised 1985 · <b>v2 photorevised 2026 (current)</b></div>\n<div class=\"bt\"><button class=\"a\">Apply</button><button>Undo</button></div>\n<div class=\"sc\"><span>0</span><span>½</span><span>1 mile</span></div>\n<div class=\"lg\"><b>STATUS</b><span><i class=\"r1\"></i>Applied</span><span><i class=\"r2\"></i>Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d04",
+  "name": "Surface analysis chart",
+  "family": "engineering",
+  "origin": "Weather-service synoptic surface analysis: station models, frontal symbols, isobars, okta cloud cover",
+  "why_not_ai": "Triangle and semicircle front lines, a plotted station model and okta discs are meteorological notation with fixed meanings, not decorative shapes.",
+  "fits": "The agent's run is a passing weather system, versions are isobars around the current high, and the cover disc tells at a glance if a change landed.",
+  "palette": [
+   "#ffffff",
+   "#1a1a1a",
+   "#1446a0",
+   "#c8102e",
+   "#6a1b9a"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#1a1a1a",
+   "cold": "#1446a0",
+   "warm": "#c8102e",
+   "occluded": "#6a1b9a"
+  },
+  "type": {
+   "display": "Barlow Condensed",
+   "body": "Barlow",
+   "mono": "Share Tech Mono"
+  },
+  "fonts": [
+   "Barlow+Condensed:wght@500;700",
+   "Barlow:wght@400;600",
+   "Share+Tech+Mono"
+  ],
+  "components": [
+   "station-model field plot",
+   "forecaster discussion line",
+   "frontal progress lines",
+   "isobar version rings",
+   "H/L pressure buttons",
+   "okta cover status"
+  ],
+  "html": "<div class=\"tile s-d04\"><style>\n.s-d04 .w{background:#ffffff;color:#1a1a1a;font:13px/1.35 Barlow,sans-serif;padding:10px}\n.s-d04 .hd{font:12px 'Share Tech Mono',monospace;border-bottom:2px solid #1a1a1a;padding-bottom:3px;display:flex;justify-content:space-between}\n.s-d04 .hd b{font:700 15px 'Barlow Condensed',sans-serif;letter-spacing:.05em}\n.s-d04 svg{display:block;margin-top:6px}\n.s-d04 .fd{font:12px 'Share Tech Mono',monospace;border-left:3px solid #1446a0;padding:2px 6px;margin-top:4px}\n.s-d04 .rw{display:flex;align-items:center;gap:6px;margin-top:6px}\n.s-d04 .bt{display:flex;flex-direction:column;gap:5px;margin-left:auto}\n.s-d04 button{font:600 13px Barlow,sans-serif;background:#ffffff;color:#1a1a1a;border:1px solid #1a1a1a;padding:2px 10px 2px 4px;display:flex;align-items:center;gap:6px;cursor:pointer}\n.s-d04 button b{font:700 15px 'Barlow Condensed',sans-serif;width:16px;color:#1446a0}\n.s-d04 button.u b{color:#c8102e}\n.s-d04 .ok{display:flex;gap:10px;font-size:12px;margin-top:6px;align-items:center}\n.s-d04 .ok span{display:flex;align-items:center;gap:4px}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit · SFC ANALYSIS</b><span>customer-card.tsx · dynamic · 12Z</span></div>\n<svg viewBox=\"0 0 340 66\" width=\"340\" height=\"66\" font-family=\"Barlow\" font-size=\"12\" fill=\"#1a1a1a\">\n<line x1=\"170\" y1=\"33\" x2=\"170\" y2=\"6\" stroke=\"#1a1a1a\" stroke-width=\"1.5\"/><line x1=\"170\" y1=\"6\" x2=\"180\" y2=\"2\" stroke=\"#1a1a1a\" stroke-width=\"1.5\"/>\n<circle cx=\"170\" cy=\"33\" r=\"7\" fill=\"#ffffff\" stroke=\"#1a1a1a\" stroke-width=\"1.5\"/>\n<text x=\"156\" y=\"22\" text-anchor=\"end\">hank@globex.example</text><text x=\"156\" y=\"10\" text-anchor=\"end\" fill=\"#6a1b9a\" font-size=\"11\">EMAIL</text>\n<text x=\"156\" y=\"52\" text-anchor=\"end\">Springfield</text><text x=\"156\" y=\"64\" text-anchor=\"end\" fill=\"#6a1b9a\" font-size=\"11\">CITY</text>\n<text x=\"184\" y=\"26\">Oct 11, 2026</text><text x=\"184\" y=\"12\" fill=\"#6a1b9a\" font-size=\"11\">NEXT PAYMENT</text>\n<path d=\"M186 38 h8 l-3 6 h5 l-5 8\" fill=\"none\" stroke=\"#c8102e\" stroke-width=\"1.5\"/><text x=\"200\" y=\"50\" fill=\"#c8102e\" font-weight=\"600\">overdue</text>\n</svg>\n<div class=\"fd\">FCSTR NOTE: Add phone and city; overdue in red</div>\n<svg viewBox=\"0 0 340 58\" width=\"340\" height=\"58\" font-family=\"Barlow\" font-size=\"12\" fill=\"#1a1a1a\">\n<line x1=\"4\" y1=\"12\" x2=\"150\" y2=\"12\" stroke=\"#1446a0\" stroke-width=\"2\"/>\n<path d=\"M10 12 l5 -7 l5 7z\" fill=\"#1446a0\"/><path d=\"M32 12 l5 -7 l5 7z\" fill=\"#1446a0\"/><path d=\"M54 12 l5 -7 l5 7z\" fill=\"#1446a0\"/><path d=\"M76 12 l5 -7 l5 7z\" fill=\"#1446a0\"/><path d=\"M98 12 l5 -7 l5 7z\" fill=\"#1446a0\"/><path d=\"M120 12 l5 -7 l5 7z\" fill=\"#1446a0\"/><path d=\"M142 12 l5 -7 l5 7z\" fill=\"#1446a0\"/>\n<text x=\"160\" y=\"16\">Reading the card · cold front</text>\n<line x1=\"4\" y1=\"30\" x2=\"150\" y2=\"30\" stroke=\"#c8102e\" stroke-width=\"2\"/>\n<path d=\"M10 30 a5 5 0 0 1 10 0z\" fill=\"#c8102e\"/><path d=\"M32 30 a5 5 0 0 1 10 0z\" fill=\"#c8102e\"/><path d=\"M54 30 a5 5 0 0 1 10 0z\" fill=\"#c8102e\"/><path d=\"M76 30 a5 5 0 0 1 10 0z\" fill=\"#c8102e\"/><path d=\"M98 30 a5 5 0 0 1 10 0z\" fill=\"#c8102e\"/><path d=\"M120 30 a5 5 0 0 1 10 0z\" fill=\"#c8102e\"/><path d=\"M142 30 a5 5 0 0 1 10 0z\" fill=\"#c8102e\"/>\n<text x=\"160\" y=\"34\">Changing the fields · warm front</text>\n<line x1=\"4\" y1=\"50\" x2=\"150\" y2=\"50\" stroke=\"#6a1b9a\" stroke-width=\"2\"/>\n<path d=\"M10 50 l5 -7 l5 7z\" fill=\"#6a1b9a\"/><path d=\"M32 50 a5 5 0 0 1 10 0z\" fill=\"#6a1b9a\"/><path d=\"M54 50 l5 -7 l5 7z\" fill=\"#6a1b9a\"/><path d=\"M76 50 a5 5 0 0 1 10 0z\" fill=\"#6a1b9a\"/><path d=\"M98 50 l5 -7 l5 7z\" fill=\"#6a1b9a\"/><path d=\"M120 50 a5 5 0 0 1 10 0z\" fill=\"#6a1b9a\"/><path d=\"M142 50 l5 -7 l5 7z\" fill=\"#6a1b9a\"/>\n<text x=\"160\" y=\"54\" font-weight=\"600\">Checking the build · passed ✓</text>\n</svg>\n<div class=\"rw\"><svg viewBox=\"0 0 190 70\" width=\"190\" height=\"70\" font-family=\"Share Tech Mono\" font-size=\"11\" fill=\"#1a1a1a\">\n<ellipse cx=\"60\" cy=\"36\" rx=\"56\" ry=\"31\" fill=\"none\" stroke=\"#1a1a1a\" stroke-width=\"1\"/>\n<ellipse cx=\"60\" cy=\"36\" rx=\"38\" ry=\"21\" fill=\"none\" stroke=\"#1a1a1a\" stroke-width=\"1\"/>\n<ellipse cx=\"60\" cy=\"36\" rx=\"20\" ry=\"11\" fill=\"none\" stroke=\"#1a1a1a\" stroke-width=\"2\"/>\n<text x=\"60\" y=\"41\" text-anchor=\"middle\" font-family=\"Barlow Condensed\" font-size=\"15\" font-weight=\"700\" fill=\"#1446a0\">H</text>\n<text x=\"120\" y=\"14\">1000 v0</text><text x=\"120\" y=\"34\">1004 v1</text><text x=\"120\" y=\"54\" font-weight=\"700\">1008 v2 now</text>\n</svg>\n<div class=\"bt\"><button><b>H</b>Apply</button><button class=\"u\"><b>L</b>Undo</button></div></div>\n<div class=\"ok\"><span><svg width=\"14\" height=\"14\"><circle cx=\"7\" cy=\"7\" r=\"6\" fill=\"#1a1a1a\" stroke=\"#1a1a1a\"/></svg>Applied 8/8</span>\n<span><svg width=\"14\" height=\"14\"><circle cx=\"7\" cy=\"7\" r=\"6\" fill=\"#ffffff\" stroke=\"#1a1a1a\"/><path d=\"M7 1 a6 6 0 0 1 0 12z\" fill=\"#1a1a1a\"/></svg>Needs admin 4/8</span></div>\n</div></div>"
+ },
+ {
+  "id": "d05",
+  "name": "Circuit schematic",
+  "family": "engineering",
+  "origin": "IEEE 315 / ANSI electronic schematics with title block, net labels and off-sheet connectors",
+  "why_not_ai": "Connector pins with net labels, active-low overbars, LED emission arrows, a drawn rotary switch and DNP markings are drafting conventions with exact meaning.",
+  "fits": "A UI panel becomes a circuit the agent rewires: fields are nets, versions are switch throws, and an unapproved change is literally Do Not Populate.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#0050a0",
+   "#b00020"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "net": "#0050a0",
+   "alert": "#b00020"
+  },
+  "type": {
+   "display": "B612",
+   "body": "B612",
+   "mono": "B612 Mono"
+  },
+  "fonts": [
+   "B612:wght@400;700",
+   "B612+Mono:wght@400;700"
+  ],
+  "components": [
+   "title block",
+   "J1 connector with net labels",
+   "active-low overbar mark",
+   "schematic NOTES",
+   "LED chain",
+   "rotary switch SW1",
+   "off-sheet connector buttons",
+   "DNP status"
+  ],
+  "html": "<div class=\"tile s-d05\"><style>\n.s-d05 .w{background:#ffffff;color:#111111;font:12px/1.35 B612,sans-serif;padding:10px}\n.s-d05 table{border-collapse:collapse;width:100%;font-size:11px}\n.s-d05 td{border:1.5px solid #111111;padding:2px 5px}\n.s-d05 td b{font-size:14px}\n.s-d05 .j{display:flex;margin-top:8px}\n.s-d05 .jb{border:1.5px solid #111111;width:28px;text-align:center;font:700 11px 'B612 Mono',monospace;padding-top:2px}\n.s-d05 .pins{flex:1}\n.s-d05 .p{display:flex;align-items:center;height:20px;font-family:'B612 Mono',monospace}\n.s-d05 .p i{font-style:normal;width:16px;font-size:11px;text-align:right;margin-right:2px}\n.s-d05 .p s{flex:0 0 24px;border-top:1.5px solid #111111;text-decoration:none}\n.s-d05 .nl{color:#0050a0;border:1px solid #0050a0;padding:0 8px 0 4px;clip-path:polygon(0 0,88% 0,100% 50%,88% 100%,0 100%);font-size:11px;margin-right:6px}\n.s-d05 .nl.r{text-transform:uppercase;color:#b00020;border-color:#b00020;text-decoration:overline;font-weight:700}\n.s-d05 .nt{text-transform:uppercase;font:11px 'B612 Mono',monospace;margin:6px 0;border-left:2px solid #111111;padding-left:6px}\n.s-d05 .row{display:flex;gap:6px;align-items:flex-start}\n.s-d05 .ft{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}\n.s-d05 .oc{text-transform:uppercase;clip-path:polygon(0 0,82% 0,100% 50%,82% 100%,0 100%);background:#0050a0;padding:1.5px;cursor:pointer;border:0;font:700 12px B612,sans-serif}\n.s-d05 .oc span{display:block;padding:2px 18px 2px 8px;color:#ffffff;background:#0050a0}\n.s-d05 .oc.u{background:#111111;clip-path:polygon(18% 0,100% 0,100% 100%,18% 100%,0 50%)}\n.s-d05 .oc.u span{background:#ffffff;color:#111111;padding:2px 8px 2px 18px;clip-path:polygon(18% 0,100% 0,100% 100%,18% 100%,0 50%)}\n.s-d05 .st{border:1.5px solid #111111;padding:1px 6px;font-size:11px}\n.s-d05 .st.dnp{border-color:#b00020;color:#b00020}\n</style><div class=\"w\">\n<table><tr><td>TITLE<br><b>morphkit</b></td><td>SHEET<br>customer-card.tsx · dynamic</td><td>SIZE<br>A</td></tr></table>\n<div class=\"j\"><div class=\"jb\">J1</div><div class=\"pins\">\n<div class=\"p\"><i>1</i><s></s><span class=\"nl\">EMAIL</span>hank@globex.example</div>\n<div class=\"p\"><i>2</i><s></s><span class=\"nl\">CITY</span>Springfield</div>\n<div class=\"p\"><i>3</i><s></s><span class=\"nl\">NEXT_PAY</span>Oct 11, 2026&nbsp;<span class=\"nl r\">overdue</span></div>\n</div></div>\n<div class=\"nt\">NOTES: 1. Add phone and city; overdue in red.</div>\n<div class=\"row\"><svg viewBox=\"0 0 238 70\" width=\"238\" height=\"70\" font-family=\"B612\" font-size=\"11\" fill=\"#111111\">\n<path d=\"M4 8 V62 M4 12 H20 M4 35 H20 M4 58 H20 M34 12 H44 M34 35 H44 M34 58 H44\" stroke=\"#111111\" stroke-width=\"1.5\" fill=\"none\"/>\n<path d=\"M20 5 v14 l13 -7z M33 5 v14\" fill=\"#ffffff\" stroke=\"#111111\" stroke-width=\"1.5\"/>\n<path d=\"M20 28 v14 l13 -7z M33 28 v14\" fill=\"#ffffff\" stroke=\"#111111\" stroke-width=\"1.5\"/>\n<path d=\"M20 51 v14 l13 -7z M33 51 v14\" fill=\"#0050a0\" stroke=\"#111111\" stroke-width=\"1.5\"/>\n<path d=\"M30 49 l6 -6 M34 51 l6 -6 M36 43 h-3 M36 43 v3 M40 45 h-3 M40 45 v3\" stroke=\"#0050a0\" stroke-width=\"1.2\"/>\n<text x=\"48\" y=\"16\">D1 Reading the card</text>\n<text x=\"48\" y=\"39\">D2 Changing the fields</text>\n<text x=\"48\" y=\"62\" font-weight=\"700\">D3 Checking the build</text><text x=\"48\" y=\"62\" dx=\"152\" fill=\"#0050a0\">LIT ✓</text>\n</svg>\n<svg viewBox=\"0 0 92 70\" width=\"92\" height=\"70\" font-family=\"B612 Mono\" font-size=\"11\" fill=\"#111111\">\n<circle cx=\"18\" cy=\"38\" r=\"3\" fill=\"#111111\"/><line x1=\"18\" y1=\"38\" x2=\"60\" y2=\"58\" stroke=\"#111111\" stroke-width=\"2\"/>\n<circle cx=\"62\" cy=\"16\" r=\"3\" fill=\"#ffffff\" stroke=\"#111111\"/><circle cx=\"66\" cy=\"38\" r=\"3\" fill=\"#ffffff\" stroke=\"#111111\"/><circle cx=\"62\" cy=\"60\" r=\"3\" fill=\"#0050a0\" stroke=\"#0050a0\"/>\n<text x=\"70\" y=\"20\">v0</text><text x=\"74\" y=\"42\">v1</text><text x=\"70\" y=\"64\" font-weight=\"700\" fill=\"#0050a0\">v2</text>\n<text x=\"0\" y=\"10\">SW1</text></svg></div>\n<div class=\"ft\"><button class=\"oc\"><span>Apply</span></button><button class=\"oc u\"><span>Undo</span></button>\n<span class=\"st\">U1 · Applied</span><span class=\"st dnp\">DNP · Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d06",
+  "name": "PCB silkscreen",
+  "family": "engineering",
+  "origin": "Printed circuit board silkscreen and copper layers: refdes, test points, fiducials, solder jumpers",
+  "why_not_ai": "Refdes labels, pin-1 dots, gold test-point rings, a pen-tick revision box and split solder-jumper pads are fabrication marks, not interface decoration.",
+  "fits": "Each field is a footprint the agent populates; the board revision box and solder jumpers make version and approval state physical.",
+  "palette": [
+   "#0f5132",
+   "#f4f4f0",
+   "#d4a64a",
+   "#06301c"
+  ],
+  "roles": {
+   "bg": "#0f5132",
+   "fg": "#f4f4f0",
+   "copper": "#d4a64a",
+   "pour": "#06301c"
+  },
+  "type": {
+   "display": "Chakra Petch",
+   "body": "Chakra Petch",
+   "mono": "Fira Code"
+  },
+  "fonts": [
+   "Chakra+Petch:wght@500;700",
+   "Fira+Code:wght@400;600"
+  ],
+  "components": [
+   "fiducial header",
+   "footprint outlines with refdes",
+   "keep-out hatch mark",
+   "ASSY NOTE",
+   "test-point pads",
+   "revision tick box",
+   "tactile-switch footprint buttons",
+   "solder-jumper status"
+  ],
+  "html": "<div class=\"tile s-d06\"><style>\n.s-d06 .w{background:#0f5132;color:#f4f4f0;font:500 13px/1.35 'Chakra Petch',sans-serif;padding:10px;position:relative}\n.s-d06 .fd{position:absolute;width:8px;height:8px;border-radius:50%;background:#d4a64a;box-shadow:0 0 0 3px #0f5132,0 0 0 4px #f4f4f0}\n.s-d06 .hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #f4f4f0;padding:0 18px 4px}\n.s-d06 .hd b{text-transform:uppercase;font-size:15px;letter-spacing:.1em}\n.s-d06 .hd span{font:11px 'Fira Code',monospace}\n.s-d06 .fp{border:1px solid #f4f4f0;margin:7px 0;padding:3px 8px 3px 16px;position:relative}\n.s-d06 .fp:before{content:\"\";position:absolute;left:5px;top:6px;width:5px;height:5px;border-radius:50%;background:#f4f4f0}\n.s-d06 .fp i{font:600 11px 'Fira Code',monospace;font-style:normal;margin-right:6px}\n.s-d06 .ko{background:repeating-linear-gradient(45deg,#06301c 0 4px,#0f5132 4px 8px);border:1px solid #f4f4f0;padding:0 5px;font-weight:700}\n.s-d06 .an{background:#06301c;font:11px 'Fira Code',monospace;padding:4px 7px;border-left:3px solid #d4a64a}\n.s-d06 .tp{display:flex;justify-content:space-between;margin:4px 0;font-size:11px}\n.s-d06 .tp span{display:flex;align-items:center;gap:5px}\n.s-d06 .tp b{width:14px;height:14px;border-radius:50%;border:3px solid #d4a64a}\n.s-d06 .tp .ok b{background:#d4a64a}\n.s-d06 .rv{font:11px 'Fira Code',monospace;display:flex;gap:8px;align-items:center}\n.s-d06 .rv i{display:inline-block;width:10px;height:10px;border:1px solid #f4f4f0;margin-right:3px;vertical-align:-1px}\n.s-d06 .rv .on i{background:#f4f4f0}\n.s-d06 .ft{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}\n.s-d06 button{text-transform:uppercase;font:700 12px 'Chakra Petch',sans-serif;color:#f4f4f0;cursor:pointer;border:1px solid #f4f4f0;padding:6px 14px;background:radial-gradient(circle at 4px 4px,#d4a64a 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 4px) 4px,#d4a64a 2.5px,transparent 3px),radial-gradient(circle at 4px calc(100% - 4px),#d4a64a 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 4px) calc(100% - 4px),#d4a64a 2.5px,transparent 3px),#0f5132}\n.s-d06 button.a{border-width:2px}\n.s-d06 .jp{display:inline-flex;align-items:center;gap:5px;font-size:11px}\n.s-d06 .jp i{display:inline-block;width:8px;height:12px;background:#d4a64a;border-radius:6px 0 0 6px}\n.s-d06 .jp i+i{border-radius:0 6px 6px 0;margin-left:-5px}\n.s-d06 .jp.op i+i{margin-left:-2px}\n</style><div class=\"w\">\n<i class=\"fd\" style=\"left:8px;top:12px\"></i><i class=\"fd\" style=\"right:8px;top:12px\"></i>\n<div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div>\n<div class=\"fp\"><i>U1</i>EMAIL hank@globex.example</div>\n<div class=\"fp\"><i>U2</i>CITY Springfield</div>\n<div class=\"fp\"><i>U3</i>NEXT PAY Oct 11, 2026 <span class=\"ko\">⚠ OVERDUE</span></div>\n<div class=\"an\">ASSY NOTE: Add phone and city; overdue in red</div>\n<div class=\"tp\"><span><b></b>TP1 Reading the card</span></div>\n<div class=\"tp\"><span><b></b>TP2 Changing the fields</span></div>\n<div class=\"tp\"><span class=\"ok\"><b></b>TP3 Checking the build — PASS</span></div>\n<div class=\"rv\">BOARD REV <span><i></i>v0</span><span><i></i>v1</span><span class=\"on\"><i></i>v2</span></div>\n<div class=\"ft\"><button class=\"a\">SW1 Apply</button><button>SW2 Undo</button>\n<span class=\"jp\"><i></i><i></i>JP1 Applied</span><span class=\"jp op\"><i></i><i></i>JP2 Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d07",
+  "name": "Patent drawing",
+  "family": "engineering",
+  "origin": "U.S. utility patent drawing sheets (37 CFR 1.84) with reference numerals, FIG. labels and INID codes",
+  "why_not_ai": "Black-only line art, lead lines to even reference numerals, cross-hatching, numbered method flowcharts and bracketed INID codes are a legal drafting standard.",
+  "fits": "Every agent edit is documented like a filed claim, with figures per version and a method flowchart for the run.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#5a5a5a"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "muted": "#5a5a5a"
+  },
+  "type": {
+   "display": "Tinos",
+   "body": "Tinos",
+   "mono": "Cutive Mono"
+  },
+  "fonts": [
+   "Tinos:ital,wght@0,400;0,700;1,400",
+   "Cutive+Mono"
+  ],
+  "components": [
+   "patent sheet header",
+   "FIG. 1 with reference numerals",
+   "cross-hatched mark",
+   "(57) abstract",
+   "numbered method flowchart",
+   "FIG. 2A-2C version figures",
+   "numeral-tagged buttons",
+   "INID status codes"
+  ],
+  "html": "<div class=\"tile s-d07\"><style>\n.s-d07 .w{background:#ffffff;color:#111111;font:13px/1.35 Tinos,serif;padding:10px}\n.s-d07 .hd{display:flex;justify-content:space-between;font-size:11px;border-bottom:1px solid #111111;padding-bottom:2px}\n.s-d07 .ti{font-size:12px;margin:2px 0 6px;color:#5a5a5a}\n.s-d07 .ti b{color:#111111;font-size:15px;margin-right:6px}\n.s-d07 .fg{border:1.5px solid #111111;margin-right:44px;padding:4px 8px;position:relative}\n.s-d07 .r{position:relative;margin:3px 0}\n.s-d07 .r u{position:absolute;right:-50px;top:8px;width:36px;border-top:1px solid #111111;text-decoration:none}\n.s-d07 .r u:after{content:attr(data-n);position:absolute;right:-16px;top:-9px;font:italic 12px Tinos,serif}\n.s-d07 .od{background:repeating-linear-gradient(45deg,#111111 0 1px,#ffffff 1px 4px);padding:2px 5px;border:1px solid #111111}\n.s-d07 .od b{background:#ffffff;padding:0 2px}\n.s-d07 .cap{text-align:center;font-weight:700;font-size:13px;margin:3px 0 6px}\n.s-d07 .ab{font-size:12px}\n.s-d07 .ab b{font-family:'Cutive Mono',monospace}\n.s-d07 .fl{display:flex;align-items:center;gap:3px;margin:7px 0;font-size:11px}\n.s-d07 .fl div{border:1.2px solid #111111;padding:2px 4px;flex:1;text-align:center}\n.s-d07 .fl div i{display:block;font-style:normal;color:#5a5a5a}\n.s-d07 .fl .dn{border:3px double #111111;font-weight:700}\n.s-d07 .fl .en{flex:0 0 34px;border-radius:9px}\n.s-d07 .vs{font-size:12px;letter-spacing:.02em}\n.s-d07 .vs b{border-bottom:2px solid #111111}\n.s-d07 .ft{display:flex;gap:30px;margin-top:8px;align-items:center}\n.s-d07 button{font:700 13px Tinos,serif;background:#ffffff;color:#111111;border:1.5px solid #111111;padding:2px 12px;cursor:pointer;position:relative}\n.s-d07 button.u{border-style:dashed}\n.s-d07 button:after{content:attr(data-n);position:absolute;right:-24px;top:3px;font:italic 400 12px Tinos,serif}\n.s-d07 .in{font:12px 'Cutive Mono',monospace;margin-top:6px;line-height:1.5}\n</style><div class=\"w\">\n<div class=\"hd\"><span>U.S. Patent</span><span>Oct. 18, 2026</span><span>Sheet 1 of 3</span><span>morphkit</span></div>\n<div class=\"ti\"><b>morphkit</b>customer-card.tsx · dynamic</div>\n<div class=\"fg\">\n<div class=\"r\">Email hank@globex.example<u data-n=\"12\"></u></div>\n<div class=\"r\">City Springfield<u data-n=\"14\"></u></div>\n<div class=\"r\">Next payment Oct 11, 2026 <span class=\"od\"><b>overdue</b></span><u data-n=\"18\"></u></div>\n</div>\n<div class=\"cap\">FIG. 1</div>\n<div class=\"ab\"><b>(57) ABSTRACT</b> — A user request to “Add phone and city; overdue in red.”</div>\n<div class=\"fl\"><div>S100<i>Reading the card</i></div>→<div>S102<i>Changing the fields</i></div>→<div class=\"dn\">S104<i>Checking the build</i></div>→<div class=\"en\">END</div></div>\n<div class=\"vs\">FIG. 2A (v0) · FIG. 2B (v1) · <b>FIG. 2C (v2, present)</b></div>\n<div class=\"ft\"><button data-n=\"20\">Apply</button><button class=\"u\" data-n=\"22\">Undo</button></div>\n<div class=\"in\">(45) Status: Applied<br>(73) Pending: Needs admin</div>\n</div></div>"
+ },
+ {
+  "id": "d08",
+  "name": "Exploded assembly view",
+  "family": "engineering",
+  "origin": "Mechanical exploded-view drawings with item balloons, BOM table, ECNs and revision deltas",
+  "why_not_ai": "Skewed parts separated along a dashed assembly axis, circled item balloons, a ruled bill of materials and delta revision triangles come straight from a drafting office.",
+  "fits": "The panel is shown taken apart into the pieces the agent touched, then reassembled with Apply or exploded back with Undo.",
+  "palette": [
+   "#ffffff",
+   "#1b1f24",
+   "#2a5db0",
+   "#e6ecf5",
+   "#c0392b"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#1b1f24",
+   "accent": "#2a5db0",
+   "part": "#e6ecf5",
+   "alert": "#c0392b"
+  },
+  "type": {
+   "display": "Saira Condensed",
+   "body": "Saira",
+   "mono": "Red Hat Mono"
+  },
+  "fonts": [
+   "Saira+Condensed:wght@500;700",
+   "Saira:wght@400;600",
+   "Red+Hat+Mono:wght@400;600"
+  ],
+  "components": [
+   "exploded part stack",
+   "item balloons",
+   "ECN row",
+   "BOM progress table",
+   "delta revision triangles",
+   "assemble/explode buttons",
+   "flag-note status"
+  ],
+  "html": "<div class=\"tile s-d08\"><style>\n.s-d08 .w{background:#ffffff;color:#1b1f24;font:12px/1.35 Saira,sans-serif;padding:10px}\n.s-d08 .hd{display:flex;justify-content:space-between;align-items:baseline;border:1.5px solid #1b1f24;padding:3px 6px;font:500 12px 'Saira Condensed',sans-serif;text-transform:uppercase}\n.s-d08 .hd b{font-size:15px;font-weight:700;text-transform:none}\n.s-d08 .ex{position:relative;padding:6px 40px 2px 18px}\n.s-d08 .ex:before{content:\"\";position:absolute;left:46%;top:0;bottom:0;border-left:1px dashed #1b1f24}\n.s-d08 .pl{position:relative;background:#e6ecf5;border:1.5px solid #1b1f24;transform:skewX(-24deg);margin:0 0 9px;padding:3px 10px}\n.s-d08 .pl span{display:block;transform:skewX(24deg)}\n.s-d08 .pl.r{border-color:#c0392b}\n.s-d08 .pl.r b{color:#c0392b}\n.s-d08 .bl{position:absolute;right:-34px;top:2px;transform:skewX(24deg);width:20px;height:20px;border:1.5px solid #2a5db0;border-radius:50%;text-align:center;color:#2a5db0;font:600 12px/18px 'Red Hat Mono',monospace;background:#ffffff}\n.s-d08 .ecn{display:flex;border:1px solid #1b1f24;font-size:12px}\n.s-d08 .ecn b{background:#1b1f24;color:#ffffff;padding:2px 6px;font:600 11px 'Red Hat Mono',monospace}\n.s-d08 .ecn span{padding:2px 6px}\n.s-d08 table{width:100%;border-collapse:collapse;margin-top:6px;font-size:11px}\n.s-d08 th,.s-d08 td{border:1px solid #1b1f24;padding:1px 4px;text-align:left}\n.s-d08 th{font:700 11px 'Saira Condensed',sans-serif;background:#e6ecf5}\n.s-d08 td.ok{font-weight:600;color:#2a5db0}\n.s-d08 .rv{display:flex;gap:10px;align-items:center;margin-top:6px;font:11px 'Red Hat Mono',monospace}\n.s-d08 .ft{display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap}\n.s-d08 button{font:600 12px Saira,sans-serif;padding:2px 8px;cursor:pointer;border:1.5px solid #2a5db0;background:#ffffff;color:#2a5db0}\n.s-d08 button.a{background:#2a5db0;color:#ffffff}\n.s-d08 .fn{display:inline-flex;align-items:center;gap:3px;font-size:11px}\n.s-d08 .fn.r{color:#c0392b}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit</b><span>ASSY customer-card.tsx · dynamic</span><span>Exploded view</span></div>\n<div class=\"ex\">\n<div class=\"pl\"><span>Email hank@globex.example</span><i class=\"bl\">1</i></div>\n<div class=\"pl\"><span>City Springfield</span><i class=\"bl\">2</i></div>\n<div class=\"pl r\"><span>Next payment Oct 11, 2026 <b>overdue</b></span><i class=\"bl\">3</i></div>\n</div>\n<div class=\"ecn\"><b>ECN-0417</b><span>Add phone and city; overdue in red</span></div>\n<table><tr><th>ITEM</th><th>OPERATION</th><th>QTY</th><th>STATE</th></tr>\n<tr><td>1</td><td>Reading the card</td><td>1</td><td>fitted</td></tr>\n<tr><td>2</td><td>Changing the fields</td><td>3</td><td>fitted</td></tr>\n<tr><td>3</td><td>Checking the build</td><td>1</td><td class=\"ok\">DONE ✓</td></tr></table>\n<div class=\"rv\">REV\n<span><svg width=\"16\" height=\"14\"><path d=\"M8 1 L15 13 H1z\" fill=\"#ffffff\" stroke=\"#1b1f24\"/><text x=\"8\" y=\"12\" text-anchor=\"middle\" font-size=\"9\" fill=\"#1b1f24\">0</text></svg> v0</span>\n<span><svg width=\"16\" height=\"14\"><path d=\"M8 1 L15 13 H1z\" fill=\"#ffffff\" stroke=\"#1b1f24\"/><text x=\"8\" y=\"12\" text-anchor=\"middle\" font-size=\"9\" fill=\"#1b1f24\">1</text></svg> v1</span>\n<span><b><svg width=\"16\" height=\"14\"><path d=\"M8 1 L15 13 H1z\" fill=\"#2a5db0\" stroke=\"#2a5db0\"/><text x=\"8\" y=\"12\" text-anchor=\"middle\" font-size=\"9\" fill=\"#ffffff\">2</text></svg> v2 current</b></span></div>\n<div class=\"ft\"><button class=\"a\">Apply ↓ assemble</button><button>Undo ↑ explode</button>\n<span class=\"fn\"><svg width=\"14\" height=\"16\"><path d=\"M2 1 V15 M2 2 H12 L9 6 L12 10 H2\" fill=\"#e6ecf5\" stroke=\"#2a5db0\" stroke-width=\"1.3\"/></svg>Applied</span>\n<span class=\"fn r\"><svg width=\"14\" height=\"16\"><path d=\"M2 1 V15 M2 2 H12 L9 6 L12 10 H2\" fill=\"#ffffff\" stroke=\"#c0392b\" stroke-width=\"1.3\"/></svg>Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d09",
+  "name": "Periodic table",
+  "family": "engineering",
+  "origin": "Mendeleev periodic table and classroom wall charts with category keys and the detached f-block",
+  "why_not_ai": "Element cells with atomic number and symbol, outlined synthetic-element symbols, shell configurations, isotope superscripts and the equilibrium arrow are chemistry notation.",
+  "fits": "Fields become elements of a small table the agent rebalances; reversible reactions read naturally as Apply and Undo.",
+  "palette": [
+   "#ffffff",
+   "#1a1a1a",
+   "#f6c7c7",
+   "#cfe3f7",
+   "#d7efd0"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#1a1a1a",
+   "alert": "#f6c7c7",
+   "info": "#cfe3f7",
+   "ok": "#d7efd0"
+  },
+  "type": {
+   "display": "Work Sans",
+   "body": "Work Sans",
+   "mono": "DM Mono"
+  },
+  "fonts": [
+   "Work+Sans:wght@400;600;800",
+   "DM+Mono:wght@400;500"
+  ],
+  "components": [
+   "element cells",
+   "outlined synthetic symbol",
+   "detached f-block request row",
+   "electron shell progress",
+   "isotope versions",
+   "reaction-arrow buttons",
+   "category key status"
+  ],
+  "html": "<div class=\"tile s-d09\"><style>\n.s-d09 .w{background:#ffffff;color:#1a1a1a;font:12px/1.3 'Work Sans',sans-serif;padding:10px}\n.s-d09 .hd{display:flex;align-items:center;gap:8px;border-bottom:2px solid #1a1a1a;padding-bottom:5px}\n.s-d09 .mk{border:1.5px solid #1a1a1a;width:38px;padding:1px 3px;font-size:11px;line-height:1.1}\n.s-d09 .mk b{display:block;font-size:15px;font-weight:800}\n.s-d09 .hd span{font-size:11px;text-transform:uppercase;letter-spacing:.05em}\n.s-d09 .hd strong{font-size:15px}\n.s-d09 .g{display:grid;grid-template-columns:1.6fr .8fr 1.05fr;gap:3px;margin-top:8px}\n.s-d09 .c{border:1.5px solid #1a1a1a;padding:3px 5px;background:#cfe3f7;min-height:74px}\n.s-d09 .c i{font:11px 'DM Mono',monospace;font-style:normal;display:block}\n.s-d09 .c b{font-size:15px;font-weight:800;display:block}\n.s-d09 .c small{font-size:11px;display:block}\n.s-d09 .c .em{overflow-wrap:anywhere}\n.s-d09 .c.od{background:#f6c7c7}\n.s-d09 .c.od b{color:#ffffff;-webkit-text-stroke:1px #1a1a1a}\n.s-d09 .c.od em{font-weight:800;font-style:normal;border-top:2px solid #1a1a1a;display:inline-block;margin-top:2px}\n.s-d09 .fb{margin-top:7px;background:#cfe3f7;border:1.5px solid #1a1a1a;padding:3px 6px;font-size:12px}\n.s-d09 .fb b{margin-right:6px}\n.s-d09 .sh{font:12px 'DM Mono',monospace;margin-top:7px;line-height:1.55}\n.s-d09 .sh span{display:inline-block;width:14px;font-weight:500}\n.s-d09 .sh .d{font-weight:500;background:#d7efd0}\n.s-d09 .is{display:flex;gap:10px;margin-top:6px;align-items:baseline;font-size:12px}\n.s-d09 .is span{color:#1a1a1a}\n.s-d09 .is .cu{border:1.5px solid #1a1a1a;padding:0 5px;font-weight:600}\n.s-d09 .ft{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}\n.s-d09 button{font:600 13px 'Work Sans',sans-serif;border:1.5px solid #1a1a1a;padding:2px 9px;cursor:pointer;background:#ffffff;color:#1a1a1a}\n.s-d09 button.a{background:#1a1a1a;color:#ffffff}\n.s-d09 .k{display:inline-flex;align-items:center;gap:4px;font-size:11px}\n.s-d09 .k i{width:12px;height:12px;border:1px solid #1a1a1a;background:#d7efd0}\n.s-d09 .k.na i{background:#f6c7c7}\n</style><div class=\"w\">\n<div class=\"hd\"><div class=\"mk\">42<b>Mk</b></div><strong>morphkit</strong><span>table of customer-card.tsx · dynamic</span></div>\n<div class=\"g\">\n<div class=\"c\"><i>1</i><b>Em</b><small>Email</small><small class=\"em\">hank@globex.example</small></div>\n<div class=\"c\"><i>2</i><b>Ci</b><small>City</small><small>Springfield</small></div>\n<div class=\"c od\"><i>3</i><b>Np</b><small>Next payment Oct 11, 2026</small><em>overdue</em></div>\n</div>\n<div class=\"fb\"><b>*</b>Add phone and city; overdue in red</div>\n<div class=\"sh\"><span>K</span>Reading the card ●●<br><span>L</span>Changing the fields ●●●●●●<br><span>M</span><b class=\"d\">Checking the build ●●●●●●●● full · done</b></div>\n<div class=\"is\"><span><sup>0</sup>Mk v0</span><span><sup>1</sup>Mk v1</span><span class=\"cu\"><sup>2</sup>Mk v2 · stable</span></div>\n<div class=\"ft\"><button class=\"a\">Apply ⟶</button><button>⇌ Undo</button>\n<span class=\"k\"><i></i>Applied</span><span class=\"k na\"><i></i>Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d10",
+  "name": "Lab notebook page",
+  "family": "engineering",
+  "origin": "Bound research notebooks with printed grid, page numbers and \"recorded by / witnessed by\" blocks",
+  "why_not_ai": "Blue-grid paper, ballpoint handwriting, single-line strike-throughs that keep old trials legible, and a witness signature block follow real laboratory record-keeping rules.",
+  "fits": "Lab notebooks never erase: every attempt stays visible, which is exactly how versions and undo should feel.",
+  "palette": [
+   "#fdfdf8",
+   "#bcd3e6",
+   "#1b3a8c",
+   "#b3261e",
+   "#222222"
+  ],
+  "roles": {
+   "bg": "#fdfdf8",
+   "grid": "#bcd3e6",
+   "fg": "#1b3a8c",
+   "alert": "#b3261e",
+   "print": "#222222"
+  },
+  "type": {
+   "display": "Kalam",
+   "body": "Kalam",
+   "mono": "Inconsolata"
+  },
+  "fonts": [
+   "Kalam:wght@400;700",
+   "Inconsolata:wght@400;700"
+  ],
+  "components": [
+   "printed page header",
+   "hand-ruled observation table",
+   "red ring mark",
+   "Objective line",
+   "ticked procedure",
+   "struck-through trials",
+   "sign / void buttons",
+   "witness block"
+  ],
+  "html": "<div class=\"tile s-d10\"><style>\n.s-d10 .w{background:linear-gradient(#bcd3e6 1px,transparent 1px) 0 0/12px 12px,linear-gradient(90deg,#bcd3e6 1px,transparent 1px) 0 0/12px 12px,#fdfdf8;color:#1b3a8c;font:14px/1.3 Kalam,cursive;padding:10px}\n.s-d10 .w>div{position:relative}\n.s-d10 .pr{font:12px Inconsolata,monospace;color:#222222;display:flex;justify-content:space-between;border-bottom:2px solid #222222;background:#fdfdf8;padding:2px 0}\n.s-d10 .pr b{font-size:15px}\n.s-d10 h5{font:700 11px Inconsolata,monospace;color:#222222;margin:6px 0 1px;text-transform:uppercase;letter-spacing:.08em}\n.s-d10 table{border-collapse:collapse;width:100%}\n.s-d10 td{border-bottom:1px solid #1b3a8c;padding:0 4px}\n.s-d10 td:first-child{width:96px;border-right:1px solid #1b3a8c}\n.s-d10 .ri{border:1.5px solid #b3261e;border-radius:50%;padding:0 6px;color:#b3261e;font-weight:700}\n.s-d10 .ob{color:#1b3a8c}\n.s-d10 ol{margin:0;padding-left:20px}\n.s-d10 .dn{font-weight:700;border-bottom:3px double #1b3a8c}\n.s-d10 .tr s{text-decoration-thickness:1px}\n.s-d10 .tr b{border-bottom:3px double #1b3a8c}\n.s-d10 .ft{display:flex;gap:10px;margin-top:6px}\n.s-d10 button{font:700 14px Kalam,cursive;color:#1b3a8c;background:#fdfdf8;border:0;border-bottom:1.5px solid #1b3a8c;padding:0 12px 0 4px;cursor:pointer}\n.s-d10 button.u{color:#b3261e;border-bottom-color:#b3261e}\n.s-d10 .wb{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid #222222;margin-top:7px;background:#fdfdf8}\n.s-d10 .wb div{padding:2px 6px;font:11px Inconsolata,monospace;color:#222222}\n.s-d10 .wb div+div{border-left:1.5px solid #222222}\n.s-d10 .wb b{display:block;font:700 14px Kalam,cursive;color:#1b3a8c}\n.s-d10 .wb .na b{color:#b3261e}\n</style><div class=\"w\">\n<div class=\"pr\"><span>PROJECT <b>morphkit</b></span><span>customer-card.tsx · dynamic</span><span>No. 42</span></div>\n<h5>Objective</h5><div class=\"ob\">Add phone and city; overdue in red</div>\n<h5>Observations</h5>\n<table><tr><td>Email</td><td>hank@globex.example</td></tr><tr><td>City</td><td>Springfield</td></tr>\n<tr><td>Next payment</td><td>Oct 11, 2026 <span class=\"ri\">overdue</span></td></tr></table>\n<h5>Procedure</h5>\n<ol><li>Reading the card ✓</li><li>Changing the fields ✓</li><li class=\"dn\">Checking the build ✓ done 14:32</li></ol>\n<h5>Trials</h5>\n<div class=\"tr\"><s>Trial 1 (v0)</s> · <s>Trial 2 (v1)</s> · <b>Trial 3 (v2) ← keep</b></div>\n<div class=\"ft\"><button>Sign &amp; Apply</button><button class=\"u\">Void / Undo</button></div>\n<div class=\"wb\"><div>RECORDED BY<b>Applied — M.T.</b></div><div class=\"na\">WITNESSED BY<b>Needs admin</b></div></div>\n</div></div>"
+ },
+ {
+  "id": "d11",
+  "name": "Celestial atlas",
+  "family": "engineering",
+  "origin": "Star atlases (Bečvář, Tirion Sky Atlas) with Bayer letters, magnitude keys and deep-sky symbols",
+  "why_not_ai": "A coordinate graticule, stars sized by magnitude, Greek-letter catalogue entries, variable-star rings and deep-sky object symbols follow astronomical plotting rules.",
+  "fits": "The agent's path through a task plots as a constellation, and versions read like a magnitude key where the current one shines brightest.",
+  "palette": [
+   "#10141f",
+   "#eef1f5",
+   "#7fa7c9",
+   "#ff7b72",
+   "#33415c"
+  ],
+  "roles": {
+   "bg": "#10141f",
+   "fg": "#eef1f5",
+   "line": "#7fa7c9",
+   "alert": "#ff7b72",
+   "grid": "#33415c"
+  },
+  "type": {
+   "display": "Cinzel",
+   "body": "Spectral",
+   "mono": "Spectral"
+  },
+  "fonts": [
+   "Cinzel:wght@400;700",
+   "Spectral:ital,wght@0,400;1,400"
+  ],
+  "components": [
+   "atlas plate header",
+   "Bayer star catalogue",
+   "variable-star ring",
+   "observing-log line",
+   "constellation progress",
+   "magnitude key versions",
+   "reticle buttons",
+   "deep-sky symbol status"
+  ],
+  "html": "<div class=\"tile s-d11\"><style>\n.s-d11 .w{background:#10141f;color:#eef1f5;font:13px/1.35 Spectral,serif;padding:10px}\n.s-d11 .hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #7fa7c9;padding-bottom:4px}\n.s-d11 .hd b{font:700 15px Cinzel,serif;letter-spacing:.25em}\n.s-d11 .hd span{font-size:11px;color:#7fa7c9}\n.s-d11 .ct{margin-top:6px}\n.s-d11 .ct div{display:flex;gap:8px}\n.s-d11 .ct i{width:12px;font-size:14px}\n.s-d11 .ct small{width:84px;font:11px Cinzel,serif;letter-spacing:.06em;padding-top:2px}\n.s-d11 .vr{color:#ff7b72;display:inline-flex;align-items:center;gap:4px}\n.s-d11 .vr:before{content:\"\";width:6px;height:6px;border-radius:50%;background:#ff7b72;box-shadow:0 0 0 2px #10141f,0 0 0 3px #ff7b72}\n.s-d11 .lg{font-style:italic;font-size:12px;color:#7fa7c9;margin:6px 0 2px}\n.s-d11 svg{display:block}\n.s-d11 .mg{display:flex;gap:14px;align-items:center;font-size:12px;border-top:1px solid #33415c;padding-top:4px}\n.s-d11 .mg b{font:400 11px Cinzel,serif;letter-spacing:.1em}\n.s-d11 .mg span{display:inline-flex;align-items:center;gap:4px}\n.s-d11 .mg i{border-radius:50%;background:#eef1f5;display:inline-block}\n.s-d11 .ft{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}\n.s-d11 button{font:400 12px Cinzel,serif;letter-spacing:.08em;color:#eef1f5;background:#10141f;border:1px solid #7fa7c9;padding:3px 9px;cursor:pointer}\n.s-d11 button.a{background:#eef1f5;color:#10141f;border-color:#eef1f5}\n.s-d11 .ds{display:inline-flex;align-items:center;gap:4px;font-size:12px}\n.s-d11 .ds.na{color:#ff7b72}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic · epoch 2026.8</span></div>\n<div class=\"ct\">\n<div><i>α</i><small>EMAIL</small>hank@globex.example</div>\n<div><i>β</i><small>CITY</small>Springfield</div>\n<div><i>γ</i><small>NEXT PAYMENT</small>Oct 11, 2026 <span class=\"vr\">overdue</span></div>\n</div>\n<div class=\"lg\">Observing log: “Add phone and city; overdue in red”</div>\n<svg viewBox=\"0 0 340 92\" width=\"340\" height=\"92\" font-family=\"Spectral\" font-size=\"12\" fill=\"#eef1f5\">\n<path d=\"M0 30 Q170 18 340 30 M0 70 Q170 58 340 70 M80 0 V92 M180 0 V92 M280 0 V92\" fill=\"none\" stroke=\"#33415c\"/>\n<path d=\"M36 64 L150 40 L292 24\" fill=\"none\" stroke=\"#7fa7c9\" stroke-width=\"1\"/>\n<circle cx=\"36\" cy=\"64\" r=\"2.5\"/><circle cx=\"150\" cy=\"40\" r=\"4\"/><circle cx=\"292\" cy=\"24\" r=\"6.5\"/>\n<text x=\"12\" y=\"84\">Reading the card</text><text x=\"118\" y=\"60\">Changing the fields</text>\n<text x=\"338\" y=\"50\" text-anchor=\"end\">Checking the build</text><text x=\"338\" y=\"64\" text-anchor=\"end\" fill=\"#7fa7c9\" font-style=\"italic\">culminated · done</text>\n</svg>\n<div class=\"mg\"><b>MAGNITUDES</b><span><i style=\"width:3px;height:3px\"></i>v0</span><span><i style=\"width:6px;height:6px\"></i>v1</span><span><i style=\"width:11px;height:11px\"></i><strong>v2 current</strong></span></div>\n<div class=\"ft\"><button class=\"a\">⊕ Apply</button><button>⊖ Undo</button>\n<span class=\"ds\"><svg width=\"14\" height=\"14\"><circle cx=\"7\" cy=\"7\" r=\"3.5\" fill=\"none\" stroke=\"#eef1f5\"/><path d=\"M7 0v3M7 11v3M0 7h3M11 7h3\" stroke=\"#eef1f5\"/></svg>Applied</span>\n<span class=\"ds na\"><svg width=\"14\" height=\"14\"><circle cx=\"7\" cy=\"7\" r=\"5.5\" fill=\"none\" stroke=\"#ff7b72\" stroke-dasharray=\"1.5 2\"/></svg>Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d12",
+  "name": "ECG rhythm strip",
+  "family": "engineering",
+  "origin": "12-lead electrocardiograph printouts on pink millimetre paper (25 mm/s, 10 mm/mV)",
+  "why_not_ai": "Pink 1 mm / 5 mm grid, calibration header, lead labels, event markers and the \"UNCONFIRMED REPORT\" stamp are clinical print conventions.",
+  "fits": "The agent's run is a monitored trace, and an unreviewed change is honestly marked unconfirmed until an admin over-reads it.",
+  "palette": [
+   "#fff6f6",
+   "#f2a5a5",
+   "#1a1a1a",
+   "#c21f1f"
+  ],
+  "roles": {
+   "bg": "#fff6f6",
+   "grid": "#f2a5a5",
+   "fg": "#1a1a1a",
+   "alert": "#c21f1f"
+  },
+  "type": {
+   "display": "Arimo",
+   "body": "Arimo",
+   "mono": "Anonymous Pro"
+  },
+  "fonts": [
+   "Arimo:wght@400;700",
+   "Anonymous+Pro:wght@400;700"
+  ],
+  "components": [
+   "calibration header",
+   "demographics block",
+   "clinical indication field",
+   "three-lead traces",
+   "event-marker versions",
+   "machine keys",
+   "unconfirmed-report status"
+  ],
+  "html": "<div class=\"tile s-d12\"><style>\n.s-d12 .w{background:#fff6f6;color:#1a1a1a;font:12px/1.35 Arimo,sans-serif;padding:10px}\n.s-d12 .hd{display:flex;justify-content:space-between;font:11px 'Anonymous Pro',monospace;border-bottom:1px solid #1a1a1a;padding-bottom:3px}\n.s-d12 .hd b{font:700 15px Arimo,sans-serif}\n.s-d12 .dm{display:grid;grid-template-columns:auto 1fr;gap:0 10px;margin-top:5px;font-size:12px}\n.s-d12 .dm i{font:11px 'Anonymous Pro',monospace;font-style:normal}\n.s-d12 .ab{color:#c21f1f;font:700 12px 'Anonymous Pro',monospace}\n.s-d12 .ix{margin:5px 0;font-size:12px}\n.s-d12 .ix i{font:11px 'Anonymous Pro',monospace;font-style:normal}\n.s-d12 .gr{background:linear-gradient(#f2a5a5 1px,transparent 1px) 0 0/5px 5px,linear-gradient(90deg,#f2a5a5 1px,transparent 1px) 0 0/5px 5px;border:1px solid #f2a5a5;padding:2px 0}\n.s-d12 svg{display:block}\n.s-d12 .ev{display:flex;gap:46px;font:11px 'Anonymous Pro',monospace;padding:2px 8px;border-top:1px solid #1a1a1a}\n.s-d12 .ev b{background:#1a1a1a;color:#fff6f6;padding:0 4px}\n.s-d12 .ft{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}\n.s-d12 button{text-transform:uppercase;font:700 12px 'Anonymous Pro',monospace;background:#fff6f6;color:#1a1a1a;border:2px solid #1a1a1a;border-bottom-width:4px;padding:2px 9px;cursor:pointer}\n.s-d12 .ip{font:11px 'Anonymous Pro',monospace;margin-top:6px;border:1px solid #1a1a1a;padding:3px 6px}\n.s-d12 .ip b{color:#c21f1f}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span><span>25mm/s 10mm/mV</span></div>\n<div class=\"dm\"><i>EMAIL</i><span>hank@globex.example</span><i>CITY</i><span>Springfield</span><i>NEXT PAY</i><span>Oct 11, 2026 <span class=\"ab\">** overdue **</span></span></div>\n<div class=\"ix\"><i>INDICATION:</i> Add phone and city; overdue in red</div>\n<div class=\"gr\"><svg viewBox=\"0 0 340 90\" width=\"340\" height=\"90\" font-family=\"Arimo\" font-size=\"11\" fill=\"#1a1a1a\"><path d=\"M6 22 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 H196\" fill=\"none\" stroke=\"#1a1a1a\" stroke-width=\"1.2\"/><text x=\"204\" y=\"16\" font-weight=\"700\">I</text><text x=\"226\" y=\"16\">Reading the card</text><path d=\"M6 50 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 H196\" fill=\"none\" stroke=\"#1a1a1a\" stroke-width=\"1.2\"/><text x=\"204\" y=\"44\" font-weight=\"700\">II</text><text x=\"226\" y=\"44\">Changing the fields</text><path d=\"M6 78 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 h6 q3 -4 6 0 h4 l2 3 l3 -15 l3 18 l2 -6 h5 q5 -6 10 0 h5 H196\" fill=\"none\" stroke=\"#1a1a1a\" stroke-width=\"1.2\"/><text x=\"204\" y=\"72\" font-weight=\"700\">III</text><text x=\"226\" y=\"72\">Checking the build</text><text x=\"226\" y=\"85\" fill=\"#c21f1f\" font-weight=\"700\">done · sinus rhythm</text></svg></div>\n<div class=\"ev\"><span>▼ v0</span><span>▼ v1</span><b>▼ v2 current</b></div>\n<div class=\"ft\"><button>▶ Apply</button><button>◀ Undo</button></div>\n<div class=\"ip\">Confirmed by agent: Applied<br><b>UNCONFIRMED REPORT — Needs admin</b></div>\n</div></div>"
+ },
+ {
+  "id": "d13",
+  "name": "Flat-pack assembly sheet",
+  "family": "engineering",
+  "origin": "IKEA wordless assembly instructions: article number, parts inventory, line man, ✓/✗ panels, two-person icon",
+  "why_not_ai": "Wordless line drawings, \"1x\" part counts, the little figure with a speech bubble and the \"needs two people\" pictogram are a recognisable Swedish print convention.",
+  "fits": "Assembly steps are a friendly way to show an agent building a panel, and the two-person icon says plainly that a change needs a second approver.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#e5e5e5"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "fill": "#e5e5e5"
+  },
+  "type": {
+   "display": "Noto Sans",
+   "body": "Noto Sans",
+   "mono": "Noto Sans"
+  },
+  "fonts": [
+   "Noto+Sans:wght@400;800"
+  ],
+  "components": [
+   "article-number header",
+   "line-man speech bubble",
+   "parts inventory with counts",
+   "warning triangle",
+   "boxed step numerals",
+   "page-number versions",
+   "check / return panels",
+   "one- and two-person status"
+  ],
+  "html": "<div class=\"tile s-d13\"><style>\n.s-d13 .w{background:#ffffff;color:#111111;font:12px/1.3 'Noto Sans',sans-serif;padding:10px}\n.s-d13 .hd{display:flex;justify-content:space-between;align-items:flex-end}\n.s-d13 .hd b{text-transform:uppercase;font-size:15px;font-weight:800;letter-spacing:.06em}\n.s-d13 .hd span{font-size:11px;text-align:right}\n.s-d13 .rq{display:flex;align-items:flex-end;gap:2px;margin:6px 0}\n.s-d13 .bb{border:1.5px solid #111111;border-radius:14px;padding:4px 10px;position:relative;margin-bottom:18px}\n.s-d13 .bb:after{content:\"\";position:absolute;left:-7px;bottom:-1px;width:10px;height:10px;border-left:1.5px solid #111111;border-bottom:1.5px solid #111111;background:#ffffff;transform:skewX(30deg)}\n.s-d13 .pt{display:grid;grid-template-columns:1fr 1fr 1fr;border:1.5px solid #111111}\n.s-d13 .pt div{padding:4px;border-left:1.5px solid #111111;min-height:62px}\n.s-d13 .pt div:first-child{border-left:0}\n.s-d13 .pt b{font-size:13px;font-weight:800;display:block}\n.s-d13 .pt small{font-size:11px;display:block}\n.s-d13 .wr{display:inline-block;margin-top:2px;background:#111111;color:#ffffff;font-size:11px;font-weight:800;padding:0 4px}\n.s-d13 .st{display:flex;gap:5px;margin-top:7px}\n.s-d13 .st div{flex:1;border:1.5px solid #111111;padding:3px 5px;background:#e5e5e5;font-size:11px}\n.s-d13 .st b{display:block;font-size:15px;font-weight:800}\n.s-d13 .st .dn{background:#ffffff}\n.s-d13 .st .dn b:after{content:\" ✓\";border:1.5px solid #111111;border-radius:50%;font-size:11px;padding:0 3px}\n.s-d13 .pg{display:flex;justify-content:flex-end;gap:10px;font-weight:800;margin-top:5px}\n.s-d13 .pg span{color:#111111;font-weight:400}\n.s-d13 .pg b{border:1.5px solid #111111;padding:0 5px}\n.s-d13 .ft{display:flex;gap:6px;margin-top:6px;align-items:stretch}\n.s-d13 button{flex:1;border:1.5px solid #111111;background:#ffffff;color:#111111;font:800 13px 'Noto Sans',sans-serif;cursor:pointer;padding:3px;display:flex;align-items:center;justify-content:center;gap:6px}\n.s-d13 button i{font-style:normal;border:1.5px solid #111111;border-radius:50%;width:20px;height:20px;line-height:17px}\n.s-d13 button.a i{background:#111111;color:#ffffff}\n.s-d13 .ps{display:flex;gap:10px;margin-top:6px;font-size:11px;align-items:center}\n.s-d13 .ps span{display:flex;align-items:center;gap:3px;border:1.5px solid #111111;padding:1px 6px 1px 2px}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic<br>AA-2304117-2</span></div>\n<div class=\"rq\"><svg width=\"24\" height=\"34\"><path d=\"M12 4 a3 3 0 1 0 0.01 0 M12 10 v10 M12 20 l-4 8 M12 20 l4 8 M12 13 l-5 5 M12 13 l5 5\" stroke=\"#111111\" stroke-width=\"1.6\" fill=\"none\"/></svg><div class=\"bb\">Add phone and city; overdue in red</div></div>\n<div class=\"pt\">\n<div><b>1x</b><small>Email</small>hank@globex.example</div>\n<div><b>1x</b><small>City</small>Springfield</div>\n<div><b>1x</b><small>Next payment</small>Oct 11, 2026<br><span class=\"wr\">⚠ overdue</span></div>\n</div>\n<div class=\"st\"><div><b>1</b>Reading the card</div><div><b>2</b>Changing the fields</div><div class=\"dn\"><b>3</b>Checking the build</div></div>\n<div class=\"pg\"><span>v0</span><span>v1</span><b>v2</b></div>\n<div class=\"ft\"><button class=\"a\"><i>✓</i>Apply</button><button><i>↺</i>Undo</button></div>\n<div class=\"ps\"><span><svg width=\"16\" height=\"30\"><path d=\"M8 4 a3 3 0 1 0 0.01 0 M8 10 v10 M8 20 l-4 8 M8 20 l4 8 M8 13 l-5 5 M8 13 l5 5\" stroke=\"#111111\" stroke-width=\"1.6\" fill=\"none\"/></svg>Applied ✓</span>\n<span><svg width=\"30\" height=\"30\"><path d=\"M8 4 a3 3 0 1 0 0.01 0 M8 10 v10 M8 20 l-4 8 M8 20 l4 8 M8 13 l-5 5 M8 13 l5 5\" stroke=\"#111111\" stroke-width=\"1.6\" fill=\"none\"/><path d=\"M22 4 a3 3 0 1 0 0.01 0 M22 10 v10 M22 20 l-4 8 M22 20 l4 8 M22 13 l-5 5 M22 13 l5 5\" stroke=\"#111111\" stroke-width=\"1.6\" fill=\"none\"/></svg>Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d14",
+  "name": "Brick building instructions",
+  "family": "engineering",
+  "origin": "LEGO instruction booklets: numbered bags, sticker sheets, sub-assembly callouts, studded bricks",
+  "why_not_ai": "Studs on every brick, numbered polybags per stage, a sticker-sheet label and sub-assembly callouts with arrows are a toy-print grammar unrelated to SaaS kits.",
+  "fits": "Changes snap on as bricks and versions come in numbered bags, so a non-designer sees exactly which stage of the build they are on.",
+  "palette": [
+   "#e3edf6",
+   "#ffffff",
+   "#1a1a1a",
+   "#d01012",
+   "#0055bf"
+  ],
+  "roles": {
+   "bg": "#e3edf6",
+   "panel": "#ffffff",
+   "fg": "#1a1a1a",
+   "accent": "#d01012",
+   "info": "#0055bf"
+  },
+  "type": {
+   "display": "Fredoka",
+   "body": "Nunito",
+   "mono": "Nunito"
+  },
+  "fonts": [
+   "Fredoka:wght@500;700",
+   "Nunito:wght@400;700"
+  ],
+  "components": [
+   "set-box header",
+   "numbered bag versions",
+   "studded field bricks",
+   "sticker-sheet request",
+   "sub-assembly callouts",
+   "brick buttons",
+   "box-badge status"
+  ],
+  "html": "<div class=\"tile s-d14\"><style>\n.s-d14 .w{background:#e3edf6;color:#1a1a1a;font:13px/1.3 Nunito,sans-serif;padding:10px}\n.s-d14 .hd{display:flex;align-items:center;gap:8px}\n.s-d14 .hd b{background:#d01012;color:#ffffff;font:700 15px Fredoka,sans-serif;padding:2px 8px}\n.s-d14 .hd span{font-size:11px}\n.s-d14 .hd em{margin-left:auto;font:700 13px Fredoka,sans-serif;font-style:normal}\n.s-d14 .bg{display:flex;gap:6px;margin:7px 0}\n.s-d14 .bg span{flex:1;background:#ffffff;border:1.5px solid #1a1a1a;text-align:center;font:500 12px Fredoka,sans-serif;padding:5px 0 3px;clip-path:polygon(0 4px,10% 0,20% 4px,30% 0,40% 4px,50% 0,60% 4px,70% 0,80% 4px,90% 0,100% 4px,100% 100%,0 100%)}\n.s-d14 .bg .cu{background:#0055bf;color:#ffffff}\n.s-d14 .br{position:relative;background:#ffffff;border:1.5px solid #1a1a1a;margin:12px 0 0;padding:3px 8px}\n.s-d14 .br:before{content:\"\";position:absolute;left:8px;right:8px;top:-7px;height:6px;background:linear-gradient(90deg,#1a1a1a 0 11px,transparent 11px) 0 0/22px 6px repeat-x}\n.s-d14 .br i{font:700 11px Fredoka,sans-serif;font-style:normal;margin-right:6px}\n.s-d14 .br.r{background:#d01012;color:#ffffff;border-color:#d01012}\n.s-d14 .br.r:before{background:linear-gradient(90deg,#d01012 0 11px,transparent 11px) 0 0/22px 6px repeat-x}\n.s-d14 .sk{display:flex;align-items:center;gap:6px;background:#ffffff;margin-top:8px;padding:4px 6px;border:1px dashed #1a1a1a}\n.s-d14 .sk b{width:20px;height:20px;border-radius:50%;background:#1a1a1a;color:#ffffff;text-align:center;font:700 12px/20px Fredoka,sans-serif;flex:none}\n.s-d14 .ca{display:flex;align-items:center;gap:3px;margin-top:8px}\n.s-d14 .ca div{flex:1;background:#ffffff;border:1.5px solid #0055bf;padding:3px 5px;font-size:11px;min-height:46px}\n.s-d14 .ca b{display:inline-block;font:700 12px Fredoka,sans-serif;color:#0055bf}\n.s-d14 .ca .dn{border-width:3px}\n.s-d14 .ca .dn em{font-style:normal;font-weight:700;color:#0055bf}\n.s-d14 .ft{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}\n.s-d14 button{position:relative;font:700 13px Fredoka,sans-serif;border:1.5px solid #1a1a1a;padding:3px 12px;cursor:pointer;background:#ffffff;color:#1a1a1a}\n.s-d14 button:before{content:\"\";position:absolute;left:6px;right:6px;top:-7px;height:6px;background:linear-gradient(90deg,#1a1a1a 0 8px,transparent 8px) 0 0/16px 6px repeat-x}\n.s-d14 button.a{background:#d01012;color:#ffffff}\n.s-d14 .bx{font:500 11px Fredoka,sans-serif;border:1.5px solid #0055bf;color:#0055bf;background:#ffffff;padding:1px 6px}\n.s-d14 .bx.na{background:#d01012;color:#ffffff;border-color:#d01012}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span><em>71042</em></div>\n<div class=\"bg\"><span>bag 1 · v0</span><span>bag 2 · v1</span><span class=\"cu\">bag 3 · v2 open</span></div>\n<div class=\"br\"><i>1x</i>Email hank@globex.example</div>\n<div class=\"br\"><i>1x</i>City Springfield</div>\n<div class=\"br r\"><i>1x</i>Next payment Oct 11, 2026 · overdue</div>\n<div class=\"sk\"><b>1</b>Sticker: Add phone and city; overdue in red</div>\n<div class=\"ca\"><div><b>1</b> Reading the card</div>→<div><b>2</b> Changing the fields</div>→<div class=\"dn\"><b>3</b> Checking the build <em>✓ done</em></div></div>\n<div class=\"ft\"><button class=\"a\">Apply</button><button>↺ Undo</button>\n<span class=\"bx\">Applied</span><span class=\"bx na\">Needs admin 18+</span></div>\n</div></div>"
+ },
+ {
+  "id": "d15",
+  "name": "Architectural section",
+  "family": "engineering",
+  "origin": "Hand-drafted architectural sections: hatched cuts, level datums, dimension strings, revision clouds, issue stamps",
+  "why_not_ai": "Diagonal material hatching, level datum triangles, tick-ended dimension strings, scalloped revision clouds and a red RFI note are a drafting-room grammar.",
+  "fits": "The panel is cut open like a building; versions sit at levels, and nothing is built until the sheet is stamped for construction.",
+  "palette": [
+   "#f8f8f6",
+   "#1a1a1a",
+   "#8c8c8c",
+   "#b22222"
+  ],
+  "roles": {
+   "bg": "#f8f8f6",
+   "fg": "#1a1a1a",
+   "hatch": "#8c8c8c",
+   "redline": "#b22222"
+  },
+  "type": {
+   "display": "Architects Daughter",
+   "body": "Architects Daughter",
+   "mono": "Overpass Mono"
+  },
+  "fonts": [
+   "Architects+Daughter",
+   "Overpass+Mono:wght@400;600"
+  ],
+  "components": [
+   "sheet title block",
+   "hatched section floors",
+   "revision cloud",
+   "RFI redline note",
+   "dimension string",
+   "level datum versions",
+   "section-cut buttons",
+   "issue stamps"
+  ],
+  "html": "<div class=\"tile s-d15\"><style>\n.s-d15 .w{background:#f8f8f6;color:#1a1a1a;font:13px/1.3 'Architects Daughter',cursive;padding:10px}\n.s-d15 .tb{display:grid;grid-template-columns:1fr auto;border:1.5px solid #1a1a1a}\n.s-d15 .tb div{padding:2px 6px}\n.s-d15 .tb .sh{border-left:1.5px solid #1a1a1a;font:600 15px 'Overpass Mono',monospace;display:flex;align-items:center}\n.s-d15 .tb b{font-size:15px}\n.s-d15 .tb small{display:block;font:11px 'Overpass Mono',monospace}\n.s-d15 .sx{display:flex;gap:6px;margin-top:6px}\n.s-d15 .bd{flex:1;border-left:6px solid #1a1a1a;border-right:6px solid #1a1a1a}\n.s-d15 .sl{height:6px;background:repeating-linear-gradient(45deg,#8c8c8c 0 1px,#f8f8f6 1px 4px);border-top:1.5px solid #1a1a1a;border-bottom:1.5px solid #1a1a1a}\n.s-d15 .rm{padding:3px 8px}\n.s-d15 .rm small{font:11px 'Overpass Mono',monospace;margin-right:4px}\n.s-d15 .cl{position:relative;display:inline-block;padding:0 6px;color:#b22222}\n.s-d15 .cl svg{position:absolute;left:-2px;top:-1px;overflow:visible}\n.s-d15 .lv{width:92px;font:11px 'Overpass Mono',monospace;display:flex;flex-direction:column;justify-content:space-between;padding:2px 0}\n.s-d15 .lv span{display:flex;align-items:center;gap:3px}\n.s-d15 .lv b{font-weight:600}\n.s-d15 .rfi{color:#b22222;margin:6px 0 2px;border-left:2px solid #b22222;padding-left:6px}\n.s-d15 svg.dm{display:block}\n.s-d15 .ft{display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap}\n.s-d15 button{font:13px 'Architects Daughter',cursive;background:#f8f8f6;color:#1a1a1a;border:1.5px solid #1a1a1a;padding:2px 8px 2px 4px;cursor:pointer;display:flex;align-items:center;gap:4px}\n.s-d15 .sp{display:flex;gap:8px;margin-top:8px}\n.s-d15 .sp span{border:3px double #1a1a1a;padding:2px 6px;font:600 11px 'Overpass Mono',monospace;transform:rotate(-2deg)}\n.s-d15 .sp .na{border-color:#b22222;color:#b22222;transform:rotate(1.5deg)}\n</style><div class=\"w\">\n<div class=\"tb\"><div><b>SECTION A–A · morphkit</b><small>customer-card.tsx · dynamic · 1:50</small></div><div class=\"sh\">A3.1</div></div>\n<div class=\"sx\"><div class=\"bd\">\n<div class=\"sl\"></div><div class=\"rm\"><small>EMAIL</small>hank@globex.example</div>\n<div class=\"sl\"></div><div class=\"rm\"><small>CITY</small>Springfield</div>\n<div class=\"sl\"></div><div class=\"rm\"><small>NEXT PAY</small>Oct 11, 2026 <span class=\"cl\"><svg width=\"62\" height=\"18\"><path d=\"M0 0 a3.9 3.9 0 0 1 7.8 0 a3.9 3.9 0 0 1 7.8 0 a3.9 3.9 0 0 1 7.8 0 a3.9 3.9 0 0 1 7.8 0 a3.9 3.9 0 0 1 7.8 0 a3.9 3.9 0 0 1 7.8 0 a3.9 3.9 0 0 1 7.8 0 a3.9 3.9 0 0 1 7.8 0 a4.5 4.5 0 0 1 0 9 a4.5 4.5 0 0 1 0 9 a3.9 3.9 0 0 1 -7.8 0 a3.9 3.9 0 0 1 -7.8 0 a3.9 3.9 0 0 1 -7.8 0 a3.9 3.9 0 0 1 -7.8 0 a3.9 3.9 0 0 1 -7.8 0 a3.9 3.9 0 0 1 -7.8 0 a3.9 3.9 0 0 1 -7.8 0 a3.9 3.9 0 0 1 -7.8 0 a4.5 4.5 0 0 1 0 -9 a4.5 4.5 0 0 1 0 -9Z\" fill=\"none\" stroke=\"#b22222\" stroke-width=\"1.2\"/></svg>overdue</span></div>\n<div class=\"sl\"></div></div>\n<div class=\"lv\">\n<span><svg width=\"12\" height=\"10\"><path d=\"M1 1 H11 L6 9z\" fill=\"#1a1a1a\"/></svg><b>v2 +6.00</b></span>\n<span><svg width=\"12\" height=\"10\"><path d=\"M1 1 H11 L6 9z\" fill=\"none\" stroke=\"#1a1a1a\"/></svg>v1 +3.00</span>\n<span><svg width=\"12\" height=\"10\"><path d=\"M1 1 H11 L6 9z\" fill=\"none\" stroke=\"#1a1a1a\"/></svg>v0 ±0.00</span></div></div>\n<div class=\"rfi\">RFI 12 — Add phone and city; overdue in red</div>\n<svg class=\"dm\" viewBox=\"0 0 340 40\" width=\"340\" height=\"40\" font-family=\"Architects Daughter\" font-size=\"11\" fill=\"#1a1a1a\">\n<line x1=\"4\" y1=\"24\" x2=\"336\" y2=\"24\" stroke=\"#1a1a1a\"/>\n<path d=\"M0 28 l8 -8 M106 28 l8 -8 M216 28 l8 -8 M332 28 l8 -8\" stroke=\"#1a1a1a\" stroke-width=\"2\"/>\n<path d=\"M4 18 v12 M110 18 v12 M220 18 v12 M336 18 v12\" stroke=\"#1a1a1a\"/>\n<text x=\"57\" y=\"18\" text-anchor=\"middle\">Reading the card</text><text x=\"165\" y=\"18\" text-anchor=\"middle\">Changing the fields</text>\n<text x=\"278\" y=\"18\" text-anchor=\"middle\">Checking the build</text><text x=\"278\" y=\"38\" text-anchor=\"middle\" fill=\"#b22222\">✓ done</text>\n</svg>\n<div class=\"ft\"><button><svg width=\"18\" height=\"18\"><circle cx=\"9\" cy=\"9\" r=\"7\" fill=\"none\" stroke=\"#1a1a1a\"/><path d=\"M2 9 H16 M9 2 A7 7 0 0 1 16 9 H9z\" fill=\"#1a1a1a\" stroke=\"#1a1a1a\"/></svg>Apply</button>\n<button><svg width=\"18\" height=\"18\"><circle cx=\"9\" cy=\"9\" r=\"7\" fill=\"none\" stroke=\"#1a1a1a\"/><path d=\"M2 9 H16\" stroke=\"#1a1a1a\"/></svg>Undo</button></div>\n<div class=\"sp\"><span>ISSUED FOR CONSTRUCTION · Applied</span><span class=\"na\">NOT FOR CONSTR. · Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d16",
+  "name": "Relay ladder diagram",
+  "family": "engineering",
+  "origin": "Industrial control ladder diagrams (NEMA / IEC) with rails, rung numbers, terminal strips and selector-switch truth tables",
+  "why_not_ai": "Power rails with numbered rungs, contact and coil symbols, a terminal strip with wire markers and an X-marked selector truth table are control-panel drafting rules.",
+  "fits": "Each agent step is a rung that energises in order, and the version selector is a physical switch with a truth table a technician could read.",
+  "palette": [
+   "#ffffff",
+   "#121212",
+   "#0b4f8a",
+   "#c1121f",
+   "#e9ecef"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#121212",
+   "wire": "#0b4f8a",
+   "live": "#c1121f",
+   "fill": "#e9ecef"
+  },
+  "type": {
+   "display": "Titillium Web",
+   "body": "Titillium Web",
+   "mono": "Ubuntu Mono"
+  },
+  "fonts": [
+   "Titillium+Web:wght@400;700",
+   "Ubuntu+Mono:wght@400;700"
+  ],
+  "components": [
+   "drawing number header",
+   "terminal strip X1",
+   "wire-marker sleeve",
+   "PLC rung comment",
+   "ladder rungs with coils",
+   "selector-switch truth table",
+   "pushbutton symbols",
+   "pilot-lamp status"
+  ],
+  "html": "<div class=\"tile s-d16\"><style>\n.s-d16 .w{background:#ffffff;color:#121212;font:13px/1.3 'Titillium Web',sans-serif;padding:10px}\n.s-d16 .hd{display:flex;gap:10px;justify-content:space-between;align-items:baseline;border-bottom:2px solid #121212;padding-bottom:3px}\n.s-d16 .hd b{font-size:15px}\n.s-d16 .hd span{font:11px 'Ubuntu Mono',monospace}\n.s-d16 .ts{margin-top:6px}\n.s-d16 .t{display:flex;align-items:center;gap:6px;height:22px}\n.s-d16 .t i{width:22px;height:20px;border:1.5px solid #121212;background:#e9ecef;font:700 11px/18px 'Ubuntu Mono',monospace;font-style:normal;text-align:center;position:relative}\n.s-d16 .t s{width:18px;border-top:1.5px solid #0b4f8a}\n.s-d16 .t small{font:11px 'Ubuntu Mono',monospace;color:#0b4f8a;width:78px}\n.s-d16 .sv{background:#c1121f;color:#ffffff;font:700 11px 'Ubuntu Mono',monospace;padding:0 5px;border-radius:2px}\n.s-d16 .cm{font:12px 'Ubuntu Mono',monospace;color:#0b4f8a;margin:6px 0 3px}\n.s-d16 svg{display:block}\n.s-d16 .rw{display:flex;gap:8px;align-items:flex-start;margin-top:6px}\n.s-d16 table{border-collapse:collapse;font:11px 'Ubuntu Mono',monospace}\n.s-d16 td{border:1px solid #121212;padding:1px 6px;text-align:center}\n.s-d16 tr:first-child td{background:#e9ecef}\n.s-d16 td.on{font-weight:700;color:#c1121f}\n.s-d16 .bt{display:flex;flex-direction:column;gap:4px}\n.s-d16 button{display:flex;align-items:center;gap:5px;font:700 12px 'Titillium Web',sans-serif;background:#ffffff;color:#121212;border:1px solid #121212;padding:1px 8px 1px 3px;cursor:pointer}\n.s-d16 .pl{display:flex;gap:10px;margin-top:7px;font-size:12px}\n.s-d16 .pl span{display:flex;align-items:center;gap:4px}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit CONTROL</b><span>DWG E-101 · customer-card.tsx · dynamic</span></div>\n<div class=\"ts\">\n<div class=\"t\"><i>1</i><s></s><small>X1:1 EMAIL</small>hank@globex.example</div>\n<div class=\"t\"><i>2</i><s></s><small>X1:2 CITY</small>Springfield</div>\n<div class=\"t\"><i>3</i><s></s><small>X1:3 NEXT PAY</small>Oct 11, 2026 <span class=\"sv\">OVERDUE</span></div>\n</div>\n<div class=\"cm\">(* Add phone and city; overdue in red *)</div>\n<svg viewBox=\"0 0 340 92\" width=\"340\" height=\"92\" font-family=\"Ubuntu Mono\" font-size=\"11\" fill=\"#121212\"><line x1=\"28\" y1=\"2\" x2=\"28\" y2=\"90\" stroke=\"#121212\" stroke-width=\"2\"/><line x1=\"324\" y1=\"2\" x2=\"324\" y2=\"90\" stroke=\"#121212\" stroke-width=\"2\"/><text x=\"0\" y=\"20\">001</text><path d=\"M28 16 H60 M60 16 v-8 M60 16 v8 M70 16 v-8 M70 16 v8 M70 16 H270\" stroke=\"#121212\" stroke-width=\"1.2\"/><path d=\"M276 8 a8 8 0 0 0 0 16 M284 8 a8 8 0 0 1 0 16\" fill=\"none\" stroke=\"#121212\" stroke-width=\"1.2\"/><path d=\"M290 16 H324\" stroke=\"#121212\" stroke-width=\"1.2\"/><text x=\"80\" y=\"13\">Reading the card</text><text x=\"272\" y=\"6\" fill=\"#121212\">CR1</text><text x=\"0\" y=\"48\">002</text><path d=\"M28 44 H60 M60 44 v-8 M60 44 v8 M70 44 v-8 M70 44 v8 M70 44 H270\" stroke=\"#121212\" stroke-width=\"1.2\"/><path d=\"M276 36 a8 8 0 0 0 0 16 M284 36 a8 8 0 0 1 0 16\" fill=\"none\" stroke=\"#121212\" stroke-width=\"1.2\"/><path d=\"M290 44 H324\" stroke=\"#121212\" stroke-width=\"1.2\"/><text x=\"80\" y=\"41\">Changing the fields</text><text x=\"272\" y=\"34\" fill=\"#121212\">CR2</text><text x=\"0\" y=\"76\">003</text><path d=\"M28 72 H60 M60 72 v-8 M60 72 v8 M70 72 v-8 M70 72 v8 M70 72 H270\" stroke=\"#c1121f\" stroke-width=\"2.2\"/><path d=\"M276 64 a8 8 0 0 0 0 16 M284 64 a8 8 0 0 1 0 16\" fill=\"none\" stroke=\"#c1121f\" stroke-width=\"2.2\"/><path d=\"M290 72 H324\" stroke=\"#c1121f\" stroke-width=\"2.2\"/><text x=\"80\" y=\"69\">Checking the build</text><text x=\"272\" y=\"62\" fill=\"#c1121f\">CR3</text><text x=\"80\" y=\"84\" fill=\"#c1121f\" font-weight=\"700\">ENERGIZED · DONE</text></svg>\n<div class=\"rw\"><table><tr><td>SS1</td><td>v0</td><td>v1</td><td>v2</td></tr><tr><td>1-2</td><td></td><td></td><td class=\"on\">X</td></tr></table>\n<div class=\"bt\"><button><svg width=\"22\" height=\"14\"><path d=\"M2 12 H8 M14 12 H20 M5 6 H17 M11 6 V1\" stroke=\"#121212\" stroke-width=\"1.5\" fill=\"none\"/><circle cx=\"8\" cy=\"12\" r=\"1.5\" fill=\"#121212\"/><circle cx=\"14\" cy=\"12\" r=\"1.5\" fill=\"#121212\"/></svg>PB1 Apply</button>\n<button><svg width=\"22\" height=\"14\"><path d=\"M2 8 H8 M14 8 H20 M5 10 H17 M11 10 V1\" stroke=\"#121212\" stroke-width=\"1.5\" fill=\"none\"/><circle cx=\"8\" cy=\"8\" r=\"1.5\" fill=\"#121212\"/><circle cx=\"14\" cy=\"8\" r=\"1.5\" fill=\"#121212\"/></svg>PB2 Undo</button></div></div>\n<div class=\"pl\"><span><svg width=\"16\" height=\"16\"><circle cx=\"8\" cy=\"8\" r=\"7\" fill=\"#c1121f\" stroke=\"#121212\"/><path d=\"M3 3 L13 13 M13 3 L3 13\" stroke=\"#ffffff\" stroke-width=\"1.5\"/></svg>PL1 Applied</span>\n<span><svg width=\"16\" height=\"16\"><circle cx=\"8\" cy=\"8\" r=\"7\" fill=\"#ffffff\" stroke=\"#121212\"/><path d=\"M3 3 L13 13 M13 3 L3 13\" stroke=\"#121212\" stroke-width=\"1.2\"/></svg>PL2 Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d17",
+  "name": "Swiss railway timetable",
+  "family": "engineering",
+  "origin": "SBB official timetable (Kursbuch) fields: numbered table, train columns, pass-through bars, footnotes and R symbol",
+  "why_not_ai": "Tabular minute figures under train-number columns, vertical pass-through bars, superscript footnotes and the boxed R reservation symbol are Swiss timetable typography.",
+  "fits": "Versions are trains on one timetable field: you see exactly which run stopped where, and v2 is the one arriving now.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#eb0000",
+   "#e6e6e6"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "accent": "#eb0000",
+   "rule": "#e6e6e6"
+  },
+  "type": {
+   "display": "Hind",
+   "body": "Hind",
+   "mono": "Source Code Pro"
+  },
+  "fonts": [
+   "Hind:wght@400;600",
+   "Source+Code+Pro:wght@400;600"
+  ],
+  "components": [
+   "numbered timetable field",
+   "passenger-info rows with delay mark",
+   "train-column version table",
+   "pass-through bars",
+   "superscript footnote request",
+   "pictogram buttons",
+   "R-box status key"
+  ],
+  "html": "<div class=\"tile s-d17\"><style>\n.s-d17 .w{background:#ffffff;color:#111111;font:13px/1.3 Hind,sans-serif;padding:10px;font-variant-numeric:tabular-nums}\n.s-d17 .hd{display:flex;align-items:center;gap:8px;border-bottom:2px solid #111111;padding-bottom:4px}\n.s-d17 .hd i{font:600 15px 'Source Code Pro',monospace;font-style:normal;background:#111111;color:#ffffff;padding:0 6px}\n.s-d17 .hd b{font-size:15px}\n.s-d17 .hd span{margin-left:auto;font-size:11px}\n.s-d17 .zi{margin-top:6px}\n.s-d17 .zi div{display:flex;border-bottom:1px solid #e6e6e6;padding:1px 0}\n.s-d17 .zi small{width:96px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding-top:2px}\n.s-d17 .dl{color:#eb0000;font-weight:600;margin-left:6px}\n.s-d17 table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}\n.s-d17 th{font:600 11px 'Source Code Pro',monospace;text-align:right;border-bottom:2px solid #111111;padding:2px 4px}\n.s-d17 th:first-child{text-align:left}\n.s-d17 th.cu{background:#eb0000;color:#ffffff}\n.s-d17 td{padding:2px 4px;border-bottom:1px solid #e6e6e6;text-align:right;font-family:'Source Code Pro',monospace;font-size:12px}\n.s-d17 td:first-child{text-align:left;font-family:Hind,sans-serif;font-size:13px}\n.s-d17 td.cu{font-weight:600}\n.s-d17 .pt{display:inline-block;width:0;height:13px;border-left:2px solid #111111;margin-right:14px;vertical-align:-2px}\n.s-d17 tr.dn td{font-weight:600;border-bottom:2px solid #111111}\n.s-d17 .fn{font-size:12px;margin-top:4px}\n.s-d17 .ft{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}\n.s-d17 button{font:600 13px Hind,sans-serif;padding:3px 10px;border:2px solid #111111;background:#ffffff;color:#111111;cursor:pointer}\n.s-d17 button.a{background:#eb0000;border-color:#eb0000;color:#ffffff}\n.s-d17 .sy{font-size:12px;display:inline-flex;align-items:center;gap:4px}\n.s-d17 .sy b{border:1.5px solid #111111;font:600 11px 'Source Code Pro',monospace;padding:0 3px}\n</style><div class=\"w\">\n<div class=\"hd\"><i>342</i><b>morphkit</b><span>customer-card.tsx · dynamic</span></div>\n<div class=\"zi\">\n<div><small>Email</small>hank@globex.example</div>\n<div><small>City</small>Springfield</div>\n<div><small>Next payment</small>Oct 11, 2026 <span class=\"dl\">+ overdue</span></div>\n</div>\n<table><tr><th>Step</th><th>v0</th><th>v1</th><th class=\"cu\">v2 ¹</th></tr>\n<tr><td>Reading the card</td><td>08 02</td><td>08 32</td><td class=\"cu\">09 02</td></tr>\n<tr><td>Changing the fields</td><td><i class=\"pt\"></i></td><td>08 35</td><td class=\"cu\">09 05</td></tr>\n<tr class=\"dn\"><td>Checking the build an ✓</td><td>08 06</td><td>08 37</td><td class=\"cu\">09 07</td></tr></table>\n<div class=\"fn\">¹ Add phone and city; overdue in red</div>\n<div class=\"ft\"><button class=\"a\">→ Apply</button><button>← Undo</button>\n<span class=\"sy\"><b>✓</b>Applied</span><span class=\"sy\"><b>R</b>Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d18",
+  "name": "Fire insurance map",
+  "family": "engineering",
+  "origin": "Sanborn Map Company fire insurance atlases (1867-1970s) with colour-coded construction and pasted correction slips",
+  "why_not_ai": "Pink-brick / yellow-frame / blue-stone footprints, dwelling letter codes, street names lettered along the block and pasted-over correction slips are a specific archival map practice.",
+  "fits": "Sanborn atlases were updated by pasting corrections over the old sheet, which is precisely how an agent layers versions over a live panel.",
+  "palette": [
+   "#f3efe2",
+   "#2a2222",
+   "#e8a3a3",
+   "#f0d77a",
+   "#9cc0de"
+  ],
+  "roles": {
+   "bg": "#f3efe2",
+   "fg": "#2a2222",
+   "brick": "#e8a3a3",
+   "frame": "#f0d77a",
+   "stone": "#9cc0de"
+  },
+  "type": {
+   "display": "Old Standard TT",
+   "body": "Old Standard TT",
+   "mono": "Courier New"
+  },
+  "fonts": [
+   "Old+Standard+TT:ital,wght@0,400;0,700;1,400"
+  ],
+  "components": [
+   "volume and sheet header",
+   "colour-coded building footprints",
+   "street-name request",
+   "water main with hydrants",
+   "pasted correction slip",
+   "sheet-reference buttons",
+   "construction-class key"
+  ],
+  "html": "<div class=\"tile s-d18\"><style>\n.s-d18 .w{background:#f3efe2;color:#2a2222;font:13px/1.3 'Old Standard TT',serif;padding:10px}\n.s-d18 .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.5px solid #2a2222;padding-bottom:3px}\n.s-d18 .hd b{text-transform:uppercase;font-size:15px;letter-spacing:.08em}\n.s-d18 .hd small{display:block;font-size:11px;font-style:italic}\n.s-d18 .hd i{font:700 15px 'Old Standard TT',serif;border:1.5px solid #2a2222;padding:0 7px;font-style:normal}\n.s-d18 .stt{text-align:center;font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-top:1px solid #2a2222;border-bottom:1px solid #2a2222;margin:6px 0 0;padding:3px 0}\n.s-d18 .bl{position:relative;border:1.5px solid #2a2222;border-top:0;padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:5px}\n.s-d18 .fp{background:#f0d77a;border:1.5px solid #2a2222;padding:3px 6px;font-size:12px}\n.s-d18 .fp b{font-size:13px;margin-right:4px}\n.s-d18 .fp.r{background:#e8a3a3;grid-column:span 2}\n.s-d18 .fp.r em{font-weight:700;font-style:normal;border-bottom:2px solid #2a2222}\n.s-d18 .ps{position:absolute;right:-4px;top:-10px;background:#f3efe2;border:1px dashed #2a2222;font-size:11px;padding:1px 5px;transform:rotate(2deg)}\n.s-d18 svg{display:block;margin-top:5px}\n.s-d18 .cr{font-size:12px;font-style:italic;margin-top:2px}\n.s-d18 .cr b{font-style:normal}\n.s-d18 .ft{display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap}\n.s-d18 button{font:13px 'Old Standard TT',serif;border:1.5px solid #2a2222;background:#f3efe2;color:#2a2222;padding:2px 8px;cursor:pointer}\n.s-d18 button.a{background:#2a2222;color:#f3efe2}\n.s-d18 .ky{display:inline-flex;align-items:center;gap:4px;font-size:12px}\n.s-d18 .ky i{width:14px;height:10px;border:1px solid #2a2222;background:#9cc0de}\n.s-d18 .ky.na i{background:#f0d77a}\n</style><div class=\"w\">\n<div class=\"hd\"><div><b>morphkit</b><small>Insurance map of customer-card.tsx · dynamic · Vol. 1</small></div><i>7</i></div>\n<div class=\"stt\">Add phone and city; overdue in red Ave.</div>\n<div class=\"bl\"><span class=\"ps\">pasted corr. v2</span>\n<div class=\"fp\"><b>D</b>Email hank@globex.example</div>\n<div class=\"fp\"><b>D</b>City Springfield</div>\n<div class=\"fp r\"><b>S</b>Next payment Oct 11, 2026 · <em>overdue</em></div>\n</div>\n<svg viewBox=\"0 0 340 40\" width=\"340\" height=\"40\" font-family=\"Old Standard TT\" font-size=\"11\" fill=\"#2a2222\">\n<line x1=\"4\" y1=\"12\" x2=\"336\" y2=\"12\" stroke=\"#2a2222\" stroke-width=\"1\" stroke-dasharray=\"6 3\"/>\n<text x=\"4\" y=\"8\" font-size=\"11\" font-style=\"italic\">8 in. W.P.</text>\n<circle cx=\"60\" cy=\"12\" r=\"4\" fill=\"#f3efe2\" stroke=\"#2a2222\"/><circle cx=\"150\" cy=\"12\" r=\"4\" fill=\"#f3efe2\" stroke=\"#2a2222\"/><circle cx=\"300\" cy=\"12\" r=\"5\" fill=\"#2a2222\"/>\n<text x=\"4\" y=\"30\">Reading the card</text><text x=\"150\" y=\"30\" text-anchor=\"middle\">Changing the fields</text>\n<text x=\"336\" y=\"30\" text-anchor=\"end\" font-weight=\"700\">Checking the build ✓</text>\n</svg>\n<div class=\"cr\">Corrections: v0 1904 · v1 1921 · <b>v2 2026 (current)</b></div>\n<div class=\"ft\"><button class=\"a\">Apply → see sheet 8</button><button>← Undo sheet 6</button>\n<span class=\"ky\"><i></i>Applied</span><span class=\"ky na\"><i></i>Needs admin</span></div>\n</div></div>"
+ },
+ {
+  "id": "d19",
+  "name": "Feynman diagram",
+  "family": "engineering",
+  "origin": "Feynman diagrams in particle-physics papers (1949 onward) with bra-ket notation and loop orders",
+  "why_not_ai": "Straight fermion lines with arrows, wavy photons, curly gluons, a time axis, kets and loop-order labels are physics notation set like a journal figure.",
+  "fits": "The agent's work is drawn as an interaction over time, and Undo is literally time reversal of the same diagram.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#1f4e9c",
+   "#b5121b"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "accent": "#1f4e9c",
+   "alert": "#b5121b"
+  },
+  "type": {
+   "display": "STIX Two Text",
+   "body": "STIX Two Text",
+   "mono": "JetBrains Mono"
+  },
+  "fonts": [
+   "STIX+Two+Text:ital,wght@0,400;0,600;1,400",
+   "JetBrains+Mono:wght@400;600"
+  ],
+  "components": [
+   "amplitude header",
+   "ket field list",
+   "process line",
+   "propagator progress diagram",
+   "loop-order versions",
+   "time-direction buttons",
+   "on-shell / off-shell status"
+  ],
+  "html": "<div class=\"tile s-d19\"><style>\n.s-d19 .w{background:#ffffff;color:#111111;font:14px/1.35 'STIX Two Text',serif;padding:10px}\n.s-d19 .hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #111111;padding-bottom:3px}\n.s-d19 .hd b{font-size:15px;font-style:italic}\n.s-d19 .hd span{font-size:12px}\n.s-d19 .k{margin:6px 0 0 6px;font-size:13px}\n.s-d19 .k div{margin:1px 0}\n.s-d19 .k i{font-style:normal;font-family:'JetBrains Mono',monospace;font-size:11px;margin-left:4px}\n.s-d19 .od{color:#b5121b;font-weight:600}\n.s-d19 .pr{margin:6px 0;font-size:13px;border-top:1px solid #111111;border-bottom:1px solid #111111;padding:3px 0}\n.s-d19 .pr span{font-family:'JetBrains Mono',monospace;font-size:11px}\n.s-d19 svg{display:block}\n.s-d19 .lo{display:flex;gap:14px;align-items:center;font-size:12px;margin-top:3px}\n.s-d19 .lo span{display:inline-flex;gap:4px;align-items:center}\n.s-d19 .lo .cu{font-weight:600;border-bottom:2px solid #1f4e9c}\n.s-d19 .ft{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}\n.s-d19 button{font:13px 'STIX Two Text',serif;border:1px solid #111111;background:#ffffff;color:#111111;padding:2px 10px;cursor:pointer}\n.s-d19 button.a{background:#1f4e9c;border-color:#1f4e9c;color:#ffffff}\n.s-d19 .sh{font:11px 'JetBrains Mono',monospace;padding:1px 6px;border:1px solid #111111}\n.s-d19 .sh.na{border:1px dashed #b5121b;color:#b5121b}\n</style><div class=\"w\">\n<div class=\"hd\"><b>morphkit</b><span>ℳ(customer-card.tsx · dynamic)</span></div>\n<div class=\"k\"><div>|Email⟩ = hank@globex.example</div><div>|City⟩ = Springfield</div><div>|Next payment⟩ = Oct 11, 2026 <span class=\"od\">⊗ |overdue⟩</span></div></div>\n<div class=\"pr\"><span>PROCESS</span> user → “Add phone and city; overdue in red”</div>\n<svg viewBox=\"0 0 340 84\" width=\"340\" height=\"84\" font-family=\"STIX Two Text\" font-size=\"12\" fill=\"#111111\"><path d=\"M16 10 H324\" stroke=\"#111111\" stroke-width=\"0.8\"/><path d=\"M318 6 L326 10 L318 14\" fill=\"none\" stroke=\"#111111\" stroke-width=\"0.8\"/><text x=\"4\" y=\"14\" font-style=\"italic\">t</text><path d=\"M28 38 H120\" stroke=\"#111111\" stroke-width=\"1.5\"/><path d=\"M70 33 L80 38 L70 43\" fill=\"#111111\"/><path d=\"M120 38 Q123.1 32 126.2 38 Q129.4 44 132.5 38 Q135.6 32 138.8 38 Q141.9 44 145 38 Q148.1 32 151.2 38 Q154.4 44 157.5 38 Q160.6 32 163.8 38 Q166.9 44 170 38 Q173.1 32 176.2 38 Q179.4 44 182.5 38 Q185.6 32 188.8 38 Q191.9 44 195 38 Q198.1 32 201.2 38 Q204.4 44 207.5 38 Q210.6 32 213.8 38 Q216.9 44 220 38\" fill=\"none\" stroke=\"#1f4e9c\" stroke-width=\"1.5\"/><polyline points=\"220,38 219.1,37.8 218.4,37.3 218,36.5 218.1,35.5 218.6,34.5 219.5,33.5 220.9,32.7 222.6,32.2 224.5,32 226.4,32.2 228.1,32.7 229.5,33.5 230.4,34.5 230.9,35.5 231,36.5 230.6,37.3 229.9,37.8 229,38 228.1,37.8 227.4,37.3 227,36.5 227.1,35.5 227.6,34.5 228.5,33.5 229.9,32.7 231.6,32.2 233.5,32 235.4,32.2 237.1,32.7 238.5,33.5 239.4,34.5 239.9,35.5 240,36.5 239.6,37.3 238.9,37.8 238,38 237.1,37.8 236.4,37.3 236,36.5 236.1,35.5 236.6,34.5 237.5,33.5 238.9,32.7 240.6,32.2 242.5,32 244.4,32.2 246.1,32.7 247.5,33.5 248.4,34.5 248.9,35.5 249,36.5 248.6,37.3 247.9,37.8 247,38 246.1,37.8 245.4,37.3 245,36.5 245.1,35.5 245.6,34.5 246.5,33.5 247.9,32.7 249.6,32.2 251.5,32 253.4,32.2 255.1,32.7 256.5,33.5 257.4,34.5 257.9,35.5 258,36.5 257.6,37.3 256.9,37.8 256,38 255.1,37.8 254.4,37.3 254,36.5 254.1,35.5 254.6,34.5 255.5,33.5 256.9,32.7 258.6,32.2 260.5,32 262.4,32.2 264.1,32.7 265.5,33.5 266.4,34.5 266.9,35.5 267,36.5 266.6,37.3 265.9,37.8 265,38 264.1,37.8 263.4,37.3 263,36.5 263.1,35.5 263.6,34.5 264.5,33.5 265.9,32.7 267.6,32.2 269.5,32 271.4,32.2 273.1,32.7 274.5,33.5 275.4,34.5 275.9,35.5 276,36.5 275.6,37.3 274.9,37.8 274,38 273.1,37.8 272.4,37.3 272,36.5 272.1,35.5 272.6,34.5 273.5,33.5 274.9,32.7 276.6,32.2 278.5,32 280.4,32.2 282.1,32.7 283.5,33.5 284.4,34.5 284.9,35.5 285,36.5 284.6,37.3 283.9,37.8 283,38 282.1,37.8 281.4,37.3 281,36.5 281.1,35.5 281.6,34.5 282.5,33.5 283.9,32.7 285.6,32.2 287.5,32 289.4,32.2 291.1,32.7 292.5,33.5 293.4,34.5 293.9,35.5 294,36.5 293.6,37.3 292.9,37.8 292,38 291.1,37.8 290.4,37.3 290,36.5 290.1,35.5 290.6,34.5 291.5,33.5 292.9,32.7 294.6,32.2 296.5,32 298.4,32.2 300.1,32.7 301.5,33.5 302.4,34.5 302.9,35.5 303,36.5 302.6,37.3\" fill=\"none\" stroke=\"#111111\" stroke-width=\"1.3\"/><circle cx=\"28\" cy=\"38\" r=\"3\" fill=\"#111111\"/><circle cx=\"120\" cy=\"38\" r=\"3\" fill=\"#111111\"/><circle cx=\"220\" cy=\"38\" r=\"3\" fill=\"#111111\"/><circle cx=\"304\" cy=\"38\" r=\"6\" fill=\"#1f4e9c\"/><text x=\"4\" y=\"64\" text-anchor=\"start\">Reading the card</text><text x=\"174\" y=\"64\" text-anchor=\"middle\">Changing the fields</text><text x=\"336\" y=\"64\" text-anchor=\"end\">Checking the build</text><text x=\"336\" y=\"80\" text-anchor=\"end\" fill=\"#1f4e9c\" font-style=\"italic\">final vertex · done</text></svg>\n<div class=\"lo\"><span>v0 tree <svg width=\"18\" height=\"8\"><path d=\"M0 4 H18\" stroke=\"#111111\"/></svg></span>\n<span>v1 one-loop <svg width=\"18\" height=\"10\"><path d=\"M0 5 H5 M13 5 H18\" stroke=\"#111111\"/><circle cx=\"9\" cy=\"5\" r=\"4\" fill=\"none\" stroke=\"#111111\"/></svg></span>\n<span class=\"cu\">v2 two-loop <svg width=\"26\" height=\"10\"><path d=\"M0 5 H3 M23 5 H26\" stroke=\"#1f4e9c\"/><circle cx=\"8\" cy=\"5\" r=\"4\" fill=\"none\" stroke=\"#1f4e9c\"/><circle cx=\"18\" cy=\"5\" r=\"4\" fill=\"none\" stroke=\"#1f4e9c\"/></svg></span></div>\n<div class=\"ft\"><button class=\"a\">Apply  t →</button><button>← Undo (T̂)</button>\n<span class=\"sh\">Applied · on-shell</span><span class=\"sh na\">Needs admin · off-shell</span></div>\n</div></div>"
+ },
+ {
+  "id": "d20",
+  "name": "P&ID process sheet",
+  "family": "engineering",
+  "origin": "Piping and instrumentation diagrams per ISA-5.1: instrument bubbles, line designations, valves, interlocks, HOLD notes",
+  "why_not_ai": "Tag-lettered instrument bubbles with loop numbers, a circle-in-square DCS symbol, line designation strings and bow-tie valves are process-plant engineering notation.",
+  "fits": "The agent's pipeline literally runs through instruments, versions are valves you open or close, and admin review is an interlock.",
+  "palette": [
+   "#ffffff",
+   "#1a1a1a",
+   "#0b5394",
+   "#c62828",
+   "#eef3f8"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#1a1a1a",
+   "process": "#0b5394",
+   "alarm": "#c62828",
+   "fill": "#eef3f8"
+  },
+  "type": {
+   "display": "IBM Plex Sans Condensed",
+   "body": "IBM Plex Sans Condensed",
+   "mono": "IBM Plex Mono"
+  },
+  "fonts": [
+   "IBM+Plex+Sans+Condensed:wght@400;600",
+   "IBM+Plex+Mono:wght@400;600"
+  ],
+  "components": [
+   "P&ID title block",
+   "line-designation field rows",
+   "alarm tag",
+   "HOLD note",
+   "ISA instrument bubbles",
+   "bow-tie valve versions",
+   "interlock-diamond buttons",
+   "tie-point hexagon status"
+  ],
+  "html": "<div class=\"tile s-d20\"><style>\n.s-d20 .w{background:#ffffff;color:#1a1a1a;font:13px/1.3 'IBM Plex Sans Condensed',sans-serif;padding:10px}\n.s-d20 .tb{display:grid;grid-template-columns:1fr auto;border:1.5px solid #1a1a1a}\n.s-d20 .tb div{padding:2px 6px}\n.s-d20 .tb b{font-size:15px}\n.s-d20 .tb small{display:block;font:11px 'IBM Plex Mono',monospace}\n.s-d20 .tb .dw{border-left:1.5px solid #1a1a1a;font:11px 'IBM Plex Mono',monospace;background:#eef3f8}\n.s-d20 .ln{margin-top:6px}\n.s-d20 .ln div{border-bottom:2px solid #0b5394;padding:3px 0 1px;position:relative}\n.s-d20 .ln div:after{content:\"\";position:absolute;right:0;bottom:-5px;border-left:8px solid #0b5394;border-top:4px solid transparent;border-bottom:4px solid transparent}\n.s-d20 .ln i{font:11px 'IBM Plex Mono',monospace;font-style:normal;color:#0b5394;margin-right:6px}\n.s-d20 .al{color:#c62828;font-weight:600;border:1.5px solid #c62828;border-radius:50%;padding:0 6px;margin-left:4px}\n.s-d20 .hl{display:flex;margin:7px 0 4px;border:1.5px solid #1a1a1a}\n.s-d20 .hl b{background:#1a1a1a;color:#ffffff;padding:2px 6px;font:600 11px 'IBM Plex Mono',monospace}\n.s-d20 .hl span{padding:2px 6px}\n.s-d20 svg{display:block;margin-top:4px}\n.s-d20 .ft{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}\n.s-d20 button{display:flex;align-items:center;gap:6px;font:600 13px 'IBM Plex Sans Condensed',sans-serif;background:#ffffff;color:#1a1a1a;border:1px solid #1a1a1a;padding:2px 8px 2px 4px;cursor:pointer}\n.s-d20 button.a{background:#0b5394;color:#ffffff;border-color:#0b5394}\n.s-d20 button i{width:14px;height:14px;border:1.5px solid currentColor;transform:rotate(45deg) scale(.8);font:600 9px/11px 'IBM Plex Mono',monospace;font-style:normal;text-align:center}\n.s-d20 button i b{display:block;transform:rotate(-45deg)}\n.s-d20 .hx{font:11px 'IBM Plex Mono',monospace;padding:2px 12px;background:#1a1a1a;color:#ffffff;clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%)}\n.s-d20 .hx.na{background:#c62828}\n</style><div class=\"w\">\n<div class=\"tb\"><div><b>morphkit P&amp;ID · UNIT 100</b><small>customer-card.tsx · dynamic</small></div><div class=\"dw\">DWG<br>100-PID-001</div></div>\n<div class=\"ln\">\n<div><i>2\"-EM-101</i>Email hank@globex.example</div>\n<div><i>2\"-CT-102</i>City Springfield</div>\n<div><i>2\"-NP-103</i>Next payment Oct 11, 2026 <span class=\"al\">AH overdue</span></div>\n</div>\n<div class=\"hl\"><b>HOLD 1</b><span>Add phone and city; overdue in red</span></div>\n<svg viewBox=\"0 0 340 66\" width=\"340\" height=\"66\" font-family=\"IBM Plex Mono\" font-size=\"11\" fill=\"#1a1a1a\"><path d=\"M10 22 H330\" stroke=\"#0b5394\" stroke-width=\"1\" stroke-dasharray=\"4 3\"/><g><circle cx=\"44\" cy=\"22\" r=\"17\" fill=\"#ffffff\" stroke=\"#1a1a1a\" stroke-width=\"1.3\"/><line x1=\"27\" y1=\"22\" x2=\"61\" y2=\"22\" stroke=\"#1a1a1a\"/><text x=\"44\" y=\"18\" text-anchor=\"middle\" font-weight=\"600\">RI</text><text x=\"44\" y=\"34\" text-anchor=\"middle\">101</text></g><g><circle cx=\"156\" cy=\"22\" r=\"17\" fill=\"#ffffff\" stroke=\"#1a1a1a\" stroke-width=\"1.3\"/><line x1=\"139\" y1=\"22\" x2=\"173\" y2=\"22\" stroke=\"#1a1a1a\"/><text x=\"156\" y=\"18\" text-anchor=\"middle\" font-weight=\"600\">CI</text><text x=\"156\" y=\"34\" text-anchor=\"middle\">102</text></g><rect x=\"270\" y=\"3\" width=\"38\" height=\"38\" fill=\"#eef3f8\" stroke=\"#1a1a1a\" stroke-width=\"1.3\"/><g><circle cx=\"289\" cy=\"22\" r=\"17\" fill=\"#ffffff\" stroke=\"#1a1a1a\" stroke-width=\"1.3\"/><line x1=\"272\" y1=\"22\" x2=\"306\" y2=\"22\" stroke=\"#1a1a1a\"/><text x=\"289\" y=\"18\" text-anchor=\"middle\" font-weight=\"600\">BI</text><text x=\"289\" y=\"34\" text-anchor=\"middle\">103</text></g><text x=\"4\" y=\"56\" font-family=\"IBM Plex Sans Condensed\" font-size=\"12\">Reading the card</text><text x=\"156\" y=\"56\" text-anchor=\"middle\" font-family=\"IBM Plex Sans Condensed\" font-size=\"12\">Changing the fields</text><text x=\"336\" y=\"56\" text-anchor=\"end\" font-family=\"IBM Plex Sans Condensed\" font-size=\"12\" font-weight=\"600\">Checking the build ✓</text></svg><svg viewBox=\"0 0 340 34\" width=\"340\" height=\"34\" font-family=\"IBM Plex Mono\" font-size=\"11\" fill=\"#1a1a1a\"><line x1=\"4\" y1=\"9\" x2=\"336\" y2=\"9\" stroke=\"#0b5394\" stroke-width=\"2\"/><path d=\"M40 2 L40 16 L62 2 L62 16 Z\" fill=\"#1a1a1a\" stroke=\"#1a1a1a\" stroke-width=\"1.2\"/><path d=\"M150 2 L150 16 L172 2 L172 16 Z\" fill=\"#1a1a1a\" stroke=\"#1a1a1a\" stroke-width=\"1.2\"/><path d=\"M260 2 L260 16 L282 2 L282 16 Z\" fill=\"#ffffff\" stroke=\"#1a1a1a\" stroke-width=\"1.2\"/><text x=\"51\" y=\"30\" text-anchor=\"middle\">v0 CLOSED</text><text x=\"161\" y=\"30\" text-anchor=\"middle\">v1 CLOSED</text><text x=\"271\" y=\"30\" text-anchor=\"middle\" font-weight=\"600\" fill=\"#0b5394\">v2 OPEN · current</text></svg>\n<div class=\"ft\"><button class=\"a\"><i><b>I</b></i>Apply</button><button><i><b>I</b></i>Undo</button>\n<span class=\"hx\">TP-1 Applied</span><span class=\"hx na\">TP-2 Needs admin</span></div>\n</div></div>"
+ }
+]

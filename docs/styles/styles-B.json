@@ -1,0 +1,814 @@
+[
+ {
+  "id": "b01",
+  "name": "Braun ET66 calculator",
+  "family": "instruments",
+  "origin": "Dieter Rams & Dietrich Lubs, Braun ET66 pocket calculator (1987)",
+  "why_not_ai": "Convex round keys in a strict 3-up grid, a single colour-coded yellow equals key and a recessed display window are product-design decisions, not web-UI defaults.",
+  "fits": "An agent edit is a calculation: the request is typed into the entry register, versions live in memory keys, and = commits while C clears.",
+  "palette": [
+   "#24231f",
+   "#ece8de",
+   "#574a40",
+   "#f0b400",
+   "#ef5b3d"
+  ],
+  "roles": {
+   "bg": "#24231f",
+   "fg": "#ece8de",
+   "key": "#574a40",
+   "accent": "#f0b400",
+   "alert": "#ef5b3d"
+  },
+  "type": {
+   "display": "Archivo Narrow",
+   "body": "Archivo",
+   "mono": "ui-monospace"
+  },
+  "fonts": [
+   "Archivo:wght@400;600;700",
+   "Archivo+Narrow:wght@600;700"
+  ],
+  "components": [
+   "recessed display window",
+   "right-aligned entry register",
+   "minus-sign annunciator",
+   "operator-key legend column",
+   "version memory keys",
+   "yellow equals key",
+   "power slide switch"
+  ],
+  "html": "<div class=\"tile s-b01\"><style>.s-b01 .w{width:360px;box-sizing:border-box;background:#24231f;color:#ece8de;font:13px 'Archivo',sans-serif;padding:16px 18px}.s-b01 .hd{display:flex;justify-content:space-between;align-items:baseline}.s-b01 .hd b{font:700 15px 'Archivo Narrow',sans-serif;letter-spacing:1px}.s-b01 .hd span{font-size:11px}.s-b01 .win{margin:10px 0 14px;background:#ece8de;color:#24231f;border:5px solid #574a40;padding:6px 8px}.s-b01 .r{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;padding:2px 0}.s-b01 .r span{font:600 11px 'Archivo Narrow',sans-serif;letter-spacing:1px}.s-b01 .r em{font-style:normal;font-weight:700;background:#ef5b3d;color:#24231f;padding:0 4px;margin-left:6px}.s-b01 .ent{border-top:1px solid #574a40;margin-top:5px;padding-top:5px;text-align:right;font-size:13px;font-weight:600}.s-b01 .ent u{display:inline-block;width:8px;height:2px;background:#24231f;margin-left:3px}.s-b01 .pad{display:grid;grid-template-columns:1fr 126px;gap:12px}.s-b01 .cap{font:600 11px 'Archivo Narrow',sans-serif;letter-spacing:1px;margin:0 0 8px}.s-b01 .op{list-style:none;margin:0;padding:0}.s-b01 .op li{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:9px}.s-b01 .op i{width:16px;height:16px;border-radius:50%;background:#574a40;flex:none}.s-b01 .op .dn i{background:#f0b400}.s-b01 .op .dn b{font:700 11px 'Archivo Narrow',sans-serif;color:#f0b400;margin-left:auto}.s-b01 .keys{display:grid;grid-template-columns:repeat(3,38px);gap:6px 6px}.s-b01 .c{display:flex;flex-direction:column;align-items:center}.s-b01 .c p{margin:2px 0 0;font-size:11px}.s-b01 .k{width:38px;height:38px;border-radius:50%;background:#574a40;color:#ece8de;display:flex;align-items:center;justify-content:center;font:600 13px 'Archivo',sans-serif}.s-b01 .k.cur,.s-b01 .k.lt{background:#ece8de;color:#24231f}.s-b01 .k.eq{background:#f0b400;color:#24231f;font-size:15px}.s-b01 .sw{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;border-top:1px solid #574a40;padding-top:10px}.s-b01 .trk{width:34px;height:12px;background:#574a40;position:relative}.s-b01 .trk i{position:absolute;left:2px;top:2px;width:14px;height:8px;background:#ece8de}.s-b01 .on{color:#f0b400;font-weight:700}.s-b01 .na{color:#ef5b3d}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"win\"><div class=\"r\"><span>EMAIL</span>hank@globex.example</div><div class=\"r\"><span>CITY</span>Springfield</div><div class=\"r\"><span>NEXT PAY</span><div>Oct 11, 2026<em>− overdue</em></div></div><div class=\"ent\">Add phone and city; overdue in red<u></u></div></div><div class=\"pad\"><div><p class=\"cap\">OPERATIONS</p><ul class=\"op\"><li><i></i>Reading the card</li><li><i></i>Changing the fields</li><li class=\"dn\"><i></i>Checking the build<b>done</b></li></ul></div><div><p class=\"cap\">VERSION MEMORY</p><div class=\"keys\"><div class=\"c\"><div class=\"k\">v0</div></div><div class=\"c\"><div class=\"k\">v1</div></div><div class=\"c\"><div class=\"k cur\">v2</div></div><div class=\"c\"><div class=\"k lt\">C</div><p>Undo</p></div><div class=\"c\"></div><div class=\"c\"><div class=\"k eq\">=</div><p>Apply</p></div></div></div></div><div class=\"sw\"><span class=\"on\">Applied</span><span class=\"trk\"><i></i></span><span class=\"na\">Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "b02",
+  "name": "Bloomberg terminal",
+  "family": "instruments",
+  "origin": "Bloomberg Professional terminal and its colour-keyed keyboard (1982 onward)",
+  "why_not_ai": "Amber-on-black monospace, numbered \"95)\" menu actions, <GO> commands, dot-leader fields and reverse-video alerts come from a 40-year trading-floor convention, not a component library.",
+  "fits": "Developers read dense, keyboard-driven state: every field, step and version is one addressable line the agent can update in place.",
+  "palette": [
+   "#000000",
+   "#ff9e1b",
+   "#f2f2f2",
+   "#ff433d",
+   "#3ddc5c"
+  ],
+  "roles": {
+   "bg": "#000000",
+   "fg": "#ff9e1b",
+   "value": "#f2f2f2",
+   "alert": "#ff433d",
+   "ok": "#3ddc5c"
+  },
+  "type": {
+   "display": "Source Code Pro",
+   "body": "Source Code Pro",
+   "mono": "Source Code Pro"
+  },
+  "fonts": [
+   "Source+Code+Pro:wght@400;600;700"
+  ],
+  "components": [
+   "amber function bar",
+   "<GO> command line",
+   "red-numbered action tabs",
+   "dot-leader field list",
+   "timestamped MSG line",
+   "right-aligned status column",
+   "GO/CANCEL keycaps",
+   "reverse-video alert"
+  ],
+  "html": "<div class=\"tile s-b02\"><style>.s-b02 .w{width:360px;box-sizing:border-box;background:#000000;color:#ff9e1b;font:12px 'Source Code Pro',monospace;padding:0 0 10px}.s-b02 .bar{background:#ff9e1b;color:#000000;padding:3px 6px;display:flex;justify-content:space-between;font-weight:700}.s-b02 .bar b{font-size:13px;letter-spacing:1px}.s-b02 .cmd{color:#f2f2f2;padding:4px 6px;border-bottom:1px solid #ff9e1b}.s-b02 .cmd i{font-style:normal;color:#ff9e1b;font-weight:700}.s-b02 .tabs{display:flex;gap:4px;padding:6px 6px 2px}.s-b02 .tabs span{border:1px solid #f2f2f2;color:#f2f2f2;padding:1px 6px}.s-b02 .tabs b{color:#ff433d}.s-b02 .tabs .on{background:#ff9e1b;color:#000000;border-color:#ff9e1b}.s-b02 .tabs .on b{color:#000000}.s-b02 .sec{display:flex;justify-content:space-between;color:#f2f2f2;border-bottom:1px solid #ff9e1b;margin:8px 6px 3px;font-weight:600}.s-b02 .row{display:flex;padding:1px 6px;white-space:nowrap}.s-b02 .row b{color:#ff433d;width:24px;flex:none}.s-b02 .row span{flex:1;overflow:hidden}.s-b02 .row span::after{content:' ..........................................'}.s-b02 .row em{font-style:normal;color:#f2f2f2}.s-b02 .od{background:#ff433d;color:#000000;padding:0 3px;font-style:normal;font-weight:700}.s-b02 .msg{margin:6px 6px 0;color:#f2f2f2}.s-b02 .msg b{color:#ff9e1b}.s-b02 .msg u{text-decoration:none;color:#000000;background:#f2f2f2;padding:0 2px}.s-b02 .st{display:flex;justify-content:space-between;padding:1px 6px}.s-b02 .st b{color:#3ddc5c}.s-b02 .dn b{background:#3ddc5c;color:#000000;padding:0 4px}.s-b02 .keys{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 6px 0}.s-b02 .key{color:#000000;font-weight:700;padding:5px 8px;border-bottom:3px solid #f2f2f2}.s-b02 .go{background:#3ddc5c}.s-b02 .cn{background:#ff433d}.s-b02 .stat{color:#3ddc5c;margin-left:auto}.s-b02 .alrt{background:#ff9e1b;color:#000000;padding:0 4px;font-weight:700}</style><div class=\"w\"><div class=\"bar\"><b>morphkit</b><span>MKIT · 1/2</span></div><div class=\"cmd\">customer-card.tsx · dynamic <i>&lt;GO&gt;</i></div><div class=\"tabs\"><span><b>95)</b> v0</span><span><b>96)</b> v1</span><span class=\"on\"><b>97)</b> v2</span></div><div class=\"sec\"><span>CUSTOMER FIELDS</span><span>VALUE</span></div><div class=\"row\"><b>1)</b><span>Email</span><em>hank@globex.example</em></div><div class=\"row\"><b>2)</b><span>City</span><em>Springfield</em></div><div class=\"row\"><b>3)</b><span>Next payment</span><em>Oct 11, 2026 <i class=\"od\">OVERDUE</i></em></div><div class=\"msg\"><b>10:42</b> <u>MSG</u> Add phone and city; overdue in red</div><div class=\"sec\"><span>AGENT RUN</span><span>STATUS</span></div><div class=\"st\"><span>Reading the card</span><b>OK</b></div><div class=\"st\"><span>Changing the fields</span><b>OK</b></div><div class=\"st dn\"><span>Checking the build</span><b>DONE</b></div><div class=\"keys\"><span class=\"key go\">Apply &lt;GO&gt;</span><span class=\"key cn\">Undo</span><span class=\"alrt\">Needs admin</span><span class=\"stat\">Applied</span></div></div></div>"
+ },
+ {
+  "id": "b03",
+  "name": "Mixing console channel strip",
+  "family": "instruments",
+  "origin": "Analogue recording consoles (Neve, SSL) with masking-tape scribble strips",
+  "why_not_ai": "Hand-marked masking tape over engraved legends, vertical fader caps, LED ladders and lit square switches are studio artefacts with real wear, not UI kit parts.",
+  "fits": "Each version is a channel you can bring up or pull down; the agent talks back over the talkback line and the meters show its run.",
+  "palette": [
+   "#232527",
+   "#c9ccd0",
+   "#f7f7f2",
+   "#c62828",
+   "#4caf50"
+  ],
+  "roles": {
+   "bg": "#232527",
+   "fg": "#c9ccd0",
+   "tape": "#f7f7f2",
+   "alert": "#c62828",
+   "ok": "#4caf50"
+  },
+  "type": {
+   "display": "Permanent Marker",
+   "body": "Roboto Condensed",
+   "mono": "Roboto Mono"
+  },
+  "fonts": [
+   "Permanent+Marker",
+   "Roboto+Condensed:wght@400;700"
+  ],
+  "components": [
+   "masking-tape scribble strip",
+   "patchbay jack row",
+   "talkback button",
+   "channel fader per version",
+   "LED meter ladder",
+   "illuminated square switch",
+   "clip LED label"
+  ],
+  "html": "<div class=\"tile s-b03\"><style>.s-b03 .w{width:360px;box-sizing:border-box;background:#232527;color:#c9ccd0;font:12px 'Roboto Condensed',sans-serif;padding:12px}.s-b03 .tp{background:#f7f7f2;color:#232527;font:13px 'Permanent Marker',cursive;padding:1px 6px;display:inline-block;clip-path:polygon(0 8%,4% 0,100% 6%,97% 50%,100% 94%,3% 100%,0 60%)}.s-b03 .hd{display:flex;justify-content:space-between;align-items:baseline;transform:rotate(-1deg);padding:3px 10px}.s-b03 .hd b{font:15px 'Permanent Marker',cursive;font-weight:400}.s-b03 .hd span{font:11px 'Roboto Condensed',sans-serif}.s-b03 .lb{font-size:11px;letter-spacing:2px;margin:12px 0 4px;border-bottom:1px solid #c9ccd0}.s-b03 .pb{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.s-b03 .ch p{margin:0;font-size:11px;letter-spacing:1px}.s-b03 .ch i{display:block;width:12px;height:12px;border-radius:50%;border:3px solid #c9ccd0;background:#232527;margin:4px 0}.s-b03 .ch .tp{font-size:12px}.s-b03 .ov{display:inline-flex;align-items:center;gap:4px;margin-top:4px;background:#c62828;color:#f7f7f2;padding:1px 5px;font-weight:700}.s-b03 .ov u{width:7px;height:7px;border-radius:50%;background:#f7f7f2}.s-b03 .tb{display:flex;gap:8px;align-items:center;margin-top:10px}.s-b03 .talk{border:2px solid #c9ccd0;font-size:11px;line-height:12px;padding:3px 5px;text-align:center;font-weight:700}.s-b03 .desk{display:grid;grid-template-columns:132px 1fr;gap:12px;margin-top:4px}.s-b03 .strips{display:flex;gap:6px}.s-b03 .st{width:40px;text-align:center}.s-b03 .st .tp{font-size:12px}.s-b03 .fd{position:relative;height:62px;margin:6px 0}.s-b03 .fd::before{content:'';position:absolute;left:19px;top:0;bottom:0;width:2px;background:#c9ccd0}.s-b03 .fd i{position:absolute;left:8px;width:24px;height:10px;background:#f7f7f2;border-bottom:3px solid #c9ccd0}.s-b03 .f0 i{bottom:2px}.s-b03 .f1 i{bottom:20px}.s-b03 .f2 i{bottom:48px}.s-b03 .st b{display:block;border:1px solid #c9ccd0;font-size:11px}.s-b03 .st b.on{background:#4caf50;color:#232527;border-color:#4caf50}.s-b03 .mt p{margin:6px 0 3px;display:flex;justify-content:space-between}.s-b03 .mt p b{color:#4caf50}.s-b03 .lad{display:flex;gap:2px}.s-b03 .lad i{flex:1;height:8px;border:1px solid #c9ccd0}.s-b03 .lad i.l{background:#4caf50;border-color:#4caf50}.s-b03 .ft{display:flex;align-items:center;gap:8px;margin-top:12px;border-top:1px solid #c9ccd0;padding-top:10px}.s-b03 .sq{border:2px solid #c9ccd0;padding:5px 10px;font-weight:700;font-size:13px}.s-b03 .sq.on{background:#4caf50;border-color:#4caf50;color:#232527}.s-b03 .led{display:inline-flex;align-items:center;gap:4px;font-size:11px}.s-b03 .led u{width:9px;height:9px;border-radius:50%}.s-b03 .g u{background:#4caf50}.s-b03 .r u{background:#c62828}.s-b03 .g{margin-left:auto}</style><div class=\"w\"><div class=\"tp hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><p class=\"lb\">INSERTS · CUSTOMER</p><div class=\"pb\"><div class=\"ch\"><p>EMAIL</p><i></i><span class=\"tp\">hank@globex.example</span></div><div class=\"ch\"><p>CITY</p><i></i><span class=\"tp\">Springfield</span></div><div class=\"ch\"><p>NEXT PAY</p><i></i><span class=\"tp\">Oct 11, 2026</span><span class=\"ov\"><u></u>overdue</span></div></div><div class=\"tb\"><span class=\"talk\">TALK<br>BACK</span><span class=\"tp\">Add phone and city; overdue in red</span></div><p class=\"lb\">VERSIONS · METERS</p><div class=\"desk\"><div class=\"strips\"><div class=\"st\"><span class=\"tp\">v0</span><div class=\"fd f0\"><i></i></div><b>SEL</b></div><div class=\"st\"><span class=\"tp\">v1</span><div class=\"fd f1\"><i></i></div><b>SEL</b></div><div class=\"st\"><span class=\"tp\">v2</span><div class=\"fd f2\"><i></i></div><b class=\"on\">SEL</b></div></div><div class=\"mt\"><p>Reading the card</p><div class=\"lad\"><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i></i><i></i></div><p>Changing the fields</p><div class=\"lad\"><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i></i></div><p>Checking the build<b>done</b></p><div class=\"lad\"><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i></div></div></div><div class=\"ft\"><span class=\"sq on\">Apply</span><span class=\"sq\">Undo</span><span class=\"led g\"><u></u>Applied</span><span class=\"led r\"><u></u>Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "b04",
+  "name": "Eurorack module panel",
+  "family": "instruments",
+  "origin": "Eurorack modular synthesizer format (Doepfer A-100, 1996) and its silk-screened aluminium panels",
+  "why_not_ai": "Mounting rails with oval screw slots, 3.5 mm jack rows, a patch cable, step-sequencer LEDs, a three-way bat toggle and a pointer knob are physical panel conventions with fixed HP widths.",
+  "fits": "The agent is patched into one panel: inputs are the fields, the request is a patch cable, and the toggle selects which version is on air.",
+  "palette": [
+   "#cdd0d3",
+   "#151515",
+   "#f1f2f3",
+   "#c62828",
+   "#2e7d32"
+  ],
+  "roles": {
+   "bg": "#cdd0d3",
+   "fg": "#151515",
+   "nut": "#f1f2f3",
+   "alert": "#c62828",
+   "ok": "#2e7d32"
+  },
+  "type": {
+   "display": "Barlow Condensed",
+   "body": "Barlow",
+   "mono": "Share Tech Mono"
+  },
+  "fonts": [
+   "Barlow+Condensed:wght@600;700",
+   "Barlow:wght@400;600",
+   "Share+Tech+Mono"
+  ],
+  "components": [
+   "rail with oval mounting slots",
+   "jack socket row",
+   "patch cable",
+   "step-sequencer LEDs",
+   "three-way bat toggle",
+   "tactile push buttons",
+   "pointer knob status selector"
+  ],
+  "html": "<div class=\"tile s-b04\"><style>.s-b04 .w{width:360px;box-sizing:border-box;background:#cdd0d3;color:#151515;font:12px 'Barlow',sans-serif}.s-b04 .rail{height:14px;background:#151515;display:flex;justify-content:space-between;align-items:center;padding:0 12px}.s-b04 .rail i{width:14px;height:6px;border-radius:3px;background:#cdd0d3}.s-b04 .pn{padding:10px 14px 12px}.s-b04 .hd{display:flex;align-items:baseline;gap:8px;border-bottom:2px solid #151515;padding-bottom:5px}.s-b04 .hd b{font:700 15px 'Barlow Condensed',sans-serif;letter-spacing:3px;text-transform:uppercase}.s-b04 .hd span{font-size:11px;flex:1}.s-b04 .hd em{font:11px 'Share Tech Mono',monospace;font-style:normal}.s-b04 .jk{display:flex;align-items:center;gap:8px;margin-top:7px}.s-b04 .jk i,.s-b04 .rq i{width:12px;height:12px;border-radius:50%;border:4px solid #151515;background:#f1f2f3;flex:none}.s-b04 .jk p,.s-b04 .rq p{margin:0;width:62px;font:600 11px 'Barlow Condensed',sans-serif;letter-spacing:1px}.s-b04 .jk span,.s-b04 .lcd{font:12px 'Share Tech Mono',monospace}.s-b04 .jk u{width:9px;height:9px;border-radius:50%;background:#c62828}.s-b04 .jk em{font:700 11px 'Barlow Condensed',sans-serif;font-style:normal;letter-spacing:1px;background:#c62828;color:#f1f2f3;padding:0 4px;text-transform:uppercase}.s-b04 .rq{display:flex;align-items:center;gap:4px;margin-top:8px}.s-b04 .rq p{width:auto}.s-b04 .lcd{border:1px solid #151515;background:#f1f2f3;padding:2px 5px;font-size:11px}.s-b04 .mid{display:grid;grid-template-columns:1fr 76px;gap:6px;margin-top:10px;border-top:1px solid #151515;padding-top:8px}.s-b04 .seq{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.s-b04 .stp{text-align:center}.s-b04 .stp u{display:block;width:10px;height:10px;border-radius:50%;background:#2e7d32;margin:0 auto 2px;border:2px solid #151515}.s-b04 .stp b{font:700 13px 'Barlow Condensed',sans-serif}.s-b04 .stp p{margin:1px 0;font-size:11px;line-height:13px}.s-b04 .stp em{font:700 11px 'Barlow Condensed',sans-serif;font-style:normal;background:#2e7d32;color:#f1f2f3;padding:0 5px;letter-spacing:1px}.s-b04 .bt{display:flex;align-items:center;gap:14px;margin-top:10px;border-top:1px solid #151515;padding-top:8px}.s-b04 .pb{text-align:center}.s-b04 .pb i{display:block;width:22px;height:22px;border-radius:50%;border:3px solid #151515;margin:0 auto 2px}.s-b04 .pb i.f{background:#151515}.s-b04 .pb p{margin:0;font:700 11px 'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase}.s-b04 .kn{margin-left:auto;display:flex;align-items:center;gap:4px;font:600 12px 'Barlow Condensed',sans-serif}.s-b04 .kn .na{background:#c62828;color:#f1f2f3;padding:0 4px}</style><div class=\"w\"><div class=\"rail\"><i></i><i></i></div><div class=\"pn\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span><em>36HP</em></div><div class=\"jk\"><i></i><p>EMAIL</p><span>hank@globex.example</span></div><div class=\"jk\"><i></i><p>CITY</p><span>Springfield</span></div><div class=\"jk\"><i></i><p>NEXT PAY</p><span>Oct 11, 2026</span><u></u><em>overdue</em></div><div class=\"rq\"><i></i><p>REQ</p><svg width=\"34\" height=\"22\" viewBox=\"0 0 34 22\"><path d=\"M2 5 C12 26 22 26 32 6\" stroke=\"#c62828\" stroke-width=\"4\" fill=\"none\" stroke-linecap=\"round\"/></svg><span class=\"lcd\">Add phone and city; overdue in red</span></div><div class=\"mid\"><div class=\"seq\"><div class=\"stp\"><u></u><b>1</b><p>Reading the card</p></div><div class=\"stp\"><u></u><b>2</b><p>Changing the fields</p></div><div class=\"stp\"><u></u><b>3</b><p>Checking the build</p><em>DONE</em></div></div><svg width=\"76\" height=\"82\" viewBox=\"0 0 76 82\"><text x=\"44\" y=\"16\" font-size=\"13\" font-weight=\"700\" fill=\"#151515\">v2 ◂</text><text x=\"44\" y=\"45\" font-size=\"12\" fill=\"#151515\">v1</text><text x=\"44\" y=\"74\" font-size=\"12\" fill=\"#151515\">v0</text><line x1=\"20\" y1=\"41\" x2=\"32\" y2=\"12\" stroke=\"#151515\" stroke-width=\"5\" stroke-linecap=\"round\"/><circle cx=\"20\" cy=\"41\" r=\"11\" fill=\"#f1f2f3\" stroke=\"#151515\" stroke-width=\"2\"/><circle cx=\"20\" cy=\"41\" r=\"4\" fill=\"#151515\"/></svg></div><div class=\"bt\"><div class=\"pb\"><i class=\"f\"></i><p>Apply</p></div><div class=\"pb\"><i></i><p>Undo</p></div><div class=\"kn\"><span>Applied</span><svg width=\"40\" height=\"40\" viewBox=\"0 0 40 40\"><circle cx=\"20\" cy=\"20\" r=\"15\" fill=\"#151515\"/><line x1=\"20\" y1=\"20\" x2=\"9\" y2=\"12\" stroke=\"#f1f2f3\" stroke-width=\"3\" stroke-linecap=\"round\"/><line x1=\"3\" y1=\"8\" x2=\"6\" y2=\"10\" stroke=\"#151515\" stroke-width=\"2\"/><line x1=\"37\" y1=\"8\" x2=\"34\" y2=\"10\" stroke=\"#151515\" stroke-width=\"2\"/></svg><span class=\"na\">Needs admin</span></div></div></div><div class=\"rail\"><i></i><i></i></div></div></div>"
+ },
+ {
+  "id": "b05",
+  "name": "Digital storage oscilloscope",
+  "family": "instruments",
+  "origin": "Tektronix TDS-series oscilloscopes (1990s): graticule, bezel softkeys, channel colours",
+  "why_not_ai": "An 8x10 graticule with a stepped trace, channel-coloured readouts (CH1 yellow, CH2 cyan), Trig'd status and bezel softkey labels are measurement-instrument grammar.",
+  "fits": "The agent's run is literally a signal: each step is a level on the trace, the request is the trigger condition, and versions are channels you can switch.",
+  "palette": [
+   "#0d1110",
+   "#3a3e42",
+   "#eceff1",
+   "#f2d33a",
+   "#48c9d8"
+  ],
+  "roles": {
+   "bg": "#3a3e42",
+   "screen": "#0d1110",
+   "fg": "#eceff1",
+   "trace": "#f2d33a",
+   "ch2": "#48c9d8"
+  },
+  "type": {
+   "display": "Overpass",
+   "body": "Overpass",
+   "mono": "Overpass Mono"
+  },
+  "fonts": [
+   "Overpass:wght@400;700",
+   "Overpass+Mono:wght@400;600"
+  ],
+  "components": [
+   "acquisition status bar",
+   "trigger setup line",
+   "graticule with step trace",
+   "measurement readouts",
+   "delta cursor flag",
+   "bezel softkey menu",
+   "channel select buttons",
+   "on-screen message box"
+  ],
+  "html": "<div class=\"tile s-b05\"><style>.s-b05 .w{width:360px;box-sizing:border-box;background:#3a3e42;color:#eceff1;font:12px 'Overpass',sans-serif;padding:10px}.s-b05 .bz{display:flex;gap:6px}.s-b05 .scr{flex:1;background:#0d1110;padding:6px;font-family:'Overpass Mono',monospace;font-size:11px}.s-b05 .sb{display:flex;gap:6px;align-items:center}.s-b05 .sb b{font:700 13px 'Overpass',sans-serif;flex:1}.s-b05 .tg{color:#48c9d8}.s-b05 .ap{border:1px solid #f2d33a;color:#f2d33a;padding:0 4px}.s-b05 .zl{color:#48c9d8;margin:2px 0 4px}.s-b05 .trg{color:#f2d33a;margin-bottom:4px}.s-b05 .gr{border:1px solid #3a3e42;background-image:linear-gradient(#3a3e42 1px,transparent 1px),linear-gradient(90deg,#3a3e42 1px,transparent 1px);background-size:26px 22px;height:110px}.s-b05 .ms{margin-top:5px}.s-b05 .ms p{margin:0 0 2px;border-left:3px solid #f2d33a;padding-left:4px}.s-b05 .ms b{color:#f2d33a;font-weight:600}.s-b05 .ms i{font-style:normal;background:#48c9d8;color:#0d1110;padding:0 3px}.s-b05 .dlg{border:1px solid #48c9d8;color:#eceff1;padding:2px 4px;margin-top:4px;display:inline-block}.s-b05 .sk{width:64px;display:flex;flex-direction:column;gap:5px}.s-b05 .sk p{margin:0;background:#0d1110;border-right:7px solid #eceff1;padding:6px 4px;font-size:12px}.s-b05 .sk .on{color:#f2d33a;font-weight:700}.s-b05 .chs{display:flex;gap:8px;align-items:center;margin-top:9px}.s-b05 .chs span{border:2px solid #eceff1;padding:2px 8px;font:600 12px 'Overpass Mono',monospace}.s-b05 .chs .on{background:#f2d33a;border-color:#f2d33a;color:#0d1110}.s-b05 .chs em{margin-left:auto;font-size:11px;font-style:normal;letter-spacing:1px}</style><div class=\"w\"><div class=\"bz\"><div class=\"scr\"><div class=\"sb\"><b>morphkit</b><span class=\"tg\">Trig'd</span><span class=\"ap\">Applied</span></div><div class=\"zl\">customer-card.tsx · dynamic</div><div class=\"trg\">T▸ Add phone and city; overdue in red</div><div class=\"gr\"><svg width=\"100%\" height=\"110\" viewBox=\"0 0 260 110\"><polyline points=\"0,95 80,95 80,62 170,62 170,28 260,28\" fill=\"none\" stroke=\"#f2d33a\" stroke-width=\"2\"/><text x=\"4\" y=\"107\" font-size=\"11\" fill=\"#eceff1\">1 Reading the card</text><text x=\"166\" y=\"55\" font-size=\"11\" fill=\"#eceff1\" text-anchor=\"end\">2 Changing the fields</text><text x=\"256\" y=\"20\" font-size=\"11\" fill=\"#eceff1\" text-anchor=\"end\">3 Checking the build <tspan fill=\"#48c9d8\">done</tspan></text><rect x=\"250\" y=\"24\" width=\"8\" height=\"8\" fill=\"#48c9d8\"/></svg></div><div class=\"ms\"><p><b>Email</b> hank@globex.example</p><p><b>City</b> Springfield</p><p><b>Next pay</b> Oct 11, 2026 <i>Δ overdue</i></p></div><div class=\"dlg\">⚠ Needs admin</div></div><div class=\"sk\"><p class=\"on\">Apply</p><p>Undo</p><p>Cursor</p><p>Meas</p></div></div><div class=\"chs\"><span>v0</span><span>v1</span><span class=\"on\">v2</span><em>CHANNEL · VERSION</em></div></div></div>"
+ },
+ {
+  "id": "b06",
+  "name": "Car instrument cluster",
+  "family": "instruments",
+  "origin": "Automotive instrument clusters: needle gauges, ISO 2575 tell-tales, PRND gear indicators",
+  "why_not_ai": "A sweeping needle gauge with tick dash, ISO tell-tale lamps, a PRND-style selector and a steering-wheel rocker are automotive HMI conventions read at a glance by millions.",
+  "fits": "An agent run is a trip: the gauge sweeps through the steps, turn-by-turn shows the next manoeuvre, and the gear strip picks which version drives.",
+  "palette": [
+   "#0a0a0a",
+   "#f3f3f3",
+   "#ffa000",
+   "#ff4b3e",
+   "#43c463"
+  ],
+  "roles": {
+   "bg": "#0a0a0a",
+   "fg": "#f3f3f3",
+   "needle": "#ffa000",
+   "alert": "#ff4b3e",
+   "ok": "#43c463"
+  },
+  "type": {
+   "display": "Saira Condensed",
+   "body": "Saira",
+   "mono": "ui-monospace"
+  },
+  "fonts": [
+   "Saira:wght@400;600",
+   "Saira+Condensed:wght@500;700"
+  ],
+  "components": [
+   "trip computer header",
+   "needle sweep gauge",
+   "multi-function display",
+   "turn-by-turn instruction",
+   "PRND gear strip",
+   "steering-wheel rocker",
+   "ISO tell-tale lamps"
+  ],
+  "html": "<div class=\"tile s-b06\"><style>.s-b06 .w{width:360px;box-sizing:border-box;background:#0a0a0a;color:#f3f3f3;font:12px 'Saira',sans-serif;padding:10px 12px}.s-b06 .trip{display:flex;align-items:baseline;gap:8px;border-bottom:1px solid #f3f3f3;padding-bottom:4px}.s-b06 .trip b{font:700 15px 'Saira Condensed',sans-serif;letter-spacing:1px}.s-b06 .trip span{color:#ffa000;font:500 11px 'Saira Condensed',sans-serif}.s-b06 .trip em{margin-left:auto;font-style:normal;font-size:11px}.s-b06 .mfd{border:1px solid #f3f3f3;padding:4px 8px;margin:2px 0 8px}.s-b06 .mfd p{margin:2px 0;display:flex;gap:8px}.s-b06 .mfd span{width:62px;font:500 11px 'Saira Condensed',sans-serif;letter-spacing:1px}.s-b06 .mfd b{color:#ff4b3e;font-weight:600}.s-b06 .nav{display:flex;gap:10px;align-items:center}.s-b06 .nav b{font-size:15px;border:2px solid #f3f3f3;width:26px;height:26px;display:flex;align-items:center;justify-content:center}.s-b06 .nav small{display:block;font:500 11px 'Saira Condensed',sans-serif;color:#ffa000}.s-b06 .bot{display:flex;justify-content:space-between;align-items:center;margin-top:10px}.s-b06 .gear{display:flex;gap:6px;align-items:center;font:700 14px 'Saira Condensed',sans-serif}.s-b06 .gear small{font-size:11px;font-weight:500;color:#ffa000}.s-b06 .gear .on{border:2px solid #f3f3f3;padding:0 5px}.s-b06 .rk{display:flex;border:2px solid #f3f3f3;border-radius:16px;overflow:hidden}.s-b06 .rk span{padding:4px 10px;font-weight:600}.s-b06 .rk span+span{border-left:2px solid #f3f3f3;background:#f3f3f3;color:#0a0a0a}.s-b06 .tt{display:flex;gap:16px;margin-top:10px;border-top:1px solid #f3f3f3;padding-top:8px}.s-b06 .tt span{display:flex;align-items:center;gap:6px}.s-b06 .tt i{font-style:normal;width:18px;height:18px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}.s-b06 .g{color:#43c463}.s-b06 .a{color:#ffa000}</style><div class=\"w\"><div class=\"trip\"><b>morphkit</b><span>TRIP A</span><em>customer-card.tsx · dynamic</em></div><svg width=\"336\" height=\"158\" viewBox=\"0 0 320 158\"><path d=\"M45 140 A115 115 0 0 1 275 140\" fill=\"none\" stroke=\"#f3f3f3\" stroke-width=\"3\"/><path d=\"M45 140 A115 115 0 0 1 275 140\" fill=\"none\" stroke=\"#f3f3f3\" stroke-width=\"12\" stroke-dasharray=\"2 34.1\"/><path d=\"M259.6 82.5 A115 115 0 0 1 275 140\" fill=\"none\" stroke=\"#43c463\" stroke-width=\"6\"/><text x=\"160\" y=\"14\" font-size=\"12\" fill=\"#f3f3f3\" text-anchor=\"middle\">2 · Changing the fields</text><text x=\"4\" y=\"156\" font-size=\"12\" fill=\"#f3f3f3\">1 · Reading the card</text><text x=\"318\" y=\"156\" font-size=\"12\" fill=\"#f3f3f3\" text-anchor=\"end\">3 · Checking the build <tspan fill=\"#43c463\">done</tspan></text><line x1=\"160\" y1=\"140\" x2=\"256\" y2=\"114\" stroke=\"#ffa000\" stroke-width=\"4\" stroke-linecap=\"round\"/><circle cx=\"160\" cy=\"140\" r=\"6\" fill=\"#ffa000\"/><text x=\"160\" y=\"105\" font-size=\"11\" fill=\"#ffa000\" text-anchor=\"middle\">AGENT RUN</text></svg><div class=\"mfd\"><p><span>EMAIL</span>hank@globex.example</p><p><span>CITY</span>Springfield</p><p><span>NEXT PAY</span>Oct 11, 2026 <b>⚠ overdue</b></p></div><div class=\"nav\"><b>↱</b><div><small>NEXT MANOEUVRE</small>Add phone and city; overdue in red</div></div><div class=\"bot\"><div class=\"gear\"><small>VER</small><span>v0</span><span>v1</span><span class=\"on\">v2</span></div><div class=\"rk\"><span>◀ Undo</span><span>Apply OK</span></div></div><div class=\"tt\"><span class=\"g\"><i>✓</i>Applied</span><span class=\"a\"><i>!</i>Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "b07",
+  "name": "Glass cockpit PFD",
+  "family": "instruments",
+  "origin": "Boeing/Airbus EFIS primary flight display, EICAS and CPDLC datalink (1980s onward)",
+  "why_not_ai": "Flight-mode annunciator columns with a change box, a rolling speed tape with a pointed readout, cyan/green/amber colour semantics and MCDU line-select prompts are certified cockpit symbology.",
+  "fits": "Cockpit colour logic maps cleanly to an agent: green = engaged/done, cyan = selected, amber = needs a human, and every uplinked request needs an explicit accept.",
+  "palette": [
+   "#000000",
+   "#ffffff",
+   "#22d36b",
+   "#3ad6f0",
+   "#ffb000"
+  ],
+  "roles": {
+   "bg": "#000000",
+   "fg": "#ffffff",
+   "engaged": "#22d36b",
+   "selected": "#3ad6f0",
+   "caution": "#ffb000"
+  },
+  "type": {
+   "display": "B612",
+   "body": "B612",
+   "mono": "B612 Mono"
+  },
+  "fonts": [
+   "B612:wght@400;700",
+   "B612+Mono:wght@400;700"
+  ],
+  "components": [
+   "flight mode annunciator",
+   "speed-tape version readout",
+   "nav data block",
+   "CPDLC uplink message",
+   "MCDU line-select prompts",
+   "EICAS message stack"
+  ],
+  "html": "<div class=\"tile s-b07\"><style>.s-b07 .w{width:360px;box-sizing:border-box;background:#000000;color:#ffffff;font:12px 'B612',sans-serif;padding:10px}.s-b07 .hd{display:flex;justify-content:space-between;align-items:baseline}.s-b07 .hd b{font-size:14px;letter-spacing:1px}.s-b07 .hd span{color:#3ad6f0;font:11px 'B612 Mono',monospace}.s-b07 .fma{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid #ffffff;border-bottom:1px solid #ffffff;margin:6px 0 8px}.s-b07 .fma div{text-align:center;padding:3px 2px;border-left:1px solid #ffffff;color:#22d36b;font-size:11px}.s-b07 .fma div:first-child{border-left:0}.s-b07 .fma p{margin:0 0 2px}.s-b07 .fma small{color:#ffffff;font:11px 'B612 Mono',monospace}.s-b07 .fma .bx p{outline:1px solid #ffffff;outline-offset:1px}.s-b07 .fma .bx small{color:#22d36b;font-weight:700}.s-b07 .mid{display:flex;gap:10px}.s-b07 .tp{width:58px;border-right:2px solid #ffffff;font:13px 'B612 Mono',monospace;text-align:right;padding-right:4px;position:relative}.s-b07 .tp p{margin:0;height:24px;line-height:24px}.s-b07 .tp .tk{color:#ffffff;letter-spacing:2px}.s-b07 .tp .cur{border:2px solid #ffffff;font-size:15px;font-weight:700;padding-right:4px;margin-right:-8px;background:#000000}.s-b07 .nd{flex:1}.s-b07 .nd p{margin:0 0 3px}.s-b07 .nd span{display:block;color:#3ad6f0;font-size:11px}.s-b07 .nd em{font-style:normal;color:#ffb000;border:1px solid #ffb000;padding:0 4px;margin-left:4px;font-weight:700}.s-b07 .dl{border:1px solid #3ad6f0;margin-top:8px;padding:4px 6px}.s-b07 .dl .h{margin:0;font:11px 'B612 Mono',monospace;color:#3ad6f0}.s-b07 .dl .m{margin:2px 0 0;color:#22d36b;font-size:13px}.s-b07 .lsk{display:flex;justify-content:space-between;margin-top:8px;font:700 13px 'B612 Mono',monospace;text-transform:uppercase}.s-b07 .lsk span::before{content:'— ';color:#ffffff}.s-b07 .lsk span+span::before{content:''}.s-b07 .lsk span+span::after{content:' —'}.s-b07 .lsk span{color:#3ad6f0}.s-b07 .ec{border-top:1px solid #ffffff;margin-top:8px;padding-top:4px;font:700 13px 'B612 Mono',monospace;text-transform:uppercase;display:flex;justify-content:space-between}.s-b07 .am{color:#ffb000}.s-b07 .gn{color:#22d36b}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"fma\"><div><p>Reading the card</p><small>OK</small></div><div><p>Changing the fields</p><small>OK</small></div><div class=\"bx\"><p>Checking the build</p><small>DONE</small></div></div><div class=\"mid\"><div class=\"tp\"><p class=\"tk\">—</p><p class=\"cur\">v2</p><p>v1</p><p>v0</p><p class=\"tk\">—</p></div><div class=\"nd\"><p><span>EMAIL</span>hank@globex.example</p><p><span>CITY</span>Springfield</p><p><span>NEXT PAYMENT</span>Oct 11, 2026<em>OVERDUE</em></p></div></div><div class=\"dl\"><p class=\"h\">ATC UPLINK · 1042Z · OPEN</p><p class=\"m\">Add phone and city; overdue in red</p></div><div class=\"lsk\"><span>◂ Undo</span><span>Apply ▸</span></div><div class=\"ec\"><span class=\"am\">Needs admin</span><span class=\"gn\">Applied</span></div></div></div>"
+ },
+ {
+  "id": "b08",
+  "name": "Learning thermostat dial",
+  "family": "instruments",
+  "origin": "Nest Learning Thermostat (Tony Fadell & Fred Bould, 2011) and its tick-ring UI",
+  "why_not_ai": "A ring of 96 ticks where the span between current and target turns orange, a single centre setpoint, and turn-the-ring / press-to-confirm controls are an industrial-design interaction, not a card layout.",
+  "fits": "Choosing a version is turning a dial to a setpoint; the agent \"heats\" toward it and confirms with one press.",
+  "palette": [
+   "#f2f2f2",
+   "#121212",
+   "#ff6b1a",
+   "#8f949a",
+   "#1565c0"
+  ],
+  "roles": {
+   "bg": "#f2f2f2",
+   "fg": "#121212",
+   "heat": "#ff6b1a",
+   "tick": "#8f949a",
+   "cool": "#1565c0"
+  },
+  "type": {
+   "display": "Nunito Sans",
+   "body": "Nunito Sans",
+   "mono": "ui-monospace"
+  },
+  "fonts": [
+   "Nunito+Sans:wght@300;600;800"
+  ],
+  "components": [
+   "tick-ring dial",
+   "orange setpoint arc",
+   "centre setpoint readout",
+   "setpoint line",
+   "press ring and turn-back controls",
+   "schedule list",
+   "tick-bar progress"
+  ],
+  "html": "<div class=\"tile s-b08\"><style>.s-b08 .w{width:360px;box-sizing:border-box;background:#f2f2f2;color:#121212;font:13px 'Nunito Sans',sans-serif;padding:12px 16px}.s-b08 .hd{display:flex;justify-content:space-between;align-items:baseline}.s-b08 .hd b{font-size:15px;font-weight:800}.s-b08 .hd span{font-size:11px;border:1px solid #121212;padding:0 6px}.s-b08 .dl{display:block;margin:6px auto 2px}.s-b08 .set{text-align:center;margin:0 0 8px;font-size:12px}.s-b08 .set b{font-weight:600}.s-b08 .ctl{display:flex;justify-content:center;gap:16px;align-items:center;margin-bottom:8px}.s-b08 .ctl span{display:flex;align-items:center;gap:6px;font-weight:600}.s-b08 .ctl i{width:16px;height:16px;border-radius:50%;border:3px solid #121212;font-style:normal;display:flex;align-items:center;justify-content:center;font-size:13px}.s-b08 .ctl .tn i{border:0;font-size:15px}.s-b08 .ctl .ad{background:#1565c0;color:#f2f2f2;padding:1px 8px;font-size:12px}.s-b08 .lst{list-style:none;margin:0;padding:6px 0 0;border-top:1px solid #121212}.s-b08 .lst li{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:12px}.s-b08 .lst span{width:72px;font-size:11px;font-weight:800;letter-spacing:1px}.s-b08 .lst em{font-style:normal;background:#ff6b1a;color:#121212;padding:0 6px;font-weight:600}.s-b08 .lst i{height:10px;width:72px;margin-left:auto;background:repeating-linear-gradient(90deg,#ff6b1a 0 2px,#f2f2f2 2px 6px)}.s-b08 .lst b{font-size:11px;font-weight:800}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><svg class=\"dl\" width=\"210\" height=\"210\" viewBox=\"0 0 220 220\"><circle cx=\"110\" cy=\"110\" r=\"107\" fill=\"#8f949a\"/><circle cx=\"110\" cy=\"110\" r=\"99\" fill=\"#121212\"/><circle cx=\"110\" cy=\"110\" r=\"88\" fill=\"none\" stroke=\"#8f949a\" stroke-width=\"10\" stroke-dasharray=\"1.5 4.26\"/><path d=\"M33.8 154 A88 88 0 0 1 166.6 42.6\" fill=\"none\" stroke=\"#ff6b1a\" stroke-width=\"10\" stroke-dasharray=\"1.5 4.26\"/><line x1=\"40.7\" y1=\"150\" x2=\"26.9\" y2=\"158\" stroke=\"#f2f2f2\" stroke-width=\"3\"/><line x1=\"58.6\" y1=\"48.7\" x2=\"48.3\" y2=\"36.5\" stroke=\"#f2f2f2\" stroke-width=\"3\"/><circle cx=\"166.6\" cy=\"42.6\" r=\"6\" fill=\"#f2f2f2\"/><text x=\"56\" y=\"140\" font-size=\"12\" fill=\"#8f949a\" text-anchor=\"middle\">v0</text><text x=\"70\" y=\"70\" font-size=\"12\" fill=\"#8f949a\" text-anchor=\"middle\">v1</text><text x=\"150\" y=\"70\" font-size=\"13\" fill=\"#f2f2f2\" font-weight=\"800\" text-anchor=\"middle\">v2</text><text x=\"110\" y=\"96\" font-size=\"11\" fill=\"#8f949a\" text-anchor=\"middle\" letter-spacing=\"2\">CURRENT</text><text x=\"110\" y=\"117\" font-size=\"15\" fill=\"#f2f2f2\" font-weight=\"800\" text-anchor=\"middle\">v2</text><text x=\"110\" y=\"140\" font-size=\"13\" fill=\"#ff6b1a\" font-weight=\"600\" text-anchor=\"middle\">Applied</text></svg><p class=\"set\">Set to · <b>Add phone and city; overdue in red</b></p><div class=\"ctl\"><span><i></i>Apply</span><span class=\"tn\"><i>↺</i>Undo</span><span class=\"ad\">Needs admin</span></div><ul class=\"lst\"><li><span>EMAIL</span>hank@globex.example</li><li><span>CITY</span>Springfield</li><li><span>NEXT PAY</span>Oct 11, 2026 <em>overdue</em></li></ul><ul class=\"lst\"><li>Reading the card<i></i></li><li>Changing the fields<i></i></li><li>Checking the build <b>· done</b><i></i></li></ul></div></div>"
+ },
+ {
+  "id": "b09",
+  "name": "Casio databank LCD",
+  "family": "instruments",
+  "origin": "Casio digital watches and DBC databank models (1980s): reflective LCD, gold-printed bezel legends",
+  "why_not_ai": "Ghost segments of an unlit 7-segment digit, mode flags with a pointer, gold legends printed next to physical pushers and a LAP/SPL list are cheap-electronics conventions no design system ships.",
+  "fits": "A tiny, always-on readout suits a status-first agent: one digit says the version, the databank holds the record, two pushers commit or revert.",
+  "palette": [
+   "#1b1c1e",
+   "#c3cdb3",
+   "#1d2419",
+   "#a6b497",
+   "#e3b23c"
+  ],
+  "roles": {
+   "bg": "#1b1c1e",
+   "lcd": "#c3cdb3",
+   "segment": "#1d2419",
+   "ghost": "#a6b497",
+   "legend": "#e3b23c"
+  },
+  "type": {
+   "display": "Arimo",
+   "body": "DotGothic16",
+   "mono": "DotGothic16"
+  },
+  "fonts": [
+   "Arimo:wght@700",
+   "DotGothic16"
+  ],
+  "components": [
+   "printed bezel legends",
+   "mode flag row with pointer",
+   "7-segment digit with ghost segments",
+   "databank rows",
+   "LAP/SPL list",
+   "side pushers",
+   "annunciator flags"
+  ],
+  "html": "<div class=\"tile s-b09\"><style>.s-b09 .w{width:360px;box-sizing:border-box;background:#1b1c1e;color:#e3b23c;font:700 11px 'Arimo',sans-serif;padding:10px 0 10px 12px;letter-spacing:1px}.s-b09 .top{display:flex;justify-content:space-between;align-items:baseline;padding-right:14px}.s-b09 .top b{font-size:15px;letter-spacing:2px}.s-b09 .md{margin:2px 0 6px;font-weight:400}.s-b09 .bd{display:flex;gap:6px;align-items:stretch}.s-b09 .lcd{flex:1;background:#c3cdb3;color:#1d2419;font:12px 'DotGothic16',monospace;letter-spacing:0;padding:6px 8px;border:3px solid #a6b497}.s-b09 .fl{display:flex;gap:8px;align-items:flex-end;font-size:11px;border-bottom:1px solid #1d2419;padding-bottom:3px}.s-b09 .fl span{position:relative;padding-top:10px}.s-b09 .fl .on::before{content:'▼';position:absolute;top:-1px;left:3px;font-size:11px}.s-b09 .fl .on{font-weight:700;text-decoration:underline}.s-b09 .fl i{font-style:normal;margin-left:auto;border:1px solid #1d2419;padding:0 3px}.s-b09 .fl i+i{margin-left:0;background:#1d2419;color:#c3cdb3}.s-b09 .big{display:flex;align-items:center;gap:8px;margin:6px 0 4px}.s-b09 .big small{display:block;font-size:11px;line-height:13px}.s-b09 .big div{border-left:1px solid #1d2419;padding-left:8px}.s-b09 .db,.s-b09 .lp{margin:0;display:flex;gap:6px;line-height:16px}.s-b09 .db span,.s-b09 .lp span{width:42px;flex:none}.s-b09 .db em{font-style:normal;background:#1d2419;color:#c3cdb3;padding:0 3px;margin-left:4px}.s-b09 .lp{border-top:1px dotted #1d2419}.s-b09 .lp b{margin-left:auto;background:#1d2419;color:#c3cdb3;padding:0 3px;font-weight:400}.s-b09 .ps{width:56px;display:flex;flex-direction:column;justify-content:space-around}.s-b09 .ps div{display:flex;align-items:center;gap:4px}.s-b09 .ps i{width:9px;height:22px;background:#a6b497;margin-left:-6px}.s-b09 .bt{display:flex;justify-content:space-between;padding:6px 70px 0 0;font-weight:400}</style><div class=\"w\"><div class=\"top\"><span>LIGHT</span><b>morphkit</b><span>DATA BANK</span></div><p class=\"md\">customer-card.tsx · dynamic</p><div class=\"bd\"><div class=\"lcd\"><div class=\"fl\"><span>v0</span><span>v1</span><span class=\"on\">v2</span><i>Applied</i><i>Needs admin</i></div><div class=\"big\"><svg width=\"26\" height=\"44\" viewBox=\"0 0 26 44\"><rect x=\"5\" y=\"1\" width=\"16\" height=\"4\" fill=\"#1d2419\"/><rect x=\"21\" y=\"5\" width=\"4\" height=\"15\" fill=\"#1d2419\"/><rect x=\"21\" y=\"24\" width=\"4\" height=\"15\" fill=\"#a6b497\"/><rect x=\"5\" y=\"39\" width=\"16\" height=\"4\" fill=\"#1d2419\"/><rect x=\"1\" y=\"24\" width=\"4\" height=\"15\" fill=\"#1d2419\"/><rect x=\"1\" y=\"5\" width=\"4\" height=\"15\" fill=\"#a6b497\"/><rect x=\"5\" y=\"20\" width=\"16\" height=\"4\" fill=\"#1d2419\"/></svg><div><small>VERSION</small><small>CURRENT</small></div></div><p class=\"db\"><span>EMAIL</span>hank@globex.example</p><p class=\"db\"><span>CITY</span>Springfield</p><p class=\"db\"><span>NEXT</span>Oct 11, 2026<em>overdue</em></p><p class=\"db\"><span>MEMO</span>Add phone and city; overdue in red</p><p class=\"lp\"><span>LAP1</span>Reading the card</p><p class=\"lp\"><span>LAP2</span>Changing the fields</p><p class=\"lp\"><span>SPL</span>Checking the build<b>done</b></p></div><div class=\"ps\"><div><i></i>APPLY</div><div><i></i>UNDO</div></div></div><div class=\"bt\"><span>MODE</span><span>WATER RESIST</span></div></div></div>"
+ },
+ {
+  "id": "b10",
+  "name": "Teletext page",
+  "family": "instruments",
+  "origin": "BBC Ceefax / ORACLE teletext (1974), World System Teletext level 1",
+  "why_not_ai": "A 40-column grid in seven saturated colours, a P302 header with clock, sixel mosaic bands, double-height rows, 1/3 subpage counters and the red-green-yellow fastext row are broadcast-spec constraints.",
+  "fits": "Every agent state is a numbered page you can dial straight to: versions are page numbers, steps are rotating subpages, actions are fastext keys.",
+  "palette": [
+   "#000000",
+   "#ffffff",
+   "#ffff00",
+   "#00ff00",
+   "#ff0000"
+  ],
+  "roles": {
+   "bg": "#000000",
+   "fg": "#ffffff",
+   "heading": "#ffff00",
+   "ok": "#00ff00",
+   "alert": "#ff0000"
+  },
+  "type": {
+   "display": "VT323",
+   "body": "VT323",
+   "mono": "VT323"
+  },
+  "fonts": [
+   "VT323"
+  ],
+  "components": [
+   "P-number header with clock",
+   "sixel mosaic band",
+   "double-height row",
+   "subpage rotation counter",
+   "page index",
+   "fastext key row"
+  ],
+  "html": "<div class=\"tile s-b10\"><style>.s-b10 .w{width:360px;box-sizing:border-box;background:#000000;color:#ffffff;font:15px/17px 'VT323',monospace;padding:8px 10px}.s-b10 .w p{margin:0;white-space:pre}.s-b10 .y{color:#ffff00}.s-b10 .g{color:#00ff00}.s-b10 .r{color:#ff0000}.s-b10 .dh{background:#ffff00;color:#000000;transform:scaleY(1.8);transform-origin:top;margin:3px 0 16px!important;padding:0 4px}.s-b10 .gb{background:#00ff00;color:#000000}.s-b10 .yb{background:#ffff00;color:#000000}.s-b10 .w i{font-style:normal}.s-b10 .fx{display:flex;justify-content:space-between;margin-top:6px!important}.s-b10 .mo{display:block;margin:2px 0}</style><div class=\"w\"><p><i class=\"y\">P302</i> morphkit 302 Sun 18 Oct <i class=\"y\">10:42/31</i></p><svg class=\"mo\" width=\"340\" height=\"12\" viewBox=\"0 0 340 12\"><defs><pattern id=\"b10m\" width=\"24\" height=\"12\" patternUnits=\"userSpaceOnUse\"><rect width=\"6\" height=\"6\" fill=\"#ffff00\"/><rect x=\"6\" y=\"6\" width=\"6\" height=\"6\" fill=\"#ffff00\"/><rect x=\"12\" width=\"6\" height=\"12\" fill=\"#00ff00\"/><rect x=\"18\" y=\"6\" width=\"6\" height=\"6\" fill=\"#ff0000\"/></pattern></defs><rect width=\"340\" height=\"12\" fill=\"url(#b10m)\"/></svg><p class=\"dh\">customer-card.tsx · dynamic</p><p>Email....... <i class=\"y\">hank@globex.example</i></p><p>City........ <i class=\"y\">Springfield</i></p><p>Next pay.... <i class=\"y\">Oct 11, 2026</i> <i class=\"r\">OVERDUE</i></p><p class=\"g\">» Add phone and city; overdue in red</p><p> </p><p><i class=\"y\">1/3</i> Reading the card</p><p><i class=\"y\">2/3</i> Changing the fields</p><p><i class=\"y\">3/3</i> Checking the build <i class=\"gb\"> DONE </i></p><p> </p><p>v0 <i class=\"y\">300</i> v1 <i class=\"y\">301</i> <i class=\"yb\"> v2 302 </i> ◄ now</p><p><i class=\"gb\"> Applied </i> <i class=\"r\">Needs admin</i> <i class=\"y\">p.399</i></p><p class=\"fx\"><i class=\"r\">Undo</i><i class=\"g\">Apply</i><i class=\"y\">History</i><i>Index</i></p></div></div>"
+ },
+ {
+  "id": "b11",
+  "name": "Dymo embossed label tape",
+  "family": "instruments",
+  "origin": "Dymo embossing label maker (1958) and the label-everything workshop habit",
+  "why_not_ai": "Raised condensed capitals on coloured plastic tape with angled scissor-cut ends, stuck slightly crooked, plus the character wheel you turn to pick a letter, are tactile workshop artefacts.",
+  "fits": "Labels are what you stick on a panel you are allowed to change; the agent prints a fresh tape for every field it edits.",
+  "palette": [
+   "#d8d9d4",
+   "#111111",
+   "#f6f6f2",
+   "#b3201c",
+   "#1f4e9a"
+  ],
+  "roles": {
+   "bg": "#d8d9d4",
+   "fg": "#111111",
+   "emboss": "#f6f6f2",
+   "alert": "#b3201c",
+   "tape2": "#1f4e9a"
+  },
+  "type": {
+   "display": "Antonio",
+   "body": "Work Sans",
+   "mono": "ui-monospace"
+  },
+  "fonts": [
+   "Antonio:wght@600;700",
+   "Work+Sans:wght@400;600"
+  ],
+  "components": [
+   "embossed tape strip",
+   "tape exit slot",
+   "character wheel",
+   "numbered tape sequence",
+   "tape-labelled push button",
+   "crooked stuck-on tag"
+  ],
+  "html": "<div class=\"tile s-b11\"><style>.s-b11 .w{width:360px;box-sizing:border-box;background:#d8d9d4;color:#111111;font:12px 'Work Sans',sans-serif;padding:12px}.s-b11 .t{display:inline-block;background:#111111;color:#f6f6f2;font:700 13px 'Antonio',sans-serif;letter-spacing:2px;text-transform:uppercase;padding:2px 12px;clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}.s-b11 .bl{background:#1f4e9a}.s-b11 .rd{background:#b3201c}.s-b11 .hd{display:flex;gap:6px;align-items:center}.s-b11 .hd .t:first-child{font-size:15px}.s-b11 .f{margin:3px 0}.s-b11 .ov{transform:rotate(-4deg);margin-left:-4px}.s-b11 .cap{font-size:11px;font-weight:600;letter-spacing:1px;margin:10px 0 4px}.s-b11 .mc{display:flex;align-items:center}.s-b11 .nose{width:20px;height:34px;background:#111111;clip-path:polygon(0 0,100% 25%,100% 75%,0 100%)}.s-b11 .mc .t{font-size:12px;letter-spacing:1px;padding-right:16px}.s-b11 .cut{font-size:13px;margin-left:4px}.s-b11 .lo{display:grid;grid-template-columns:104px 1fr;gap:12px;margin-top:6px}.s-b11 .lo p{margin:0 0 4px}.s-b11 .lo .t{font-size:12px;letter-spacing:1px;padding:1px 10px}.s-b11 .wl{font-size:11px;text-align:center;font-weight:600}.s-b11 .bt{display:flex;gap:10px;align-items:center;margin-top:10px}.s-b11 .bt span.k{border:3px solid #111111;background:#f6f6f2;padding:6px}.s-b11 .tag{margin-left:auto;display:flex;gap:4px}.s-b11 .tag .t{transform:rotate(3deg);font-size:12px}.s-b11 .tag .t+.t{transform:rotate(-3deg)}</style><div class=\"w\"><div class=\"hd\"><span class=\"t\">morphkit</span><span class=\"t bl\">customer-card.tsx · dynamic</span></div><p class=\"cap\">CUSTOMER PANEL</p><div class=\"f\"><span class=\"t\">Email hank@globex.example</span></div><div class=\"f\"><span class=\"t\">City Springfield</span></div><div class=\"f\"><span class=\"t\">Next pay Oct 11, 2026</span><span class=\"t rd ov\">overdue</span></div><p class=\"cap\">REQUEST · PRINTING</p><div class=\"mc\"><span class=\"nose\"></span><span class=\"t bl\">Add phone and city; overdue in red</span><span class=\"cut\">✂</span></div><div class=\"lo\"><div><svg width=\"104\" height=\"104\" viewBox=\"0 -10 100 110\"><circle cx=\"50\" cy=\"50\" r=\"48\" fill=\"#111111\"/><circle cx=\"50\" cy=\"50\" r=\"18\" fill=\"#d8d9d4\"/><polygon points=\"43,-10 57,-10 50,-1\" fill=\"#b3201c\"/><circle cx=\"50\" cy=\"12\" r=\"10\" fill=\"#b3201c\"/><g font-size=\"11\" fill=\"#f6f6f2\" text-anchor=\"middle\" font-family=\"Antonio,sans-serif\" font-weight=\"700\"><text x=\"50\" y=\"16\">v2</text><text x=\"27.7\" y=\"23\">v1</text><text x=\"13.9\" y=\"42\">v0</text><text x=\"72.3\" y=\"23\">A</text><text x=\"86.1\" y=\"42\">B</text><text x=\"86.1\" y=\"66\">C</text><text x=\"72.3\" y=\"85\">D</text><text x=\"50\" y=\"92\">E</text><text x=\"27.7\" y=\"85\">?</text><text x=\"13.9\" y=\"66\">&amp;</text></g></svg><div class=\"wl\">VERSION WHEEL</div></div><div><p><span class=\"t\">1 Reading the card</span></p><p><span class=\"t\">2 Changing the fields</span></p><p><span class=\"t\">3 Checking the build</span> <span class=\"t bl\">done</span></p></div></div><div class=\"bt\"><span class=\"k\"><span class=\"t bl\">Apply</span></span><span class=\"k\"><span class=\"t\">Undo</span></span><span class=\"tag\"><span class=\"t\">Applied</span><span class=\"t rd\">Needs admin</span></span></div></div></div>"
+ },
+ {
+  "id": "b12",
+  "name": "Dot-matrix line printer",
+  "family": "instruments",
+  "origin": "Impact dot-matrix printers on green-bar continuous form (Epson MX-80, IBM 1403 listings)",
+  "why_not_ai": "Tractor-feed sprocket margins, green-bar banding every three lines, a two-colour ribbon for exceptions, ASCII box rules and a tear-off perforation are output-device artefacts.",
+  "fits": "An agent run is a job listing: every change prints as a dated, numbered run the admin can file, and red ribbon flags what needs a human.",
+  "palette": [
+   "#fbfcf8",
+   "#d6ead8",
+   "#222222",
+   "#b42020",
+   "#a9b3aa"
+  ],
+  "roles": {
+   "bg": "#fbfcf8",
+   "band": "#d6ead8",
+   "fg": "#222222",
+   "ribbon": "#b42020",
+   "perf": "#a9b3aa"
+  },
+  "type": {
+   "display": "Courier Prime",
+   "body": "Courier Prime",
+   "mono": "Courier Prime"
+  },
+  "fonts": [
+   "Courier+Prime:wght@400;700"
+  ],
+  "components": [
+   "tractor-feed margins",
+   "green-bar banding",
+   "red-ribbon overprint",
+   "dot-leader step listing",
+   "ASCII box status",
+   "tear-off perforation",
+   "printer control panel"
+  ],
+  "html": "<div class=\"tile s-b12\"><style>.s-b12 .w{width:360px;box-sizing:border-box;background:#fbfcf8;color:#222222;font:12px/16px 'Courier Prime',monospace;display:grid;grid-template-columns:20px 1fr 20px}.s-b12 .mg{background-image:radial-gradient(circle,#a9b3aa 0 4px,#fbfcf8 5px);background-size:20px 20px;border-right:1px dashed #a9b3aa}.s-b12 .mg+.pg+.mg{border-right:0;border-left:1px dashed #a9b3aa}.s-b12 .pg{background:repeating-linear-gradient(#d6ead8 0 48px,#fbfcf8 48px 96px);padding:0 6px;overflow:hidden}.s-b12 .pg p{margin:0;white-space:pre;height:16px}.s-b12 .pg r{color:#b42020;font-weight:700}.s-b12 .pf{border-top:2px dashed #a9b3aa;margin-top:16px;padding:8px 0 10px;display:flex;gap:8px;align-items:center}.s-b12 .pf span{background:#222222;color:#fbfcf8;padding:3px 8px;display:flex;align-items:center;gap:6px;font-weight:700}.s-b12 .pf i{width:8px;height:8px;background:#d6ead8}.s-b12 .pf span+span i{background:#a9b3aa}.s-b12 .pf em{font-style:normal;font-size:11px;margin-left:auto}</style><div class=\"w\"><div class=\"mg\"></div><div class=\"pg\"><p>MORPHKIT RUN 0042 PAGE 001</p><p>ZONE customer-card.tsx · dynamic</p><p>----------------------------------------</p><p>EMAIL hank@globex.example</p><p>CITY Springfield</p><p>NEXT PAY Oct 11, 2026 <r>** OVERDUE **</r></p><p>REQ&gt; Add phone and city; overdue in red</p><p>----------------------------------------</p><p>[1] Reading the card ............ OK</p><p>[2] Changing the fields ......... OK</p><p>[3] Checking the build .......... <b>DONE</b></p><p>VERSION v0 v1 <b>[v2]</b> current</p><p>+---------+ <r>+-------------+</r></p><p>| APPLIED | <r>| NEEDS ADMIN |</r></p><p>+---------+ <r>+-------------+</r></p><div class=\"pf\"><span><i></i>Apply</span><span><i></i>Undo</span><em>ON LINE · FORM FEED</em></div></div><div class=\"mg\"></div></div></div>"
+ },
+ {
+  "id": "b13",
+  "name": "Ferraris electricity meter",
+  "family": "instruments",
+  "origin": "Induction (Ferraris) kWh meters with clock-dial registers, 1890s to 1990s",
+  "why_not_ai": "Clock-dial registers that alternate rotation direction, a spinning disc seen edge-on through a slot with its black mark, a rating nameplate, a lead seal tag and verification roundels are utility-hardware conventions.",
+  "fits": "A meter is an audited, tamper-sealed record of what changed: the register shows which version is in service and the seal carries the request.",
+  "palette": [
+   "#2b2d2f",
+   "#f3f4f1",
+   "#1b1b1b",
+   "#b71c1c",
+   "#5f6467"
+  ],
+  "roles": {
+   "bg": "#2b2d2f",
+   "fg": "#f3f4f1",
+   "ink": "#1b1b1b",
+   "alert": "#b71c1c",
+   "metal": "#5f6467"
+  },
+  "type": {
+   "display": "Bitter",
+   "body": "Bitter",
+   "mono": "Cutive Mono"
+  },
+  "fonts": [
+   "Bitter:wght@400;700",
+   "Cutive+Mono"
+  ],
+  "components": [
+   "rating nameplate",
+   "clock-dial register",
+   "disc window with black mark",
+   "lead seal tag",
+   "breaker toggle with reset push",
+   "verification roundels"
+  ],
+  "html": "<div class=\"tile s-b13\"><style>.s-b13 .w{width:360px;box-sizing:border-box;background:#2b2d2f;color:#f3f4f1;font:12px 'Bitter',serif;padding:10px}.s-b13 .fc{background:#f3f4f1;color:#1b1b1b;padding:8px 10px;border:2px solid #5f6467}.s-b13 .np{border:3px double #1b1b1b;padding:4px 8px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline}.s-b13 .np b{font-size:15px}.s-b13 .np span{font-size:11px}.s-b13 .np em{width:100%;font:11px 'Cutive Mono',monospace;font-style:normal}.s-b13 .rg{display:flex;align-items:center;gap:6px;margin:6px 0}.s-b13 .rg p{margin:0;font-size:11px;line-height:14px}.s-b13 .lg{margin:0;display:grid;grid-template-columns:86px 1fr;row-gap:2px}.s-b13 .lg dt{font-size:11px;font-variant:small-caps;letter-spacing:1px}.s-b13 .lg dd{margin:0}.s-b13 .lg em{color:#b71c1c;font-weight:700;font-style:normal}.s-b13 .dk{margin-top:6px;border-top:1px solid #1b1b1b;padding-top:5px}.s-b13 .dk p{margin:0 0 3px;display:flex;align-items:center;gap:8px}.s-b13 .sl{width:64px;height:8px;background:#5f6467;border:2px solid #1b1b1b;position:relative;flex:none}.s-b13 .sl i{position:absolute;top:0;width:6px;height:8px;background:#1b1b1b}.s-b13 .m1 i{left:6px}.s-b13 .m2 i{left:28px}.s-b13 .m3 i{left:52px;background:#b71c1c}.s-b13 .dk b{color:#b71c1c}.s-b13 .sg{display:flex;align-items:center;margin:8px 0}.s-b13 .tg{border:1px solid #f3f4f1;padding:3px 6px;font:12px 'Cutive Mono',monospace}.s-b13 .lo{display:flex;align-items:center;gap:10px}.s-b13 .bk{text-align:center;font-size:11px}.s-b13 .bk i{display:block;width:22px;height:30px;border:2px solid #f3f4f1;margin:0 auto 2px;position:relative}.s-b13 .bk i::after{content:'';position:absolute;left:5px;top:3px;width:8px;height:10px;background:#f3f4f1}.s-b13 .rs i{display:block;width:16px;height:16px;border-radius:50%;border:3px solid #f3f4f1;margin:0 auto 4px}.s-b13 .rd{width:58px;height:58px;border-radius:50%;border:3px double #f3f4f1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:700;margin-left:auto}.s-b13 .rd+.rd{margin-left:0;background:#b71c1c;border-color:#f3f4f1}</style><div class=\"w\"><div class=\"fc\"><div class=\"np\"><b>morphkit</b><span>Type MK-2 · Class 2 · 50 Hz</span><em>customer-card.tsx · dynamic</em></div><div class=\"rg\"><svg width=\"190\" height=\"64\" viewBox=\"0 0 190 64\"><circle cx=\"30\" cy=\"24\" r=\"21\" fill=\"#f3f4f1\" stroke=\"#1b1b1b\" stroke-width=\"1.5\"/><circle cx=\"30\" cy=\"24\" r=\"17\" fill=\"none\" stroke=\"#1b1b1b\" stroke-width=\"4\" stroke-dasharray=\"1 9.68\"/><line x1=\"30\" y1=\"24\" x2=\"30.0\" y2=\"10.0\" stroke=\"#1b1b1b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><circle cx=\"30\" cy=\"24\" r=\"3\" fill=\"#1b1b1b\"/><circle cx=\"95\" cy=\"24\" r=\"21\" fill=\"#f3f4f1\" stroke=\"#1b1b1b\" stroke-width=\"1.5\"/><circle cx=\"95\" cy=\"24\" r=\"17\" fill=\"none\" stroke=\"#1b1b1b\" stroke-width=\"4\" stroke-dasharray=\"1 9.68\"/><line x1=\"95\" y1=\"24\" x2=\"86.8\" y2=\"12.7\" stroke=\"#1b1b1b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><circle cx=\"95\" cy=\"24\" r=\"3\" fill=\"#1b1b1b\"/><circle cx=\"160\" cy=\"24\" r=\"21\" fill=\"#f3f4f1\" stroke=\"#1b1b1b\" stroke-width=\"1.5\"/><circle cx=\"160\" cy=\"24\" r=\"17\" fill=\"none\" stroke=\"#1b1b1b\" stroke-width=\"4\" stroke-dasharray=\"1 9.68\"/><line x1=\"160\" y1=\"24\" x2=\"173.3\" y2=\"19.7\" stroke=\"#b71c1c\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><circle cx=\"160\" cy=\"24\" r=\"3\" fill=\"#b71c1c\"/><g font-size=\"11\" text-anchor=\"middle\" fill=\"#1b1b1b\"><text x=\"30\" y=\"61\">v0 ↻</text><text x=\"95\" y=\"61\">v1 ↺</text><text x=\"160\" y=\"61\" font-weight=\"700\" fill=\"#b71c1c\">v2 ↻</text></g></svg><p>REGISTER<br>versions in service</p></div><dl class=\"lg\"><dt>Email</dt><dd>hank@globex.example</dd><dt>City</dt><dd>Springfield</dd><dt>Next payment</dt><dd>Oct 11, 2026 <em>◂ overdue</em></dd></dl><div class=\"dk\"><p><span class=\"sl m1\"><i></i></span>Reading the card</p><p><span class=\"sl m2\"><i></i></span>Changing the fields</p><p><span class=\"sl m3\"><i></i></span>Checking the build <b>done</b></p></div></div><div class=\"sg\"><svg width=\"44\" height=\"20\" viewBox=\"0 0 44 20\"><path d=\"M0 10 Q12 0 24 10 T44 10\" stroke=\"#5f6467\" stroke-width=\"2\" fill=\"none\"/><circle cx=\"10\" cy=\"10\" r=\"7\" fill=\"#5f6467\"/></svg><span class=\"tg\">SEAL · Add phone and city; overdue in red</span></div><div class=\"lo\"><div class=\"bk\"><i></i>Apply · ON</div><div class=\"bk rs\"><i></i>Undo · RESET</div><div class=\"rd\">Applied</div><div class=\"rd\">Needs admin</div></div></div></div>"
+ },
+ {
+  "id": "b14",
+  "name": "Elevator car operating panel",
+  "family": "instruments",
+  "origin": "Elevator car operating panels (Otis, Schindler) with ADA braille and posted inspection certificates",
+  "why_not_ai": "Round floor buttons with lit rings and braille, a red LED position indicator, door-open/close glyphs, a yellow alarm bell, a key switch and a framed operating certificate are building-code hardware.",
+  "fits": "Versions are floors: you press one, the car travels through the agent's steps and arrives, and the alarm calls an admin.",
+  "palette": [
+   "#c4c8cb",
+   "#1a1a1a",
+   "#f5f5f2",
+   "#ff3b30",
+   "#ffb300"
+  ],
+  "roles": {
+   "bg": "#c4c8cb",
+   "fg": "#1a1a1a",
+   "face": "#f5f5f2",
+   "led": "#ff3b30",
+   "alarm": "#ffb300"
+  },
+  "type": {
+   "display": "Red Hat Display",
+   "body": "Red Hat Display",
+   "mono": "Red Hat Mono"
+  },
+  "fonts": [
+   "Red+Hat+Display:wght@500;800",
+   "Red+Hat+Mono:wght@500;700"
+  ],
+  "components": [
+   "engraved faceplate",
+   "framed operating certificate",
+   "LED position indicator",
+   "floor buttons with braille and lit ring",
+   "floor-passing list",
+   "intercom grille",
+   "door open/close buttons",
+   "alarm bell button",
+   "key switch"
+  ],
+  "html": "<div class=\"tile s-b14\"><style>.s-b14 .w{width:360px;box-sizing:border-box;background:#c4c8cb;color:#1a1a1a;font:12px 'Red Hat Display',sans-serif;padding:12px}.s-b14 .pl{border:1px solid #1a1a1a;padding:5px 8px;display:flex;justify-content:space-between;align-items:baseline}.s-b14 .pl b{font-size:15px;font-weight:800;letter-spacing:3px;text-transform:uppercase}.s-b14 .pl span{font:11px 'Red Hat Mono',monospace}.s-b14 .top{display:grid;grid-template-columns:1fr 70px;gap:8px;margin-top:8px}.s-b14 .ct{border:4px solid #1a1a1a;background:#f5f5f2;padding:4px 6px}.s-b14 .ct .t{margin:0 0 3px;font-size:11px;font-weight:800;letter-spacing:1px;border-bottom:1px solid #1a1a1a}.s-b14 .ct p{margin:0 0 1px}.s-b14 .ct span{display:inline-block;width:78px;font-size:11px}.s-b14 .ct em{font-style:normal;background:#ff3b30;color:#1a1a1a;padding:0 4px;font-weight:800}.s-b14 .ind{background:#1a1a1a;color:#ff3b30;font:700 15px 'Red Hat Mono',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.s-b14 .ind small{font-size:11px}.s-b14 .fl{display:flex;gap:14px;margin-top:10px;align-items:flex-start}.s-b14 .fb{text-align:center}.s-b14 .fb i{display:flex;width:34px;height:34px;border-radius:50%;background:#f5f5f2;border:3px solid #1a1a1a;align-items:center;justify-content:center;font:700 13px 'Red Hat Mono',monospace;font-style:normal}.s-b14 .fb.on i{border-color:#ff3b30;outline:2px solid #1a1a1a}.s-b14 .fb u{display:block;text-decoration:none;font-size:13px;letter-spacing:1px}.s-b14 .ps{list-style:none;margin:0;padding:0;flex:1}.s-b14 .ps li{margin-bottom:3px}.s-b14 .ps .dn{font-weight:800}.s-b14 .ps b{background:#ffb300;padding:0 4px}.s-b14 .ic{display:flex;gap:8px;align-items:center;margin-top:8px;border-top:1px solid #1a1a1a;padding-top:8px}.s-b14 .gr{width:44px;height:30px;flex:none;background:repeating-linear-gradient(#1a1a1a 0 3px,#c4c8cb 3px 6px)}.s-b14 .ic p{margin:0}.s-b14 .ic small{display:block;font-size:11px;font-weight:800;letter-spacing:1px}.s-b14 .ctl{display:flex;gap:12px;margin-top:10px;align-items:flex-start}.s-b14 .cb{text-align:center;font-size:11px;font-weight:800}.s-b14 .cb i{display:flex;width:36px;height:36px;border-radius:50%;background:#f5f5f2;border:3px solid #1a1a1a;margin:0 auto 2px;align-items:center;justify-content:center;font-style:normal;font-size:12px}.s-b14 .cb.al i{background:#ffb300}.s-b14 .cb.ky i{background:#c4c8cb}.s-b14 .cb.ky b{display:block;width:4px;height:18px;background:#1a1a1a;transform:rotate(45deg)}</style><div class=\"w\"><div class=\"pl\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"top\"><div class=\"ct\"><p class=\"t\">CERTIFICATE OF OPERATION</p><p><span>Email</span>hank@globex.example</p><p><span>City</span>Springfield</p><p><span>Next payment</span>Oct 11, 2026 <em>overdue</em></p></div><div class=\"ind\"><span>▲ v2</span><small>FLOOR</small></div></div><div class=\"fl\"><div class=\"fb\"><i>v0</i><u>⠼⠚</u></div><div class=\"fb\"><i>v1</i><u>⠼⠁</u></div><div class=\"fb on\"><i>v2</i><u>⠼⠃</u></div><ul class=\"ps\"><li>▲ Reading the card</li><li>▲ Changing the fields</li><li class=\"dn\">■ Checking the build <b>done</b></li></ul></div><div class=\"ic\"><span class=\"gr\"></span><p><small>INTERCOM · CALL</small>Add phone and city; overdue in red</p></div><div class=\"ctl\"><div class=\"cb\"><i>◀|▶</i>Apply</div><div class=\"cb\"><i>▶|◀</i>Undo</div><div class=\"cb al\"><i><svg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\"><path d=\"M4 13 Q4 4 9 4 Q14 4 14 13 Z\" fill=\"#1a1a1a\"/><rect x=\"3\" y=\"13\" width=\"12\" height=\"2\" fill=\"#1a1a1a\"/><circle cx=\"9\" cy=\"16.5\" r=\"1.5\" fill=\"#1a1a1a\"/></svg></i>Needs admin</div><div class=\"cb ky\"><i><b></b></i>Applied</div></div></div></div>"
+ },
+ {
+  "id": "b15",
+  "name": "Building management graphic",
+  "family": "instruments",
+  "origin": "BMS / SCADA operator graphics for air-handling units (Johnson Metasys, Siemens Insight, 1990s)",
+  "why_not_ai": "A duct schematic with damper, coil and fan symbols, black point-value boxes with green readings, Hand-Off-Auto selectors, Command/Release bevel buttons and an alarm summary with ACK are plant-room operator conventions.",
+  "fits": "An agent changing a live app is plant control: commands, overrides and releases on a running system, with alarms routed to an operator.",
+  "palette": [
+   "#d4d0c8",
+   "#000000",
+   "#ffffff",
+   "#19c819",
+   "#e00000"
+  ],
+  "roles": {
+   "bg": "#d4d0c8",
+   "fg": "#000000",
+   "light": "#ffffff",
+   "ok": "#19c819",
+   "alarm": "#e00000"
+  },
+  "type": {
+   "display": "Verdana, Tahoma, sans-serif",
+   "body": "Verdana, Tahoma, sans-serif",
+   "mono": "Consolas, 'Lucida Console', monospace"
+  },
+  "fonts": [],
+  "components": [
+   "duct schematic with equipment symbols",
+   "numbered equipment tags",
+   "point value boxes",
+   "operator command field",
+   "Hand-Off-Auto selector",
+   "Command/Release bevel buttons",
+   "alarm summary with ACK"
+  ],
+  "html": "<div class=\"tile s-b15\"><style>.s-b15 .w{width:360px;box-sizing:border-box;background:#d4d0c8;color:#000000;font:11px Verdana,Tahoma,sans-serif;padding:8px 10px}.s-b15 .hd{display:flex;justify-content:space-between;border-bottom:2px solid #000000;padding-bottom:3px}.s-b15 .hd b{font-size:13px}.s-b15 .lg p{margin:2px 0;display:flex;align-items:center;gap:6px}.s-b15 .lg b{width:14px;height:14px;border-radius:50%;border:1px solid #000000;text-align:center;line-height:14px;background:#ffffff}.s-b15 .pv{background:#000000;color:#19c819;font:12px Consolas,'Lucida Console',monospace;padding:0 4px;margin-left:auto}.s-b15 .pv.on{background:#19c819;color:#000000;font-weight:700}.s-b15 .pt{display:flex;align-items:center;gap:4px;margin:3px 0}.s-b15 .pt span{width:84px}.s-b15 .pt .pv{margin-left:0}.s-b15 .al{background:#e00000;color:#ffffff;font-weight:700;padding:0 4px}.s-b15 .sec{margin:6px 0 2px;font-weight:700;border-bottom:1px solid #ffffff}.s-b15 .cmd{display:flex;align-items:center;gap:6px;margin:4px 0}.s-b15 .in{flex:1;background:#ffffff;border-top:2px solid #000000;border-left:2px solid #000000;border-right:2px solid #ffffff;border-bottom:2px solid #ffffff;padding:2px 4px;font-family:Consolas,'Lucida Console',monospace;font-size:12px}.s-b15 .ctl{display:flex;align-items:center;gap:4px;margin-top:6px}.s-b15 .ctl i{font-style:normal;padding:2px 8px;border-top:2px solid #ffffff;border-left:2px solid #ffffff;border-right:2px solid #000000;border-bottom:2px solid #000000}.s-b15 .ctl i.on{border-top-color:#000000;border-left-color:#000000;border-right-color:#ffffff;border-bottom-color:#ffffff;background:#000000;color:#19c819}.s-b15 .bv{font-weight:700;padding:3px 10px;border-top:2px solid #ffffff;border-left:2px solid #ffffff;border-right:2px solid #000000;border-bottom:2px solid #000000}.s-b15 .bv.p{margin-left:auto;outline:1px solid #000000}.s-b15 .as{margin-top:6px;border:1px solid #000000}.s-b15 .as p{margin:0;display:grid;grid-template-columns:70px 1fr 50px;padding:1px 4px}.s-b15 .as .h{background:#000000;color:#ffffff}.s-b15 .as .x{background:#e00000;color:#ffffff;font-weight:700}</style><div class=\"w\"><div class=\"hd\"><b>morphkit BMS · AHU-1</b><span>customer-card.tsx · dynamic</span></div><svg width=\"340\" height=\"66\" viewBox=\"0 0 340 66\"><rect x=\"6\" y=\"24\" width=\"328\" height=\"30\" fill=\"#ffffff\" stroke=\"#000000\"/><polygon points=\"18,35 30,39 18,43\" fill=\"#000000\"/><polygon points=\"312,35 324,39 312,43\" fill=\"#000000\"/><line x1=\"70\" y1=\"26\" x2=\"90\" y2=\"52\" stroke=\"#000000\" stroke-width=\"2\"/><circle cx=\"80\" cy=\"39\" r=\"3\" fill=\"#000000\"/><rect x=\"158\" y=\"24\" width=\"26\" height=\"30\" fill=\"none\" stroke=\"#000000\"/><polyline points=\"158,52 162,26 166,52 170,26 174,52 178,26 182,52\" fill=\"none\" stroke=\"#000000\"/><circle cx=\"260\" cy=\"39\" r=\"12\" fill=\"#19c819\" stroke=\"#000000\"/><polygon points=\"260,39 254,29 266,29\" fill=\"#000000\"/><polygon points=\"260,39 270,45 262,50\" fill=\"#000000\"/><g font-size=\"11\" text-anchor=\"middle\"><circle cx=\"80\" cy=\"10\" r=\"8\" fill=\"#ffffff\" stroke=\"#000000\"/><text x=\"80\" y=\"14\">1</text><circle cx=\"171\" cy=\"10\" r=\"8\" fill=\"#ffffff\" stroke=\"#000000\"/><text x=\"171\" y=\"14\">2</text><circle cx=\"260\" cy=\"10\" r=\"8\" fill=\"#ffffff\" stroke=\"#000000\"/><text x=\"260\" y=\"14\">3</text></g></svg><div class=\"lg\"><p><b>1</b>Reading the card<span class=\"pv\">OK</span></p><p><b>2</b>Changing the fields<span class=\"pv\">OK</span></p><p><b>3</b>Checking the build<span class=\"pv on\">DONE</span></p></div><p class=\"sec\">POINTS · CUSTOMER</p><div class=\"pt\"><span>Email</span><b class=\"pv\">hank@globex.example</b></div><div class=\"pt\"><span>City</span><b class=\"pv\">Springfield</b></div><div class=\"pt\"><span>Next payment</span><b class=\"pv\">Oct 11, 2026</b><b class=\"al\">OVERDUE</b></div><div class=\"cmd\"><span>Command</span><span class=\"in\">Add phone and city; overdue in red</span></div><div class=\"ctl\"><span>Version</span><i>v0</i><i>v1</i><i class=\"on\">v2</i><span class=\"bv p\">Apply</span><span class=\"bv\">Undo</span></div><div class=\"as\"><p class=\"h\"><span>State</span><span>Point</span><span>Ack</span></p><p><span>NORMAL</span><span>Applied</span><span>—</span></p><p class=\"x\"><span>ALARM</span><span>Needs admin</span><span>[ACK]</span></p></div></div></div>"
+ },
+ {
+  "id": "b16",
+  "name": "Analytical lab balance",
+  "family": "instruments",
+  "origin": "Mettler Toledo analytical balances: VFD readout, SmartTrac tolerance bar, TARE/ZERO keys",
+  "why_not_ai": "A stability ring that closes when the reading settles, a tolerance bar against a target tick, display-labelled softkeys, a level bubble and membrane keys with →0← / →T← glyphs are laboratory-instrument conventions.",
+  "fits": "An agent change should be weighed before it is accepted: each field is checked against tolerance and the reading only counts once stable.",
+  "palette": [
+   "#eceeee",
+   "#15191c",
+   "#8fe3c8",
+   "#005b9f",
+   "#c0262d"
+  ],
+  "roles": {
+   "bg": "#eceeee",
+   "fg": "#15191c",
+   "vfd": "#8fe3c8",
+   "brand": "#005b9f",
+   "alert": "#c0262d"
+  },
+  "type": {
+   "display": "Exo 2",
+   "body": "Exo 2",
+   "mono": "Chivo Mono"
+  },
+  "fonts": [
+   "Exo+2:wght@500;700",
+   "Chivo+Mono:wght@400;700"
+  ],
+  "components": [
+   "spirit level indicators",
+   "method header line",
+   "stability ring readout",
+   "SmartTrac tolerance bars",
+   "display-labelled softkeys",
+   "membrane keys with tare glyphs"
+  ],
+  "html": "<div class=\"tile s-b16\"><style>.s-b16 .w{width:360px;box-sizing:border-box;background:#eceeee;color:#15191c;font:12px 'Exo 2',sans-serif;padding:12px}.s-b16 .br{display:flex;align-items:baseline;gap:8px}.s-b16 .br b{font-size:15px;color:#005b9f;font-style:italic;font-weight:700}.s-b16 .br span{font-size:11px}.s-b16 .lv{display:flex;align-items:center;gap:6px;margin:6px 0 8px;font-size:12px}.s-b16 .bu{width:18px;height:18px;border-radius:50%;border:2px solid #15191c;position:relative}.s-b16 .bu i{position:absolute;width:6px;height:6px;border-radius:50%;background:#005b9f;left:4px;top:4px}.s-b16 .bu.off{border-color:#c0262d}.s-b16 .bu.off i{background:#c0262d;left:9px;top:1px}.s-b16 .lv .na{color:#c0262d;font-weight:700}.s-b16 .ds{background:#15191c;color:#8fe3c8;padding:8px 10px;font:12px 'Chivo Mono',monospace}.s-b16 .mt{margin:0 0 6px;font-size:11px;border-bottom:1px solid #8fe3c8;padding-bottom:4px}.s-b16 .rd{display:flex;align-items:center;gap:8px;margin-bottom:6px}.s-b16 .rd i{width:12px;height:12px;border-radius:50%;background:#8fe3c8}.s-b16 .rd b{font-size:15px;letter-spacing:3px}.s-b16 .rd span{font-size:11px;margin-left:auto}.s-b16 .tr p{margin:0 0 3px;display:grid;grid-template-columns:44px 1fr 54px;gap:6px;align-items:center}.s-b16 .tr u{height:8px;border:1px solid #8fe3c8;position:relative}.s-b16 .tr u i{position:absolute;left:0;top:0;bottom:0;width:70%;background:#8fe3c8}.s-b16 .tr u::after{content:'';position:absolute;left:80%;top:-3px;bottom:-3px;width:2px;background:#eceeee}.s-b16 .tr .ov u{border-color:#c0262d}.s-b16 .tr .ov u i{width:100%;background:#c0262d}.s-b16 .tr em{font-style:normal;background:#c0262d;color:#eceeee;padding:0 3px}.s-b16 .sq{margin-top:6px;border-top:1px solid #8fe3c8;padding-top:4px}.s-b16 .sq p{margin:0 0 2px;display:flex;gap:6px;align-items:center}.s-b16 .sq i{width:9px;height:9px;border-radius:50%;background:#8fe3c8}.s-b16 .sq b{margin-left:auto;background:#8fe3c8;color:#15191c;padding:0 4px}.s-b16 .sk{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px}.s-b16 .sk span{text-align:center;border-top:1px solid #8fe3c8}.s-b16 .sk .on{background:#8fe3c8;color:#15191c;font-weight:700}.s-b16 .ky{display:flex;gap:8px;margin-top:8px}.s-b16 .ky span{flex:1;text-align:center;border:2px solid #15191c;padding:5px 0;font-weight:700}.s-b16 .ky .ap{background:#005b9f;color:#eceeee;border-color:#005b9f}</style><div class=\"w\"><div class=\"br\"><b>morphkit</b><span>XS205 · customer-card.tsx · dynamic</span></div><div class=\"lv\"><span class=\"bu\"><i></i></span>Applied <span class=\"bu off\"><i></i></span><span class=\"na\">Needs admin</span></div><div class=\"ds\"><p class=\"mt\">METHOD · Add phone and city; overdue in red</p><div class=\"rd\"><i></i><b>v2</b><span>stable · current</span></div><div class=\"tr\"><p><span>Email</span><span>hank@globex.example</span><u><i></i></u></p><p><span>City</span><span>Springfield</span><u><i></i></u></p><p class=\"ov\"><span>Next</span><span>Oct 11, 2026 <em>overdue</em></span><u><i></i></u></p></div><div class=\"sq\"><p><i></i>Reading the card</p><p><i></i>Changing the fields</p><p><i></i>Checking the build<b>done</b></p></div><div class=\"sk\"><span>v0</span><span>v1</span><span class=\"on\">v2</span></div></div><div class=\"ky\"><span>→0← Undo</span><span class=\"ap\">↵ Apply</span></div></div></div>"
+ },
+ {
+  "id": "b17",
+  "name": "Valve radio tuning dial",
+  "family": "instruments",
+  "origin": "1950s European valve radios (Grundig, Telefunken) with multi-band glass dials and magic-eye tubes",
+  "why_not_ai": "A glass slide-rule dial with band rows and a red pointer, EM84 magic-eye tuning indicators, a brass escutcheon on grille cloth and ivory piano-key selectors are period hardware, not web widgets.",
+  "fits": "Picking a version is tuning a station: slide the pointer, watch the eye close as the agent locks on, then press a piano key.",
+  "palette": [
+   "#2f241d",
+   "#efeee6",
+   "#1f1a17",
+   "#a3231b",
+   "#3f8f5a"
+  ],
+  "roles": {
+   "bg": "#2f241d",
+   "fg": "#efeee6",
+   "ink": "#1f1a17",
+   "pointer": "#a3231b",
+   "eye": "#3f8f5a"
+  },
+  "type": {
+   "display": "Josefin Sans",
+   "body": "Libre Franklin",
+   "mono": "ui-monospace"
+  },
+  "fonts": [
+   "Josefin+Sans:wght@600;700",
+   "Libre+Franklin:wght@400;600"
+  ],
+  "components": [
+   "multi-band slide-rule dial",
+   "red dial pointer",
+   "magic-eye indicators",
+   "brass escutcheon on grille cloth",
+   "ivory piano keys",
+   "pilot lamp jewels"
+  ],
+  "html": "<div class=\"tile s-b17\"><style>.s-b17 .w{width:360px;box-sizing:border-box;background:#2f241d;color:#efeee6;font:12px 'Libre Franklin',sans-serif;padding:12px}.s-b17 .hd{display:flex;justify-content:space-between;align-items:baseline}.s-b17 .hd b{font:700 15px 'Josefin Sans',sans-serif;letter-spacing:4px;text-transform:uppercase}.s-b17 .hd span{font-size:11px}.s-b17 .dl{background:#efeee6;color:#1f1a17;margin:8px 0;border:3px solid #1f1a17;padding:4px 0 0;position:relative}.s-b17 .dl p{margin:0;padding:2px 8px;border-bottom:1px solid #1f1a17;display:flex;gap:10px}.s-b17 .dl i{font:700 11px 'Josefin Sans',sans-serif;color:#a3231b;width:44px;font-style:normal;letter-spacing:1px}.s-b17 .dl em{font-style:normal;color:#a3231b;font-weight:600;text-decoration:underline}.s-b17 .sc{height:30px;position:relative;background:repeating-linear-gradient(90deg,#1f1a17 0 1px,#efeee6 1px 11px) 0 0/100% 7px no-repeat}.s-b17 .sc span{position:absolute;top:10px;font:700 12px 'Josefin Sans',sans-serif}.s-b17 .v0{left:18%}.s-b17 .v1{left:46%}.s-b17 .v2{left:78%;color:#a3231b}.s-b17 .ptr{position:absolute;top:0;bottom:0;left:83%;width:2px;background:#a3231b}.s-b17 .lo{display:grid;grid-template-columns:1fr 1fr;gap:10px}.s-b17 .ey p{margin:0 0 3px;display:flex;align-items:center;gap:6px}.s-b17 .ey b{font-weight:600;border:1px solid #efeee6;padding:0 3px}.s-b17 .gr{background:repeating-linear-gradient(45deg,#1f1a17 0 2px,#2f241d 2px 5px);padding:8px}.s-b17 .es{background:#efeee6;color:#1f1a17;border:2px solid #1f1a17;padding:4px 6px;font-weight:600}.s-b17 .es small{display:block;font:700 11px 'Josefin Sans',sans-serif;letter-spacing:1px;color:#a3231b}.s-b17 .kb{display:flex;align-items:center;gap:4px;margin-top:10px}.s-b17 .pk{background:#efeee6;color:#1f1a17;padding:8px 12px 6px;border-bottom:6px solid #1f1a17;font-weight:600}.s-b17 .pk.dn{border-bottom-width:2px;margin-top:4px}.s-b17 .jw{width:12px;height:12px;border-radius:50%;border:2px solid #efeee6;margin-left:10px}.s-b17 .g{background:#3f8f5a}.s-b17 .r{background:#a3231b}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"dl\"><p><i>EMAIL</i>hank@globex.example</p><p><i>CITY</i>Springfield</p><p><i>PAY</i>Oct 11, 2026 <em>overdue</em></p><div class=\"sc\"><span class=\"v0\">v0</span><span class=\"v1\">v1</span><span class=\"v2\">v2</span></div><i class=\"ptr\"></i></div><div class=\"lo\"><div class=\"ey\"><p><svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\"><circle cx=\"11\" cy=\"11\" r=\"10\" fill=\"#1f1a17\"/><path d=\"M11 11 L17.4 4.6 A9 9 0 1 1 4.6 4.6 Z\" fill=\"#3f8f5a\"/></svg>Reading the card</p><p><svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\"><circle cx=\"11\" cy=\"11\" r=\"10\" fill=\"#1f1a17\"/><path d=\"M11 11 L14.4 2.7 A9 9 0 1 1 7.6 2.7 Z\" fill=\"#3f8f5a\"/></svg>Changing the fields</p><p><svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\"><circle cx=\"11\" cy=\"11\" r=\"10\" fill=\"#1f1a17\"/><circle cx=\"11\" cy=\"11\" r=\"9\" fill=\"#3f8f5a\"/></svg>Checking the build</p><p><b>done · locked</b></p></div><div class=\"gr\"><div class=\"es\"><small>STATION REQUEST</small>Add phone and city; overdue in red</div></div></div><div class=\"kb\"><span class=\"pk dn\">Apply</span><span class=\"pk\">Undo</span><span class=\"jw g\"></span><span>Applied</span><span class=\"jw r\"></span><span>Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "b18",
+  "name": "Rangefinder camera top plate",
+  "family": "instruments",
+  "origin": "Leica M rangefinder top plates (M3 1954 to M6 1984): engraved legends, knurled dials, red dot",
+  "why_not_ai": "Engraved white-filled legends, a knurled speed dial with A/B, a frame-counter window, bright-line viewfinder frame with ▸●◂ meter LEDs, a threaded shutter release and a rewind crank are mechanical-camera grammar.",
+  "fits": "Every applied change is an exposed frame: the counter is the version, the shutter commits and the rewind crank winds back.",
+  "palette": [
+   "#1c1c1c",
+   "#f2f2f2",
+   "#d6261e",
+   "#8d9093",
+   "#e9b949"
+  ],
+  "roles": {
+   "bg": "#1c1c1c",
+   "fg": "#f2f2f2",
+   "dot": "#d6261e",
+   "chrome": "#8d9093",
+   "sync": "#e9b949"
+  },
+  "type": {
+   "display": "Jost",
+   "body": "Jost",
+   "mono": "ui-monospace"
+  },
+  "fonts": [
+   "Jost:ital,wght@0,400;0,600;1,500"
+  ],
+  "components": [
+   "engraved serial line",
+   "bright-line viewfinder frame",
+   "meter LED arrows",
+   "knurled speed dial",
+   "frame counter window",
+   "threaded shutter release",
+   "rewind crank",
+   "engraved back legend"
+  ],
+  "html": "<div class=\"tile s-b18\"><style>.s-b18 .w{width:360px;box-sizing:border-box;background:#1c1c1c;color:#f2f2f2;font:12px 'Jost',sans-serif;padding:14px 16px;border:3px solid #8d9093;border-radius:30px 30px 8px 8px}.s-b18 .en{display:flex;align-items:baseline;gap:8px;border-bottom:1px solid #8d9093;padding-bottom:5px}.s-b18 .en b{font-style:italic;font-weight:500;font-size:15px}.s-b18 .en span{font-size:11px;flex:1}.s-b18 .en small{font-size:11px;color:#8d9093}.s-b18 .vf{border:2px solid #8d9093;margin:10px 0;padding:8px 10px;background:#1c1c1c}.s-b18 .bl{position:relative;padding:6px 8px;margin-bottom:6px;font-size:13px}.s-b18 .bl::before,.s-b18 .bl::after{content:'';position:absolute;width:10px;height:10px;border:2px solid #f2f2f2}.s-b18 .bl::before{left:0;top:0;border-right:0;border-bottom:0}.s-b18 .bl::after{right:0;bottom:0;border-left:0;border-top:0}.s-b18 .vf p{margin:0 0 2px;display:flex;align-items:center;gap:6px}.s-b18 .vf i{font-style:normal;color:#8d9093;width:42px;letter-spacing:2px;font-size:11px}.s-b18 .vf i b{color:#d6261e}.s-b18 .vf em{font-style:normal;color:#e9b949;margin-left:auto}.s-b18 .ct{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center}.s-b18 .ct p{margin:2px 0 0;font-size:11px}.s-b18 .ct .y{color:#e9b949}.s-b18 .bk{margin-top:10px;border-top:1px solid #8d9093;padding-top:6px;font-size:11px;letter-spacing:1px;line-height:16px}.s-b18 .bk span{color:#8d9093;text-transform:uppercase}.s-b18 .bk em{font-style:normal;background:#d6261e;color:#f2f2f2;padding:0 4px}</style><div class=\"w\"><div class=\"en\"><b>morphkit</b><span>customer-card.tsx · dynamic</span><small>No. 1042</small></div><div class=\"vf\"><div class=\"bl\">Add phone and city; overdue in red</div><p><i>▸<b>●</b>◂</i>Reading the card</p><p><i>▸<b>●</b>◂</i>Changing the fields</p><p><i>▸<b>●</b>◂</i>Checking the build<em>done</em></p></div><div class=\"ct\"><div><svg width=\"56\" height=\"56\" viewBox=\"0 0 56 56\"><circle cx=\"28\" cy=\"28\" r=\"23\" fill=\"#1c1c1c\" stroke=\"#8d9093\" stroke-width=\"6\" stroke-dasharray=\"2 2\"/><polygon points=\"24,0 32,0 28,6\" fill=\"#d6261e\"/><text x=\"28\" y=\"33\" font-size=\"15\" fill=\"#f2f2f2\" text-anchor=\"middle\" font-weight=\"600\">A</text><text x=\"28\" y=\"47\" font-size=\"11\" fill=\"#e9b949\" text-anchor=\"middle\">B</text></svg><p>A · Applied</p><p class=\"y\">B · Needs admin</p></div><div><svg width=\"70\" height=\"56\" viewBox=\"0 0 70 56\"><polygon points=\"51,6 59,6 55,12\" fill=\"#d6261e\"/><rect x=\"2\" y=\"14\" width=\"66\" height=\"26\" rx=\"6\" fill=\"#f2f2f2\"/><text x=\"12\" y=\"31\" font-size=\"11\" fill=\"#8d9093\">v0</text><text x=\"30\" y=\"31\" font-size=\"11\" fill=\"#1c1c1c\">v1</text><text x=\"48\" y=\"32\" font-size=\"14\" fill=\"#1c1c1c\" font-weight=\"600\">v2</text></svg><p>frame</p></div><div><svg width=\"56\" height=\"56\" viewBox=\"0 0 56 56\"><circle cx=\"28\" cy=\"28\" r=\"18\" fill=\"#8d9093\"/><circle cx=\"28\" cy=\"28\" r=\"12\" fill=\"#1c1c1c\" stroke=\"#f2f2f2\" stroke-width=\"1\" stroke-dasharray=\"1.5 1.5\"/><circle cx=\"28\" cy=\"28\" r=\"5\" fill=\"#8d9093\"/></svg><p>Apply</p></div><div><svg width=\"56\" height=\"56\" viewBox=\"0 0 56 56\"><circle cx=\"28\" cy=\"28\" r=\"17\" fill=\"none\" stroke=\"#8d9093\" stroke-width=\"3\"/><rect x=\"26\" y=\"10\" width=\"4\" height=\"22\" fill=\"#f2f2f2\" transform=\"rotate(35 28 28)\"/><circle cx=\"38\" cy=\"14\" r=\"4\" fill=\"#f2f2f2\"/></svg><p>Undo</p></div></div><div class=\"bk\"><span>Email</span> hank@globex.example · <span>City</span> Springfield<br><span>Next pay</span> Oct 11, 2026 <em>overdue</em></div></div></div>"
+ },
+ {
+  "id": "b19",
+  "name": "Handheld console screen",
+  "family": "instruments",
+  "origin": "Nintendo Game Boy DMG-01 (Gunpei Yokoi, 1989): four-shade green STN screen, D-pad, A/B",
+  "why_not_ai": "A four-shade dot-matrix screen inside a dark bezel with a battery LED, RPG save-slot menu with a ▶ cursor, a dialogue box with ▼, an emote bubble, a cross D-pad and slanted A/B buttons are handheld-console vernacular.",
+  "fits": "Versions are save files and undo is pressing B: a model every developer already trusts for \"go back to where it worked\".",
+  "palette": [
+   "#c4c3bd",
+   "#1f2a22",
+   "#306230",
+   "#9bbc0f",
+   "#8b1e3f"
+  ],
+  "roles": {
+   "bg": "#c4c3bd",
+   "fg": "#1f2a22",
+   "mid": "#306230",
+   "screen": "#9bbc0f",
+   "button": "#8b1e3f"
+  },
+  "type": {
+   "display": "Lato",
+   "body": "Silkscreen",
+   "mono": "Silkscreen"
+  },
+  "fonts": [
+   "Silkscreen:wght@400;700",
+   "Lato:ital,wght@1,900"
+  ],
+  "components": [
+   "bezel with battery LED",
+   "inverted title bar",
+   "emote bubble",
+   "stat list",
+   "quest log with checkboxes",
+   "save-slot menu with cursor",
+   "RPG dialogue box",
+   "cross D-pad",
+   "A/B buttons"
+  ],
+  "html": "<div class=\"tile s-b19\"><style>.s-b19 .w{width:360px;box-sizing:border-box;background:#c4c3bd;color:#1f2a22;font:11px 'Silkscreen',monospace;padding:12px 16px 14px;border-radius:8px 8px 40px 8px}.s-b19 .bz{background:#1f2a22;color:#c4c3bd;padding:6px 10px 10px;border-radius:6px 6px 24px 6px}.s-b19 .lb{display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:5px}.s-b19 .lb u{width:8px;height:8px;border-radius:50%;background:#8b1e3f;outline:1px solid #c4c3bd}.s-b19 .lb span{margin-left:auto}.s-b19 .sc{background:#9bbc0f;color:#1f2a22;padding:6px 8px;line-height:15px}.s-b19 .sc p{margin:0}.s-b19 .tt{display:flex;justify-content:space-between;align-items:center;background:#1f2a22;color:#9bbc0f;padding:0 4px;margin-bottom:4px}.s-b19 .bb{background:#9bbc0f;color:#1f2a22;padding:0 4px;border:1px solid #1f2a22}.s-b19 .inv{background:#1f2a22;color:#9bbc0f;padding:0 3px}.s-b19 .ln{border-top:2px solid #306230;margin:3px 0}.s-b19 .q i{font-style:normal}.s-b19 .sv span{margin-right:10px}.s-b19 .dg{border:3px double #1f2a22;padding:2px 5px;margin-top:4px}.s-b19 .dg b{float:right;font-weight:400}.s-b19 .lg{font:italic 900 15px 'Lato',sans-serif;color:#8b1e3f;margin:8px 0 6px}.s-b19 .lg small{font-size:11px;color:#1f2a22;font-style:normal;font-weight:400;font-family:'Silkscreen',monospace;margin-left:6px}.s-b19 .pd{display:flex;align-items:center}.s-b19 .dp{width:54px;height:54px;position:relative}.s-b19 .dp::before,.s-b19 .dp::after{content:'';position:absolute;background:#1f2a22}.s-b19 .dp::before{left:18px;top:0;width:18px;height:54px}.s-b19 .dp::after{top:18px;left:0;width:54px;height:18px}.s-b19 .ab{margin-left:auto;display:flex;gap:12px;transform:rotate(-20deg)}.s-b19 .ab div{text-align:center}.s-b19 .ab i{display:block;width:32px;height:32px;border-radius:50%;background:#8b1e3f;margin-bottom:2px}</style><div class=\"w\"><div class=\"bz\"><div class=\"lb\"><u></u>Applied<span>customer-card.tsx · dynamic</span></div><div class=\"sc\"><p class=\"tt\"><b>morphkit</b><span class=\"bb\">! Needs admin</span></p><p>Email hank@globex.example</p><p>City Springfield</p><p>Next pay Oct 11, 2026 <span class=\"inv\">overdue</span></p><p class=\"ln\"></p><p class=\"q\"><i>☑</i> Reading the card</p><p class=\"q\"><i>☑</i> Changing the fields</p><p class=\"q\"><i>☑</i> Checking the build <span class=\"inv\">done</span></p><p class=\"ln\"></p><p class=\"sv\">FILE <span>v0</span><span>v1</span><span>▶v2</span></p><p class=\"dg\">Add phone and city; overdue in red <b>▼</b></p></div></div><div class=\"lg\">morphkit<small>pocket</small></div><div class=\"pd\"><div class=\"dp\"></div><div class=\"ab\"><div><i></i>Undo B</div><div><i></i>Apply A</div></div></div></div></div>"
+ },
+ {
+  "id": "b20",
+  "name": "Pocket synthesizer workstation",
+  "family": "instruments",
+  "origin": "Teenage Engineering OP-1 (2011): aluminium body, four colour-coded encoders, OLED tape mode",
+  "why_not_ai": "Four encoders keyed blue/green/white/orange to on-screen parameters, a black OLED with flat coloured tape lanes, square black-and-white key bed and icon-only transport keys are a specific small-hardware language.",
+  "fits": "Each field is a parameter on its own coloured knob, the agent records steps onto tape lanes, and versions sit on the key bed like patterns.",
+  "palette": [
+   "#e6e6e3",
+   "#1b1b1b",
+   "#2d6ad6",
+   "#23a455",
+   "#f04a2b"
+  ],
+  "roles": {
+   "bg": "#e6e6e3",
+   "fg": "#1b1b1b",
+   "enc1": "#2d6ad6",
+   "ok": "#23a455",
+   "rec": "#f04a2b"
+  },
+  "type": {
+   "display": "Manrope",
+   "body": "Manrope",
+   "mono": "Azeret Mono"
+  },
+  "fonts": [
+   "Manrope:wght@500;800",
+   "Azeret+Mono:wght@400;600"
+  ],
+  "components": [
+   "OLED tape lanes",
+   "screen corner status glyphs",
+   "colour-coded encoder rows",
+   "square key bed",
+   "icon transport keys"
+  ],
+  "html": "<div class=\"tile s-b20\"><style>.s-b20 .w{width:360px;box-sizing:border-box;background:#e6e6e3;color:#1b1b1b;font:12px 'Manrope',sans-serif;padding:12px;border:1px solid #1b1b1b}.s-b20 .hd{display:flex;align-items:baseline;gap:8px}.s-b20 .hd b{font-size:15px;font-weight:800}.s-b20 .hd small{font:11px 'Azeret Mono',monospace}.s-b20 .hd span{margin-left:auto;font:11px 'Azeret Mono',monospace}.s-b20 .ol{background:#1b1b1b;color:#e6e6e3;margin:8px 0;padding:8px;font:11px 'Azeret Mono',monospace}.s-b20 .st{display:flex;justify-content:space-between;margin-bottom:6px}.s-b20 .st .g{color:#23a455}.s-b20 .st .o{color:#f04a2b}.s-b20 .ln{display:grid;grid-template-columns:118px 1fr;align-items:center;gap:6px;margin-bottom:4px}.s-b20 .ln i{height:8px}.s-b20 .b1 i{background:#2d6ad6}.s-b20 .b2 i{background:#23a455}.s-b20 .b3 i{background:#f04a2b}.s-b20 .ln b{color:#23a455;font-weight:600}.s-b20 .rq{margin-top:6px;border-top:1px solid #e6e6e3;padding-top:5px}.s-b20 .en p{margin:0 0 4px;display:flex;align-items:center;gap:8px}.s-b20 .en i{width:18px;height:18px;border-radius:50%;border:2px solid #1b1b1b;position:relative;flex:none}.s-b20 .en i::after{content:'';position:absolute;left:7px;top:1px;width:2px;height:7px;background:#1b1b1b}.s-b20 .en span{width:70px;font:11px 'Azeret Mono',monospace}.s-b20 .k1{background:#2d6ad6}.s-b20 .k2{background:#23a455}.s-b20 .k3{background:#e6e6e3}.s-b20 .k4{background:#f04a2b}.s-b20 .en em{font-style:normal;background:#f04a2b;color:#1b1b1b;padding:0 4px;font-weight:800}.s-b20 .kb{display:flex;gap:3px;margin-top:8px}.s-b20 .kb span{width:36px;height:36px;border:2px solid #1b1b1b;display:flex;align-items:flex-end;justify-content:center;font:600 11px 'Azeret Mono',monospace;padding-bottom:2px;box-sizing:border-box}.s-b20 .kb .bk{background:#1b1b1b;color:#e6e6e3}.s-b20 .kb .on{background:#f04a2b;color:#1b1b1b;border-color:#1b1b1b}.s-b20 .kb .tx{width:auto;padding:0 8px;align-items:center;gap:6px}.s-b20 .kb .tx:first-of-type{margin-left:auto}.s-b20 .kb u{width:10px;height:10px;border-radius:50%;background:#f04a2b}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><small>mk-1</small><span>customer-card.tsx · dynamic</span></div><div class=\"ol\"><div class=\"st\"><span class=\"g\">● Applied</span><span>tape 3/3</span><span class=\"o\">▲ Needs admin</span></div><div class=\"ln b1\"><span>Reading the card</span><i></i></div><div class=\"ln b2\"><span>Changing the fields</span><i></i></div><div class=\"ln b3\"><span>Checking the build <b>done</b></span><i></i></div><div class=\"rq\">› Add phone and city; overdue in red</div></div><div class=\"en\"><p><i class=\"k1\"></i><span>email</span>hank@globex.example</p><p><i class=\"k2\"></i><span>city</span>Springfield</p><p><i class=\"k3\"></i><span>next pay</span>Oct 11, 2026</p><p><i class=\"k4\"></i><span>flag</span><em>overdue</em></p></div><div class=\"kb\"><span>v0</span><span class=\"bk\">v1</span><span class=\"on\">v2</span><span class=\"tx\"><u></u>Apply</span><span class=\"tx\">◀◀ Undo</span></div></div></div>"
+ }
+]

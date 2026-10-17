@@ -1,0 +1,762 @@
+[
+ {
+  "id": "e01",
+  "name": "Swiss grid poster",
+  "family": "graphic",
+  "origin": "Swiss International Typographic Style (Josef Müller-Brockmann, Zurich, 1950s-60s)",
+  "why_not_ai": "Flush-left ragged-right type hung on a visible 6-column module, a single giant numeral and heavy black rules instead of boxes: the objective-poster grammar, not a component kit.",
+  "fits": "The giant numeral makes the current version the loudest thing on the panel, and numbered hairline rows read like a spec that changes in place.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#e3000f",
+   "#767676"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "accent": "#e3000f",
+   "muted": "#767676"
+  },
+  "type": {
+   "display": "Helvetica Neue, Helvetica, Arial",
+   "body": "Helvetica Neue, Helvetica, Arial",
+   "mono": "none"
+  },
+  "fonts": [],
+  "components": [
+   "6-column module grid",
+   "giant numeral version",
+   "numbered hairline rows",
+   "flush-left headline request",
+   "red bar status"
+  ],
+  "html": "<div class=\"tile s-e01\"><style>.s-e01 .w{background:#fff;color:#111;font:12px/1.35 \"Helvetica Neue\",Helvetica,Arial,sans-serif;padding:14px 16px 16px;display:grid;grid-template-columns:repeat(6,1fr);column-gap:8px}.s-e01 .hd{grid-column:1/-1;border-top:6px solid #111;padding-top:4px;display:flex;justify-content:space-between;align-items:baseline}.s-e01 .hd b{font-size:22px;letter-spacing:-.04em}.s-e01 .hd span{font-size:11px}.s-e01 .nu{grid-column:1/3;font-size:104px;font-weight:700;line-height:.78;letter-spacing:-.07em;color:#e3000f;margin-top:14px}.s-e01 .rq{grid-column:3/7;margin-top:14px}.s-e01 .rq small{display:block;font-size:11px;color:#767676}.s-e01 .rq p{margin:2px 0 0;font-size:15px;font-weight:700;line-height:1.12;letter-spacing:-.02em}.s-e01 .vn{display:flex;gap:10px;margin-top:9px;font-size:11px}.s-e01 .vn span{border-top:1px solid #111;padding-top:2px;color:#767676;min-width:22px}.s-e01 .vn .on{border-top:4px solid #e3000f;color:#e3000f;font-weight:700}.s-e01 .lb{grid-column:1/-1;margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}.s-e01 .r{grid-column:1/-1;display:grid;grid-template-columns:24px 90px 1fr;border-top:1px solid #111;padding:4px 0}.s-e01 .p{grid-column:1/-1;display:grid;grid-template-columns:24px 1fr auto;border-top:1px solid #111;padding:4px 0}.s-e01 .r i,.s-e01 .p i{font-style:normal;color:#767676}.s-e01 .od{color:#e3000f;font-weight:700}.s-e01 .p em{font-style:normal;color:#767676}.s-e01 .p .dn{color:#e3000f;font-weight:700}.s-e01 .ac{grid-column:1/-1;display:grid;grid-template-columns:repeat(6,1fr);column-gap:8px;margin-top:14px;border-top:6px solid #111;padding-top:8px}.s-e01 .ac button{font:700 13px \"Helvetica Neue\",Helvetica,Arial,sans-serif;text-align:left;padding:6px;border:1px solid #111;cursor:pointer}.s-e01 .ap{grid-column:1/3;background:#111;color:#fff}.s-e01 .un{grid-column:3/5;background:#fff;color:#111}.s-e01 .st{grid-column:5/7;font-size:11px}.s-e01 .st b{display:block;background:#e3000f;color:#fff;padding:2px 5px}.s-e01 .st em{display:block;font-style:normal;border-left:4px solid #111;padding-left:4px;margin-top:3px}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"nu\">2</div><div class=\"rq\"><small>Request</small><p>Add phone and city; overdue in red</p><div class=\"vn\"><span>v0</span><span>v1</span><span class=\"on\">v2 now</span></div></div><div class=\"lb\">Customer</div><div class=\"r\"><i>01</i><span>Email</span><span>hank@globex.example</span></div><div class=\"r\"><i>02</i><span>City</span><span>Springfield</span></div><div class=\"r\"><i>03</i><span>Next payment</span><span>Oct 11, 2026 <span class=\"od\">overdue</span></span></div><div class=\"lb\">Process</div><div class=\"p\"><i>1</i><span>Reading the card</span><em>ok</em></div><div class=\"p\"><i>2</i><span>Changing the fields</span><em>ok</em></div><div class=\"p\"><i>3</i><span>Checking the build</span><span class=\"dn\">&#9632; done</span></div><div class=\"ac\"><button class=\"ap\">Apply &rarr;</button><button class=\"un\">Undo</button><div class=\"st\"><b>Applied</b><em>Needs admin</em></div></div></div></div>"
+ },
+ {
+  "id": "e02",
+  "name": "Bauhaus primaries",
+  "family": "graphic",
+  "origin": "Bauhaus Dessau workshop printing (Herbert Bayer, László Moholy-Nagy, 1923-1930)",
+  "why_not_ai": "Meaning is carried by Kandinsky's circle/square/triangle and the three primaries on black bars, an analytic system from 1923 rather than a gradient theme.",
+  "fits": "Each version and each field gets a fixed geometric sign, so a rewritten panel is still legible at a glance by shape alone.",
+  "palette": [
+   "#f2f1ec",
+   "#111111",
+   "#d52b1e",
+   "#1f4e9c",
+   "#f2c400"
+  ],
+  "roles": {
+   "bg": "#f2f1ec",
+   "fg": "#111111",
+   "red": "#d52b1e",
+   "blue": "#1f4e9c",
+   "yellow": "#f2c400"
+  },
+  "type": {
+   "display": "Jost",
+   "body": "Karla",
+   "mono": "none"
+  },
+  "fonts": [
+   "Jost:wght@500;700",
+   "Karla:wght@400;700"
+  ],
+  "components": [
+   "shape-coded field rows",
+   "primary bar progress",
+   "circle/square/triangle versions",
+   "yellow block with red disc request",
+   "circle seal status"
+  ],
+  "html": "<div class=\"tile s-e02\"><style>.s-e02 .w{background:#f2f1ec;color:#111;font:13px/1.35 Karla,sans-serif;padding-bottom:14px}.s-e02 .hd{background:#111;color:#f2f1ec;display:flex;align-items:center;gap:6px;padding:8px 14px}.s-e02 .hd b{font:700 19px Jost,sans-serif;margin-left:4px}.s-e02 .hd span{margin-left:auto;font-size:11px}.s-e02 .k{display:inline-block;width:11px;height:11px;flex:none}.s-e02 .c{border-radius:50%;background:#d52b1e}.s-e02 .s{background:#f2c400}.s-e02 .t{background:#1f4e9c;clip-path:polygon(50% 0,100% 100%,0 100%)}.s-e02 .rq{position:relative;margin:14px 14px 10px;background:#f2c400;padding:10px 12px 10px 54px;font:500 14px/1.2 Jost,sans-serif;text-transform:uppercase;overflow:hidden}.s-e02 .rq:before{content:\"\";position:absolute;left:-14px;top:-10px;width:56px;height:56px;border-radius:50%;background:#d52b1e}.s-e02 .f{display:flex;align-items:center;gap:10px;margin:0 14px;padding:6px 0;border-bottom:2px solid #111}.s-e02 .f .l{width:96px;font-weight:700;font-size:12px}.s-e02 .od{background:#d52b1e;color:#f2f1ec;padding:0 5px;font-weight:700}.s-e02 .pg{margin:12px 14px 0}.s-e02 .b{display:flex;align-items:center;margin-top:4px;font-size:12px}.s-e02 .b i{display:block;height:14px;width:30px;margin-right:8px;flex:none}.s-e02 .b1 i{background:#1f4e9c}.s-e02 .b2 i{background:#f2c400;width:60px}.s-e02 .b3 i{background:#d52b1e;width:90px}.s-e02 .b3 b{margin-left:auto;background:#111;color:#f2f1ec;padding:0 6px;font-family:Jost,sans-serif}.s-e02 .vs{display:flex;gap:18px;align-items:flex-end;margin:14px 14px 0}.s-e02 .v{text-align:center;font:500 11px Jost,sans-serif}.s-e02 .v i{display:block;width:30px;height:30px;margin:0 auto 3px;box-sizing:border-box}.s-e02 .v0 i{border:3px solid #111;border-radius:50%}.s-e02 .v1 i{border:3px solid #111}.s-e02 .v2 i{width:36px;height:34px;background:#d52b1e;clip-path:polygon(50% 0,100% 100%,0 100%)}.s-e02 .v2{font-weight:700}.s-e02 .seal{margin-left:auto;width:62px;height:62px;border-radius:50%;background:#f2c400;display:flex;align-items:center;justify-content:center;font:700 12px Jost,sans-serif}.s-e02 .ac{display:flex;gap:8px;margin:14px 14px 0;align-items:center}.s-e02 .ac button{font:700 13px Jost,sans-serif;text-transform:uppercase;border:0;padding:8px 12px;cursor:pointer;color:#f2f1ec}.s-e02 .ap{background:#d52b1e}.s-e02 .un{background:#1f4e9c}.s-e02 .na{margin-left:auto;background:#111;color:#f2c400;font:700 11px Jost,sans-serif;padding:4px 7px;text-transform:uppercase}</style><div class=\"w\"><div class=\"hd\"><i class=\"k c\"></i><i class=\"k s\"></i><i class=\"k t\"></i><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"rq\">Add phone and city; overdue in red</div><div class=\"f\"><i class=\"k c\"></i><span class=\"l\">Email</span><span>hank@globex.example</span></div><div class=\"f\"><i class=\"k s\"></i><span class=\"l\">City</span><span>Springfield</span></div><div class=\"f\"><i class=\"k t\"></i><span class=\"l\">Next payment</span><span>Oct 11, 2026 <span class=\"od\">overdue</span></span></div><div class=\"pg\"><div class=\"b b1\"><i></i>Reading the card</div><div class=\"b b2\"><i></i>Changing the fields</div><div class=\"b b3\"><i></i>Checking the build<b>done</b></div></div><div class=\"vs\"><div class=\"v v0\"><i></i>v0</div><div class=\"v v1\"><i></i>v1</div><div class=\"v v2\"><i></i>v2 now</div><div class=\"seal\">Applied</div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><span class=\"na\">Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "e03",
+  "name": "Penguin tri-band",
+  "family": "graphic",
+  "origin": "Penguin Books horizontal grid covers (Edward Young 1935, Jan Tschichold revision 1947), green crime series",
+  "why_not_ai": "The three-band cover, the oval cartouche, a contents page with dotted leaders and a shelf of spines are book-trade conventions with no SaaS equivalent.",
+  "fits": "Versions become a shelf of numbered editions, which matches how a developer thinks of rewrites: same title, new printing.",
+  "palette": [
+   "#ffffff",
+   "#00704a",
+   "#111111",
+   "#b3001b"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "band": "#00704a",
+   "fg": "#111111",
+   "alert": "#b3001b"
+  },
+  "type": {
+   "display": "Lato",
+   "body": "Cardo",
+   "mono": "none"
+  },
+  "fonts": [
+   "Lato:wght@700;900",
+   "Cardo:ital,wght@0,400;0,700;1,400"
+  ],
+  "components": [
+   "tri-band cover",
+   "title-page request",
+   "contents with dotted leaders",
+   "spine shelf versions",
+   "price roundel status"
+  ],
+  "html": "<div class=\"tile s-e03\"><style>.s-e03 .w{background:#fff;color:#111;font:13px/1.4 Cardo,serif;border:1px solid #111}.s-e03 .bd{background:#00704a;color:#fff;text-align:center;padding:9px 12px 7px;font-family:Lato,sans-serif}.s-e03 .bd b{display:block;font-size:19px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}.s-e03 .bd span{font-size:11px;letter-spacing:.1em;text-transform:uppercase}.s-e03 .mid{padding:12px 18px 10px;text-align:center}.s-e03 .mid h3{margin:0;font:900 15px/1.2 Lato,sans-serif}.s-e03 .mid em{font-size:12px}.s-e03 .rule{border:0;border-top:2px solid #00704a;width:60px;margin:9px auto}.s-e03 .f{display:flex;justify-content:space-between;font-size:12px;padding:1px 0}.s-e03 .f b{font:700 11px Lato,sans-serif;letter-spacing:.08em;text-transform:uppercase}.s-e03 .od{color:#b3001b;font-weight:700;font-style:italic}.s-e03 .ct{margin-top:6px;text-align:left}.s-e03 .ct h4{margin:0 0 2px;font:700 11px Lato,sans-serif;letter-spacing:.14em;text-align:center}.s-e03 .c{display:flex;font-size:12px}.s-e03 .c i{width:22px;font-style:normal}.s-e03 .c u{flex:1;text-decoration:none;border-bottom:1px dotted #111;margin:0 4px 4px}.s-e03 .c .dn{color:#00704a;font-weight:700}.s-e03 .sh{display:flex;align-items:flex-end;gap:4px;margin-top:12px;border-bottom:3px solid #111;padding:0 8px}.s-e03 .sp{width:24px;border:1px solid #111;border-bottom:0;writing-mode:vertical-rl;transform:rotate(180deg);font:700 11px Lato,sans-serif;padding:5px 0;text-align:center}.s-e03 .s0{height:58px}.s-e03 .s1{height:66px}.s-e03 .s2{height:78px;background:#00704a;color:#fff}.s-e03 .rd{margin-left:auto;margin-bottom:6px;width:56px;height:56px;border-radius:50%;border:2px solid #00704a;color:#00704a;display:flex;align-items:center;justify-content:center;font:900 11px Lato,sans-serif;text-transform:uppercase}.s-e03 .na{margin-bottom:6px;border:2px solid #b3001b;color:#b3001b;font:900 11px Lato,sans-serif;padding:3px 5px;text-transform:uppercase}.s-e03 .ft{background:#00704a;display:flex;align-items:center;gap:10px;padding:8px 12px}.s-e03 .ft svg{flex:none}.s-e03 .ft button{font:900 12px Lato,sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:5px 12px}.s-e03 .ap{background:#fff;color:#00704a;border:0}.s-e03 .un{background:none;color:#fff;border:0;text-decoration:underline}</style><div class=\"w\"><div class=\"bd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"mid\"><h3>Add phone and city; overdue in red</h3><em>a request by the customer</em><hr class=\"rule\"><div class=\"f\"><b>Email</b><span>hank@globex.example</span></div><div class=\"f\"><b>City</b><span>Springfield</span></div><div class=\"f\"><b>Next payment</b><span>Oct 11, 2026 <span class=\"od\">overdue</span></span></div><div class=\"ct\"><h4>CONTENTS</h4><div class=\"c\"><i>I</i>Reading the card<u></u>1</div><div class=\"c\"><i>II</i>Changing the fields<u></u>2</div><div class=\"c\"><i>III</i>Checking the build<u></u><span class=\"dn\">done</span></div></div><div class=\"sh\"><span class=\"sp s0\">v0</span><span class=\"sp s1\">v1</span><span class=\"sp s2\">v2 · current</span><span class=\"na\">Needs admin</span><span class=\"rd\">Applied</span></div></div><div class=\"ft\"><svg width=\"22\" height=\"28\" viewBox=\"0 0 22 28\"><ellipse cx=\"11\" cy=\"14\" rx=\"10\" ry=\"13\" fill=\"#fff\"/><ellipse cx=\"11\" cy=\"16\" rx=\"5\" ry=\"8\" fill=\"#00704a\"/></svg><button class=\"ap\">Apply</button><button class=\"un\">Undo</button></div></div></div>"
+ },
+ {
+  "id": "e04",
+  "name": "Raw HTML brutalism",
+  "family": "graphic",
+  "origin": "Web brutalism / unstyled HTML 2.0 pages (c. 1995; revived by brutalistwebsites.com, 2014)",
+  "why_not_ai": "Browser-default Times, border=1 tables, blue underlined links, groove <hr>s and outset grey buttons: the look of no designer at all.",
+  "fits": "Developers trust raw markup; showing the panel as a plain table and the versions as plain links says nothing is hidden behind the agent.",
+  "palette": [
+   "#ffffff",
+   "#000000",
+   "#0000ee",
+   "#ee0000",
+   "#c0c0c0"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#000000",
+   "link": "#0000ee",
+   "alert": "#ee0000",
+   "chrome": "#c0c0c0"
+  },
+  "type": {
+   "display": "Times New Roman",
+   "body": "Times New Roman",
+   "mono": "Courier New"
+  },
+  "fonts": [],
+  "components": [
+   "border=1 table",
+   "ordered list with [DONE]",
+   "underlined link versions",
+   "outset grey buttons",
+   "bracketed tt status"
+  ],
+  "html": "<div class=\"tile s-e04\"><style>.s-e04 .w{background:#fff;color:#000;font:14px/1.3 \"Times New Roman\",Times,serif;padding:8px 10px}.s-e04 h1{font-size:26px;margin:0}.s-e04 .zn{font-size:13px}.s-e04 hr{border:0;border-top:2px groove #c0c0c0;margin:8px 0}.s-e04 table{border:1px solid #000;border-spacing:2px;font-size:13px}.s-e04 td{border:1px solid #000;padding:2px 4px}.s-e04 th{border:1px solid #000;padding:2px 4px;text-align:left}.s-e04 tt{font:13px \"Courier New\",monospace}.s-e04 .od{color:#ee0000;font-weight:bold}.s-e04 p{margin:8px 0}.s-e04 ol{margin:4px 0;padding-left:26px;font-size:13px}.s-e04 a{color:#0000ee;text-decoration:underline}.s-e04 button{font:13px Arial,sans-serif;color:#000;background:#c0c0c0;border:2px outset #c0c0c0;padding:2px 10px;cursor:pointer}.s-e04 .ap{font-weight:bold}.s-e04 address{font-size:12px}</style><div class=\"w\"><h1>morphkit</h1><span class=\"zn\">panel: <tt>customer-card.tsx</tt> &middot; <i>dynamic</i></span><hr><table><tr><th>Field</th><th>Value</th></tr><tr><td>Email</td><td><a href=\"#\">hank@globex.example</a></td></tr><tr><td>City</td><td>Springfield</td></tr><tr><td>Next payment</td><td>Oct 11, 2026 <span class=\"od\">OVERDUE!</span></td></tr></table><p><b>Your request:</b><br><tt>&gt; Add phone and city; overdue in red</tt></p><ol><li>Reading the card ... <tt>[ok]</tt></li><li>Changing the fields ... <tt>[ok]</tt></li><li>Checking the build ... <tt><b>[DONE]</b></tt></li></ol><p>Versions: <a href=\"#\">v0</a> | <a href=\"#\">v1</a> | <b>v2</b> (current)</p><p><button class=\"ap\">Apply</button> <button>Undo</button></p><hr><p>Status: <tt><b>[Applied]</b></tt> &nbsp; <tt class=\"od\">[Needs admin]</tt></p><address>Last modified: Sun Oct 18 2026</address></div></div>"
+ },
+ {
+  "id": "e05",
+  "name": "Memphis Milano",
+  "family": "graphic",
+  "origin": "Memphis Group, Milan (Ettore Sottsass, Nathalie Du Pasquier, 1981-1987)",
+  "why_not_ai": "Bacterio-style dot fields, squiggles, hard offset shadows and a Carlton-bookcase totem: loud, deliberate clashes no generator picks by default.",
+  "fits": "Stacking versions like the Carlton shelf makes history physical and playful for end users asking for changes in a consumer app.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#ff5fa2",
+   "#19b5a5",
+   "#ffd23f"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "pink": "#ff5fa2",
+   "teal": "#19b5a5",
+   "yellow": "#ffd23f"
+  },
+  "type": {
+   "display": "Lilita One",
+   "body": "Nunito Sans",
+   "mono": "none"
+  },
+  "fonts": [
+   "Lilita+One",
+   "Nunito+Sans:wght@400;700;800"
+  ],
+  "components": [
+   "dot-field divider",
+   "offset-shadow slabs",
+   "zigzag progress",
+   "Carlton totem versions",
+   "saw-edge sticker status"
+  ],
+  "html": "<div class=\"tile s-e05\"><style>.s-e05 .w{background:#fff;color:#111;font:13px/1.35 \"Nunito Sans\",sans-serif;border:3px solid #111;padding-bottom:12px}.s-e05 .hd{background:#ff5fa2;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #111}.s-e05 .hd b{font:400 23px \"Lilita One\",sans-serif}.s-e05 .hd span{font-size:11px;font-weight:800;background:#fff;border:2px solid #111;padding:1px 5px}.s-e05 .dots{height:12px;background:radial-gradient(#111 1.6px,transparent 2.2px) 0 0/8px 8px;border-bottom:3px solid #111}.s-e05 .rq{margin:12px 14px 0;background:#ffd23f;border:2px solid #111;padding:7px 10px;transform:skewX(-8deg);font-weight:800}.s-e05 .rq span{display:block;transform:skewX(8deg)}.s-e05 .sl{margin:12px 14px 0;border:2px solid #111;box-shadow:4px 4px 0 #111;padding:5px 8px;display:flex;justify-content:space-between;font-size:12px}.s-e05 .sl b{font-weight:800}.s-e05 .t{background:#19b5a5}.s-e05 .od{background:#ff5fa2;border:2px solid #111;padding:0 4px;font-weight:800}.s-e05 .mid{display:flex;gap:10px;margin:14px 14px 0}.s-e05 .pg{flex:1}.s-e05 .z{display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:6px}.s-e05 .z svg{flex:none}.s-e05 .z.dn b{background:#ff5fa2;border:2px solid #111;padding:0 5px}.s-e05 .tot{display:flex;flex-direction:column;align-items:center;width:84px}.s-e05 .tot i{display:block;border:2px solid #111;font:400 12px \"Lilita One\",sans-serif;text-align:center;font-style:normal;padding:2px 0;margin-top:-2px}.s-e05 .v2{width:44px;background:#ff5fa2}.s-e05 .v1{width:64px;background:#19b5a5}.s-e05 .v0{width:80px;background:#ffd23f}.s-e05 .ac{display:flex;gap:10px;align-items:center;margin:14px 14px 0}.s-e05 .ac button{font:400 15px \"Lilita One\",sans-serif;border:2px solid #111;box-shadow:3px 3px 0 #111;padding:5px 14px;cursor:pointer;color:#111}.s-e05 .ap{background:#19b5a5}.s-e05 .un{background:radial-gradient(#111 1px,#fff 1.5px) 0 0/6px 6px}.s-e05 .un span{background:#fff;padding:0 3px}.s-e05 .stk{margin-left:auto;background:#ffd23f;color:#111;font:400 13px \"Lilita One\",sans-serif;padding:9px 8px;clip-path:polygon(0 4px,6% 0,12% 4px,18% 0,24% 4px,30% 0,36% 4px,42% 0,48% 4px,54% 0,60% 4px,66% 0,72% 4px,78% 0,84% 4px,90% 0,96% 4px,100% 0,100% calc(100% - 4px),94% 100%,88% calc(100% - 4px),82% 100%,76% calc(100% - 4px),70% 100%,64% calc(100% - 4px),58% 100%,52% calc(100% - 4px),46% 100%,40% calc(100% - 4px),34% 100%,28% calc(100% - 4px),22% 100%,16% calc(100% - 4px),10% 100%,4% calc(100% - 4px),0 100%)}.s-e05 .na{margin:10px 14px 0;font-weight:800;font-size:12px}.s-e05 .na span{border-bottom:3px dotted #ff5fa2;background:#fff}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"dots\"></div><div class=\"rq\"><span>&ldquo;Add phone and city; overdue in red&rdquo;</span></div><div class=\"sl\"><b>Email</b>hank@globex.example</div><div class=\"sl t\"><b>City</b>Springfield</div><div class=\"sl\"><b>Next payment</b><span>Oct 11, 2026 <span class=\"od\">overdue</span></span></div><div class=\"mid\"><div class=\"pg\"><div class=\"z\"><svg width=\"26\" height=\"10\"><polyline points=\"0,9 5,1 10,9 15,1 20,9 25,1\" fill=\"none\" stroke=\"#111\" stroke-width=\"2\"/></svg>Reading the card</div><div class=\"z\"><svg width=\"26\" height=\"10\"><polyline points=\"0,9 5,1 10,9 15,1 20,9 25,1\" fill=\"none\" stroke=\"#19b5a5\" stroke-width=\"3\"/></svg>Changing the fields</div><div class=\"z dn\"><svg width=\"26\" height=\"10\"><polyline points=\"0,9 5,1 10,9 15,1 20,9 25,1\" fill=\"none\" stroke=\"#ff5fa2\" stroke-width=\"3\"/></svg>Checking the build <b>done</b></div></div><div class=\"tot\"><i class=\"v2\">v2 now</i><i class=\"v1\">v1</i><i class=\"v0\">v0</i></div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\"><span>Undo</span></button><span class=\"stk\">Applied!</span></div><div class=\"na\"><span>&#9888; Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "e06",
+  "name": "Y2K brushed chrome",
+  "family": "graphic",
+  "origin": "Y2K consumer-electronics UI (Winamp 2 skins, Sony MiniDisc, iMac-era hardware, 1998-2003)",
+  "why_not_ai": "Banded chrome bevels, an inset LCD with hard pixels, chunked progress segments and a track selector borrowed from portable audio players, with flat LEDs instead of glow.",
+  "fits": "Versions as tracks on a player make undo feel like skipping back one track, and the LCD keeps the live data visually separate from controls.",
+  "palette": [
+   "#e9ecf0",
+   "#9aa3ad",
+   "#1b2129",
+   "#19a7d8",
+   "#ff5566"
+  ],
+  "roles": {
+   "bg": "#e9ecf0",
+   "chrome": "#9aa3ad",
+   "screen": "#1b2129",
+   "accent": "#19a7d8",
+   "alert": "#ff5566"
+  },
+  "type": {
+   "display": "Audiowide",
+   "body": "Exo 2",
+   "mono": "none"
+  },
+  "fonts": [
+   "Audiowide",
+   "Exo+2:wght@400;600;700"
+  ],
+  "components": [
+   "banded chrome title bar",
+   "inset LCD field readout",
+   "chunked segment progress",
+   "track-selector versions",
+   "flat LED status"
+  ],
+  "html": "<div class=\"tile s-e06\"><style>.s-e06 .w{background:#e9ecf0;color:#1b2129;font:13px/1.35 \"Exo 2\",sans-serif;border:2px solid #9aa3ad;padding:8px}.s-e06 .tb{background:linear-gradient(#e9ecf0,#9aa3ad 46%,#e9ecf0 54%,#9aa3ad);border:1px solid #1b2129;padding:5px 8px;display:flex;justify-content:space-between;align-items:center}.s-e06 .tb b{font:400 16px Audiowide,sans-serif;letter-spacing:.04em}.s-e06 .tb span{font-size:11px;font-weight:700}.s-e06 .lcd{background:#1b2129;color:#19a7d8;border:3px inset #9aa3ad;margin-top:8px;padding:6px 8px;font-size:12px}.s-e06 .lcd div{display:flex;justify-content:space-between;border-bottom:1px dotted #19a7d8;padding:2px 0}.s-e06 .lcd div:last-child{border:0}.s-e06 .od{background:#ff5566;color:#1b2129;font-weight:700;padding:0 4px}.s-e06 .in{margin-top:8px;background:#e9ecf0;border:2px inset #9aa3ad;padding:5px 7px;font-weight:600}.s-e06 .in small{display:block;font-size:11px;font-weight:400}.s-e06 .pg{margin-top:8px}.s-e06 .row{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:4px}.s-e06 .row span{width:118px}.s-e06 .bar{flex:1;display:flex;gap:2px;border:2px inset #9aa3ad;padding:2px;background:#e9ecf0}.s-e06 .bar i{flex:1;height:8px;background:#19a7d8}.s-e06 .bar i.o{background:#e9ecf0}.s-e06 .row b{font-size:11px;width:32px}.s-e06 .trk{margin-top:10px;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700}.s-e06 .trk em{font-style:normal;margin-right:4px}.s-e06 .trk span{background:linear-gradient(#e9ecf0,#9aa3ad);border:2px outset #9aa3ad;padding:2px 9px}.s-e06 .trk .on{background:#19a7d8;border-style:inset}.s-e06 .ac{margin-top:10px;display:flex;gap:8px;align-items:center}.s-e06 .ac button{font:400 12px Audiowide,sans-serif;color:#1b2129;border:2px outset #9aa3ad;padding:5px 12px;cursor:pointer;background:linear-gradient(#e9ecf0,#9aa3ad)}.s-e06 .ac .ap{background:#19a7d8;border-color:#19a7d8}.s-e06 .led{display:flex;gap:10px;margin-left:auto;font-size:11px;font-weight:700}.s-e06 .led i{display:inline-block;width:8px;height:8px;border-radius:50%;border:1px solid #1b2129;margin-right:3px}.s-e06 .g i{background:#19a7d8}.s-e06 .r i{background:#ff5566}</style><div class=\"w\"><div class=\"tb\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"lcd\"><div><span>EMAIL</span><span>hank@globex.example</span></div><div><span>CITY</span><span>Springfield</span></div><div><span>NEXT PAYMENT</span><span>Oct 11, 2026 <span class=\"od\">OVERDUE</span></span></div></div><div class=\"in\"><small>request:</small>Add phone and city; overdue in red</div><div class=\"pg\"><div class=\"row\"><span>Reading the card</span><div class=\"bar\"><i></i><i></i><i></i><i></i><i></i><i></i></div><b>ok</b></div><div class=\"row\"><span>Changing the fields</span><div class=\"bar\"><i></i><i></i><i></i><i></i><i></i><i></i></div><b>ok</b></div><div class=\"row\"><span>Checking the build</span><div class=\"bar\"><i></i><i></i><i></i><i></i><i></i><i></i></div><b>done</b></div></div><div class=\"trk\"><em>TRK</em><span>v0</span><span>v1</span><span class=\"on\">&#9654; v2</span></div><div class=\"ac\"><button class=\"ap\">Apply</button><button>Undo</button><div class=\"led\"><span class=\"g\"><i></i>Applied</span><span class=\"r\"><i></i>Needs admin</span></div></div></div></div>"
+ },
+ {
+  "id": "e07",
+  "name": "Kokuyo notebook",
+  "family": "graphic",
+  "origin": "Japanese stationery: Kokuyo Campus notebooks (1975) and Muji kraft-and-maroon packaging (1980)",
+  "why_not_ai": "Dotted-guide ruled lines, a 'No. / Date' cover label, side index tabs and a red hanko seal are physical school-supply conventions, not web UI tropes.",
+  "fits": "Writing changes on ruled lines and sealing them with a hanko frames every edit as a signed-off note that can be flipped back by tab.",
+  "palette": [
+   "#fbfaf6",
+   "#2a2a2a",
+   "#7f1d24",
+   "#a7b8c8",
+   "#c4a77d"
+  ],
+  "roles": {
+   "bg": "#fbfaf6",
+   "fg": "#2a2a2a",
+   "seal": "#7f1d24",
+   "rule": "#a7b8c8",
+   "kraft": "#c4a77d"
+  },
+  "type": {
+   "display": "Zen Kaku Gothic New",
+   "body": "Zen Kaku Gothic New",
+   "mono": "M PLUS 1 Code"
+  },
+  "fonts": [
+   "Zen+Kaku+Gothic+New:wght@400;700",
+   "M+PLUS+1+Code:wght@400;600"
+  ],
+  "components": [
+   "No./Date cover label",
+   "dotted-guide ruled lines",
+   "checkbox to-do",
+   "edge index tabs",
+   "hanko seal status"
+  ],
+  "html": "<div class=\"tile s-e07\"><style>.s-e07 .w{position:relative;background:#fbfaf6;color:#2a2a2a;font:13px/1.4 \"Zen Kaku Gothic New\",sans-serif;border:1px solid #a7b8c8;margin-right:34px;padding-bottom:12px}.s-e07 .cv{background:#c4a77d;padding:8px 12px;display:flex;align-items:baseline;gap:10px}.s-e07 .cv b{font-size:18px;font-weight:700}.s-e07 .lbl{flex:1;background:#fbfaf6;padding:2px 6px;font:11px \"M PLUS 1 Code\",monospace}.s-e07 .lbl u{text-decoration:none;border-bottom:1px dotted #2a2a2a}.s-e07 .pg{margin-left:30px;border-left:1px solid #7f1d24;padding:0 10px}.s-e07 .ln{border-bottom:1px solid #a7b8c8;min-height:26px;line-height:26px;display:flex;gap:8px;font-size:12px;background:repeating-linear-gradient(90deg,transparent 0 47px,#a7b8c8 47px 48px) bottom/100% 4px no-repeat}.s-e07 .ln .k{width:88px;color:#2a2a2a;font-weight:700}.s-e07 .od{color:#7f1d24;font-weight:700;border:1px solid #7f1d24;padding:0 3px;line-height:16px;align-self:center}.s-e07 .memo{color:#7f1d24;font-weight:700}.s-e07 .cb{display:inline-block;width:11px;height:11px;border:1px solid #2a2a2a;align-self:center;text-align:center;line-height:10px;font-size:10px}.s-e07 .dn .cb{background:#7f1d24;border-color:#7f1d24;color:#fbfaf6}.s-e07 .dn b{margin-left:auto;color:#7f1d24;font-size:11px}.s-e07 .ft{display:flex;align-items:center;gap:8px;margin:12px 12px 0 40px}.s-e07 .ft button{font:700 12px \"Zen Kaku Gothic New\",sans-serif;border:0;padding:6px 14px;cursor:pointer}.s-e07 .ap{background:#7f1d24;color:#fbfaf6}.s-e07 .un{background:#c4a77d;color:#2a2a2a}.s-e07 .hk{margin-left:auto;width:50px;height:50px;border:2px solid #7f1d24;border-radius:50%;color:#7f1d24;text-align:center;font-size:11px;line-height:1.1;display:flex;flex-direction:column;justify-content:center;transform:rotate(-8deg)}.s-e07 .hk b{font-size:16px}.s-e07 .sq{border:2px solid #7f1d24;color:#7f1d24;font-size:11px;padding:2px 4px;line-height:1.15;text-align:center}.s-e07 .tabs{position:absolute;right:-34px;top:56px;display:flex;flex-direction:column;gap:3px}.s-e07 .tabs span{width:30px;padding:6px 0;text-align:center;font:600 11px \"M PLUS 1 Code\",monospace;background:#fbfaf6;border:1px solid #a7b8c8;border-left:0}.s-e07 .tabs .on{background:#7f1d24;color:#fbfaf6;border-color:#7f1d24;width:34px}</style><div class=\"w\"><div class=\"cv\"><b>morphkit</b><span class=\"lbl\">No. <u>customer-card.tsx</u> Date <u>· dynamic</u></span></div><div class=\"pg\"><div class=\"ln\"><span class=\"memo\">メモ</span><span>Add phone and city; overdue in red</span></div><div class=\"ln\"><span class=\"k\">Email</span><span>hank@globex.example</span></div><div class=\"ln\"><span class=\"k\">City</span><span>Springfield</span></div><div class=\"ln\"><span class=\"k\">Next payment</span><span>Oct 11, 2026</span><span class=\"od\">overdue</span></div><div class=\"ln\"><span class=\"cb\">✓</span><span>Reading the card</span></div><div class=\"ln\"><span class=\"cb\">✓</span><span>Changing the fields</span></div><div class=\"ln dn\"><span class=\"cb\">✓</span><span>Checking the build</span><b>済 done</b></div></div><div class=\"ft\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><span class=\"sq\">要確認<br>Needs admin</span><span class=\"hk\"><b>済</b>Applied</span></div><div class=\"tabs\"><span>v0</span><span>v1</span><span class=\"on\">v2</span></div></div></div>"
+ },
+ {
+  "id": "e08",
+  "name": "Pantone fan deck",
+  "family": "graphic",
+  "origin": "Pantone Matching System formula guides and fan decks (Lawrence Herbert, 1963)",
+  "why_not_ai": "Chips with a solid swatch over a white label strip, catalogue numbers with 'C' suffix, a riveted fan and tint ladders are print-shop artefacts.",
+  "fits": "Each version is a chip you can fan back to, and labelled swatches suit a product whose job is changing how a panel looks.",
+  "palette": [
+   "#ffffff",
+   "#1a1a1a",
+   "#da291c",
+   "#00a3ad",
+   "#f2f2f2"
+  ],
+  "roles": {
+   "bg": "#f2f2f2",
+   "chip": "#ffffff",
+   "fg": "#1a1a1a",
+   "accent": "#da291c",
+   "alt": "#00a3ad"
+  },
+  "type": {
+   "display": "Work Sans",
+   "body": "Work Sans",
+   "mono": "Roboto Mono"
+  },
+  "fonts": [
+   "Work+Sans:wght@400;600;800",
+   "Roboto+Mono:wght@400;500"
+  ],
+  "components": [
+   "swatch-chip field rows",
+   "riveted fan-deck versions",
+   "tint-ladder progress",
+   "chip-label request",
+   "coated/uncoated status chips"
+  ],
+  "html": "<div class=\"tile s-e08\"><style>.s-e08 .w{background:#f2f2f2;color:#1a1a1a;font:13px/1.35 \"Work Sans\",sans-serif;padding:12px}.s-e08 .hd{display:flex;align-items:stretch;background:#fff;border:1px solid #1a1a1a}.s-e08 .hd i{width:34px;background:#da291c}.s-e08 .hd div{padding:5px 8px}.s-e08 .hd b{display:block;font-weight:800;font-size:17px;letter-spacing:-.01em}.s-e08 .hd span{font:11px \"Roboto Mono\",monospace}.s-e08 .top{display:flex;gap:10px;margin-top:10px}.s-e08 .fan{position:relative;width:118px;height:120px;flex:none}.s-e08 .ch{position:absolute;left:60px;top:4px;width:50px;height:98px;background:#fff;border:1px solid #1a1a1a;transform-origin:25px 92px;font:10px/1.1 \"Roboto Mono\",monospace}.s-e08 .ch i{display:block;height:62px}.s-e08 .ch span{display:block;padding:3px}.s-e08 .c0{transform:rotate(-36deg)}.s-e08 .c0 i{background:#f2f2f2}.s-e08 .c1{transform:rotate(-18deg)}.s-e08 .c1 i{background:#00a3ad}.s-e08 .c2 i{background:#da291c}.s-e08 .c2 span{font-weight:500}.s-e08 .rv{position:absolute;left:81px;top:92px;width:8px;height:8px;border-radius:50%;background:#1a1a1a}.s-e08 .rq{flex:1;background:#fff;border:1px solid #1a1a1a;display:flex;flex-direction:column}.s-e08 .rq i{flex:1;background:#00a3ad;min-height:40px}.s-e08 .rq p{margin:0;padding:5px 7px;font-weight:600;font-size:13px}.s-e08 .rq small{font:10px \"Roboto Mono\",monospace;display:block;font-weight:400}.s-e08 .fl{margin-top:10px;background:#fff;border:1px solid #1a1a1a}.s-e08 .f{display:flex;align-items:center;gap:8px;border-top:1px solid #1a1a1a;font-size:12px}.s-e08 .f:first-child{border-top:0}.s-e08 .f i{width:22px;height:28px;flex:none}.s-e08 .f code{font:10px \"Roboto Mono\",monospace;width:52px}.s-e08 .od{background:#da291c;color:#fff;padding:0 4px;font-weight:600}.s-e08 .tl{margin-top:10px}.s-e08 .t{display:flex;align-items:center;gap:6px;font-size:12px;margin-top:3px}.s-e08 .t i{width:80px;height:12px;border:1px solid #1a1a1a;background:#00a3ad;flex:none}.s-e08 .t1 i{opacity:.3}.s-e08 .t2 i{opacity:.6}.s-e08 .t code{font:10px \"Roboto Mono\",monospace;margin-left:auto}.s-e08 .ac{display:flex;gap:6px;margin-top:10px;align-items:stretch}.s-e08 .ac button{font:600 13px \"Work Sans\",sans-serif;border:1px solid #1a1a1a;padding:6px 12px;cursor:pointer}.s-e08 .ap{background:#da291c;color:#fff}.s-e08 .un{background:#fff;color:#1a1a1a}.s-e08 .sc{margin-left:auto;display:flex;gap:4px}.s-e08 .sc span{background:#fff;border:1px solid #1a1a1a;font:10px \"Roboto Mono\",monospace;padding:2px 5px 2px 3px;display:flex;align-items:center;gap:4px}.s-e08 .sc i{width:10px;height:22px}</style><div class=\"w\"><div class=\"hd\"><i></i><div><b>morphkit</b><span>FORMULA GUIDE · customer-card.tsx · dynamic</span></div></div><div class=\"top\"><div class=\"fan\"><div class=\"ch c0\"><span>v0<br>Gray</span><i></i></div><div class=\"ch c1\"><span>v1<br>3125</span><i></i></div><div class=\"ch c2\"><span>v2 now<br>485 C</span><i></i></div><i class=\"rv\"></i></div><div class=\"rq\"><i></i><p><small>REQUEST 0001 C</small>Add phone and city; overdue in red</p></div></div><div class=\"fl\"><div class=\"f\"><i style=\"background:#00a3ad\"></i><code>3125 C</code><span>Email · hank@globex.example</span></div><div class=\"f\"><i style=\"background:#f2f2f2\"></i><code>COOL GRAY</code><span>City · Springfield</span></div><div class=\"f\"><i style=\"background:#da291c\"></i><code>485 C</code><span>Next payment · Oct 11, 2026 <span class=\"od\">overdue</span></span></div></div><div class=\"tl\"><div class=\"t t1\"><i></i>Reading the card<code>30%</code></div><div class=\"t t2\"><i></i>Changing the fields<code>60%</code></div><div class=\"t\"><i></i>Checking the build<code>100% done</code></div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><div class=\"sc\"><span><i style=\"background:#00a3ad\"></i>Applied C</span><span><i style=\"background:#da291c\"></i>Needs admin U</span></div></div></div></div>"
+ },
+ {
+  "id": "e09",
+  "name": "Stadium scoreboard",
+  "family": "graphic",
+  "origin": "Ballpark line-score scoreboards and dot-matrix stadium displays (Wrigley Field manual board 1937; Daktronics LED boards, 1980s)",
+  "why_not_ai": "Versions sit in an inning-style line score, steps are ball-strike-out lamp counts and the request runs as a ticker crawl: sports-broadcast furniture.",
+  "fits": "A line score is literally a running history of attempts with the current one lit, which is exactly what a version strip has to say.",
+  "palette": [
+   "#0a0a0a",
+   "#262626",
+   "#ffb000",
+   "#f2f2f2",
+   "#e10600"
+  ],
+  "roles": {
+   "bg": "#0a0a0a",
+   "panel": "#262626",
+   "lamp": "#ffb000",
+   "fg": "#f2f2f2",
+   "alert": "#e10600"
+  },
+  "type": {
+   "display": "Teko",
+   "body": "DotGothic16",
+   "mono": "DotGothic16"
+  },
+  "fonts": [
+   "Teko:wght@500;600",
+   "DotGothic16"
+  ],
+  "components": [
+   "line-score version table",
+   "lineup field rows",
+   "ticker crawl request",
+   "count-lamp progress",
+   "lit lamp-box status"
+  ],
+  "html": "<div class=\"tile s-e09\"><style>.s-e09 .w{background:#0a0a0a;color:#f2f2f2;font:13px/1.35 DotGothic16,monospace;padding:10px;border:4px solid #262626}.s-e09 .hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #262626;padding-bottom:4px}.s-e09 .hd b{font:600 26px/1 Teko,sans-serif;letter-spacing:.06em;color:#ffb000;text-transform:uppercase}.s-e09 .hd span{font-size:11px}.s-e09 table{width:100%;border-collapse:collapse;margin-top:8px;font:500 18px/1 Teko,sans-serif;text-align:center}.s-e09 th{font-size:13px;color:#f2f2f2;font-weight:500;padding:2px}.s-e09 td{background:#262626;border:2px solid #0a0a0a;padding:4px 0;color:#f2f2f2}.s-e09 td.on{background:#ffb000;color:#0a0a0a}.s-e09 td.t{text-align:left;padding-left:6px;background:#0a0a0a;color:#ffb000}.s-e09 .tk{margin-top:8px;background:#262626;color:#ffb000;padding:4px 8px;white-space:nowrap;overflow:hidden;font-size:12px}.s-e09 .lu{margin-top:8px}.s-e09 .p{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #262626;font-size:12px}.s-e09 .p i{font:500 16px/1 Teko,sans-serif;color:#ffb000;width:14px;font-style:normal}.s-e09 .p em{font-style:normal;width:90px}.s-e09 .od{background:#e10600;color:#f2f2f2;padding:0 4px;margin-left:auto}.s-e09 .ct{margin-top:8px}.s-e09 .c{display:flex;align-items:center;gap:5px;font-size:12px;padding:2px 0}.s-e09 .c span{width:150px}.s-e09 .c i{width:10px;height:10px;border-radius:50%;background:#262626;display:inline-block}.s-e09 .c i.l{background:#ffb000}.s-e09 .c b{margin-left:auto;font:600 15px/1 Teko,sans-serif;color:#0a0a0a;background:#ffb000;padding:2px 6px 0}.s-e09 .ac{display:flex;gap:8px;margin-top:10px;align-items:center}.s-e09 .ac button{font:600 17px/1 Teko,sans-serif;letter-spacing:.08em;padding:5px 14px 3px;cursor:pointer;text-transform:uppercase}.s-e09 .ap{background:#ffb000;color:#0a0a0a;border:2px solid #ffb000}.s-e09 .un{background:#0a0a0a;color:#ffb000;border:2px solid #ffb000}.s-e09 .bx{margin-left:auto;display:flex;gap:4px;font:600 14px/1 Teko,sans-serif;letter-spacing:.06em}.s-e09 .bx span{padding:4px 6px 2px;border:2px solid #262626}.s-e09 .bx .y{background:#ffb000;color:#0a0a0a}.s-e09 .bx .n{background:#e10600;color:#f2f2f2}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><table><tr><th></th><th>0</th><th>1</th><th>2</th><th>NOW</th></tr><tr><td class=\"t\">VER</td><td>v0</td><td>v1</td><td class=\"on\">v2</td><td class=\"on\">2</td></tr></table><div class=\"tk\">&#9654; ADD PHONE AND CITY; OVERDUE IN RED &#9654;</div><div class=\"lu\"><div class=\"p\"><i>1</i><em>EMAIL</em>hank@globex.example</div><div class=\"p\"><i>2</i><em>CITY</em>Springfield</div><div class=\"p\"><i>3</i><em>NEXT PAY</em>Oct 11, 2026<span class=\"od\">OVERDUE</span></div></div><div class=\"ct\"><div class=\"c\"><span>Reading the card</span><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i></div><div class=\"c\"><span>Changing the fields</span><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i></div><div class=\"c\"><span>Checking the build</span><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><b>DONE</b></div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><div class=\"bx\"><span class=\"y\">APPLIED</span><span class=\"n\">NEEDS ADMIN</span></div></div></div></div>"
+ },
+ {
+  "id": "e10",
+  "name": "Airline safety card",
+  "family": "graphic",
+  "origin": "Airline passenger safety briefing cards (ICAO-era pictorial cards, 1960s onward)",
+  "why_not_ai": "Numbered pictogram panels, lettered callouts, a seat map and the green EXIT / red prohibition pair follow aviation briefing conventions, wordless by design.",
+  "fits": "Safety cards exist to explain a procedure to anyone, and an agent changing a live app needs the same calm 'here is what happens, step by step' tone.",
+  "palette": [
+   "#ffffff",
+   "#1b1b1b",
+   "#d71920",
+   "#007a3d",
+   "#e6e6e6"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#1b1b1b",
+   "prohibit": "#d71920",
+   "exit": "#007a3d",
+   "panel": "#e6e6e6"
+  },
+  "type": {
+   "display": "Barlow Condensed",
+   "body": "Source Sans 3",
+   "mono": "none"
+  },
+  "fonts": [
+   "Barlow+Condensed:wght@600;700",
+   "Source+Sans+3:wght@400;600"
+  ],
+  "components": [
+   "numbered pictogram panels",
+   "lettered callout fields",
+   "seat-map versions",
+   "EXIT-sign buttons",
+   "prohibition-circle status"
+  ],
+  "html": "<div class=\"tile s-e10\"><style>.s-e10 .w{background:#fff;color:#1b1b1b;font:13px/1.35 \"Source Sans 3\",sans-serif;border:2px solid #1b1b1b}.s-e10 .hd{background:#d71920;color:#fff;display:flex;justify-content:space-between;align-items:baseline;padding:6px 10px}.s-e10 .hd b{font:700 20px \"Barlow Condensed\",sans-serif;letter-spacing:.04em}.s-e10 .hd span{font:600 12px \"Barlow Condensed\",sans-serif;letter-spacing:.08em;text-transform:uppercase}.s-e10 .ic{margin:10px 10px 0;border:2px solid #1b1b1b;padding:5px 8px}.s-e10 .ic b{display:block;font:700 12px \"Barlow Condensed\",sans-serif;letter-spacing:.1em}.s-e10 .co{margin:8px 10px 0}.s-e10 .f{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12px}.s-e10 .f i{width:18px;height:18px;border-radius:50%;background:#1b1b1b;color:#fff;font:700 12px/18px \"Barlow Condensed\",sans-serif;text-align:center;font-style:normal;flex:none}.s-e10 .f em{font-style:normal;font-weight:600;width:84px}.s-e10 .od{border:2px solid #d71920;color:#d71920;font-weight:600;padding:0 4px}.s-e10 .pn{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:10px 10px 0}.s-e10 .pn div{background:#e6e6e6;padding:5px;font-size:11px;line-height:1.2;position:relative;text-align:center}.s-e10 .pn u{position:absolute;left:4px;top:4px;text-decoration:none;font:700 14px \"Barlow Condensed\",sans-serif}.s-e10 .pn svg{display:block;margin:2px auto 3px}.s-e10 .pn .dn{outline:2px solid #007a3d}.s-e10 .pn .dn b{display:block;color:#007a3d}.s-e10 .sm{display:flex;align-items:flex-end;gap:6px;margin:10px 10px 0;font:600 12px \"Barlow Condensed\",sans-serif}.s-e10 .sm em{font-style:normal;letter-spacing:.08em;margin-right:4px}.s-e10 .st{text-align:center}.s-e10 .st i{display:block;width:24px;height:26px;border:2px solid #1b1b1b;border-radius:6px 6px 2px 2px;margin:0 auto 2px}.s-e10 .st.on i{background:#007a3d;border-color:#007a3d}.s-e10 .st.on{color:#007a3d}.s-e10 .ac{display:flex;gap:8px;align-items:center;margin:10px}.s-e10 .ac button{font:700 15px \"Barlow Condensed\",sans-serif;letter-spacing:.06em;padding:4px 12px;cursor:pointer;text-transform:uppercase}.s-e10 .ap{background:#007a3d;color:#fff;border:2px solid #007a3d}.s-e10 .un{background:#fff;color:#1b1b1b;border:2px solid #1b1b1b}.s-e10 .ok{margin-left:auto;background:#007a3d;color:#fff;font:700 13px \"Barlow Condensed\",sans-serif;padding:3px 7px;letter-spacing:.06em}.s-e10 .na{display:flex;align-items:center;gap:4px;font:700 13px \"Barlow Condensed\",sans-serif;color:#d71920}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"ic\"><b>IN CASE OF CHANGE</b>Add phone and city; overdue in red</div><div class=\"co\"><div class=\"f\"><i>A</i><em>Email</em>hank@globex.example</div><div class=\"f\"><i>B</i><em>City</em>Springfield</div><div class=\"f\"><i>C</i><em>Next payment</em>Oct 11, 2026 <span class=\"od\">! overdue</span></div></div><div class=\"pn\"><div><u>1</u><svg width=\"34\" height=\"22\"><rect x=\"1\" y=\"1\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"#1b1b1b\" stroke-width=\"2\"/><circle cx=\"26\" cy=\"14\" r=\"6\" fill=\"none\" stroke=\"#1b1b1b\" stroke-width=\"2\"/><line x1=\"30\" y1=\"18\" x2=\"33\" y2=\"21\" stroke=\"#1b1b1b\" stroke-width=\"2\"/></svg>Reading the card</div><div><u>2</u><svg width=\"34\" height=\"22\"><rect x=\"1\" y=\"1\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"#1b1b1b\" stroke-width=\"2\"/><line x1=\"12\" y1=\"20\" x2=\"32\" y2=\"2\" stroke=\"#1b1b1b\" stroke-width=\"3\"/></svg>Changing the fields</div><div class=\"dn\"><u>3</u><svg width=\"34\" height=\"22\"><polyline points=\"6,12 14,19 29,3\" fill=\"none\" stroke=\"#007a3d\" stroke-width=\"4\"/></svg>Checking the build<b>done</b></div></div><div class=\"sm\"><em>ROW V</em><div class=\"st\"><i></i>v0</div><div class=\"st\"><i></i>v1</div><div class=\"st on\"><i></i>v2 · you are here</div></div><div class=\"ac\"><button class=\"ap\">Apply &rarr;</button><button class=\"un\">&#8630; Undo</button><span class=\"ok\">APPLIED</span><span class=\"na\"><svg width=\"18\" height=\"18\"><circle cx=\"9\" cy=\"9\" r=\"7\" fill=\"none\" stroke=\"#d71920\" stroke-width=\"2.5\"/><line x1=\"4\" y1=\"4\" x2=\"14\" y2=\"14\" stroke=\"#d71920\" stroke-width=\"2.5\"/></svg>NEEDS ADMIN</span></div></div></div>"
+ },
+ {
+  "id": "e11",
+  "name": "Dispensary label",
+  "family": "graphic",
+  "origin": "Pharmacy dispensing labels, 'Sig:' prescription directions and auxiliary warning stickers (US/EU retail pharmacy practice)",
+  "why_not_ai": "An Rx label with patient and Sig lines, coloured auxiliary stickers stuck on at an angle and a blister pack for versions come from the dispensing counter, not a design system.",
+  "fits": "'Sig' is literally an instruction to be carried out exactly, and the blister pack shows which versions have been used and which is in hand.",
+  "palette": [
+   "#ffffff",
+   "#1e2a2e",
+   "#00843d",
+   "#d6001c",
+   "#eef2f1"
+  ],
+  "roles": {
+   "bg": "#eef2f1",
+   "label": "#ffffff",
+   "fg": "#1e2a2e",
+   "ok": "#00843d",
+   "warn": "#d6001c"
+  },
+  "type": {
+   "display": "Red Hat Display",
+   "body": "Atkinson Hyperlegible",
+   "mono": "none"
+  },
+  "fonts": [
+   "Red+Hat+Display:wght@700;900",
+   "Atkinson+Hyperlegible:wght@400;700"
+  ],
+  "components": [
+   "Rx dispensing label",
+   "Sig: request line",
+   "dosage-schedule progress",
+   "blister-pack versions",
+   "auxiliary warning stickers"
+  ],
+  "html": "<div class=\"tile s-e11\"><style>.s-e11 .w{background:#eef2f1;color:#1e2a2e;font:13px/1.35 \"Atkinson Hyperlegible\",sans-serif;padding:12px}.s-e11 .hd{display:flex;align-items:center;gap:8px}.s-e11 .cr{position:relative;width:20px;height:20px;flex:none}.s-e11 .cr:before,.s-e11 .cr:after{content:\"\";position:absolute;background:#00843d}.s-e11 .cr:before{left:7px;top:0;width:6px;height:20px}.s-e11 .cr:after{left:0;top:7px;width:20px;height:6px}.s-e11 .hd b{font:900 18px \"Red Hat Display\",sans-serif}.s-e11 .hd span{margin-left:auto;font-size:11px}.s-e11 .lb{position:relative;margin-top:10px;background:#fff;border:1px solid #1e2a2e;padding:8px 10px}.s-e11 .lb .rx{font:900 20px/1 \"Red Hat Display\",sans-serif;float:left;margin-right:8px}.s-e11 .lb .pt{font-size:11px;border-bottom:1px solid #1e2a2e;padding-bottom:4px;margin-bottom:4px}.s-e11 .f{display:flex;font-size:12px;padding:1px 0}.s-e11 .f em{font-style:normal;font-weight:700;width:94px}.s-e11 .sig{margin-top:6px;border-top:2px solid #1e2a2e;padding-top:4px;font-weight:700}.s-e11 .sig span{font-weight:400}.s-e11 .ax{position:absolute;right:-6px;top:30px;background:#d6001c;color:#fff;font:700 11px \"Red Hat Display\",sans-serif;padding:3px 6px;transform:rotate(6deg);text-transform:uppercase}.s-e11 .mid{display:flex;gap:10px;margin-top:10px}.s-e11 table{flex:1;border-collapse:collapse;background:#fff;font-size:12px}.s-e11 th{font:700 11px \"Red Hat Display\",sans-serif;text-align:left;border-bottom:1px solid #1e2a2e;padding:3px 5px}.s-e11 td{border-bottom:1px solid #eef2f1;padding:3px 5px}.s-e11 td.c{text-align:center;font-weight:700}.s-e11 tr.dn td{color:#00843d;font-weight:700}.s-e11 .bl{background:#fff;border:1px solid #1e2a2e;padding:6px;display:flex;flex-direction:column;gap:5px;width:58px;flex:none}.s-e11 .bl span{display:block;height:26px;border-radius:13px;border:2px dashed #1e2a2e;font:700 11px/22px \"Red Hat Display\",sans-serif;text-align:center}.s-e11 .bl span.on{background:#00843d;border:2px solid #00843d;color:#fff}.s-e11 .ac{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}.s-e11 .ac button{font:700 13px \"Red Hat Display\",sans-serif;padding:6px 14px;cursor:pointer}.s-e11 .ap{background:#00843d;color:#fff;border:2px solid #00843d}.s-e11 .un{background:#fff;color:#1e2a2e;border:2px solid #1e2a2e}.s-e11 .s1{margin-left:auto;background:#00843d;color:#fff;font:700 11px \"Red Hat Display\",sans-serif;padding:3px 7px;transform:rotate(-3deg)}.s-e11 .s2{background:#fff;border:2px solid #d6001c;color:#d6001c;font:700 11px/1.15 \"Red Hat Display\",sans-serif;padding:3px 6px;transform:rotate(2deg)}</style><div class=\"w\"><div class=\"hd\"><i class=\"cr\"></i><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"lb\"><span class=\"rx\">&#8478;</span><div class=\"pt\">Patient: customer-card · Rx #0002 · Qty 1 panel</div><div class=\"f\"><em>Email</em>hank@globex.example</div><div class=\"f\"><em>City</em>Springfield</div><div class=\"f\"><em>Next payment</em>Oct 11, 2026</div><div class=\"sig\">Sig: <span>Add phone and city; overdue in red</span></div><span class=\"ax\">Overdue</span></div><div class=\"mid\"><table><tr><th>Step</th><th>Taken</th></tr><tr><td>Reading the card</td><td class=\"c\">&#10003;</td></tr><tr><td>Changing the fields</td><td class=\"c\">&#10003;</td></tr><tr class=\"dn\"><td>Checking the build</td><td class=\"c\">done</td></tr></table><div class=\"bl\"><span>v0</span><span>v1</span><span class=\"on\">v2</span></div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><span class=\"s1\">&#10003; Applied</span><span class=\"s2\">Needs admin<br>consult before use</span></div></div></div>"
+ },
+ {
+  "id": "e12",
+  "name": "Vignelli Unigrid",
+  "family": "graphic",
+  "origin": "Massimo Vignelli's Unigrid for the US National Park Service (1977) and his magazine layouts",
+  "why_not_ai": "A full-bleed black title band, Bodoni against a heavy grotesk, thick-over-thin rules and issue numbers reversed out of black are Vignelli's handful of fixed moves.",
+  "fits": "Issue numbers map naturally onto versions and the rigid band keeps the panel name constant while everything under it is rewritten.",
+  "palette": [
+   "#ffffff",
+   "#000000",
+   "#595959",
+   "#c8102e"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#000000",
+   "muted": "#595959",
+   "accent": "#c8102e"
+  },
+  "type": {
+   "display": "Bodoni Moda",
+   "body": "Libre Franklin",
+   "mono": "none"
+  },
+  "fonts": [
+   "Bodoni+Moda:ital,wght@0,500;0,700;1,500",
+   "Libre+Franklin:wght@400;700;800"
+  ],
+  "components": [
+   "Unigrid black title band",
+   "thick-over-thin rule index",
+   "Bodoni chapter numerals",
+   "reversed issue-number versions",
+   "band-reversed status"
+  ],
+  "html": "<div class=\"tile s-e12\"><style>.s-e12 .w{background:#fff;color:#000;font:12px/1.4 \"Libre Franklin\",sans-serif;padding-bottom:12px}.s-e12 .band{background:#000;color:#fff;padding:12px 14px 8px;display:flex;justify-content:space-between;align-items:flex-end}.s-e12 .band b{font:800 26px/0.9 \"Libre Franklin\",sans-serif;letter-spacing:-.03em}.s-e12 .band span{font-size:11px;text-align:right}.s-e12 .in{padding:0 14px}.s-e12 .rq{font:500 20px/1.15 \"Bodoni Moda\",serif;margin:12px 0 0}.s-e12 .rq em{display:block;font:400 11px \"Libre Franklin\",sans-serif;color:#595959;margin-top:4px}.s-e12 .sec{border-top:5px solid #000;margin-top:12px;padding-top:2px;font:800 11px \"Libre Franklin\",sans-serif;letter-spacing:.08em;text-transform:uppercase}.s-e12 .f{display:grid;grid-template-columns:96px 1fr;border-top:1px solid #000;padding:4px 0}.s-e12 .f b{font-weight:700;font-size:11px;text-transform:uppercase}.s-e12 .f span{font:500 14px \"Bodoni Moda\",serif}.s-e12 .od{font-style:italic;font-weight:700;color:#c8102e}.s-e12 .ch{display:flex;align-items:baseline;gap:10px;border-top:1px solid #000;padding:2px 0}.s-e12 .ch i{font:500 22px/1 \"Bodoni Moda\",serif;font-style:normal;width:16px}.s-e12 .ch em{margin-left:auto;font:italic 500 13px \"Bodoni Moda\",serif;color:#595959}.s-e12 .ch.dn em{color:#000;font-weight:700}.s-e12 .is{display:flex;margin-top:12px;border-top:5px solid #000;border-bottom:1px solid #000}.s-e12 .is span{flex:1;padding:4px 6px;font-size:11px}.s-e12 .is span b{font:700 16px \"Bodoni Moda\",serif;margin-left:4px}.s-e12 .is .on{background:#000;color:#fff}.s-e12 .ac{display:flex;align-items:center;gap:12px;margin-top:12px}.s-e12 .ac button{font:800 12px \"Libre Franklin\",sans-serif;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.s-e12 .ap{background:#000;color:#fff;border:0;padding:7px 16px}.s-e12 .un{background:none;border:0;border-bottom:4px solid #000;padding:2px 0;color:#000}.s-e12 .st{margin-left:auto;text-align:right}.s-e12 .st b{display:block;background:#000;color:#fff;font-size:11px;padding:2px 6px;letter-spacing:.08em;text-transform:uppercase}.s-e12 .st em{display:block;font:italic 700 13px \"Bodoni Moda\",serif;color:#c8102e;border-bottom:2px solid #c8102e}</style><div class=\"w\"><div class=\"band\"><b>morphkit</b><span>customer-card.tsx<br>dynamic</span></div><div class=\"in\"><p class=\"rq\">Add phone and city; overdue in red<em>Request from the customer, in their words</em></p><div class=\"sec\">Customer</div><div class=\"f\"><b>Email</b><span>hank@globex.example</span></div><div class=\"f\"><b>City</b><span>Springfield</span></div><div class=\"f\"><b>Next payment</b><span>Oct 11, 2026 <span class=\"od\">overdue</span></span></div><div class=\"sec\">Work</div><div class=\"ch\"><i>1</i>Reading the card<em>read</em></div><div class=\"ch\"><i>2</i>Changing the fields<em>changed</em></div><div class=\"ch dn\"><i>3</i>Checking the build<em>done</em></div><div class=\"is\"><span>No.<b>0</b> &middot; v0</span><span>No.<b>1</b> &middot; v1</span><span class=\"on\">No.<b>2</b> &middot; v2 current</span></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><div class=\"st\"><b>Applied</b><em>Needs admin</em></div></div></div></div></div>"
+ },
+ {
+  "id": "e13",
+  "name": "Constructivist agitprop",
+  "family": "graphic",
+  "origin": "Soviet Constructivism (El Lissitzky, Alexander Rodchenko, Stenberg brothers, 1919-1930)",
+  "why_not_ai": "Tilted red bands, staircase blocks, wedge arrows and a rising bar chart for 'the plan' use the diagonal agit-poster grammar instead of a centred layout.",
+  "fits": "Every element points forward along a diagonal, which suits a tool whose whole job is pushing a change through to production.",
+  "palette": [
+   "#efeee9",
+   "#121212",
+   "#c8102e"
+  ],
+  "roles": {
+   "bg": "#efeee9",
+   "fg": "#121212",
+   "accent": "#c8102e"
+  },
+  "type": {
+   "display": "Anton",
+   "body": "PT Sans",
+   "mono": "none"
+  },
+  "fonts": [
+   "Anton",
+   "PT+Sans:wght@400;700"
+  ],
+  "components": [
+   "diagonal red banner header",
+   "staircase field blocks",
+   "wedge-arrow progress",
+   "rising-bar versions",
+   "tilted slogan status"
+  ],
+  "html": "<div class=\"tile s-e13\"><style>.s-e13 .w{background:#efeee9;color:#121212;font:13px/1.35 \"PT Sans\",sans-serif;overflow:hidden;padding-bottom:14px}.s-e13 .ban{background:#c8102e;color:#efeee9;transform:rotate(-5deg);margin:12px -10px 0;padding:4px 24px;display:flex;justify-content:space-between;align-items:baseline}.s-e13 .ban b{font:400 26px/1.05 Anton,sans-serif;letter-spacing:.04em;text-transform:uppercase}.s-e13 .ban span{font-size:11px;font-weight:700}.s-e13 .rq{display:flex;align-items:center;gap:6px;margin:16px 14px 0}.s-e13 .rq svg{flex:none}.s-e13 .rq p{margin:0;font:400 16px/1.1 Anton,sans-serif;text-transform:uppercase;transform:rotate(-2deg)}.s-e13 .st{margin:10px 14px 0}.s-e13 .s{background:#121212;color:#efeee9;padding:4px 8px;font-size:12px;display:flex;gap:8px;width:250px;margin-top:3px}.s-e13 .s b{width:84px;flex:none}.s-e13 .s2{margin-left:18px}.s-e13 .s3{margin-left:36px;width:262px}.s-e13 .od{background:#c8102e;padding:0 4px;font-weight:700;text-transform:uppercase;margin-left:auto}.s-e13 .row{display:flex;gap:12px;margin:12px 14px 0;align-items:flex-end}.s-e13 .pg{flex:1}.s-e13 .a{display:flex;align-items:center;margin-top:3px;font-size:12px;font-weight:700}.s-e13 .a i{display:block;width:16px;height:14px;background:#121212;clip-path:polygon(0 0,100% 50%,0 100%);margin-right:6px;flex:none}.s-e13 .a.dn i{background:#c8102e;width:22px}.s-e13 .a.dn b{margin-left:6px;background:#c8102e;color:#efeee9;padding:0 5px;font:400 12px Anton,sans-serif;letter-spacing:.06em}.s-e13 .bars{display:flex;align-items:flex-end;gap:4px}.s-e13 .bars span{width:24px;background:#121212;color:#efeee9;font:400 11px Anton,sans-serif;text-align:center;padding-top:2px}.s-e13 .bars .b0{height:18px}.s-e13 .bars .b1{height:30px}.s-e13 .bars .b2{height:46px;background:#c8102e}.s-e13 .ac{display:flex;align-items:center;gap:8px;margin:14px 14px 0}.s-e13 .ac button{font:400 15px Anton,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border:0}.s-e13 .ap{background:#c8102e;color:#efeee9;padding:6px 26px 6px 12px;clip-path:polygon(0 0,82% 0,100% 50%,82% 100%,0 100%)}.s-e13 .ac .un{background:none;color:#121212;border:3px solid #121212;padding:3px 10px}.s-e13 .sl{margin-left:auto;display:flex;flex-direction:column;gap:5px;align-items:flex-end}.s-e13 .sl b{font:400 13px Anton,sans-serif;letter-spacing:.06em;padding:1px 6px}.s-e13 .y{background:#121212;color:#efeee9;transform:rotate(-6deg)}.s-e13 .n{background:#c8102e;color:#efeee9;transform:rotate(4deg)}</style><div class=\"w\"><div class=\"ban\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"rq\"><svg width=\"30\" height=\"24\"><polygon points=\"0,9 10,9 30,0 30,24 10,15 0,15\" fill=\"#121212\"/></svg><p>Add phone and city; overdue in red!</p></div><div class=\"st\"><div class=\"s\"><b>EMAIL</b>hank@globex.example</div><div class=\"s s2\"><b>CITY</b>Springfield</div><div class=\"s s3\"><b>NEXT PAYMENT</b>Oct 11, 2026<span class=\"od\">overdue</span></div></div><div class=\"row\"><div class=\"pg\"><div class=\"a\"><i></i>Reading the card</div><div class=\"a\"><i></i>Changing the fields</div><div class=\"a dn\"><i></i>Checking the build<b>DONE</b></div></div><div class=\"bars\"><span class=\"b0\">v0</span><span class=\"b1\">v1</span><span class=\"b2\">v2</span></div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><div class=\"sl\"><b class=\"y\">APPLIED!</b><b class=\"n\">NEEDS ADMIN</b></div></div></div></div>"
+ },
+ {
+  "id": "e14",
+  "name": "Art Deco playbill",
+  "family": "graphic",
+  "origin": "Art Deco theatre and cinema ephemera (Radio City Music Hall programmes and admission tickets, 1925-1935)",
+  "why_not_ai": "A sunburst crown, double-rule marquee frame, Act I-III programme and perforated ADMIT stubs use the gold-on-black ceremony of 1930s picture palaces.",
+  "fits": "A change that goes live is staged like a premiere: the acts are the build steps and each version is a ticket you can still hold.",
+  "palette": [
+   "#0e0e0e",
+   "#d4af37",
+   "#f3ead3",
+   "#e05263"
+  ],
+  "roles": {
+   "bg": "#0e0e0e",
+   "gold": "#d4af37",
+   "fg": "#f3ead3",
+   "alert": "#e05263"
+  },
+  "type": {
+   "display": "Limelight",
+   "body": "Josefin Sans",
+   "mono": "none"
+  },
+  "fonts": [
+   "Limelight",
+   "Josefin+Sans:wght@400;600;700"
+  ],
+  "components": [
+   "sunburst crown header",
+   "double-rule marquee request",
+   "diamond cast-list fields",
+   "Act I-III programme",
+   "perforated ticket-stub versions"
+  ],
+  "html": "<div class=\"tile s-e14\"><style>.s-e14 .w{background:#0e0e0e;color:#f3ead3;font:13px/1.35 \"Josefin Sans\",sans-serif;padding:10px;border:3px double #d4af37}.s-e14 .cr{text-align:center}.s-e14 .cr svg{display:block;margin:0 auto}.s-e14 .cr b{display:block;font:400 24px/1 Limelight,serif;color:#d4af37;letter-spacing:.12em;margin-top:2px}.s-e14 .cr span{font-size:11px;letter-spacing:.18em;text-transform:uppercase}.s-e14 .mq{margin-top:8px;border:4px double #d4af37;padding:5px 8px;text-align:center}.s-e14 .mq small{display:block;font-size:11px;letter-spacing:.2em;color:#d4af37}.s-e14 .mq p{margin:2px 0 0;font-weight:600}.s-e14 .cast{margin-top:8px;text-align:center;font-size:12px}.s-e14 .cast div{padding:2px 0}.s-e14 .cast b{color:#d4af37;font-size:11px;letter-spacing:.14em;margin-right:6px}.s-e14 .cast i{color:#d4af37;font-style:normal;font-size:9px;display:block;line-height:1}.s-e14 .od{border:1px solid #e05263;color:#e05263;padding:0 4px;letter-spacing:.1em;font-weight:700;font-size:11px}.s-e14 .acts{margin-top:8px;border-top:1px solid #d4af37;border-bottom:1px solid #d4af37;padding:4px 0}.s-e14 .act{display:flex;font-size:12px;padding:1px 0}.s-e14 .act b{width:62px;color:#d4af37;font-family:Limelight,serif;font-weight:400}.s-e14 .act em{margin-left:auto;font-style:normal;font-size:11px}.s-e14 .act.dn em{color:#0e0e0e;background:#d4af37;padding:0 5px;font-weight:700}.s-e14 .tix{display:flex;gap:6px;margin-top:10px}.s-e14 .tk{flex:1;border:1px solid #d4af37;border-left:2px dashed #d4af37;padding:4px 6px;font-size:11px;text-align:center;line-height:1.2;background:radial-gradient(circle at 0 50%,#0e0e0e 5px,transparent 6px)}.s-e14 .tk b{display:block;font:400 15px Limelight,serif}.s-e14 .tk.on{background:#d4af37;color:#0e0e0e}.s-e14 .ac{display:flex;gap:8px;align-items:center;margin-top:10px}.s-e14 .ac button{font:700 12px \"Josefin Sans\",sans-serif;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;padding:7px 12px 5px}.s-e14 .ap{background:#d4af37;color:#0e0e0e;border:0;clip-path:polygon(6px 0,calc(100% - 6px) 0,calc(100% - 6px) 3px,100% 3px,100% calc(100% - 3px),calc(100% - 6px) calc(100% - 3px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 3px),0 calc(100% - 3px),0 3px,6px 3px)}.s-e14 .un{background:none;color:#f3ead3;border:1px solid #f3ead3}.s-e14 .dm{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.1em;color:#d4af37}.s-e14 .dm i{width:10px;height:10px;background:#d4af37;transform:rotate(45deg);display:inline-block}.s-e14 .rs{border:1px solid #e05263;color:#e05263;font-size:11px;font-weight:700;letter-spacing:.08em;padding:3px 5px 1px}</style><div class=\"w\"><div class=\"cr\"><svg width=\"200\" height=\"26\" viewBox=\"0 0 200 26\"><g stroke=\"#d4af37\" stroke-width=\"1.5\"><line x1=\"100\" y1=\"26\" x2=\"100\" y2=\"0\"/><line x1=\"100\" y1=\"26\" x2=\"70\" y2=\"2\"/><line x1=\"100\" y1=\"26\" x2=\"130\" y2=\"2\"/><line x1=\"100\" y1=\"26\" x2=\"44\" y2=\"8\"/><line x1=\"100\" y1=\"26\" x2=\"156\" y2=\"8\"/><line x1=\"100\" y1=\"26\" x2=\"22\" y2=\"18\"/><line x1=\"100\" y1=\"26\" x2=\"178\" y2=\"18\"/></g></svg><b>MORPHKIT</b><span>presents customer-card.tsx · dynamic</span></div><div class=\"mq\"><small>TONIGHT&rsquo;S FEATURE</small><p>Add phone and city; overdue in red</p></div><div class=\"cast\"><div><b>EMAIL</b>hank@globex.example</div><i>&#9670;</i><div><b>CITY</b>Springfield</div><i>&#9670;</i><div><b>NEXT PAYMENT</b>Oct 11, 2026 <span class=\"od\">OVERDUE</span></div></div><div class=\"acts\"><div class=\"act\"><b>Act I</b>Reading the card<em>played</em></div><div class=\"act\"><b>Act II</b>Changing the fields<em>played</em></div><div class=\"act dn\"><b>Act III</b>Checking the build<em>curtain · done</em></div></div><div class=\"tix\"><div class=\"tk\">ADMIT<b>v0</b>row V</div><div class=\"tk\">ADMIT<b>v1</b>row V</div><div class=\"tk on\">ADMIT<b>v2</b>tonight</div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><span class=\"dm\"><i></i>APPLIED</span><span class=\"rs\">NEEDS ADMIN</span></div></div></div>"
+ },
+ {
+  "id": "e15",
+  "name": "Korean convenience store",
+  "family": "graphic",
+  "origin": "Korean convenience-store retail graphics (GS25/CU shelf-edge price tags, 1+1 promo stickers, samgak-gimbap opening instructions, 2000s-2020s)",
+  "why_not_ai": "Yellow shelf-edge tags with barcodes, a skewed NEW banner, circled ①②③ unwrap steps and round promo stickers are packaging conventions from a store aisle.",
+  "fits": "End users already read a shelf tag in a second; the same grammar makes a rewritten card scannable for non-technical customers.",
+  "palette": [
+   "#ffffff",
+   "#141414",
+   "#0072bc",
+   "#ffe100",
+   "#e60012"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#141414",
+   "brand": "#0072bc",
+   "tag": "#ffe100",
+   "promo": "#e60012"
+  },
+  "type": {
+   "display": "Black Han Sans",
+   "body": "Gothic A1",
+   "mono": "none"
+  },
+  "fonts": [
+   "Black+Han+Sans",
+   "Gothic+A1:wght@400;700;800"
+  ],
+  "components": [
+   "shelf-edge price tags",
+   "skewed NEW banner request",
+   "circled unwrap-step progress",
+   "mini-barcode versions",
+   "round promo-sticker status"
+  ],
+  "html": "<div class=\"tile s-e15\"><style>.s-e15 .w{background:#fff;color:#141414;font:13px/1.35 \"Gothic A1\",sans-serif;border:2px solid #141414;padding-bottom:12px}.s-e15 .hd{background:#0072bc;color:#fff;padding:7px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:6px solid #ffe100}.s-e15 .hd b{font:400 22px \"Black Han Sans\",sans-serif;letter-spacing:.02em}.s-e15 .hd span{font-size:11px;font-weight:700}.s-e15 .nw{margin:10px 12px 0;display:flex;align-items:center;transform:rotate(-2deg)}.s-e15 .nw b{background:#e60012;color:#fff;font:400 14px \"Black Han Sans\",sans-serif;padding:4px 8px}.s-e15 .nw span{background:#ffe100;border:2px solid #141414;padding:3px 8px;font-weight:800;font-size:12px;flex:1}.s-e15 .tg{display:flex;margin:8px 12px 0;background:#ffe100;border:1px solid #141414;position:relative}.s-e15 .tg .n{width:84px;padding:4px 6px;font-size:11px;font-weight:700;border-right:1px dashed #141414}.s-e15 .tg .n i{display:block;height:10px;margin-top:3px;background:repeating-linear-gradient(90deg,#141414 0 1px,transparent 1px 3px,#141414 3px 5px,transparent 5px 6px)}.s-e15 .tg .v{padding:4px 8px;font:800 14px \"Gothic A1\",sans-serif;align-self:center}.s-e15 .tg .fl{position:absolute;right:-1px;top:-1px;background:#e60012;color:#fff;font-size:11px;font-weight:800;padding:1px 6px}.s-e15 .st{display:flex;align-items:center;gap:4px;margin:10px 12px 0;font-size:11px;font-weight:700}.s-e15 .st div{flex:1;border:1px solid #141414;padding:4px;text-align:center;line-height:1.2}.s-e15 .st b{display:block;font:400 15px \"Black Han Sans\",sans-serif}.s-e15 .st .dn{background:#0072bc;color:#fff;border-color:#0072bc}.s-e15 .bc{display:flex;gap:10px;margin:10px 12px 0;align-items:flex-end}.s-e15 .bc span{text-align:center;font-size:11px;font-weight:700;padding:2px}.s-e15 .bc i{display:block;width:44px;height:16px;background:repeating-linear-gradient(90deg,#141414 0 2px,transparent 2px 3px,#141414 3px 4px,transparent 4px 6px)}.s-e15 .bc .on{border:2px solid #0072bc;color:#0072bc}.s-e15 .bc .on i{height:22px}.s-e15 .ac{display:flex;gap:8px;align-items:center;margin:12px 12px 0}.s-e15 .ac button{font:400 14px \"Black Han Sans\",sans-serif;padding:6px 12px;cursor:pointer}.s-e15 .ap{background:#e60012;color:#fff;border:2px solid #e60012}.s-e15 .un{background:#fff;color:#0072bc;border:2px solid #0072bc}.s-e15 .sk{margin-left:auto;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:800;line-height:1.1}.s-e15 .y{background:#ffe100;border:2px solid #141414;color:#141414}.s-e15 .r{margin-left:0;background:#e60012;color:#fff}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"nw\"><b>NEW</b><span>Add phone and city; overdue in red</span></div><div class=\"tg\"><div class=\"n\">Email<i></i></div><div class=\"v\">hank@globex.example</div></div><div class=\"tg\"><div class=\"n\">City<i></i></div><div class=\"v\">Springfield</div></div><div class=\"tg\"><div class=\"n\">Next payment<i></i></div><div class=\"v\">Oct 11, 2026</div><span class=\"fl\">OVERDUE</span></div><div class=\"st\"><div><b>&#9312;</b>Reading the card</div>&rarr;<div><b>&#9313;</b>Changing the fields</div>&rarr;<div class=\"dn\"><b>&#9314;</b>Checking the build &middot; done</div></div><div class=\"bc\"><span><i></i>v0</span><span><i></i>v1</span><span class=\"on\"><i></i>v2 now</span></div><div class=\"ac\"><button class=\"ap\">적용 Apply</button><button class=\"un\">Undo</button><span class=\"sk y\">Applied</span><span class=\"sk r\">Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "e16",
+  "name": "Crouwel graph paper",
+  "family": "graphic",
+  "origin": "Wim Crouwel / Total Design catalogues for the Stedelijk Museum Amsterdam (1963-1985), New Alphabet (1967)",
+  "why_not_ai": "Everything snaps to a visible 12px graph-paper grid, lettering is grid-built, and quantities are counted in filled unit cells rather than drawn as bars.",
+  "fits": "A visible grid makes the panel's structure inspectable, which is reassuring when an agent is moving its fields around.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#c9d6df",
+   "#e2001a",
+   "#007a4d"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "grid": "#c9d6df",
+   "alert": "#e2001a",
+   "ok": "#007a4d"
+  },
+  "type": {
+   "display": "Major Mono Display",
+   "body": "Azeret Mono",
+   "mono": "Azeret Mono"
+  },
+  "fonts": [
+   "Major+Mono+Display",
+   "Azeret+Mono:wght@400;600;800"
+  ],
+  "components": [
+   "visible 12px graph grid",
+   "grid-snapped field rows",
+   "unit-cell counters",
+   "cell-block versions",
+   "cell-chip status"
+  ],
+  "html": "<div class=\"tile s-e16\"><style>.s-e16 .w{background-color:#fff;background-image:linear-gradient(#c9d6df 1px,transparent 1px),linear-gradient(90deg,#c9d6df 1px,transparent 1px);background-size:12px 12px;color:#111;font:12px/24px \"Azeret Mono\",monospace;padding:12px}.s-e16 .hd{border-bottom:2px solid #111}.s-e16 .hd b{display:block;font:400 26px/36px \"Major Mono Display\",monospace}.s-e16 .hd span{display:inline-block;font-size:11px;line-height:24px;background:#fff;padding-right:6px}.s-e16 .rq{margin:12px 0;display:flex}.s-e16 .rq i{width:12px;background:#111;flex:none;margin-right:12px}.s-e16 .rq span{background:#fff;font-weight:600;line-height:24px}.s-e16 .f{display:flex;height:24px}.s-e16 .f b{width:108px;font-weight:600}.s-e16 .f span{background:#fff}.s-e16 .f .od{background:#e2001a;color:#fff;padding:0 6px;margin-left:12px;font-weight:800}.s-e16 .pg{margin-top:12px}.s-e16 .p{display:flex;align-items:center;height:24px}.s-e16 .p span{width:192px;background:#fff}.s-e16 .p i{width:11px;height:11px;margin-right:1px;background:#111;display:inline-block}.s-e16 .p.dn i{background:#007a4d}.s-e16 .p.dn b{margin-left:12px;background:#007a4d;color:#fff;padding:0 6px;line-height:24px}.s-e16 .vs{display:flex;gap:12px;margin-top:12px;align-items:flex-end}.s-e16 .v{width:36px;text-align:center;font-weight:600}.s-e16 .v i{display:block;height:36px;border:1px solid #111;box-sizing:border-box;background:#fff}.s-e16 .v1 i{background:linear-gradient(#fff 0 66%,#111 66%)}.s-e16 .v2 i{background:#111}.s-e16 .v2{color:#e2001a;font-weight:800}.s-e16 .vs em{font-style:normal;font-size:11px;background:#fff;align-self:center}.s-e16 .ac{display:flex;gap:12px;margin-top:12px;align-items:center}.s-e16 .ac button{font:800 12px \"Azeret Mono\",monospace;height:36px;padding:0 12px;cursor:pointer;border:2px solid #111}.s-e16 .ap{background:#111;color:#fff}.s-e16 .un{background:#fff;color:#111}.s-e16 .sc{margin-left:auto;display:flex;flex-direction:column;gap:1px;font-size:11px;line-height:17px}.s-e16 .sc span{padding:0 6px;color:#fff}.s-e16 .g{background:#007a4d}.s-e16 .r{background:#e2001a}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"rq\"><i></i><span>add phone and city; overdue in red</span></div><div class=\"f\"><b>email</b><span>hank@globex.example</span></div><div class=\"f\"><b>city</b><span>Springfield</span></div><div class=\"f\"><b>next payment</b><span>Oct 11, 2026</span><span class=\"od\">overdue</span></div><div class=\"pg\"><div class=\"p\"><span>reading the card</span><i></i><i></i><i></i></div><div class=\"p\"><span>changing the fields</span><i></i><i></i><i></i></div><div class=\"p dn\"><span>checking the build</span><i></i><i></i><i></i><b>done</b></div></div><div class=\"vs\"><div class=\"v\"><i></i>v0</div><div class=\"v v1\"><i></i>v1</div><div class=\"v v2\"><i></i>v2</div><em>&larr; current</em></div><div class=\"ac\"><button class=\"ap\">apply</button><button class=\"un\">undo</button><div class=\"sc\"><span class=\"g\">&#9632; applied</span><span class=\"r\">&#9633; needs admin</span></div></div></div></div>"
+ },
+ {
+  "id": "e17",
+  "name": "Underground roundel",
+  "family": "graphic",
+  "origin": "London Underground identity (Edward Johnston roundel 1919, Harry Beck diagram 1933) and TfL line-status boards",
+  "why_not_ai": "A roundel-and-bar header, line-coloured status rows saying 'Good service', and versions as stations on a Beck-style line with an interchange ring.",
+  "fits": "Versions as stops on a line you can ride back along makes undo spatial, and status-board rows are a proven way to report a multi-step process.",
+  "palette": [
+   "#ffffff",
+   "#111111",
+   "#dc241f",
+   "#0019a8",
+   "#00782a"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#111111",
+   "roundel": "#dc241f",
+   "bar": "#0019a8",
+   "ok": "#00782a"
+  },
+  "type": {
+   "display": "Cabin Condensed",
+   "body": "Cabin",
+   "mono": "none"
+  },
+  "fonts": [
+   "Cabin+Condensed:wght@600;700",
+   "Cabin:wght@400;600"
+  ],
+  "components": [
+   "roundel header",
+   "line-colour field bars",
+   "line-status board progress",
+   "Beck line-diagram versions",
+   "mini-roundel status"
+  ],
+  "html": "<div class=\"tile s-e17\"><style>.s-e17 .w{background:#fff;color:#111;font:13px/1.35 Cabin,sans-serif;padding:12px;border:1px solid #111}.s-e17 .hd{display:flex;align-items:center;gap:8px}.s-e17 .rn{position:relative;width:96px;height:40px;flex:none}.s-e17 .rn i{position:absolute;left:24px;top:0;width:40px;height:40px;box-sizing:border-box;border:8px solid #dc241f;border-radius:50%}.s-e17 .rn b{position:absolute;left:0;top:13px;width:96px;background:#0019a8;color:#fff;font:700 13px/14px \"Cabin Condensed\",sans-serif;text-align:center;letter-spacing:.06em;padding:0}.s-e17 .hd span{font-size:11px;margin-left:auto}.s-e17 .si{margin:10px 0;border:2px solid #0019a8}.s-e17 .si b{display:block;background:#0019a8;color:#fff;font:600 11px \"Cabin Condensed\",sans-serif;letter-spacing:.1em;padding:2px 6px}.s-e17 .si p{margin:0;padding:4px 6px}.s-e17 .f{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px}.s-e17 .f b{width:94px;background:#0019a8;color:#fff;font:600 12px \"Cabin Condensed\",sans-serif;padding:1px 6px;flex:none}.s-e17 .od{background:#dc241f;color:#fff;font:600 12px \"Cabin Condensed\",sans-serif;padding:1px 6px}.s-e17 .sb{margin-top:10px;border-top:2px solid #111}.s-e17 .l{display:flex;align-items:stretch;border-bottom:1px solid #111;font-size:12px}.s-e17 .l i{width:8px;flex:none}.s-e17 .l span{padding:3px 8px;flex:1}.s-e17 .l em{font-style:normal;padding:3px 8px}.s-e17 .l.dn em{background:#00782a;color:#fff;font-weight:600}.s-e17 .dg{position:relative;margin-top:8px;height:46px}.s-e17 .dg .ln{position:absolute;left:4%;right:6%;top:12px;height:6px;background:#dc241f}.s-e17 .dg .st{position:absolute;top:0;font:600 12px \"Cabin Condensed\",sans-serif;text-align:center;width:90px;margin-left:-45px}.s-e17 .dg .st i{display:block;width:6px;height:6px;background:#dc241f;margin:18px auto 2px}.s-e17 .dg .x i{width:16px;height:16px;box-sizing:border-box;border:4px solid #111;border-radius:50%;background:#fff;margin:7px auto 3px}.s-e17 .ac{display:flex;gap:8px;align-items:center;margin-top:10px}.s-e17 .ac button{font:700 13px \"Cabin Condensed\",sans-serif;letter-spacing:.06em;padding:5px 14px;cursor:pointer}.s-e17 .ap{background:#0019a8;color:#fff;border:2px solid #0019a8}.s-e17 .un{background:#fff;color:#0019a8;border:2px solid #0019a8}.s-e17 .mr{margin-left:auto;position:relative;width:80px;height:32px}.s-e17 .mr i{position:absolute;left:24px;top:0;width:32px;height:32px;box-sizing:border-box;border:6px solid #00782a;border-radius:50%}.s-e17 .mr b{position:absolute;left:0;top:9px;width:80px;background:#111;color:#fff;font:700 11px/14px \"Cabin Condensed\",sans-serif;text-align:center}.s-e17 .na{background:#dc241f;color:#fff;font:700 11px \"Cabin Condensed\",sans-serif;padding:3px 6px}</style><div class=\"w\"><div class=\"hd\"><div class=\"rn\"><i></i><b>MORPHKIT</b></div><span>customer-card.tsx · dynamic</span></div><div class=\"si\"><b>CUSTOMER INFORMATION</b><p>Add phone and city; overdue in red</p></div><div class=\"f\"><b>Email</b>hank@globex.example</div><div class=\"f\"><b>City</b>Springfield</div><div class=\"f\"><b>Next payment</b>Oct 11, 2026 <span class=\"od\">Overdue</span></div><div class=\"sb\"><div class=\"l\"><i style=\"background:#0019a8\"></i><span>Reading the card</span><em>Good service</em></div><div class=\"l\"><i style=\"background:#dc241f\"></i><span>Changing the fields</span><em>Good service</em></div><div class=\"l dn\"><i style=\"background:#00782a\"></i><span>Checking the build</span><em>Done</em></div></div><div class=\"dg\"><div class=\"ln\"></div><div class=\"st\" style=\"left:12%\"><i></i><span>v0</span></div><div class=\"st\" style=\"left:45%\"><i></i><span>v1</span></div><div class=\"st x\" style=\"left:80%\"><i></i><span>v2 · you are here</span></div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><div class=\"mr\"><i></i><b>APPLIED</b></div><span class=\"na\">Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "e18",
+  "name": "Munich 72 pictograms",
+  "family": "graphic",
+  "origin": "Otl Aicher's design programme for the 1972 Munich Olympics (pictograms on a 45/90-degree grid, pastel spectrum)",
+  "why_not_ai": "Square colour tiles holding grid-built pictograms, the Munich light-blue/green/orange spectrum bands and a three-step podium are Aicher's system, used to code meaning.",
+  "fits": "A fixed pictogram per field and per step lets the panel be read without language, and the podium makes 'which version is current' unmistakable.",
+  "palette": [
+   "#ffffff",
+   "#1a1a1a",
+   "#4aa3df",
+   "#2e9b49",
+   "#f08a00"
+  ],
+  "roles": {
+   "bg": "#ffffff",
+   "fg": "#1a1a1a",
+   "sky": "#4aa3df",
+   "green": "#2e9b49",
+   "orange": "#f08a00"
+  },
+  "type": {
+   "display": "Hind",
+   "body": "Hind",
+   "mono": "Overpass Mono"
+  },
+  "fonts": [
+   "Hind:wght@300;500;700",
+   "Overpass+Mono:wght@400;600"
+  ],
+  "components": [
+   "spectrum band header",
+   "pictogram-tile field rows",
+   "pictogram event-schedule progress",
+   "podium versions",
+   "pictogram badge status"
+  ],
+  "html": "<div class=\"tile s-e18\"><style>.s-e18 .w{background:#fff;color:#1a1a1a;font:13px/1.35 Hind,sans-serif;padding-bottom:12px}.s-e18 .sp{display:flex;height:8px}.s-e18 .sp i{flex:1}.s-e18 .hd{display:flex;justify-content:space-between;align-items:baseline;padding:6px 12px 0}.s-e18 .hd b{font:300 26px/1 Hind,sans-serif;letter-spacing:-.01em}.s-e18 .hd span{font:11px \"Overpass Mono\",monospace}.s-e18 .rq{margin:10px 12px 10px;background:#4aa3df;padding:6px 10px;font-weight:500}.s-e18 .row{display:flex;align-items:center;gap:8px;margin:5px 12px 0;font-size:12px}.s-e18 .tl{width:24px;height:24px;flex:none;display:flex;align-items:center;justify-content:center}.s-e18 .tl svg{display:block}.s-e18 .row em{font-style:normal;font-weight:700;width:86px}.s-e18 .od{background:#f08a00;padding:0 5px;font-weight:700}.s-e18 .ev{margin:10px 12px 0;border-top:2px solid #1a1a1a}.s-e18 .ev .row{margin:4px 0 0}.s-e18 .ev .lb{flex:1}.s-e18 .ev b{font:600 11px \"Overpass Mono\",monospace;background:#2e9b49;padding:1px 6px}.s-e18 .ev small{font:11px \"Overpass Mono\",monospace}.s-e18 .pd{display:flex;align-items:flex-end;justify-content:center;gap:2px;margin:12px 12px 0;border-bottom:2px solid #1a1a1a}.s-e18 .pd div{width:62px;text-align:center;font:700 15px/1 Hind,sans-serif;padding-top:6px}.s-e18 .pd small{display:block;font:11px \"Overpass Mono\",monospace;margin-top:3px}.s-e18 .p1{height:34px;background:#4aa3df}.s-e18 .p2{height:50px;background:#2e9b49}.s-e18 .p0{height:24px;background:#4aa3df}.s-e18 .ac{display:flex;gap:8px;align-items:center;margin:12px 12px 0}.s-e18 .ac button{font:700 13px Hind,sans-serif;padding:6px 14px 4px;cursor:pointer;color:#1a1a1a}.s-e18 .ap{background:#2e9b49;border:2px solid #2e9b49}.s-e18 .un{background:#fff;border:2px solid #1a1a1a}.s-e18 .bd{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700}.s-e18 .bd:first-of-type{margin-left:auto}</style><div class=\"w\"><div class=\"sp\"><i style=\"background:#4aa3df\"></i><i style=\"background:#2e9b49\"></i><i style=\"background:#f08a00\"></i><i style=\"background:#4aa3df\"></i></div><div class=\"hd\"><b>morphkit</b><span>customer-card.tsx · dynamic</span></div><div class=\"rq\">Add phone and city; overdue in red</div><div class=\"row\"><span class=\"tl\" style=\"background:#4aa3df\"><svg width=\"16\" height=\"12\"><rect x=\"1\" y=\"1\" width=\"14\" height=\"10\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2\"/><polyline points=\"1,1 8,7 15,1\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2\"/></svg></span><em>Email</em>hank@globex.example</div><div class=\"row\"><span class=\"tl\" style=\"background:#2e9b49\"><svg width=\"16\" height=\"16\"><polygon points=\"8,1 15,8 13,8 13,15 3,15 3,8 1,8\" fill=\"#fff\"/></svg></span><em>City</em>Springfield</div><div class=\"row\"><span class=\"tl\" style=\"background:#f08a00\"><svg width=\"16\" height=\"16\"><rect x=\"1\" y=\"3\" width=\"14\" height=\"12\" fill=\"none\" stroke=\"#1a1a1a\" stroke-width=\"2\"/><line x1=\"1\" y1=\"7\" x2=\"15\" y2=\"7\" stroke=\"#1a1a1a\" stroke-width=\"2\"/></svg></span><em>Next payment</em>Oct 11, 2026 <span class=\"od\">overdue</span></div><div class=\"ev\"><div class=\"row\"><span class=\"tl\" style=\"background:#4aa3df\"><svg width=\"16\" height=\"16\"><circle cx=\"8\" cy=\"8\" r=\"3\" fill=\"#fff\"/><polyline points=\"1,8 8,3 15,8 8,13 1,8\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2\"/></svg></span><span class=\"lb\">Reading the card</span><small>1</small></div><div class=\"row\"><span class=\"tl\" style=\"background:#4aa3df\"><svg width=\"16\" height=\"16\"><line x1=\"3\" y1=\"13\" x2=\"13\" y2=\"3\" stroke=\"#fff\" stroke-width=\"3\"/><line x1=\"2\" y1=\"15\" x2=\"6\" y2=\"15\" stroke=\"#fff\" stroke-width=\"2\"/></svg></span><span class=\"lb\">Changing the fields</span><small>2</small></div><div class=\"row\"><span class=\"tl\" style=\"background:#2e9b49\"><svg width=\"16\" height=\"16\"><polyline points=\"2,8 6,12 14,3\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\"/></svg></span><span class=\"lb\">Checking the build</span><b>done</b></div></div><div class=\"pd\"><div class=\"p1\">v1<small>2nd</small></div><div class=\"p2\">v2<small>current</small></div><div class=\"p0\">v0</div></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">Undo</button><span class=\"bd\"><span class=\"tl\" style=\"background:#2e9b49\"><svg width=\"14\" height=\"14\"><polyline points=\"2,7 6,11 12,3\" fill=\"none\" stroke=\"#fff\" stroke-width=\"3\"/></svg></span>Applied</span><span class=\"bd\"><span class=\"tl\" style=\"background:#f08a00\"><svg width=\"14\" height=\"14\"><circle cx=\"7\" cy=\"3\" r=\"2.5\" fill=\"#1a1a1a\"/><polygon points=\"3,14 4,6 10,6 11,14\" fill=\"#1a1a1a\"/></svg></span>Needs admin</span></div></div></div>"
+ },
+ {
+  "id": "e19",
+  "name": "Synth spec sheet",
+  "family": "graphic",
+  "origin": "Teenage Engineering product catalogues and device faceplates (OP-1, 2011; Pocket Operators, 2015)",
+  "why_not_ai": "A tiny OLED, an encoder knob with tick marks, step-sequencer LED rows, keycap buttons and '01/02/03' spec tables come from hardware faceplates, not web cards.",
+  "fits": "Turning a knob back one detent is a natural model for stepping between versions, and sequencer rows show build steps as discrete, countable events.",
+  "palette": [
+   "#e5e5e3",
+   "#121212",
+   "#ff4f12",
+   "#2a63d6",
+   "#2fa84f"
+  ],
+  "roles": {
+   "bg": "#e5e5e3",
+   "fg": "#121212",
+   "orange": "#ff4f12",
+   "blue": "#2a63d6",
+   "green": "#2fa84f"
+  },
+  "type": {
+   "display": "Chivo",
+   "body": "Chivo",
+   "mono": "Chivo Mono"
+  },
+  "fonts": [
+   "Chivo:wght@400;900",
+   "Chivo+Mono:wght@400;600"
+  ],
+  "components": [
+   "OLED request screen",
+   "indexed spec table",
+   "step-sequencer LED rows",
+   "encoder-knob versions",
+   "keycap buttons with LED status"
+  ],
+  "html": "<div class=\"tile s-e19\"><style>.s-e19 .w{background:#e5e5e3;color:#121212;font:12px/1.35 \"Chivo Mono\",monospace;padding:12px}.s-e19 .hd{display:flex;align-items:center;gap:6px}.s-e19 .hd b{font:900 20px Chivo,sans-serif;letter-spacing:-.03em}.s-e19 .hd i{width:9px;height:9px;border-radius:50%;display:inline-block}.s-e19 .hd span{margin-left:auto;font-size:11px}.s-e19 .ol{margin-top:8px;background:#121212;color:#e5e5e3;padding:6px 8px;font-size:12px}.s-e19 .ol small{color:#ff4f12;font-size:11px;display:block}.s-e19 .sp{margin-top:8px;border-top:1px solid #121212}.s-e19 .f{display:flex;gap:8px;border-bottom:1px solid #121212;padding:3px 0}.s-e19 .f i{font-style:normal;width:18px}.s-e19 .f em{font-style:normal;width:90px}.s-e19 .od{background:#ff4f12;padding:0 4px;margin-left:auto}.s-e19 .mid{display:flex;gap:12px;margin-top:10px;align-items:center}.s-e19 .sq{flex:1}.s-e19 .r{display:flex;align-items:center;gap:2px;font-size:11px;margin-bottom:4px}.s-e19 .r span{width:124px}.s-e19 .r i{width:8px;height:8px;border:1px solid #121212;display:inline-block}.s-e19 .r i.l{background:#121212}.s-e19 .r.dn i.l{background:#2fa84f;border-color:#2fa84f}.s-e19 .r.dn b{margin-left:4px;font-size:11px;color:#121212;background:#2fa84f;padding:0 3px;font-weight:600}.s-e19 .kn{text-align:center;font-size:11px}.s-e19 .kn svg{display:block}.s-e19 .ac{display:flex;gap:10px;margin-top:10px;align-items:flex-end}.s-e19 .key{text-align:center;font-size:11px}.s-e19 .key button{display:block;width:52px;height:40px;border:1px solid #121212;cursor:pointer;margin-bottom:3px;font:900 13px Chivo,sans-serif;color:#121212}.s-e19 .ap button{background:#ff4f12}.s-e19 .un button{background:#e5e5e3}.s-e19 .lst{margin-left:auto;font-size:11px}.s-e19 .lst div{display:flex;align-items:center;gap:5px;padding:1px 0}.s-e19 .lst i{width:8px;height:8px;display:inline-block}</style><div class=\"w\"><div class=\"hd\"><b>morphkit</b><i style=\"background:#2a63d6\"></i><i style=\"background:#2fa84f\"></i><i style=\"background:#e5e5e3;border:1px solid #121212\"></i><i style=\"background:#ff4f12\"></i><span>customer-card.tsx · dynamic</span></div><div class=\"ol\"><small>REQ &gt;</small>Add phone and city; overdue in red</div><div class=\"sp\"><div class=\"f\"><i>01</i><em>email</em>hank@globex.example</div><div class=\"f\"><i>02</i><em>city</em>Springfield</div><div class=\"f\"><i>03</i><em>next payment</em>Oct 11, 2026<span class=\"od\">overdue</span></div></div><div class=\"mid\"><div class=\"sq\"><div class=\"r\"><span>reading the card</span><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i></i><i></i></div><div class=\"r\"><span>changing the fields</span><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i></i></div><div class=\"r dn\"><span>checking the build</span><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><i class=\"l\"></i><b>done</b></div></div><div class=\"kn\"><svg width=\"64\" height=\"58\" viewBox=\"0 0 64 58\"><g stroke=\"#121212\" stroke-width=\"2\"><line x1=\"12\" y1=\"45\" x2=\"17\" y2=\"41\"/><line x1=\"32\" y1=\"13\" x2=\"32\" y2=\"18\"/><line x1=\"52\" y1=\"45\" x2=\"47\" y2=\"41\"/></g><g font-size=\"10\" fill=\"#121212\" font-family=\"monospace\"><text x=\"3\" y=\"55\">0</text><text x=\"29\" y=\"10\">1</text><text x=\"55\" y=\"55\">2</text></g><circle cx=\"32\" cy=\"35\" r=\"15\" fill=\"#2a63d6\"/><line x1=\"32\" y1=\"35\" x2=\"43\" y2=\"43\" stroke=\"#e5e5e3\" stroke-width=\"3\"/></svg>ver v0 · v1 · <b>v2</b></div></div><div class=\"ac\"><div class=\"key ap\"><button>&#9654;</button>apply</div><div class=\"key un\"><button>&#8630;</button>undo</div><div class=\"lst\"><div><i style=\"background:#2fa84f\"></i>applied</div><div><i style=\"background:#ff4f12\"></i>needs admin</div></div></div></div></div>"
+ },
+ {
+  "id": "e20",
+  "name": "Emigre deconstruction",
+  "family": "graphic",
+  "origin": "Emigre magazine and 1990s deconstructivist typography (Rudy VanderLans, Zuzana Licko, David Carson, Cranbrook)",
+  "why_not_ai": "Overlapping outline-and-solid wordmarks, rotated edge labels, struck-through past versions and mixed type sizes inside one sentence break the tidy grid on purpose.",
+  "fits": "Struck-through earlier versions next to a huge current one tell the story of a rewrite honestly, edits visible rather than hidden.",
+  "palette": [
+   "#f1f1ef",
+   "#111111",
+   "#0047ff",
+   "#ff2e4c"
+  ],
+  "roles": {
+   "bg": "#f1f1ef",
+   "fg": "#111111",
+   "ink": "#0047ff",
+   "hot": "#ff2e4c"
+  },
+  "type": {
+   "display": "Syne",
+   "body": "Courier Prime",
+   "mono": "Courier Prime"
+  },
+  "fonts": [
+   "Syne:wght@700;800",
+   "Courier+Prime:wght@400;700"
+  ],
+  "components": [
+   "overprinted double wordmark",
+   "rotated edge label",
+   "mixed-scale request",
+   "staggered overprint progress",
+   "struck-through version trail"
+  ],
+  "html": "<div class=\"tile s-e20\"><style>.s-e20 .w{position:relative;background:#f1f1ef;color:#111;font:13px/1.3 \"Courier Prime\",monospace;padding:10px 34px 14px 12px;overflow:hidden}.s-e20 .wm{position:relative;height:46px}.s-e20 .wm b{position:absolute;left:0;top:0;font:800 40px/1 Syne,sans-serif;letter-spacing:-.04em}.s-e20 .wm b.o{left:5px;top:5px;color:transparent;-webkit-text-stroke:1px #0047ff}.s-e20 .edge{position:absolute;right:6px;top:10px;writing-mode:vertical-rl;font-size:11px;letter-spacing:.12em}.s-e20 .rq{margin-top:6px;line-height:1.05}.s-e20 .rq .a{font:700 13px \"Courier Prime\",monospace}.s-e20 .rq .b{font:800 22px Syne,sans-serif;color:#0047ff}.s-e20 .rq .c{font:700 15px Syne,sans-serif;font-style:italic}.s-e20 .rq .d{font:800 18px Syne,sans-serif;background:#ff2e4c;padding:0 3px}.s-e20 .fl{margin-top:10px}.s-e20 .f{border-top:1px solid #111;padding:3px 0;display:flex;align-items:baseline;gap:8px}.s-e20 .f small{font-size:11px;width:70px;text-transform:uppercase}.s-e20 .f span{font:700 14px Syne,sans-serif}.s-e20 .f2{margin-left:24px}.s-e20 .f3{margin-left:8px}.s-e20 .od{display:inline-block;background:#ff2e4c;font:700 12px \"Courier Prime\",monospace;padding:0 4px;transform:rotate(-4deg)}.s-e20 .pg{margin-top:10px;font-size:12px}.s-e20 .p{margin-top:-2px}.s-e20 .p2{margin-left:18px}.s-e20 .p3{margin-left:36px;color:#0047ff;font-weight:700}.s-e20 .vs{margin-top:8px;display:flex;align-items:baseline;gap:8px}.s-e20 .vs s{font-size:13px}.s-e20 .vs b{font:800 38px/1 Syne,sans-serif;color:#0047ff;letter-spacing:-.04em}.s-e20 .vs em{font-size:11px}.s-e20 .ac{margin-top:8px;display:flex;align-items:center;gap:14px}.s-e20 .ac button{cursor:pointer;color:#111}.s-e20 .ac .ap{font:800 15px Syne,sans-serif;background:#111;color:#f1f1ef;border:0;padding:5px 12px;box-shadow:4px 4px 0 #0047ff}.s-e20 .ac .un{font:700 13px \"Courier Prime\",monospace;background:none;border:0;border-bottom:2px solid #111;transform:rotate(-4deg)}.s-e20 .na{border:2px solid #111;background:#ff2e4c;font-size:11px;font-weight:700;padding:1px 5px}.s-e20 .stamp{position:absolute;right:0;bottom:0;writing-mode:vertical-rl;background:#0047ff;color:#f1f1ef;font:800 12px Syne,sans-serif;letter-spacing:.24em;padding:10px 4px}</style><div class=\"w\"><div class=\"wm\"><b class=\"o\">morphkit</b><b>morphkit</b></div><div class=\"edge\">customer-card.tsx · dynamic</div><div class=\"rq\"><span class=\"a\">add</span> <span class=\"b\">PHONE</span> <span class=\"a\">and</span> <span class=\"c\">city;</span> <span class=\"a\">overdue in</span> <span class=\"d\">red</span></div><div class=\"fl\"><div class=\"f\"><small>email</small><span>hank@globex.example</span></div><div class=\"f f2\"><small>city</small><span>Springfield</span></div><div class=\"f f3\"><small>next pay</small><span>Oct 11, 2026</span><span class=\"od\">OVERDUE</span></div></div><div class=\"pg\"><div class=\"p\">reading the card ///</div><div class=\"p p2\">changing the fields ///</div><div class=\"p p3\">checking the build &larr; done</div></div><div class=\"vs\"><s>v0</s><s>v1</s><b>v2</b><em>(current)</em></div><div class=\"ac\"><button class=\"ap\">Apply</button><button class=\"un\">undo?</button><span class=\"na\">Needs admin</span></div><div class=\"stamp\">APPLIED</div></div></div>"
+ }
+]
