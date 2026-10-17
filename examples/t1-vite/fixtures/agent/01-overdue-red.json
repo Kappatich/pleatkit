@@ -1,0 +1,16 @@
+{
+  "name": "t1-overdue-red",
+  "description": "Recorded answer for the example: show the status column and make overdue orders red.",
+  "match": ["overdue|просроч"],
+  "classify": { "label": "ui", "reason": "Display only." },
+  "turns": [
+    { "calls": [{ "tool": "read_file", "input": { "path": "src/readonly/api.ts" }, "expect": "ok" }] },
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/orders-table.tsx" }, "contentFile": "../orders-table.overdue.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "The table now shows each order's status, and overdue orders are red." }, "expect": "ok" }] }
+  ]
+}

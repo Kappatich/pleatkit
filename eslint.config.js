@@ -3,7 +3,8 @@ import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/playwright-report/**', '**/test-results/**', 'apps/*/e2e/fixtures/**'] },
+  // examples/* are standalone apps with their own lint config
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/playwright-report/**', '**/test-results/**', 'apps/*/e2e/fixtures/**', 'examples/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

@@ -1,0 +1,40 @@
+{
+  "name": "t1-vite",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "agent": "morphkit-agent",
+    "smoke": "node scripts/smoke.mjs --browser",
+    "morphkit-doctor": "morphkit doctor"
+  },
+  "dependencies": {
+    "@morphkit/runtime": "link:../../packages/runtime",
+    "@morphkit/ui": "link:../../packages/ui",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@morphkit/agent": "link:../../packages/agent",
+    "@morphkit/cli": "link:../../packages/cli",
+    "@morphkit/vite-plugin": "link:../../packages/vite-plugin",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.3",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.4.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.44.0",
+    "vite": "^7.1.7"
+  }
+}

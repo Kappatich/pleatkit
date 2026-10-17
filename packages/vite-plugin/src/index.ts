@@ -93,7 +93,32 @@ function findWasm(root: string): string | null {
   return null
 }
 
-export default function morphkit(options: MorphkitOptions): Plugin {
+/* eslint-disable @typescript-eslint/no-explicit-any -- hook types must not name a particular Vite version */
+/**
+ * The plugin object as seen by the app's vite.config. Hooks are typed loosely on purpose: the real hooks are
+ * checked against this package's Vite, but the declared type must also be assignable to the app's Vite
+ * (6 or 7), including when morphkit is linked from a local checkout whose own Vite differs.
+ */
+export interface MorphkitVitePlugin {
+  name: 'morphkit'
+  enforce: 'pre'
+  api: { options: MorphkitOptions }
+  config: (...args: any[]) => any
+  configResolved: (...args: any[]) => any
+  resolveId: (...args: any[]) => any
+  load: (...args: any[]) => any
+  configureServer: (...args: any[]) => any
+  configurePreviewServer: (...args: any[]) => any
+  buildStart: (...args: any[]) => any
+  generateBundle: (...args: any[]) => any
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export default function morphkit(options: MorphkitOptions): MorphkitVitePlugin {
+  return createPlugin(options) as unknown as MorphkitVitePlugin
+}
+
+function createPlugin(options: MorphkitOptions): Plugin {
   const o = resolveOptions(options)
   let config: ResolvedConfig
   let root = process.cwd()
