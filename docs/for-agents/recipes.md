@@ -65,6 +65,13 @@ export { Link, useNavigate, useParams } from '@tanstack/react-router' // or reac
 
 Links inside panels use relative paths (`<Link to="/customers/$id" params={{ id }}>`). `location.href = …`, `window.open` and absolute URLs are refused by the static rules.
 
+## i18n, charts and tables (from the two foreign apps, `evals/apps`)
+
+- **react-i18next:** list `'react-i18next'` in `externals`; the panel keeps `const { t } = useTranslation()`. The locale files are not in any zone, so an edit cannot add keys: new labels are written as `t('clients', { defaultValue: 'Clients' })` or as plain text in the panel's language.
+- **Charts:** list the library (`'recharts'`, or `'react-apexcharts'` for ApexCharts) in `externals`. Chart data the panel shows belongs in the panel's props or a readonly module (`@/readonly/dashboard`), not `Math.random()`.
+- **TanStack Table:** the table panel (`src/dynamic/users-table.tsx`) imports its columns from a helper next to it (`./users-columns`), `'@tanstack/react-table'` is an external, and the app's generic table helpers (`@/components/data-table`) are readonly. Module augmentations such as `declare module '@tanstack/react-table' { interface ColumnMeta … }` in `src/*.d.ts` reach the agent's type check by themselves.
+- **Images and links from data:** the static rules refuse a URL taken from data (`<img src={row.image}>`). Keep the file name in the data and write the folder in the code: ``<img src={`/images/user/${row.image}`} />``.
+
 ## The design-system profile (`designSystem`)
 
 Tell the agent which components exist and how to use them; the plugin turns their declarations into one line per component for the prompt's cached prefix:
@@ -83,10 +90,13 @@ pleatkit({
 The manifest then carries `designSystem.digest`, e.g.
 
 ```
-src/components/ui/button: Button(variant?: "default" | "destructive" | "outline" | "ghost", size?: "sm" | "default" | "lg", asChild?: boolean)
-src/components/ui/card: Card; CardHeader; CardTitle; CardContent
+src/components/ui/button: Button(variant?: "default" | "destructive" | "outline" | "ghost", size?: "sm" | "default" | "lg", asChild?: boolean, …React.ComponentProps<'button'>)
+src/components/ui/card: Card(…React.ComponentProps<'div'>); CardHeader(…React.ComponentProps<'div'>); CardTitle(…); CardContent(…)
+src/components/ui/badge/Badge: Badge(color?: "primary" | "success" | "error" | "warning", size?: "sm" | "md", children: React.ReactNode)
 ```
+
+The variants come from `cva()` tables (`VariantProps<typeof buttonVariants>`, shadcn) and from local union types (`color?: BadgeColor`, TailAdmin); `…X` is a DOM attribute type the component passes through. Components exported as `export function`, `export const`, `export { A, B }` or `export default A` are listed.
 
 and `dataContracts.digest`, the exported types and client methods of readonly files named `api`, `types`, `models` or `client` (signatures only). Check what the agent gets: `cat dist/pleatkit.manifest.json | jq '.designSystem, .dataContracts'`.
 
-Listing a whole UI kit in `externals` (`@/components/ui/*`) only adds the files that exist; lazy externals (the default) load a component only when an edit uses it.
+Listing a whole UI kit in `externals` (`@/components/ui/*`) only adds the files that exist directly in that folder (a kit with a folder per component lists each module, install.md step 3); lazy externals (the default) load a component only when an edit uses it.

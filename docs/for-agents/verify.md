@@ -10,7 +10,9 @@ Run (after `pnpm build`, so the bundle can be scanned):
 pnpm exec pleatkit doctor
 ```
 
-Expect: no `[FAIL]` line, exit code 0, and the last line is `all checks passed` or `no problems, N warning(s)`. Six checks are listed: `config`, `react`, `panels`, `externals`, `csp`, `secrets`.
+Expect: no `[FAIL]` line, exit code 0, and the last line is `all checks passed` or `no problems, N warning(s)`. The checks listed: `config`, `react`, `panels`, `release` (the release's own dynamic files pass the agent's check: a panel the check refuses would make every edit fail), `externals`, `context-budget`, `csp`, `secure-context`, `secrets`.
+
+`context-budget` estimates the tokens of one edit (about 2.2 characters per token). With `PLEATKIT_API_KEY` in the environment, doctor counts them with the API's token counter instead (free, no model call): `PLEATKIT_API_KEY=<key> pnpm exec pleatkit doctor` prints `context of one edit: N cached + M per request tokens (counted)`. Over 20,000 cached or 6,000 per request it warns; the edit still works, it only costs more.
 
 A warning that is fine while pleatkit is linked from a checkout: `[warn] react: two copies of React on disk, deduplicated by Vite`.
 
