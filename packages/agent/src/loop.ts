@@ -223,6 +223,9 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         const ask = c.label === 'unclear' && c.question && c.options && c.options.length >= 2
         if (c.label !== 'off-topic') progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : ask ? 'classifiedUnclear' : 'classifiedUi') })
         if (c.label === 'off-topic') {
+          // stage 5: the classifier has no label of its own for a deceptive request and calls it off-topic, while its
+          // intent label says "adversarial". Answer it as the main loop would ("declined"), not "ask about the app".
+          if (c.intentLabel === 'adversarial') return done('declined', t(lang, 'declined'))
           // one cheap fixed reply; the big model is never called for it (V1 A4)
           refusal = 'off-topic'
           return done('refused', t(lang, 'offTopic'))
