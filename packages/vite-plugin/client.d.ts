@@ -78,29 +78,3 @@ declare module 'virtual:pleatkit' {
   /** The visible text of a pointed panel goes to the agent (default false: structure only). */
   export const sendDomText: boolean
 }
-
-// Pre-rename ids (DECISIONS 68): the plugin resolves `virtual:morphkit/...` to `virtual:pleatkit/...` for one release.
-declare module 'virtual:morphkit' {
-  export * from 'virtual:pleatkit'
-}
-declare module 'virtual:morphkit/manifest' {
-  export { default } from 'virtual:pleatkit/manifest'
-}
-declare module 'virtual:morphkit/externals' {
-  export { default } from 'virtual:pleatkit/externals'
-}
-declare module 'virtual:morphkit/fallback' {
-  export { default } from 'virtual:pleatkit/fallback'
-}
-declare module 'virtual:morphkit/wasm-url' {
-  export { default } from 'virtual:pleatkit/wasm-url'
-}
-declare module 'virtual:morphkit/css' {
-  export { default } from 'virtual:pleatkit/css'
-}
-declare module 'virtual:morphkit/tailwind' {
-  export * from 'virtual:pleatkit/tailwind'
-}
-declare module 'virtual:morphkit/isolated' {
-  export { default } from 'virtual:pleatkit/isolated'
-}

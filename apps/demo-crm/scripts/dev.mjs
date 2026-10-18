@@ -5,9 +5,6 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import concurrently from 'concurrently'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
-
-pleatkitEnv(process.env)
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(path.join(root, 'package.json'))

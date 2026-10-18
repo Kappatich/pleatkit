@@ -30,11 +30,11 @@ jobs:
           cache: pnpm
       - run: npm install -g npm@^11.5.1 # trusted publishing needs npm 11.5.1+
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm test
+      # build, tests, the version matrix, package metadata and `pnpm -r publish --dry-run` (DECISIONS 71)
+      - run: node scripts/release-check.mjs
       - name: Publish the MIT packages
         run: |
-          for pkg in runtime vite-plugin ui agent cli; do
+          for pkg in runtime vite-plugin ui agent cli store-server; do
             (cd packages/$pkg && pnpm pack --pack-destination ../../.release && \
               if [ "${{ inputs.dry_run }}" != "true" ]; then npm publish ../../.release/pleatkit-$pkg-*.tgz --provenance --access public; fi)
           done

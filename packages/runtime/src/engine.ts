@@ -5,7 +5,7 @@ import { HeadConflictError, withTimeout } from './errors.js'
 import { applyCss, defaultLoader, installExternals, type BundleLoader } from './loader.js'
 import { isWritablePath, WRITABLE_EXT } from './paths.js'
 import type { AgentRunRequest } from './protocol.js'
-import { browserBootStorage, HEARTBEAT_MS, migrateBootKey, PAGE_ID, previousLoadFailed, readBoot, safeModeRequested, writeBoot, type BootStorage } from './safe-mode.js'
+import { browserBootStorage, HEARTBEAT_MS, PAGE_ID, previousLoadFailed, readBoot, safeModeRequested, writeBoot, type BootStorage } from './safe-mode.js'
 import { changedPaths, fileHashes, releaseHash } from './release.js'
 import { bundleKey, contextHash, ServerBundles, type ServerBundlesOptions } from './server-bundles.js'
 import type {
@@ -307,7 +307,6 @@ export class PleatkitEngine {
     this.registry = installExternals(options.config.externals, this.namespace)
     this.boot = options.bootStorage !== undefined ? options.bootStorage : browserBootStorage()
     this.bootKey = `pleatkit:boot:${this.namespace}:${this.userId}`
-    migrateBootKey(this.boot, `morphkit:boot:${this.namespace}:${this.userId}`, this.bootKey)
     this.heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS
     this.forceSafe = options.safeMode ?? safeModeRequested()
     this.pageId = options.pageId ?? PAGE_ID
@@ -581,8 +580,7 @@ export class PleatkitEngine {
     ])
     // F6: the kill switch wins over everything; a store that cannot answer leaves the defaults
     const flags = flagsR.status === 'fulfilled' ? flagsR.value : {}
-    // `morphkit.enabled`: the kill switch's pre-rename key, honoured for one release (DECISIONS 68)
-    const disabled = flags['pleatkit.enabled'] === false || flags['morphkit.enabled'] === false
+    const disabled = flags['pleatkit.enabled'] === false
     this.set({ flags, disabled, editsEnabled: !disabled && flags['edits.enabled'] !== false })
     if (disabled) {
       if (!this.state.usingFallback) this.swap(this.fallbackModules(), null, true, this.state.head)

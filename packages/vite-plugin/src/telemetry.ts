@@ -2,7 +2,6 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /**
  * F8: anonymous, opt-out telemetry of the install funnel (`plugin.build`, `doctor.run`, `doctor.fail:<check>`,
@@ -30,7 +29,6 @@ export interface TelemetryOptions {
 }
 
 export function telemetryStatus(env: Env = process.env): { enabled: boolean; reason: string; endpoint: string | null } {
-  pleatkitEnv(env)
   const endpoint = env.PLEATKIT_TELEMETRY_URL || TELEMETRY_ENDPOINT
   const off = (env.PLEATKIT_TELEMETRY ?? '').toLowerCase()
   if (['0', 'false', 'off', 'no'].includes(off)) return { enabled: false, reason: 'PLEATKIT_TELEMETRY=0', endpoint }
@@ -73,8 +71,7 @@ export async function track(event: string, props: TelemetryProps = {}, o: Teleme
     if (!status.enabled || !status.endpoint) return false
     if (!/^[a-z][\w.:-]{0,60}$/.test(event)) return false
     const dir = path.join(o.home ?? os.homedir(), '.pleatkit')
-    // `~/.morphkit`: the pre-rename folder (DECISIONS 68); its install id carries over
-    let state = loadState(dir) ?? loadState(path.join(o.home ?? os.homedir(), '.morphkit'))
+    let state = loadState(dir)
     if (!state) state = { installId: randomUUID(), noticeShown: false }
     if (!state.noticeShown) {
       ;(o.notice ?? ((l: string) => process.stderr.write(l + '\n')))(

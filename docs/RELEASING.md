@@ -12,7 +12,8 @@ page is the prepared path, so the first release is a checklist, not a project.
   `publishConfig.provenance: true`, so npm shows which commit and workflow built the tarball.
 - **2FA on the npm account** (auth and writes) and on the GitHub account that owns the repository.
 - Only the MIT packages are published: `@pleatkit/runtime`, `@pleatkit/vite-plugin`, `@pleatkit/ui`,
-  `@pleatkit/agent`, `@pleatkit/cli`. `@pleatkit/store-server` is `private` and never published (F12).
+  `@pleatkit/agent`, `@pleatkit/cli` and, since 0.2, `@pleatkit/store-server` (the open store, DECISIONS 70.1).
+  `@pleatkit/store-cloud`, the demo, the evals and the smoke apps are `private` and never published (F12).
 
 ## One-time setup (Minte)
 
@@ -22,20 +23,37 @@ page is the prepared path, so the first release is a checklist, not a project.
    exists. Either publish `0.0.0-placeholder` once from Minte's machine with 2FA
    (`npm publish --access public` in each package, then deprecate it), or use npm's "pending trusted
    publisher" if the account has it.
-3. On npmjs.com, for each of the five packages: Settings → Trusted publishing → GitHub Actions, repository
+3. On npmjs.com, for each of the six packages: Settings → Trusted publishing → GitHub Actions, repository
    `Kappatich/pleatkit`, workflow `release.yml`, environment `npm`.
 4. In GitHub: create the environment `npm` with a required reviewer (Minte), so a release always needs a click.
 5. Copy `docs/release/release.yml` to `.github/workflows/release.yml` and push it.
 
 ## Each release
 
-1. Update `CHANGELOG.md` (see the breaking-change policy in the README) and bump versions
-   (`pnpm -r exec npm version <x.y.z> --no-git-tag-version` in `packages/*` except store-server).
-2. `pnpm install && pnpm build && pnpm test && pnpm e2e` locally; commit; tag `v<x.y.z>`; push.
+1. Update `CHANGELOG.md` (a `## <x.y.z>` heading on top; see the breaking-change policy in the README) and bump
+   the public packages together (`pnpm --filter "./packages/*" exec npm version <x.y.z> --no-git-tag-version`; the
+   private ones may keep theirs), plus `VERSION` in `packages/cli/src/cli.ts` and `PLUGIN_VERSION` in
+   `packages/vite-plugin/src/index.ts`.
+2. `node scripts/release-check.mjs`: build, tests, the version matrix (every public package at the CHANGELOG's
+   version, the two constants, `workspace:` ranges between pleatkit packages), metadata (`license`, `files`,
+   `exports`, `repository`, `publishConfig.access`, README and LICENSE in each package, no pre-rename names in
+   `dist`) and `pnpm -r publish --dry-run --no-git-checks`, which must list every public package and none of the
+   private ones. It never publishes. Then `pnpm e2e`; commit; tag `v<x.y.z>`; push.
 3. GitHub → Actions → release → Run workflow with `dry_run: true`: it builds, tests and packs.
 4. Run again with `dry_run: false`; approve the `npm` environment. The workflow publishes with
    `--provenance --access public`.
 5. Check on npmjs.com that each version shows "Built and signed on GitHub Actions".
+
+## 0.2.0, the first public release (prepared 2026-10-18, not published)
+
+- Versions: runtime, vite-plugin, agent, cli, store-server at 0.2.0. `@pleatkit/ui` stays at 0.1.0 in the tree
+  until the architect applies [`release/ui-0.2.patch`](release/ui-0.2.patch) (version, README, LICENSE, `files`,
+  the `Morphkit*` aliases removed; `git apply docs/release/ui-0.2.patch`): packages/ui is the architect's.
+  `node scripts/release-check.mjs` fails on exactly that until then.
+- Removed for 0.2 (DECISIONS 69): the `Morphkit*` aliases, the `morphkit` and `morphkit-agent` binaries,
+  `virtual:morphkit/*`, `x-morphkit-*`, the `MORPHKIT_*` fallback and `@pleatkit/runtime/env` (CHANGELOG, Removed).
+- Waiting on Minte: the npm organization `@pleatkit`, trusted publishing for the six packages, the `npm`
+  environment in GitHub, and the copyright line in `LICENSE` (now "the pleatkit authors").
 
 ## After publishing
 

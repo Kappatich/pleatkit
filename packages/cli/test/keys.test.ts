@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { isAppKey, publicKeyFromAppKey } from '@pleatkit/runtime/security'
 import { keys } from '../src/keys.js'
 
@@ -15,12 +15,5 @@ describe('pleatkit keys', () => {
     expect((await keys('public', {})).ok).toBe(false)
     const key = 'mk_live_0123456789abcdefghijklmnop'
     expect((await keys('public', { PLEATKIT_APP_KEY: key })).lines).toEqual([await publicKeyFromAppKey(key)])
-  })
-  it('public: MORPHKIT_APP_KEY still works for one release (DECISIONS 68)', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    const key = 'mk_live_0123456789abcdefghijklmnop'
-    expect((await keys('public', { MORPHKIT_APP_KEY: key })).lines).toEqual([await publicKeyFromAppKey(key)])
-    expect(warn).toHaveBeenCalledTimes(1)
-    warn.mockRestore()
   })
 })

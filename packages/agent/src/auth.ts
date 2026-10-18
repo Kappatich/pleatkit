@@ -1,5 +1,4 @@
 import { isAppKey, TokenError, verifyUserToken, type UserRole } from '@pleatkit/runtime/security'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 type Env = Record<string, string | undefined>
 
@@ -43,7 +42,6 @@ export class AgentAuthError extends Error {
  * model key, so anonymous callers are never accepted there.
  */
 export function agentAuthFromEnv(env: Env): AgentAuth {
-  pleatkitEnv(env)
   const production = env.NODE_ENV === 'production'
   const { PLEATKIT_APP_KEY: appKey, PLEATKIT_JWT_SECRET: jwtSecret } = env
   if (!appKey && !jwtSecret) {

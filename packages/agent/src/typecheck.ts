@@ -3,7 +3,6 @@ import path from 'node:path'
 import ts from 'typescript'
 import type { CompileError, FileMap } from '@pleatkit/runtime/compiler'
 import type { TypecheckFn, WorkspaceInput } from './workspace.js'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /**
  * Type check of the dynamic zone against the app's types (brainstorm 05 #4): esbuild strips types, so an edit
@@ -120,7 +119,6 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
 
 /** PLEATKIT_TYPECHECK=1 (+ PLEATKIT_TYPECHECK_ROOT) → a typechecker, else null. */
 export function typecheckFromEnv(env: Record<string, string | undefined>): TypecheckFn | null {
-  pleatkitEnv(env)
   if (env.PLEATKIT_TYPECHECK !== '1' && env.PLEATKIT_TYPECHECK !== 'true') return null
   const root = env.PLEATKIT_TYPECHECK_ROOT ?? null
   if (root && !fs.existsSync(root)) throw new Error(`PLEATKIT_TYPECHECK_ROOT ${root} does not exist`)

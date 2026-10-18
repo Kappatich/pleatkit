@@ -1,8 +1,12 @@
 {
   "name": "@pleatkit/runtime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Browser runtime for pleatkit: snapshots, esbuild-wasm compiler, hot swap of dynamic React components, undo/redo",
   "license": "MIT",
+  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/runtime#readme",
+  "bugs": {
+    "url": "https://github.com/Kappatich/pleatkit/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Kappatich/pleatkit.git",
@@ -24,10 +28,6 @@
       "types": "./dist/security.d.ts",
       "import": "./dist/security.js"
     },
-    "./env": {
-      "types": "./dist/env.d.ts",
-      "import": "./dist/env.js"
-    },
     "./isolated-host": {
       "types": "./dist/isolated-host.d.ts",
       "import": "./dist/isolated-host.js"
@@ -35,11 +35,13 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

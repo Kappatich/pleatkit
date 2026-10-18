@@ -11,9 +11,6 @@ import { passRate, runSuite } from './runner.js'
 import { runSanity } from './sanity.js'
 import { BASELINE_FILE, DEMO_DIR, loadManifest, loadTasks, RECORDINGS_DIR, REPO_ROOT, REPORT_FILE, RESULTS_DIR } from './tasks.js'
 import type { Baseline, SuiteResult, TaskRun } from './types.js'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
-
-pleatkitEnv(process.env)
 
 /**
  * pnpm eval:record   produce the transcripts under evals/recordings from the scripted fixtures (offline)

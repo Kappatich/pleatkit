@@ -1,8 +1,12 @@
 {
   "name": "@pleatkit/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "pleatkit command line: `pleatkit doctor` checks an app's setup, `pleatkit keys` makes app keys, `pleatkit export` exports data",
   "license": "MIT",
+  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/Kappatich/pleatkit/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Kappatich/pleatkit.git",
@@ -12,8 +16,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "pleatkit": "./dist/cli.js",
-    "morphkit": "./dist/cli.js"
+    "pleatkit": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -23,10 +26,12 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
@@ -38,6 +43,11 @@
   "peerDependencies": {
     "vite": "^6.0.0 || ^7.0.0 || ^8.0.0",
     "@pleatkit/agent": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@pleatkit/agent": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
@@ -51,10 +61,5 @@
   "publishConfig": {
     "access": "public",
     "provenance": true
-  },
-  "peerDependenciesMeta": {
-    "@pleatkit/agent": {
-      "optional": true
-    }
   }
 }

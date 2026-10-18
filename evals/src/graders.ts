@@ -3,7 +3,6 @@ import type { AgentResult, FileMap } from '@pleatkit/runtime/compiler'
 import { PREDICATES } from './predicates.js'
 import type { PreparedTask } from './tasks.js'
 import type { EvalTask, GraderResult } from './types.js'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 export type RunResult = Omit<AgentResult, 'requestId'>
 
@@ -44,7 +43,6 @@ export async function gradeTypecheck(p: PreparedTask, result: RunResult, typeche
 }
 
 export function typecheckerFromEnv(env: Record<string, string | undefined> = process.env): TypecheckFn | null {
-  pleatkitEnv(env)
   const root = env.PLEATKIT_TYPECHECK_ROOT
   return root ? createTypechecker({ root }) : null
 }

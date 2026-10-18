@@ -1,8 +1,12 @@
 {
   "name": "@pleatkit/agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Agent server for pleatkit: model loop with zone-checked file tools, server-side esbuild check, SSE progress",
   "license": "MIT",
+  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/agent#readme",
+  "bugs": {
+    "url": "https://github.com/Kappatich/pleatkit/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Kappatich/pleatkit.git",
@@ -12,8 +16,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "pleatkit-agent": "./dist/cli.js",
-    "morphkit-agent": "./dist/cli.js"
+    "pleatkit-agent": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -23,10 +26,12 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "start": "node dist/cli.js"

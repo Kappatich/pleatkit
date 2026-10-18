@@ -11,8 +11,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const { pleatkitEnv } = await import(new URL('../packages/runtime/dist/env.js', import.meta.url).href)
-pleatkitEnv(process.env)
 const key = process.env.PLEATKIT_API_KEY ?? process.env.POLYMORPH_API_KEY ?? process.env.ANTHROPIC_API_KEY
 if (!key) {
   console.error('Set PLEATKIT_API_KEY (or ANTHROPIC_API_KEY) first. Nothing was sent.')

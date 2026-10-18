@@ -37,8 +37,7 @@ const run = (app: ReturnType<typeof createAgentApp>, body: unknown, headers: Rec
 
 describe('agent server foundations', () => {
   it('F6: the kill switch and edits.enabled refuse runs without calling the model', async () => {
-    // `morphkit.enabled`: the pre-rename key of the kill switch, honoured for one release (DECISIONS 68)
-    for (const flags of [{ 'pleatkit.enabled': false }, { 'morphkit.enabled': false }, { 'edits.enabled': false }]) {
+    for (const flags of [{ 'pleatkit.enabled': false }, { 'edits.enabled': false }]) {
       const provider = scripted({ name: 'phone', turns })
       const store = fakeStore(flags)
       const app = createAgentApp({ provider, storeUrl: 'http://store.test', fetch: store.fetchFn, log: () => undefined })

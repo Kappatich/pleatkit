@@ -1,5 +1,4 @@
 import type { GraderResult } from './types.js'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /** The run is out of money: thrown by `EvalBudget.admit`, caught by the runner, which stops the suite. */
 export class BudgetExceededError extends Error {
@@ -13,7 +12,6 @@ const usd = (n: number) => `$${n.toFixed(n < 0.01 && n > 0 ? 4 : 2)}`
 
 /** `PLEATKIT_EVAL_BUDGET_USD`: the global cap of one eval run in USD, or null (no cap). */
 export function budgetFromEnv(env: Record<string, string | undefined> = process.env): number | null {
-  pleatkitEnv(env)
   const raw = env.PLEATKIT_EVAL_BUDGET_USD
   if (raw === undefined || raw === '') return null
   const n = Number(raw)

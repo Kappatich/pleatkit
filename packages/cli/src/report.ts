@@ -39,7 +39,7 @@ const SHOWN_ENV = new Set([
   'PLEATKIT_AGENT_PORT',
   'PLEATKIT_STORE_PORT',
 ])
-const ENV_PREFIXES = ['PLEATKIT_', 'MORPHKIT_', 'ANTHROPIC_', 'OPENAI_', 'OPENROUTER_', 'VITE_PLEATKIT']
+const ENV_PREFIXES = ['PLEATKIT_', 'ANTHROPIC_', 'OPENAI_', 'OPENROUTER_', 'VITE_PLEATKIT']
 
 const REDACTED = '[redacted]'
 
@@ -92,7 +92,7 @@ export async function bugReport(o: BugReportOptions): Promise<{ markdown: string
     '',
     '| What | Version |',
     '|---|---|',
-    `| pleatkit cli | ${o.cliVersion ?? '0.1.0'} |`,
+    `| pleatkit cli | ${o.cliVersion ?? 'unknown'} |`,
     ...PACKAGES.map((p) => `| ${p} | ${versionOf(root, p)} |`),
     `| node | ${process.version} |`,
     `| os | ${os.platform()} ${os.release()} ${os.arch()} |`,
