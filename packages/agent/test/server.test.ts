@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- tests inspect raw JSON wire payloads */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AgentResult } from '@morphkit/runtime/compiler'
+import type { AgentResult } from '@pleatkit/runtime/compiler'
 import { configFromEnv } from '../src/config.js'
 import { createAgentApp } from '../src/server.js'
 import { CARD, GOOD_CARD, request, scripted } from './helpers.js'
@@ -68,7 +68,7 @@ describe('agent HTTP server', () => {
     const body = JSON.parse(String(init!.body))
     expect(body).toMatchObject({ userId: 'alice', text: 'phone', verdict: 'ok', status: 'proposed' })
     expect(body.log.length).toBe(3)
-    expect(new Headers(init!.headers).get('x-morphkit-app')).toBe('test')
+    expect(new Headers(init!.headers).get('x-pleatkit-app')).toBe('test')
   })
 
   it('health reports the provider', async () => {
@@ -98,8 +98,8 @@ describe('configFromEnv', () => {
   it('defaults to the scripted provider without a key, even if ANTHROPIC_API_KEY is set for other tools', () => {
     expect(configFromEnv({ ANTHROPIC_API_KEY: 'x' }).provider.name).toBe('scripted')
   })
-  it('uses Anthropic with Sonnet 5.5 + Haiku 5.5 when MORPHKIT_API_KEY is set', () => {
-    const c = configFromEnv({ MORPHKIT_API_KEY: 'x', MORPHKIT_AGENT_PORT: '9999', MORPHKIT_MAX_CALLS: '5' })
+  it('uses Anthropic with Sonnet 5.5 + Haiku 5.5 when PLEATKIT_API_KEY is set', () => {
+    const c = configFromEnv({ PLEATKIT_API_KEY: 'x', PLEATKIT_AGENT_PORT: '9999', PLEATKIT_MAX_CALLS: '5' })
     expect(c.provider.name).toBe('anthropic')
     expect(c.provider.model).toBe('claude-sonnet-5-5')
     expect((c.provider as unknown as { classifierModel: string }).classifierModel).toBe('claude-haiku-5-5')
@@ -107,8 +107,8 @@ describe('configFromEnv', () => {
     expect(c.limits.maxModelCalls).toBe(5)
   })
   it('openai-compatible needs a model and takes the base URL', () => {
-    expect(() => configFromEnv({ MORPHKIT_PROVIDER: 'openai-compatible', MORPHKIT_API_KEY: 'x' })).toThrow('MORPHKIT_MODEL')
-    const c = configFromEnv({ MORPHKIT_PROVIDER: 'openrouter', MORPHKIT_API_KEY: 'x', MORPHKIT_MODEL: 'anthropic/claude-sonnet-5.5' })
+    expect(() => configFromEnv({ PLEATKIT_PROVIDER: 'openai-compatible', PLEATKIT_API_KEY: 'x' })).toThrow('PLEATKIT_MODEL')
+    const c = configFromEnv({ PLEATKIT_PROVIDER: 'openrouter', PLEATKIT_API_KEY: 'x', PLEATKIT_MODEL: 'anthropic/claude-sonnet-5.5' })
     expect(c.provider.name).toBe('openai-compatible')
   })
 })

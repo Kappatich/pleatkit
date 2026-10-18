@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig, type Connect, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import morphkit from '@morphkit/vite-plugin'
+import pleatkit from '@pleatkit/vite-plugin'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
@@ -43,9 +43,9 @@ const storePort = process.env.STORE_PORT ?? '8790'
 const proxy = {
   '/api': `http://localhost:${dataPort}`,
   '/agent': `http://localhost:${agentPort}`,
-  '/morphkit-store': { target: `http://localhost:${storePort}`, rewrite: (p: string) => p.replace(/^\/morphkit-store/, '') },
+  '/pleatkit-store': { target: `http://localhost:${storePort}`, rewrite: (p: string) => p.replace(/^\/pleatkit-store/, '') },
   // signed bundles of server-compiled edits, from the app's own origin (V1 B1)
-  '/morphkit/b': { target: `http://localhost:${storePort}`, rewrite: (p: string) => p.replace(/^\/morphkit\/b/, '/v1/b') },
+  '/pleatkit/b': { target: `http://localhost:${storePort}`, rewrite: (p: string) => p.replace(/^\/pleatkit\/b/, '/v1/b') },
 }
 
 export default defineConfig({
@@ -53,7 +53,7 @@ export default defineConfig({
     strictCspDemo(),
     react(),
     tailwindcss(),
-    morphkit({
+    pleatkit({
       zones: {
         dynamic: ['src/dynamic/**'],
         readonly: ['src/readonly/**', 'src/components/ui/**'],
@@ -64,7 +64,7 @@ export default defineConfig({
       tailwindEntry: 'src/index.css',
       // `<Dynamic isolated>` renders a panel in a sandboxed iframe (?isolated=1 in the demo).
       isolated: true,
-      // edits compile on the agent server and load signed from /morphkit/b (the default; ?compile=browser in the demo)
+      // edits compile on the agent server and load signed from /pleatkit/b (the default; ?compile=browser in the demo)
       compile: 'server',
     }),
   ],

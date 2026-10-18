@@ -5,9 +5,9 @@ import { DOCS } from './helpers'
 
 // The 60-second demo (ARCHITECTURE §8): request → the card changes → Undo → a backend request goes to the
 // admin → the admin dashboard → bob's card is unchanged. Recorded headless with Playwright's recordVideo,
-// scripted provider paced by MORPHKIT_SCRIPTED_DELAY_MS; scripts/record-demo.mjs converts it to docs/demo.mp4.
+// scripted provider paced by PLEATKIT_SCRIPTED_DELAY_MS; scripts/record-demo.mjs converts it to docs/demo.mp4.
 // Never runs in the normal e2e suite.
-test.skip(process.env.MORPHKIT_VIDEO !== '1', 'set MORPHKIT_VIDEO=1 (pnpm demo:video) to record the demo')
+test.skip(process.env.PLEATKIT_VIDEO !== '1', 'set PLEATKIT_VIDEO=1 (pnpm demo:video) to record the demo')
 
 const SIZE = { width: 1280, height: 800 }
 const OUT = path.join(DOCS, '.video')
@@ -91,7 +91,7 @@ test('demo video (60 s): request, change, undo, backend request, admin, per-user
   await page.goto(`/?user=alice&app=${app}`)
   await page.getByRole('button', { name: /Globex/ }).click()
   await expect(card).toContainText('Globex')
-  await caption(page, 'A CRM built with morphkit. Alice is signed in.', 'She wants more in her customer card.')
+  await caption(page, 'A CRM built with pleatkit. Alice is signed in.', 'She wants more in her customer card.')
   await page.mouse.move(640, 400)
   await pause(page, 2200)
   await glideClick(page, page.getByTestId('mk-chat-open'))
@@ -141,7 +141,7 @@ test('demo video (60 s): request, change, undo, backend request, admin, per-user
   await page.getByRole('button', { name: /Globex/ }).click()
   await expect(card).toContainText('Globex')
   await expect(card.getByTestId('phone')).toHaveCount(0)
-  await caption(page, 'Bob\'s card is unchanged', 'Each user gets their own version. morphkit: github.com/Kappatich/morphkit')
+  await caption(page, 'Bob\'s card is unchanged', 'Each user gets their own version. pleatkit: github.com/Kappatich/pleatkit')
   await page.mouse.move(560, 420, { steps: 15 })
   await pause(page, 4000)
 

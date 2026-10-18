@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { HttpStore, HttpStoreError, type Snapshot } from '@morphkit/runtime'
+import { HttpStore, HttpStoreError, type Snapshot } from '@pleatkit/runtime'
 import { createStoreApp, openStore } from '../src/app.js'
 
 let app: ReturnType<typeof createStoreApp>
@@ -7,7 +7,7 @@ const fetchVia = (input: string | URL | Request, init?: RequestInit) => app.requ
 const storeFor = (userId: string, appId = 'crm') => new HttpStore({ baseUrl: 'http://store.test', userId, appId, fetch: fetchVia as typeof fetch })
 
 const admin = (path: string, init: RequestInit = {}) =>
-  app.request(`http://store.test${path}`, { ...init, headers: { 'x-morphkit-admin': '1', 'x-morphkit-app': 'crm', 'content-type': 'application/json', ...(init.headers ?? {}) } })
+  app.request(`http://store.test${path}`, { ...init, headers: { 'x-pleatkit-admin': '1', 'x-pleatkit-app': 'crm', 'content-type': 'application/json', ...(init.headers ?? {}) } })
 
 let seq = 0
 const snap = (userId: string, parentId: string | null, label: string, extra: Partial<Snapshot> = {}): Snapshot => ({
@@ -26,7 +26,7 @@ const snap = (userId: string, parentId: string | null, label: string, extra: Par
 async function agentLogs(userId: string, body: Record<string, unknown>): Promise<string> {
   const res = await app.request('http://store.test/requests', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-morphkit-agent': '1', 'x-morphkit-user': userId, 'x-morphkit-app': 'crm' },
+    headers: { 'content-type': 'application/json', 'x-pleatkit-agent': '1', 'x-pleatkit-user': userId, 'x-pleatkit-app': 'crm' },
     body: JSON.stringify({ userId, text: 'add phone', verdict: 'ok', summary: 'Added.', status: 'proposed', log: [{ tool: 'write_file' }, { tool: 'finish' }], ...body }),
   })
   expect(res.status).toBe(201)
@@ -129,10 +129,10 @@ describe('request log and admin actions', () => {
   })
 
   it('admin endpoints need the admin header; users cannot log requests for others', async () => {
-    expect((await app.request('http://store.test/admin/requests', { headers: { 'x-morphkit-user': 'alice' } })).status).toBe(403)
+    expect((await app.request('http://store.test/admin/requests', { headers: { 'x-pleatkit-user': 'alice' } })).status).toBe(403)
     const res = await app.request('http://store.test/requests', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-morphkit-user': 'mallory' },
+      headers: { 'content-type': 'application/json', 'x-pleatkit-user': 'mallory' },
       body: JSON.stringify({ userId: 'alice', text: 'x' }),
     })
     expect(res.status).toBe(403)
@@ -192,7 +192,7 @@ describe('moderation: review (DECISIONS 15)', () => {
     expect((await admin('/admin/settings', { method: 'PUT', body: JSON.stringify({ moderation: 'hold' }) })).status).toBe(400)
     await admin('/admin/settings', { method: 'PUT', body: JSON.stringify({ moderation: 'review' }) })
     expect(await storeFor('alice', 'other-app').moderation()).toBe('off')
-    expect((await app.request('http://store.test/admin/settings', { method: 'PUT', headers: { 'x-morphkit-user': 'alice' }, body: '{"moderation":"off"}' })).status).toBe(403)
+    expect((await app.request('http://store.test/admin/settings', { method: 'PUT', headers: { 'x-pleatkit-user': 'alice' }, body: '{"moderation":"off"}' })).status).toBe(403)
 
     app = createStoreApp(openStore().db, { moderation: 'review' })
     expect(await storeFor('alice').moderation()).toBe('review')
@@ -212,7 +212,7 @@ describe('attachments on the request log (stage 3b)', () => {
     const os = await import('node:os')
     const path = await import('node:path')
     const Database = (await import('better-sqlite3')).default
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'morphkit-store-'))
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pleatkit-store-'))
     const file = path.join(dir, 'old.db')
     const old = new Database(file)
     old.exec(`CREATE TABLE requests (id TEXT PRIMARY KEY, app_id TEXT NOT NULL, user_id TEXT NOT NULL, text TEXT NOT NULL, target TEXT, verdict TEXT NOT NULL,

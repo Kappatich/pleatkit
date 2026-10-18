@@ -11,7 +11,7 @@ const dec = new TextDecoder()
 
 function subtle(): SubtleCrypto {
   const s = globalThis.crypto?.subtle
-  if (!s) throw new Error('morphkit: WebCrypto (crypto.subtle) is not available here; tokens and bundle signatures need a secure context (https:// or localhost)')
+  if (!s) throw new Error('pleatkit: WebCrypto (crypto.subtle) is not available here; tokens and bundle signatures need a secure context (https:// or localhost)')
   return s
 }
 
@@ -57,7 +57,7 @@ export function safeEqual(a: string, b: string): boolean {
 
 /** Longest lifetime of a user token, seconds (DECISIONS 14: short-lived, minted by the customer's backend). */
 export const USER_TOKEN_MAX_TTL_S = 15 * 60
-/** Allowed clock skew between the customer's backend and the morphkit servers, seconds. */
+/** Allowed clock skew between the customer's backend and the pleatkit servers, seconds. */
 export const CLOCK_SKEW_S = 60
 
 export type UserRole = 'user' | 'admin'
@@ -164,7 +164,7 @@ export function isAppKey(key: string | undefined | null): key is string {
   return typeof key === 'string' && APP_KEY_RE.test(key)
 }
 
-/** A fresh random app key (`morphkit keys new`). */
+/** A fresh random app key (`pleatkit keys new`). */
 export function newAppKey(kind: 'live' | 'test' = 'live'): string {
   return `mk_${kind}_${toBase64Url(globalThis.crypto.getRandomValues(new Uint8Array(24)))}`
 }
@@ -183,7 +183,7 @@ export interface SigningKey {
 export async function signingKeyFromAppKey(appKey: string): Promise<SigningKey> {
   if (!isAppKey(appKey)) throw new Error('signingKeyFromAppKey: not an app key (mk_live_… / mk_test_…)')
   const ikm = await subtle().importKey('raw', enc.encode(appKey), 'HKDF', false, ['deriveBits'])
-  const seed = new Uint8Array(await subtle().deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode('morphkit'), info: enc.encode('bundle-signing/v1') }, ikm, 256))
+  const seed = new Uint8Array(await subtle().deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode('pleatkit'), info: enc.encode('bundle-signing/v1') }, ikm, 256))
   const der = new Uint8Array(48)
   der.set(PKCS8_ED25519)
   der.set(seed, 16)

@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { configFromEnv, PROMPT_VERSION } from '@morphkit/agent'
+import { configFromEnv, PROMPT_VERSION } from '@pleatkit/agent'
 import { diffBaseline, pinBaseline } from './baseline.js'
 import { budgetFromEnv, EvalBudget } from './budget.js'
 import { playwrightGrader } from './browser.js'
@@ -11,10 +11,13 @@ import { passRate, runSuite } from './runner.js'
 import { runSanity } from './sanity.js'
 import { BASELINE_FILE, DEMO_DIR, loadManifest, loadTasks, RECORDINGS_DIR, REPO_ROOT, REPORT_FILE, RESULTS_DIR } from './tasks.js'
 import type { Baseline, SuiteResult, TaskRun } from './types.js'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
+
+pleatkitEnv(process.env)
 
 /**
  * pnpm eval:record   produce the transcripts under evals/recordings from the scripted fixtures (offline)
- *                    (--live: from the configured model; needs MORPHKIT_API_KEY and MORPHKIT_EVAL_BUDGET_USD)
+ *                    (--live: from the configured model; needs PLEATKIT_API_KEY and PLEATKIT_EVAL_BUDGET_USD)
  * pnpm eval:replay   run every task against its transcript (ReplayProvider), grade, compare with the baseline
  * pnpm eval:sanity   reference solutions pass every grader; the null agent fails every task that needs a change
  * pnpm eval:pin      pin the last replay results as evals/baseline.json
@@ -41,14 +44,14 @@ function load<T>(file: string): T | null {
   return fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, 'utf8')) as T) : null
 }
 
-/** DECISIONS 63.4: tsc runs when the app's node_modules are found (MORPHKIT_TYPECHECK_ROOT, else the demo app). */
+/** DECISIONS 63.4: tsc runs when the app's node_modules are found (PLEATKIT_TYPECHECK_ROOT, else the demo app). */
 function typecheck() {
   if (flag('no-typecheck')) return null
   const env = { ...process.env }
-  if (env.MORPHKIT_TYPECHECK_ROOT === undefined && fs.existsSync(path.join(DEMO_DIR, 'node_modules', 'react'))) env.MORPHKIT_TYPECHECK_ROOT = DEMO_DIR
+  if (env.PLEATKIT_TYPECHECK_ROOT === undefined && fs.existsSync(path.join(DEMO_DIR, 'node_modules', 'react'))) env.PLEATKIT_TYPECHECK_ROOT = DEMO_DIR
   return typecheckerFromEnv(env)
 }
-const browser = () => (flag('no-browser') || process.env.MORPHKIT_EVAL_BROWSER === '0' ? null : playwrightGrader({ log }))
+const browser = () => (flag('no-browser') || process.env.PLEATKIT_EVAL_BROWSER === '0' ? null : playwrightGrader({ log }))
 
 function summary(s: SuiteResult): string {
   const failed = s.runs.filter((r) => !r.pass)
@@ -68,8 +71,8 @@ async function main(): Promise<number> {
   switch (command) {
     case 'record': {
       const live = flag('live')
-      if (live && (!process.env.MORPHKIT_API_KEY || budget.capUsd === null)) {
-        console.error('eval:record --live spends money: set MORPHKIT_API_KEY and MORPHKIT_EVAL_BUDGET_USD (e.g. 2).')
+      if (live && (!process.env.PLEATKIT_API_KEY || budget.capUsd === null)) {
+        console.error('eval:record --live spends money: set PLEATKIT_API_KEY and PLEATKIT_EVAL_BUDGET_USD (e.g. 2).')
         return 2
       }
       const provider = live ? configFromEnv(process.env).provider : null

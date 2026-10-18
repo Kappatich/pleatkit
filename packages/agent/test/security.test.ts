@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mintUserToken, type AgentResult } from '@morphkit/runtime/compiler'
+import { mintUserToken, type AgentResult } from '@pleatkit/runtime/compiler'
 import { agentAuthFromEnv, identify } from '../src/auth.js'
 import { configFromEnv } from '../src/config.js'
 import { runAgent } from '../src/loop.js'
@@ -31,8 +31,8 @@ describe('agent credentials (V1 A1)', () => {
   it('refuses to start in production without credentials, validates them', () => {
     expect(() => agentAuthFromEnv({ NODE_ENV: 'production' })).toThrow(/refusing to start/)
     expect(() => configFromEnv({ NODE_ENV: 'production' })).toThrow(/refusing to start/)
-    expect(() => agentAuthFromEnv({ MORPHKIT_APP_KEY: 'nope', MORPHKIT_JWT_SECRET: SECRET })).toThrow(/mk_live_/)
-    expect(agentAuthFromEnv({ NODE_ENV: 'production', MORPHKIT_APP_ID: 'crm', MORPHKIT_APP_KEY: APP_KEY, MORPHKIT_JWT_SECRET: SECRET }).credentials?.appId).toBe('crm')
+    expect(() => agentAuthFromEnv({ PLEATKIT_APP_KEY: 'nope', PLEATKIT_JWT_SECRET: SECRET })).toThrow(/mk_live_/)
+    expect(agentAuthFromEnv({ NODE_ENV: 'production', PLEATKIT_APP_ID: 'crm', PLEATKIT_APP_KEY: APP_KEY, PLEATKIT_JWT_SECRET: SECRET }).credentials?.appId).toBe('crm')
     expect(agentAuthFromEnv({}).credentials).toBeNull()
   })
 

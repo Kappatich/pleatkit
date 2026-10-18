@@ -22,7 +22,7 @@ export function emitDeclarations(root: string, files: string[], alias: Record<st
     baseUrl: root,
     paths,
     rootDir: root,
-    outDir: path.join(root, '__morphkit_types__'),
+    outDir: path.join(root, '__pleatkit_types__'),
     noEmitOnError: false,
   }
   const absFiles = files.map((f) => path.join(root, f))

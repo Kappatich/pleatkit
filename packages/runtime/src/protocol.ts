@@ -1,7 +1,7 @@
-// Wire protocol between the browser (@morphkit/ui) and the agent server (@morphkit/agent).
+// Wire protocol between the browser (@pleatkit/ui) and the agent server (@pleatkit/agent).
 // Types and a few constants, so both sides agree without the browser depending on Node code.
 
-import type { FileMap, MorphkitManifest } from './types.js'
+import type { FileMap, PleatkitManifest } from './types.js'
 
 /**
  * `clarify`: the request was ambiguous; the result carries one question with options, nothing was changed.
@@ -43,7 +43,7 @@ export type Locale = 'en' | 'ru'
  * What the compiler needs to resolve imports exactly like the browser does, plus the app instance namespace
  * (V1 B6) and the app's runtime CSS input, for server compiles (V1 B1).
  */
-export type CompileContextWire = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots' | 'css'> & { namespace?: string }
+export type CompileContextWire = Pick<PleatkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots' | 'css'> & { namespace?: string }
 
 /** `POST /agent/run` body. The browser is the source of truth for files; the server is stateless. */
 export interface AgentRunRequest {

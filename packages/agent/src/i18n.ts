@@ -1,4 +1,4 @@
-import type { Locale } from '@morphkit/runtime/compiler'
+import type { Locale } from '@pleatkit/runtime/compiler'
 
 /**
  * Progress lines and fixed summaries the end user reads in the chat (DECISIONS items 10 and 20): plain

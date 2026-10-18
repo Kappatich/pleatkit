@@ -55,7 +55,7 @@ test('chat scenario 4: an edit that throws while rendering is caught and rolled 
   // it compiles, so the agent's result is applied ...
   await expect(turn).toHaveAttribute('data-status', 'applied')
   // ... and the panel's error boundary takes over
-  const crash = page.getByTestId('morphkit-crash')
+  const crash = page.getByTestId('pleatkit-crash')
   await expect(crash).toBeVisible()
   await expect(crash).toContainText('Deals table exploded while rendering')
   await expect(page.getByTestId('customer-card')).toBeVisible()

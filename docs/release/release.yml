@@ -1,6 +1,6 @@
 # npm trusted publishing with provenance (V1 A6). A template: copy it to .github/workflows/release.yml when
 # Minte enables publishing (DECISIONS 27). Even then it starts only by hand (workflow_dispatch),
-# after the @morphkit scope exists and each package has this repository + workflow registered as its trusted
+# after the @pleatkit scope exists and each package has this repository + workflow registered as its trusted
 # publisher on npmjs.com (docs/RELEASING.md). No NPM_TOKEN secret is used or needed.
 name: release
 
@@ -36,5 +36,5 @@ jobs:
         run: |
           for pkg in runtime vite-plugin ui agent cli; do
             (cd packages/$pkg && pnpm pack --pack-destination ../../.release && \
-              if [ "${{ inputs.dry_run }}" != "true" ]; then npm publish ../../.release/morphkit-$pkg-*.tgz --provenance --access public; fi)
+              if [ "${{ inputs.dry_run }}" != "true" ]; then npm publish ../../.release/pleatkit-$pkg-*.tgz --provenance --access public; fi)
           done

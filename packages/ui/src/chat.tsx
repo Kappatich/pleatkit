@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { APPLY_VERDICTS, CommitRejectedError, HeadConflictError, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MorphkitUiRoot, useMorphkit, useMorphkitState, type AgentResult, type Locale, type Snapshot } from '@morphkit/runtime'
+import { APPLY_VERDICTS, CommitRejectedError, HeadConflictError, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, PleatkitUiRoot, usePleatkit, usePleatkitState, type AgentResult, type Locale, type Snapshot } from '@pleatkit/runtime'
 import { addImages, imageFiles, panelDomSnapshot, prepareImage, type PendingImage } from './attachments.js'
 import { translator, type Translate } from './i18n.js'
 import { ElementPicker } from './picker.js'
 import { callAgent } from './sse.js'
 import { addStep, type Step } from './steps.js'
-import { useMorphkitUiStyles } from './styles.js'
+import { usePleatkitUiStyles } from './styles.js'
 
-export interface MorphkitChatProps {
-  /** Base URL of @morphkit/agent, e.g. `/agent` behind the app's proxy. */
+export interface PleatkitChatProps {
+  /** Base URL of @pleatkit/agent, e.g. `/agent` behind the app's proxy. */
   agentUrl?: string
   /** Store namespace sent to the agent for its request log. */
   appId?: string
@@ -88,7 +88,7 @@ const Icon = {
 }
 
 /** Chat drawer: ask the agent for a change, watch one live progress line, undo with one gesture, open the version timetable. */
-export function MorphkitChat({
+export function PleatkitChat({
   agentUrl = '/agent',
   appId,
   locale = 'en',
@@ -100,11 +100,11 @@ export function MorphkitChat({
   token,
   onAuthExpired,
   shadow = true,
-}: MorphkitChatProps) {
-  useMorphkitUiStyles()
+}: PleatkitChatProps) {
+  usePleatkitUiStyles()
   const tr = useMemo(() => translator(locale), [locale])
-  const engine = useMorphkit()
-  const state = useMorphkitState()
+  const engine = usePleatkit()
+  const state = usePleatkitState()
   const [open, setOpen] = useState(defaultOpen)
   const [text, setText] = useState('')
   const [target, setTarget] = useState<string | null>(null)
@@ -327,7 +327,7 @@ export function MorphkitChat({
         update(id, (t) => ({ status: 'nothing', summary: tr('chat.cancelledSummary'), steps: t.steps.filter((s) => !s.transient) }))
         return
       }
-      console.warn('[morphkit] agent request failed', e)
+      console.warn('[pleatkit] agent request failed', e)
       update(id, (t) => ({ status: 'failed', summary: tr('chat.failedSummary'), steps: t.steps.filter((s) => !s.transient) }))
     } finally {
       if (running.current === abort) running.current = null
@@ -400,8 +400,8 @@ export function MorphkitChat({
   const canSend = !busy && !editsOff && text.trim().length > 0
   const restore = (engine as unknown as { checkout?: (id: string) => Promise<Snapshot | null> }).checkout
   return (
-    <MorphkitUiRoot shadow={shadow}>
-    <div className="mk-root" data-morphkit-ui-layer="" lang={locale}>
+    <PleatkitUiRoot shadow={shadow}>
+    <div className="mk-root" data-pleatkit-ui-layer="" lang={locale}>
       {state.stale && (
         <div className="mk-stale" role="status" data-testid="mk-stale">
           <span>{tr('chat.stale')}</span>
@@ -651,7 +651,7 @@ export function MorphkitChat({
         ))}
       </div>
     </div>
-    </MorphkitUiRoot>
+    </PleatkitUiRoot>
   )
 }
 

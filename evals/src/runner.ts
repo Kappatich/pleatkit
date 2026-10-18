@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { buildPrompt, PROMPT_VERSION, readTranscript, RecordingProvider, runAgent, typecheckFromEnv, type ModelProvider, type TypecheckFn } from '@morphkit/agent'
-import type { MorphkitManifest } from '@morphkit/runtime/compiler'
+import { buildPrompt, PROMPT_VERSION, readTranscript, RecordingProvider, runAgent, typecheckFromEnv, type ModelProvider, type TypecheckFn } from '@pleatkit/agent'
+import type { PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { BudgetExceededError, EvalBudget, gradeBudget } from './budget.js'
 import { gradeRun, type RunResult } from './graders.js'
 import { recordingFile } from './providers.js'
@@ -24,10 +24,10 @@ export interface SuiteOptions {
   kind: SuiteResult['kind']
   agent: AgentKind
   tasks: EvalTask[]
-  manifest: MorphkitManifest
+  manifest: PleatkitManifest
   providerFor: (task: EvalTask) => ModelProvider
   budget?: EvalBudget
-  /** tsc grader (MORPHKIT_TYPECHECK_ROOT); null skips it. */
+  /** tsc grader (PLEATKIT_TYPECHECK_ROOT); null skips it. */
   typecheck?: TypecheckFn | null
   /** Playwright grader; null skips it. */
   browser?: BrowserGrader | null
@@ -40,10 +40,10 @@ export interface SuiteOptions {
 
 /** The manifest's digests in the cached prefix, as the agent server passes them. */
 type PromptDigests = NonNullable<Parameters<typeof buildPrompt>[2]>
-export const digestsOf = (m: MorphkitManifest): PromptDigests => ({ ...(m.designSystem ? { designSystem: m.designSystem } : {}), ...(m.dataContracts ? { dataContracts: m.dataContracts } : {}) })
+export const digestsOf = (m: PleatkitManifest): PromptDigests => ({ ...(m.designSystem ? { designSystem: m.designSystem } : {}), ...(m.dataContracts ? { dataContracts: m.dataContracts } : {}) })
 
 /** Size of the cached prompt prefix for the demo app: what a prompt change costs on every request. */
-export function promptInfo(manifest: MorphkitManifest, sample: PreparedTask): PromptInfo {
+export function promptInfo(manifest: PleatkitManifest, sample: PreparedTask): PromptInfo {
   const parts = buildPrompt(sample.request, undefined, digestsOf(manifest))
   const prefixChars = parts.instructions.length + parts.cached.length
   return { version: PROMPT_VERSION, prefixChars, prefixTokens: Math.round(prefixChars / 3.5) }

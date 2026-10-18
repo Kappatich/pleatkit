@@ -3,11 +3,11 @@
 
 import { BUNDLE_FORMAT, COMPILER_VERSION } from './constants.js'
 import { sha256Hex, sriDigest, verifyBundleSignature, type BundleSignature } from './security.js'
-import type { CompileError, CompiledBundle, FileMap, MorphkitManifest } from './types.js'
+import type { CompileError, CompiledBundle, FileMap, PleatkitManifest } from './types.js'
 
 /** Everything besides the files that changes what a bundle compiles to: externals, aliases, CSS input, readonly sources. */
 export async function contextHash(
-  manifest: Pick<MorphkitManifest, 'externals' | 'externalPatterns' | 'alias' | 'dynamicRoots' | 'css'>,
+  manifest: Pick<PleatkitManifest, 'externals' | 'externalPatterns' | 'alias' | 'dynamicRoots' | 'css'>,
   readonly: FileMap,
 ): Promise<string> {
   const ro = Object.keys(readonly)
@@ -51,7 +51,7 @@ export interface ServerCompileResult {
 export interface ServerBundlesOptions {
   /** Agent server, e.g. `/agent`. */
   agentUrl: string
-  /** Where signed bundles are served from the app's origin, e.g. `/morphkit/b` (proxied to store-server or the agent). */
+  /** Where signed bundles are served from the app's origin, e.g. `/pleatkit/b` (proxied to store-server or the agent). */
   bundleUrl: string
   namespace: string
   /** Bundles must be signed by this key (base64url ed25519); null accepts unsigned bundles (development). */
@@ -92,7 +92,7 @@ export class ServerBundles {
     userId: string
     files: FileMap
     readonly: FileMap
-    manifest: Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots' | 'css'>
+    manifest: Pick<PleatkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots' | 'css'>
     components: string[]
     check?: boolean
   }): Promise<ServerCompileResult> {
@@ -118,7 +118,7 @@ export class ServerBundles {
     }
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      throw new Error(`morphkit: the agent server could not compile (${res.status}): ${text.slice(0, 300)}`)
+      throw new Error(`pleatkit: the agent server could not compile (${res.status}): ${text.slice(0, 300)}`)
     }
     return (await res.json()) as ServerCompileResult
   }
@@ -131,7 +131,7 @@ export class ServerBundles {
   async load(key: string, filesHash: string): Promise<CompiledBundle | null> {
     const res = await this.fetchFn(this.urlOf(key, 'json'), { signal: AbortSignal.timeout(15_000) })
     if (res.status === 404) return null
-    if (!res.ok) throw new Error(`morphkit: could not load the bundle signature (${res.status})`)
+    if (!res.ok) throw new Error(`pleatkit: could not load the bundle signature (${res.status})`)
     const sig = (await res.json()) as BundleSignature
     const p = sig.payload
     if (!p || p.key !== key) throw new BundleVerificationError('the bundle signature is for another bundle')
@@ -145,7 +145,7 @@ export class ServerBundles {
     if (p.app !== this.o.namespace) throw new BundleVerificationError(`the bundle was made for app "${p.app}"`)
     if (p.filesHash !== filesHash) throw new BundleVerificationError('the bundle was made from other files')
     const cssRes = await this.fetchFn(this.urlOf(key, 'css'), { signal: AbortSignal.timeout(15_000) })
-    if (!cssRes.ok) throw new Error(`morphkit: could not load the bundle CSS (${cssRes.status})`)
+    if (!cssRes.ok) throw new Error(`pleatkit: could not load the bundle CSS (${cssRes.status})`)
     const css = await cssRes.text()
     if ((await sriDigest(css)) !== p.css) throw new BundleVerificationError('the bundle CSS does not match its signed digest')
     return { js: '', css, url: this.urlOf(key, 'js'), integrity: p.js, externals: p.externals }

@@ -1,8 +1,8 @@
 {
-  "name": "@morphkit/evals",
+  "name": "@pleatkit/evals",
   "private": true,
   "version": "0.1.0",
-  "description": "Eval harness for the morphkit agent: tasks, graders, replay, baseline and report (brainstorm 04 §8 items 3, 9, 11)",
+  "description": "Eval harness for the pleatkit agent: tasks, graders, replay, baseline and report (brainstorm 04 §8 items 3, 9, 11)",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
@@ -15,8 +15,8 @@
     "report": "tsx src/cli.ts report"
   },
   "dependencies": {
-    "@morphkit/agent": "workspace:*",
-    "@morphkit/runtime": "workspace:*"
+    "@pleatkit/agent": "workspace:*",
+    "@pleatkit/runtime": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

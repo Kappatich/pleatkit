@@ -1,5 +1,5 @@
-import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_DOM_CHARS } from '@morphkit/runtime/compiler'
-import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, FileMap, RequestClass } from '@morphkit/runtime/compiler'
+import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_DOM_CHARS } from '@pleatkit/runtime/compiler'
+import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, FileMap, RequestClass } from '@pleatkit/runtime/compiler'
 import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
 import { buildPrompt, classifierContext, PROMPT_VERSION, type PromptDigests } from './prompt.js'

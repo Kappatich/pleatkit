@@ -6,7 +6,7 @@ import { HeadConflictError, withTimeout } from './errors.js'
 import { applyCss, defaultLoader, installExternals, type BundleLoader } from './loader.js'
 import { isWritablePath, WRITABLE_EXT } from './paths.js'
 import type { AgentRunRequest } from './protocol.js'
-import { browserBootStorage, HEARTBEAT_MS, PAGE_ID, previousLoadFailed, readBoot, safeModeRequested, writeBoot, type BootStorage } from './safe-mode.js'
+import { browserBootStorage, HEARTBEAT_MS, migrateBootKey, PAGE_ID, previousLoadFailed, readBoot, safeModeRequested, writeBoot, type BootStorage } from './safe-mode.js'
 import { sha256Hex } from './security.js'
 import { bundleKey, contextHash, ServerBundles, type ServerBundlesOptions } from './server-bundles.js'
 import type {
@@ -16,7 +16,7 @@ import type {
   CompiledBundle,
   FileMap,
   ModuleNamespace,
-  MorphkitConfig,
+  PleatkitConfig,
   RequestLinkPatch,
   RequestLinkResult,
   Snapshot,
@@ -62,7 +62,7 @@ export interface Draft {
 
 /** Why the original version is shown although the user has their own (V1 B2). */
 export interface SafeModeState {
-  /** `crash`: the last load of this version did not mount; `param`: `?morphkit=safe`. */
+  /** `crash`: the last load of this version did not mount; `param`: `?pleatkit=safe`. */
   reason: 'crash' | 'param'
   snapshotId: string
 }
@@ -95,7 +95,7 @@ export interface EngineState {
   compileMode: CompileMode
   /** F6: flags from the store (app < org < user). */
   flags: Record<string, unknown>
-  /** F6 kill switch (`morphkit.enabled: false`): everyone sees the original version; no chat, no edits. */
+  /** F6 kill switch (`pleatkit.enabled: false`): everyone sees the original version; no chat, no edits. */
   disabled: boolean
   /** F6 `edits.enabled: false`: users keep their versions but cannot make new edits. */
   editsEnabled: boolean
@@ -147,7 +147,7 @@ export interface CompilerLike {
 export interface EngineOptions {
   userId: string
   store: SnapshotStore
-  config: MorphkitConfig
+  config: PleatkitConfig
   compiler?: CompilerLike
   loader?: BundleLoader
   cssCompiler?: CssCompiler
@@ -157,7 +157,7 @@ export interface EngineOptions {
   compile?: CompileMode
   /** Agent server for server compiles. Default `/agent`. */
   agentUrl?: string
-  /** Same-origin URL of signed bundles. Default `/morphkit/b`. */
+  /** Same-origin URL of signed bundles. Default `/pleatkit/b`. */
   bundleUrl?: string
   /** Overrides `config.publicKey`. */
   publicKey?: string | null
@@ -171,7 +171,7 @@ export interface EngineOptions {
   autoFallback?: boolean
   /** Where boot records for safe mode live (default localStorage). */
   bootStorage?: BootStorage | null
-  /** Start in safe mode (default: `?morphkit=safe` in the URL). */
+  /** Start in safe mode (default: `?pleatkit=safe` in the URL). */
   safeMode?: boolean
   heartbeatMs?: number
   /** Id of this page load (tests simulate a reload with another one). */
@@ -247,11 +247,11 @@ function fnv(s: string): string {
  * Framework-agnostic core: snapshots, draft → check → commit, undo/redo/reset and module swapping.
  * All state-changing operations run one at a time through an internal queue.
  */
-export class MorphkitEngine {
+export class PleatkitEngine {
   readonly userId: string
   /** App instance namespace (V1 B6): its own externals registry, stylesheet and boot record. */
   readonly namespace: string
-  readonly config: MorphkitConfig
+  readonly config: PleatkitConfig
   private readonly store: SnapshotStore
   private readonly compiler: CompilerLike
   private readonly loader: BundleLoader
@@ -302,7 +302,7 @@ export class MorphkitEngine {
       options.serverBundles ??
       new ServerBundles({
         agentUrl,
-        bundleUrl: options.bundleUrl ?? '/morphkit/b',
+        bundleUrl: options.bundleUrl ?? '/pleatkit/b',
         namespace: this.namespace,
         publicKey,
         ...(options.token ? { token: options.token } : {}),
@@ -326,7 +326,8 @@ export class MorphkitEngine {
     this.baseHash = Promise.all([this.originalHash, this.ctxHash]).then(([f, c]) => releaseHash(f, c, this.css.mode))
     this.registry = installExternals(options.config.externals, this.namespace)
     this.boot = options.bootStorage !== undefined ? options.bootStorage : browserBootStorage()
-    this.bootKey = `morphkit:boot:${this.namespace}:${this.userId}`
+    this.bootKey = `pleatkit:boot:${this.namespace}:${this.userId}`
+    migrateBootKey(this.boot, `morphkit:boot:${this.namespace}:${this.userId}`, this.bootKey)
     this.heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS
     this.forceSafe = options.safeMode ?? safeModeRequested()
     this.pageId = options.pageId ?? PAGE_ID
@@ -357,7 +358,7 @@ export class MorphkitEngine {
 
   /**
    * Page-level listeners of this engine (safe mode's `pagehide`). The constructor has no side effects, so React
-   * may build an engine during render (StrictMode builds two); `<MorphkitProvider>` attaches the one it uses in
+   * may build an engine during render (StrictMode builds two); `<PleatkitProvider>` attaches the one it uses in
    * an effect and detaches it on cleanup. Returns the detach function.
    */
   attach(): () => void {
@@ -424,16 +425,16 @@ export class MorphkitEngine {
 
   /**
    * Tags for error reporting (V1 B7), e.g. `Sentry.setTags(engine.tags())`: which personal version and bundle
-   * were live. Stack frames of edits read `morphkit://<bundle>/bundle.js`.
+   * were live. Stack frames of edits read `pleatkit://<bundle>/bundle.js`.
    */
   tags(): Record<string, string> {
     const head = this.state.head
     return {
-      'morphkit.app': this.namespace,
-      'morphkit.snapshotId': head && !this.state.usingFallback ? head.id : 'base',
-      'morphkit.bundle': this.bundleId ?? 'base',
-      'morphkit.compile': this.mode,
-      ...(this.state.safeMode ? { 'morphkit.safeMode': this.state.safeMode.reason } : {}),
+      'pleatkit.app': this.namespace,
+      'pleatkit.snapshotId': head && !this.state.usingFallback ? head.id : 'base',
+      'pleatkit.bundle': this.bundleId ?? 'base',
+      'pleatkit.compile': this.mode,
+      ...(this.state.safeMode ? { 'pleatkit.safeMode': this.state.safeMode.reason } : {}),
     }
   }
 
@@ -505,7 +506,7 @@ export class MorphkitEngine {
   /** esbuild-wasm could not load (CSP without 'wasm-unsafe-eval', a proxy blocking .wasm, iOS memory): use the server. */
   private fallBackToServer(e: unknown): boolean {
     if (this.mode !== 'browser' || !this.autoFallback || !this.server) return false
-    console.warn('[morphkit] the in-browser compiler could not load; compiling edits on the agent server instead', e)
+    console.warn('[pleatkit] the in-browser compiler could not load; compiling edits on the agent server instead', e)
     this.mode = 'server'
     this.set({ compileMode: 'server' })
     return true
@@ -595,12 +596,13 @@ export class MorphkitEngine {
     // Flags and the head in parallel, each within the store timeout: a store that is down or hangs must not
     // keep the panels on their placeholder (code review 06 item 1). The original version is shown instead.
     const [flagsR, headR] = await Promise.allSettled([
-      this.store.flags ? withTimeout(this.store.flags(), this.storeTimeoutMs, 'the morphkit store (flags)') : Promise.resolve({} as Record<string, unknown>),
-      withTimeout(this.store.head(this.userId), this.storeTimeoutMs, 'the morphkit store'),
+      this.store.flags ? withTimeout(this.store.flags(), this.storeTimeoutMs, 'the pleatkit store (flags)') : Promise.resolve({} as Record<string, unknown>),
+      withTimeout(this.store.head(this.userId), this.storeTimeoutMs, 'the pleatkit store'),
     ])
     // F6: the kill switch wins over everything; a store that cannot answer leaves the defaults
     const flags = flagsR.status === 'fulfilled' ? flagsR.value : {}
-    const disabled = flags['morphkit.enabled'] === false
+    // `morphkit.enabled`: the kill switch's pre-rename key, honoured for one release (DECISIONS 68)
+    const disabled = flags['pleatkit.enabled'] === false || flags['morphkit.enabled'] === false
     this.set({ flags, disabled, editsEnabled: !disabled && flags['edits.enabled'] !== false })
     if (disabled) {
       if (!this.state.usingFallback) this.swap(this.fallbackModules(), null, true, this.state.head)
@@ -611,7 +613,7 @@ export class MorphkitEngine {
       return this.set({
         status: 'ready',
         offline: true,
-        error: `Could not reach the morphkit store (${message}); showing the ${this.state.usingFallback ? 'original' : 'last loaded'} version`,
+        error: `Could not reach the pleatkit store (${message}); showing the ${this.state.usingFallback ? 'original' : 'last loaded'} version`,
       })
     }
     const wasOffline = this.state.offline
@@ -982,7 +984,7 @@ export class MorphkitEngine {
      */
     commit: (author: SnapshotAuthor = 'user', options: CommitOptions = {}): Promise<Snapshot> =>
       this.enqueue(async () => {
-        if (!this.state.editsEnabled) throw new Error('morphkit: edits are switched off for this app (flags)')
+        if (!this.state.editsEnabled) throw new Error('pleatkit: edits are switched off for this app (flags)')
         const draft = this.requireDraft()
         const current = this.state.head?.id ?? null
         const expected = options.expectedHeadId !== undefined ? options.expectedHeadId : draft.parentId
@@ -1207,12 +1209,12 @@ export class MorphkitEngine {
    */
   async revertPlan(snapshotId: string): Promise<RevertPlan> {
     const head = this.state.head
-    if (!head) throw new Error('morphkit: nothing to undo yet')
+    if (!head) throw new Error('pleatkit: nothing to undo yet')
     const chain: string[] = []
     for (let s: Snapshot | null = head; s; s = s.parentId ? await this.store.get(s.parentId) : null) chain.push(s.id)
-    if (!chain.includes(snapshotId)) throw new Error('morphkit: that edit is not part of the current version')
+    if (!chain.includes(snapshotId)) throw new Error('pleatkit: that edit is not part of the current version')
     const target = await this.store.get(snapshotId)
-    if (!target.parentId) throw new Error('morphkit: the original version cannot be undone')
+    if (!target.parentId) throw new Error('pleatkit: the original version cannot be undone')
     const parent = await this.store.get(target.parentId)
     const paths = [...new Set([...Object.keys(parent.files), ...Object.keys(target.files)])].filter((p) => parent.files[p] !== target.files[p]).sort()
     const before: FileMap = {}

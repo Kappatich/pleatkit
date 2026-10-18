@@ -4,9 +4,10 @@ import { createHash } from 'node:crypto'
 import picomatch from 'picomatch'
 import ts from 'typescript'
 import { globSync } from 'tinyglobby'
-import { validateZoneGlob } from '@morphkit/runtime/compiler'
+import { validateZoneGlob } from '@pleatkit/runtime/compiler'
 import { emitDeclarations } from './declarations.js'
 import { tailwindInput } from './tailwind.js'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 export interface ZonesOptions {
   /** Globs (relative to project root) the agent may edit; compiled at runtime. */
@@ -15,7 +16,7 @@ export interface ZonesOptions {
   readonly?: string[]
 }
 
-export interface MorphkitOptions {
+export interface PleatkitOptions {
   zones: ZonesOptions
   /**
    * Module specifiers that dynamic code imports from the host app instead of bundling.
@@ -38,13 +39,13 @@ export interface MorphkitOptions {
   isolated?: boolean
   /**
    * Where edits are compiled (V1 B1). `server` (default): on the agent server, signed, loaded from
-   * `/morphkit/b/…` with `import()`; the page needs neither WebAssembly nor `blob:`. `browser`: esbuild-wasm in
+   * `/pleatkit/b/…` with `import()`; the page needs neither WebAssembly nor `blob:`. `browser`: esbuild-wasm in
    * the page (falls back to the server by itself when WebAssembly cannot load).
    */
   compile?: 'server' | 'browser'
   /**
-   * Public key of the app key (V1 A3, `npx morphkit keys public`): when set, the runtime runs only bundles
-   * signed with it. Default: the MORPHKIT_PUBLIC_KEY environment variable at build time.
+   * Public key of the app key (V1 A3, `npx pleatkit keys public`): when set, the runtime runs only bundles
+   * signed with it. Default: the PLEATKIT_PUBLIC_KEY environment variable at build time.
    */
   publicKey?: string
   /** Register externals as `() => import()` so big libraries load only when an edit uses them (V1 B6). Default true. */
@@ -74,7 +75,7 @@ export interface ManifestFile {
   source: string
 }
 
-export interface MorphkitManifest {
+export interface PleatkitManifest {
   version: 1
   dynamicRoots: string[]
   dynamic: ManifestFile[]
@@ -120,12 +121,12 @@ export function normalizeZones(globs: string[], kind: 'dynamic' | 'readonly'): s
   return globs.map((g) => {
     const { glob, problems } = validateZoneGlob(g)
     const fatal = problems.filter((p) => !p.includes('backslashes'))
-    if (fatal.length) throw new Error(`[morphkit] zones.${kind}: ${fatal.join('; ')}`)
+    if (fatal.length) throw new Error(`[pleatkit] zones.${kind}: ${fatal.join('; ')}`)
     return glob
   })
 }
 
-export function resolveOptions(options: MorphkitOptions) {
+export function resolveOptions(options: PleatkitOptions) {
   return {
     dynamic: normalizeZones(options.zones.dynamic, 'dynamic'),
     readonly: normalizeZones(options.zones.readonly ?? [], 'readonly'),
@@ -136,7 +137,7 @@ export function resolveOptions(options: MorphkitOptions) {
     tailwindEntry: options.tailwindEntry ?? 'src/index.css',
     isolated: options.isolated ?? false,
     compile: options.compile ?? 'server',
-    publicKey: options.publicKey ?? process.env.MORPHKIT_PUBLIC_KEY ?? null,
+    publicKey: options.publicKey ?? pleatkitEnv(process.env).PLEATKIT_PUBLIC_KEY ?? null,
     lazyExternals: options.lazyExternals ?? true,
     protected: options.protected ?? [],
     isolateEdits: options.isolateEdits ?? false,
@@ -207,12 +208,12 @@ function resolveProjectFile(root: string, spec: string, importer: string, alias:
   return null
 }
 
-export function buildManifest(root: string, options: MorphkitOptions): MorphkitManifest {
+export function buildManifest(root: string, options: PleatkitOptions): PleatkitManifest {
   const o = resolveOptions(options)
   const dynamic = readFiles(root, o.dynamic)
   const readonly = readFiles(root, o.readonly, o.dynamic)
   if (dynamic.length === 0 && o.dynamic.length > 0) {
-    console.warn(`[morphkit] zones.dynamic (${o.dynamic.join(', ')}) matches no files under ${root}: nothing will be editable`)
+    console.warn(`[pleatkit] zones.dynamic (${o.dynamic.join(', ')}) matches no files under ${root}: nothing will be editable`)
   }
   const isDynamic = picomatch(o.dynamic)
   const isReadonly = picomatch(o.readonly)
@@ -248,8 +249,8 @@ export function buildManifest(root: string, options: MorphkitOptions): MorphkitM
 }
 
 /** Digests for the agent's cached prompt prefix (brainstorm 04 §1): design system and data contracts. */
-function digests(root: string, o: ReturnType<typeof resolveOptions>, readonly: ManifestFile[], coreTypes: ManifestFile[]): Pick<MorphkitManifest, 'designSystem' | 'dataContracts'> {
-  const out: Pick<MorphkitManifest, 'designSystem' | 'dataContracts'> = {}
+function digests(root: string, o: ReturnType<typeof resolveOptions>, readonly: ManifestFile[], coreTypes: ManifestFile[]): Pick<PleatkitManifest, 'designSystem' | 'dataContracts'> {
+  const out: Pick<PleatkitManifest, 'designSystem' | 'dataContracts'> = {}
   const patterns = o.designSystem?.components ?? []
   if (patterns.length) {
     const prefixes = patterns.map((p) => (aliasToPath(p.replace(/\*$/, ''), o.alias) ?? p.replace(/\*$/, '')).replace(/\/$/, ''))
@@ -267,7 +268,7 @@ function digests(root: string, o: ReturnType<typeof resolveOptions>, readonly: M
   return out
 }
 
-function cssInfo(root: string, mode: 'tailwind' | 'palette', entry: string): MorphkitManifest['css'] {
+function cssInfo(root: string, mode: 'tailwind' | 'palette', entry: string): PleatkitManifest['css'] {
   if (mode !== 'tailwind') return { mode: 'palette', hash: 'palette' }
   const input = tailwindInput(root, entry)
   return { mode: 'tailwind', input, hash: createHash('sha256').update(input).digest('hex').slice(0, 32) }

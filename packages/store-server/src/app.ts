@@ -6,7 +6,7 @@ import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { applyQuotaOps, signingKeyFromAppKey, sriDigest, verifyBundleSignature, type BundleSignature, type QuotaOp } from '@morphkit/runtime/compiler'
+import { applyQuotaOps, signingKeyFromAppKey, sriDigest, verifyBundleSignature, type BundleSignature, type QuotaOp } from '@pleatkit/runtime/compiler'
 import { AuthError, resolveCaller, type AuthOptions, type Caller } from './auth.js'
 import { buildExport } from './export.js'
 import { deleteFlag, FLAG_SCOPES, listFlags, resolveFlags, setFlag, type FlagScope } from './flags.js'
@@ -26,20 +26,20 @@ export type StoreDb = BetterSQLite3Database<typeof schema>
 export type Moderation = 'off' | 'review'
 
 export interface StoreAppOptions {
-  /** Default for apps whose admin has not chosen (`MORPHKIT_MODERATION`). Default `off`. */
+  /** Default for apps whose admin has not chosen (`PLEATKIT_MODERATION`). Default `off`. */
   moderation?: Moderation
   /**
    * Who may call (V1 A1). Default: demo headers only (development and tests). The CLI builds it with
    * `authFromEnv`, which refuses to start in production without an app key and a user-JWT secret.
    */
   auth?: AuthOptions
-  /** F2: where this store runs (`MORPHKIT_REGION`), recorded on every row. Default `local`. */
+  /** F2: where this store runs (`PLEATKIT_REGION`), recorded on every row. Default `local`. */
   region?: string
-  /** F2: environment recorded when the caller does not say (`MORPHKIT_ENVIRONMENT`). Default `development`. */
+  /** F2: environment recorded when the caller does not say (`PLEATKIT_ENVIRONMENT`). Default `development`. */
   environment?: string
-  /** Largest request body, bytes (`MORPHKIT_STORE_BODY_LIMIT`). Default 4 MiB. */
+  /** Largest request body, bytes (`PLEATKIT_STORE_BODY_LIMIT`). Default 4 MiB. */
   bodyLimitBytes?: number
-  /** DECISIONS 44: default of the per-app `learning` flag (`MORPHKIT_LEARNING`). Default `off` (self-host). */
+  /** DECISIONS 44: default of the per-app `learning` flag (`PLEATKIT_LEARNING`). Default `off` (self-host). */
   learning?: Learning
 }
 
@@ -71,7 +71,7 @@ export function openStore(options: StoreOptions = {}): { db: StoreDb; close: () 
 type SnapshotRow = typeof snapshots.$inferSelect
 type RequestRow = typeof requests.$inferSelect
 
-/** Wire shape of a snapshot (= `Snapshot` in @morphkit/runtime). */
+/** Wire shape of a snapshot (= `Snapshot` in @pleatkit/runtime). */
 function toSnapshot(r: SnapshotRow) {
   return {
     id: r.id,

@@ -1,5 +1,5 @@
 import * as esbuild from 'esbuild'
-import { Compiler, isWritablePath, type CompileContextWire, type CompileError, type CompiledBundle, type EsbuildApi, type FileMap } from '@morphkit/runtime/compiler'
+import { Compiler, isWritablePath, type CompileContextWire, type CompileError, type CompiledBundle, type EsbuildApi, type FileMap } from '@pleatkit/runtime/compiler'
 
 const nativeEsbuild = async () => esbuild as unknown as EsbuildApi
 
@@ -118,7 +118,7 @@ export class Workspace {
   }
 
   /**
-   * The shared `check` of @morphkit/runtime (code review 06 item 12): the same bundle step, static rules,
+   * The shared `check` of @pleatkit/runtime (code review 06 item 12): the same bundle step, static rules,
    * protected elements and default-export rule as the browser, with native esbuild.
    */
   async check(): Promise<CheckResult> {

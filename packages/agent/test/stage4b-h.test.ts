@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createStoreApp, openStore } from '../../store-server/src/app.js'
-import type { MorphkitManifest, Snapshot } from '@morphkit/runtime/compiler'
+import type { PleatkitManifest, Snapshot } from '@pleatkit/runtime/compiler'
 import { Alerts, type Alert } from '../src/alerts.js'
 import { checkSnapshots } from '../src/check-snapshots.js'
 import { createAgentApp } from '../src/server.js'
@@ -99,18 +99,18 @@ describe('brainstorm 05 #5: alerts and freezing one user', () => {
     expect((await run()).verdict).toBe('failed')
     expect(await run()).toMatchObject({ verdict: 'refused', refusal: 'disabled' })
     expect(got.some((a) => a.kind === 'freeze')).toBe(true)
-    const flags = (await (await store.request('/v1/flags?userId=mallory', { headers: { 'x-morphkit-app': 'crm', 'x-morphkit-agent': '1' } })).json()) as { flags: Record<string, unknown> }
+    const flags = (await (await store.request('/v1/flags?userId=mallory', { headers: { 'x-pleatkit-app': 'crm', 'x-pleatkit-agent': '1' } })).json()) as { flags: Record<string, unknown> }
     expect(flags.flags['edits.enabled']).toBe(false)
   })
 })
 
-describe('brainstorm 05 #4: morphkit check-snapshots before a release', () => {
+describe('brainstorm 05 #4: pleatkit check-snapshots before a release', () => {
   it('reports the users whose version would not compile on the new build', async () => {
     const { db } = openStore()
     const store = createStoreApp(db)
     const fetchVia = ((input: string | URL | Request, init?: RequestInit) => store.request(String(input), init)) as typeof fetch
     const put = async (s: Snapshot, head: boolean) => {
-      const h = { 'content-type': 'application/json', 'x-morphkit-app': 'crm', 'x-morphkit-user': s.userId }
+      const h = { 'content-type': 'application/json', 'x-pleatkit-app': 'crm', 'x-pleatkit-user': s.userId }
       await store.request(`/v1/snapshots/${s.id}`, { method: 'PUT', headers: h, body: JSON.stringify(s) })
       if (head) await store.request(`/v1/snapshots/${s.id}/head`, { method: 'POST', headers: h, body: '{}' })
     }
@@ -122,7 +122,7 @@ describe('brainstorm 05 #4: morphkit check-snapshots before a release', () => {
     await put(snap('01C', 'bob', null, files), false)
     // bob's edit reads a field the new release's API no longer has
     await put(snap('01D', 'bob', '01C', { ...files, [CARD]: BASE_CARD.replace('{customer.name}', '{customer.name}{customer.score}') }), true)
-    const manifest: MorphkitManifest = {
+    const manifest: PleatkitManifest = {
       version: 1,
       dynamicRoots: ['src/dynamic/'],
       dynamic: [

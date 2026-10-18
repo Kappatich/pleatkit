@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import * as config from 'virtual:morphkit'
-import { LocalStore, MorphkitProvider } from '@morphkit/runtime'
-import { MorphkitChat } from '@morphkit/ui'
+import * as config from 'virtual:pleatkit'
+import { LocalStore, PleatkitProvider } from '@pleatkit/runtime'
+import { PleatkitChat } from '@pleatkit/ui'
 import './index.css'
 import App from './App.tsx'
 
@@ -12,9 +12,9 @@ const store = new LocalStore('t1-vite')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MorphkitProvider config={config} store={store} userId={userId}>
+    <PleatkitProvider config={config} store={store} userId={userId}>
       <App />
-      <MorphkitChat agentUrl="/agent" />
-    </MorphkitProvider>
+      <PleatkitChat agentUrl="/agent" />
+    </PleatkitProvider>
   </StrictMode>,
 )

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Follows docs/for-agents/verify.md without a human: starts the agent server (scripted provider with the
-// recorded answer in fixtures/agent) and `vite preview`, runs `morphkit ping`, then with --browser drives the
+// recorded answer in fixtures/agent) and `vite preview`, runs `pleatkit ping`, then with --browser drives the
 // chat headless: ask for overdue orders in red, wait for "Applied", check the row. Stops both servers (and
 // only them). Run after `pnpm build`. Ports: agent 8789, preview 4173.
 import { spawn, spawnSync } from 'node:child_process'
@@ -40,7 +40,7 @@ async function waitFor(url, ms = 30_000) {
   throw new Error(`${url} did not come up in ${ms / 1000} s`)
 }
 
-/** The chat, headless: one request, the recorded answer, a commit in the browser. Playwright from the morphkit checkout. */
+/** The chat, headless: one request, the recorded answer, a commit in the browser. Playwright from the pleatkit checkout. */
 async function browserCheck() {
   const require = createRequire(new URL('../../../apps/demo-crm/package.json', import.meta.url))
   const { chromium } = require('@playwright/test')
@@ -70,11 +70,11 @@ async function browserCheck() {
 
 let code = 1
 try {
-  start('pnpm', ['exec', 'morphkit-agent'], { MORPHKIT_FIXTURES: 'fixtures/agent' })
+  start('pnpm', ['exec', 'pleatkit-agent'], { PLEATKIT_FIXTURES: 'fixtures/agent' })
   start('pnpm', ['exec', 'vite', 'preview', '--port', '4173', '--strictPort'])
   await waitFor('http://localhost:8789/agent/health')
   await waitFor('http://localhost:4173/')
-  code = spawnSync('pnpm', ['exec', 'morphkit', 'ping', '--url', 'http://localhost:4173'], { shell, stdio: 'inherit' }).status ?? 1
+  code = spawnSync('pnpm', ['exec', 'pleatkit', 'ping', '--url', 'http://localhost:4173'], { shell, stdio: 'inherit' }).status ?? 1
   if (code === 0 && process.argv.includes('--browser')) code = await browserCheck()
 } catch (e) {
   console.error(e.message)

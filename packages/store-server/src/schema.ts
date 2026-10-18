@@ -1,7 +1,7 @@
 import { index, primaryKey, sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
 
 /**
- * A full snapshot of one user's dynamic zone (same shape as `Snapshot` in @morphkit/runtime, plus appId).
+ * A full snapshot of one user's dynamic zone (same shape as `Snapshot` in @pleatkit/runtime, plus appId).
  * Insert-only (code review 06 item 7): the primary key is (app, id), so an id known from another app never
  * reaches this app's row, and a trigger refuses any UPDATE except linking the agent request.
  */

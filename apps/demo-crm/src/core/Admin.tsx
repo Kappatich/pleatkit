@@ -1,9 +1,9 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { diffLines } from 'diff'
-import type { Locale, Moderation, Snapshot, ToolLogEntry, UsageByModel } from '@morphkit/runtime'
-import type { UiKey } from '@morphkit/ui'
+import type { Locale, Moderation, Snapshot, ToolLogEntry, UsageByModel } from '@pleatkit/runtime'
+import type { UiKey } from '@pleatkit/ui'
 import { adminTranslator, type AdminTranslate } from './admin-i18n'
-import { AUTH, STORE_URL, tokenFor } from './morphkit'
+import { AUTH, STORE_URL, tokenFor } from './pleatkit'
 import './admin.css'
 
 interface RequestRow {
@@ -47,10 +47,10 @@ function useAdminApi(appId: string) {
   return useCallback(
     async <T,>(path: string, init?: RequestInit): Promise<T> => {
       // `?auth=token`: an admin token from the demo's backend; otherwise the development header
-      const auth: Record<string, string> = AUTH === 'token' ? { authorization: `Bearer ${await tokenFor('admin', 'admin')}` } : { 'x-morphkit-admin': '1' }
+      const auth: Record<string, string> = AUTH === 'token' ? { authorization: `Bearer ${await tokenFor('admin', 'admin')}` } : { 'x-pleatkit-admin': '1' }
       const res = await fetch(`${STORE_URL}/v1${path}`, {
         ...init,
-        headers: { ...auth, 'x-morphkit-app': appId, 'content-type': 'application/json', ...init?.headers },
+        headers: { ...auth, 'x-pleatkit-app': appId, 'content-type': 'application/json', ...init?.headers },
       })
       const body = (await res.json().catch(() => ({}))) as T & { error?: string }
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)

@@ -679,7 +679,7 @@ function rulesForFile(path: string, parsed: Parsed, ctx: CheckContext, push: (e:
 // --- CSS files of the zone ---
 
 const GLOBAL_SELECTOR = /(^|[\s,>+~(])(html|body|:root|:host|\*)(?=$|[\s,>+~.:#[{)])/i
-const MORPHKIT_SELECTOR = /\.mk-|\[data-morphkit|morphkit-ui/i
+const PLEATKIT_SELECTOR = /\.mk-|\[data-pleatkit|pleatkit-ui/i
 
 export function cssRules(path: string, source: string, ctx: Pick<CheckContext, 'protected'>): CompileError[] {
   const errors: CompileError[] = []
@@ -705,7 +705,7 @@ export function cssRules(path: string, source: string, ctx: Pick<CheckContext, '
       const sel = text.slice(start, i).trim()
       if (sel && !sel.startsWith('@')) {
         if (GLOBAL_SELECTOR.test(sel)) report(start, 'no-global-css', `The selector "${sel.slice(0, 60)}" reaches outside the panels; style elements of the panel by class`)
-        if (MORPHKIT_SELECTOR.test(sel)) report(start, 'no-global-css', `The selector "${sel.slice(0, 60)}" targets morphkit's own interface`)
+        if (PLEATKIT_SELECTOR.test(sel)) report(start, 'no-global-css', `The selector "${sel.slice(0, 60)}" targets pleatkit's own interface`)
         for (const s of sels) {
           const token = s.kind === 'attr' ? `[${s.name}` : s.kind === 'class' ? `.${s.name}` : `#${s.name}`
           if (sel.includes(token)) report(start, 'protected-element', `The selector "${sel.slice(0, 60)}" styles the protected element ${s.raw}`)

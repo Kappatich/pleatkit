@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- tests inspect raw JSON wire payloads */
 import { describe, expect, it } from 'vitest'
-import type { AgentProgress } from '@morphkit/runtime/compiler'
+import type { AgentProgress } from '@pleatkit/runtime/compiler'
 import { t } from '../src/i18n.js'
 import { runAgent, visibleOutputTokens } from '../src/loop.js'
 import { AnthropicProvider, MAX_TOKENS_PER_CALL } from '../src/providers/anthropic.js'

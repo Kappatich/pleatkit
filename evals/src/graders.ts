@@ -1,8 +1,9 @@
-import { createTypechecker, Workspace, formatErrors, type TypecheckFn } from '@morphkit/agent'
-import type { AgentResult, FileMap } from '@morphkit/runtime/compiler'
+import { createTypechecker, Workspace, formatErrors, type TypecheckFn } from '@pleatkit/agent'
+import type { AgentResult, FileMap } from '@pleatkit/runtime/compiler'
 import { PREDICATES } from './predicates.js'
 import type { PreparedTask } from './tasks.js'
 import type { EvalTask, GraderResult } from './types.js'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 export type RunResult = Omit<AgentResult, 'requestId'>
 
@@ -26,7 +27,7 @@ export function gradeChange(task: EvalTask, result: RunResult): GraderResult {
   return n === 0 ? { grader: 'change', pass: true, reason: 'nothing changed, as expected' } : { grader: 'change', pass: false, reason: `nothing should change, ${n} file(s) changed: ${Object.keys(result.files).join(', ')}` }
 }
 
-/** The shared `check` of @morphkit/runtime (bundle, static rules, protected elements, default exports). */
+/** The shared `check` of @pleatkit/runtime (bundle, static rules, protected elements, default exports). */
 export async function gradeCheck(p: PreparedTask, result: RunResult): Promise<GraderResult> {
   if (Object.keys(result.files).length + result.deleted.length === 0) return { grader: 'check', pass: true, skipped: true, reason: 'nothing changed' }
   const ws = new Workspace({ ...p.request, files: finalFiles(p.start, result), protected: p.trusted.protected, base: p.trusted.base })
@@ -36,14 +37,15 @@ export async function gradeCheck(p: PreparedTask, result: RunResult): Promise<Gr
 
 /** `tsc` over the dynamic files with the app's readonly sources and `.d.ts`, packages from `root`'s node_modules. */
 export async function gradeTypecheck(p: PreparedTask, result: RunResult, typecheck: TypecheckFn | null): Promise<GraderResult> {
-  if (!typecheck) return { grader: 'typecheck', pass: true, skipped: true, reason: 'MORPHKIT_TYPECHECK_ROOT is not set' }
+  if (!typecheck) return { grader: 'typecheck', pass: true, skipped: true, reason: 'PLEATKIT_TYPECHECK_ROOT is not set' }
   if (Object.keys(result.files).length === 0) return { grader: 'typecheck', pass: true, skipped: true, reason: 'nothing changed' }
   const errors = await typecheck(finalFiles(p.start, result), { ...p.request, protected: p.trusted.protected, base: p.trusted.base })
   return errors.length ? { grader: 'typecheck', pass: false, reason: formatErrors(errors) } : { grader: 'typecheck', pass: true, reason: 'no type errors' }
 }
 
 export function typecheckerFromEnv(env: Record<string, string | undefined> = process.env): TypecheckFn | null {
-  const root = env.MORPHKIT_TYPECHECK_ROOT
+  pleatkitEnv(env)
+  const root = env.PLEATKIT_TYPECHECK_ROOT
   return root ? createTypechecker({ root }) : null
 }
 

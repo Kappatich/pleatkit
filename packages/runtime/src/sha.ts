@@ -1,5 +1,5 @@
 // Pure-JS SHA-256 and SHA-384 for pages without WebCrypto (code review 06 item 4). `crypto.subtle` exists only
-// in secure contexts: an intranet app on plain http:// (not localhost) has none, and morphkit used to stay in
+// in secure contexts: an intranet app on plain http:// (not localhost) has none, and pleatkit used to stay in
 // `loading` forever there. Hashing (file hashes, bundle keys, CSS digests) falls back to this code; signature
 // checks cannot (ed25519 needs WebCrypto) and refuse with a clear message instead.
 

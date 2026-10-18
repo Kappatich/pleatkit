@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { MorphkitManifest } from '@morphkit/runtime/compiler'
+import type { PleatkitManifest } from '@pleatkit/runtime/compiler'
 import type { EvalTask } from '../src/types.js'
 
 export const CARD = 'src/dynamic/customer-card.tsx'
@@ -21,7 +21,7 @@ export default function CustomerCard({ customer }: { customer: Customer }) {
 const TABLE_SRC = `export default function DealsTable() { return <table data-testid="deals-table" /> }\n`
 
 /** A small app manifest, so the graders and the runner are tested without the demo's build. */
-export const MANIFEST: MorphkitManifest = {
+export const MANIFEST: PleatkitManifest = {
   version: 1,
   dynamicRoots: ['src/dynamic/'],
   dynamic: [

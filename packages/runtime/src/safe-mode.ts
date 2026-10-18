@@ -33,7 +33,7 @@ export function browserBootStorage(): BootStorage | null {
   try {
     const ls = globalThis.localStorage
     if (!ls) return null
-    const probe = '__morphkit_probe__'
+    const probe = '__pleatkit_probe__'
     ls.setItem(probe, '1')
     ls.removeItem(probe)
     return { get: (k) => ls.getItem(k), set: (k, v) => ls.setItem(k, v), remove: (k) => ls.removeItem(k) }
@@ -82,10 +82,27 @@ export function previousLoadFailed(rec: BootRecord | null, snapshotId: string, p
   return rec.closedAt === undefined || rec.closedAt - rec.at >= SAFE_MODE_MOUNT_MS
 }
 
-/** `?morphkit=safe` in the page URL forces the original version. */
+/**
+ * Move a boot record from its pre-rename key (`morphkit:boot:…`, DECISIONS 68) to the current one, once: the
+ * old key is removed, a record already under the new key wins.
+ */
+export function migrateBootKey(storage: BootStorage | null, legacyKey: string, key: string): void {
+  try {
+    const old = storage?.get(legacyKey)
+    if (!storage || old === null || old === undefined) return
+    if (storage.get(key) === null) storage.set(key, old)
+    storage.remove(legacyKey)
+  } catch {
+    // storage blocked: safe mode is best effort
+  }
+}
+
+/** `?pleatkit=safe` in the page URL forces the original version (`?morphkit=safe` too, for one release). */
 export function safeModeRequested(): boolean {
   try {
-    return typeof location !== 'undefined' && new URLSearchParams(location.search).get('morphkit') === 'safe'
+    if (typeof location === 'undefined') return false
+    const q = new URLSearchParams(location.search)
+    return q.get('pleatkit') === 'safe' || q.get('morphkit') === 'safe'
   } catch {
     return false
   }

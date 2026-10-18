@@ -1,4 +1,4 @@
-import type { AgentResult, AgentVerdict } from '@morphkit/runtime/compiler'
+import type { AgentResult, AgentVerdict } from '@pleatkit/runtime/compiler'
 
 /** Dynamic path → repo-relative path of the file with its content (`apps/demo-crm/e2e/fixtures/…`). */
 export type FileRefMap = Record<string, string>
@@ -148,7 +148,7 @@ export interface SuiteResult {
   finishedAt: string
   prompt: PromptInfo
   budget: { capUsd: number | null; spentUsd: number }
-  /** The run was stopped by the global budget (MORPHKIT_EVAL_BUDGET_USD) before these tasks. */
+  /** The run was stopped by the global budget (PLEATKIT_EVAL_BUDGET_USD) before these tasks. */
   aborted?: { reason: string; notRun: string[] }
   browser: 'ran' | 'skipped'
   typecheck: 'ran' | 'skipped'

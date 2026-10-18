@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { DevPanel, Dynamic, MorphkitProvider, useMorphkit } from '@morphkit/runtime'
-import { detectLocale, MorphkitChat } from '@morphkit/ui'
+import { DevPanel, Dynamic, PleatkitProvider, usePleatkit } from '@pleatkit/runtime'
+import { detectLocale, PleatkitChat } from '@pleatkit/ui'
 import { api, type Customer, type Deal } from '@/readonly/api'
 import { formatDate } from '@/readonly/format'
 import { cn } from '@/lib/utils'
 import { Admin } from './Admin'
-import { AGENT_URL, APP_ID, AUTH, BUNDLE_URL, COMPILE, demoPublicKey, morphkitConfig, storeFor, tokenFor, USERS, type UserId } from './morphkit'
+import { AGENT_URL, APP_ID, AUTH, BUNDLE_URL, COMPILE, demoPublicKey, pleatkitConfig, storeFor, tokenFor, USERS, type UserId } from './pleatkit'
 
 function readParams() {
   const params = new URLSearchParams(location.search)
@@ -54,8 +54,8 @@ function Crm() {
 
   if (publicKey === undefined) return null
   return (
-    <MorphkitProvider
-      config={morphkitConfig}
+    <PleatkitProvider
+      config={pleatkitConfig}
       store={storeFor(user)}
       userId={user}
       agentUrl={AGENT_URL}
@@ -73,7 +73,7 @@ function Crm() {
           <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
             <div className="flex items-center gap-2">
               <span className="text-lg font-semibold">Acme CRM</span>
-              <span className="text-xs text-muted-foreground">morphkit demo</span>
+              <span className="text-xs text-muted-foreground">pleatkit demo</span>
             </div>
             <div className="flex items-center gap-4 text-sm">
               <a className="text-muted-foreground hover:underline" href={ADMIN_HREF}>
@@ -102,9 +102,9 @@ function Crm() {
       {dev ? (
         <DevPanel />
       ) : (
-        <MorphkitChat agentUrl={AGENT_URL} appId={APP_ID} locale={LOCALE} examples={EXAMPLES[LOCALE]} {...(AUTH === 'token' ? { token: () => tokenFor(user) } : {})} />
+        <PleatkitChat agentUrl={AGENT_URL} appId={APP_ID} locale={LOCALE} examples={EXAMPLES[LOCALE]} {...(AUTH === 'token' ? { token: () => tokenFor(user) } : {})} />
       )}
-    </MorphkitProvider>
+    </PleatkitProvider>
   )
 }
 
@@ -115,12 +115,12 @@ function Crm() {
 const EVAL_HOOK = new URLSearchParams(location.search).get('eval') === '1'
 
 function EvalHook() {
-  const engine = useMorphkit()
+  const engine = usePleatkit()
   useEffect(() => {
-    const w = window as unknown as { __morphkitEval?: unknown }
-    w.__morphkitEval = engine
+    const w = window as unknown as { __pleatkitEval?: unknown }
+    w.__pleatkitEval = engine
     return () => {
-      delete w.__morphkitEval
+      delete w.__pleatkitEval
     }
   }, [engine])
   return null
@@ -128,7 +128,7 @@ function EvalHook() {
 
 /** Pick up changes made elsewhere (an admin rolled this user back) when the tab regains focus. */
 function RefreshOnFocus() {
-  const engine = useMorphkit()
+  const engine = usePleatkit()
   useEffect(() => {
     const onFocus = () => void engine.refresh()
     window.addEventListener('focus', onFocus)

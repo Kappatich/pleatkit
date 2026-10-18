@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MorphkitEngine, MODULE_CACHE_SIZE, type EngineOptions } from '../src/engine.js'
+import { PleatkitEngine, MODULE_CACHE_SIZE, type EngineOptions } from '../src/engine.js'
 import { HeadConflictError } from '../src/errors.js'
 import { bundleKey, contextHash } from '../src/server-bundles.js'
 import { HttpStore, HttpStoreError } from '../src/store/http.js'
@@ -7,19 +7,19 @@ import { MemoryStore } from '../src/store/memory.js'
 import { sha256Bytes, sha384Bytes } from '../src/sha.js'
 import { sriDigest, sha256Hex } from '../src/security.js'
 import type { BundleLoader } from '../src/loader.js'
-import type { FileMap, MorphkitConfig, Snapshot, SnapshotStore } from '../src/types.js'
+import type { FileMap, PleatkitConfig, Snapshot, SnapshotStore } from '../src/types.js'
 import { hashFiles } from '../src/util.js'
 import { BASE, makeConfig, manifest, nodeCompiler, nodeLoader } from './helpers.js'
 
 const CARD = 'src/dynamic/customer-card.tsx'
 const DEALS = 'src/dynamic/deals-table.tsx'
 
-function engine(store: SnapshotStore, extra: Omit<Partial<EngineOptions>, 'config'> & { config?: Partial<MorphkitConfig>; base?: FileMap } = {}) {
+function engine(store: SnapshotStore, extra: Omit<Partial<EngineOptions>, 'config'> & { config?: Partial<PleatkitConfig>; base?: FileMap } = {}) {
   const { config, base, ...rest } = extra
-  return new MorphkitEngine({ store, userId: 'alice', config: makeConfig(config ?? {}, base), compiler: nodeCompiler(), loader: nodeLoader, bootStorage: null, ...rest })
+  return new PleatkitEngine({ store, userId: 'alice', config: makeConfig(config ?? {}, base), compiler: nodeCompiler(), loader: nodeLoader, bootStorage: null, ...rest })
 }
 
-async function commit(e: MorphkitEngine, path: string, source: string, message = 'edit') {
+async function commit(e: PleatkitEngine, path: string, source: string, message = 'edit') {
   e.draft.start(message)
   e.draft.write(path, source)
   return e.draft.commit()
@@ -51,7 +51,7 @@ describe('code review 06 §2 test 1: the store is down or hangs', () => {
     expect(s.status).toBe('ready')
     expect(s.usingFallback).toBe(true)
     expect(s.offline).toBe(true)
-    expect(s.error).toMatch(/could not reach the morphkit store/i)
+    expect(s.error).toMatch(/could not reach the pleatkit store/i)
     store.heal()
     await e.refresh()
     expect(e.getState()).toMatchObject({ offline: false, error: null, status: 'ready' })
@@ -175,7 +175,7 @@ describe('code review 06 §2 test 6: module cache and per-panel remounts', () =>
 })
 
 describe('code review 06 §2 test 7: a release that changes readonly, externals or the theme', () => {
-  const variants: [string, Partial<MorphkitConfig['manifest']>][] = [
+  const variants: [string, Partial<PleatkitConfig['manifest']>][] = [
     ['readonly', { readonly: [{ path: 'src/readonly/api.ts', source: 'export const v = 2' }] }],
     ['externals', { externals: [...manifest.externals, 'lucide-react'] }],
     ['theme', { css: { mode: 'tailwind', input: '@theme { --color-brand: red; }', hash: 'theme-2' } }],
@@ -187,9 +187,9 @@ describe('code review 06 §2 test 7: a release that changes readonly, externals 
     const mine = await commit(v1, CARD, card('mine'))
     const config2 = makeConfig()
     config2.manifest = { ...config2.manifest, ...change }
-    const v2 = new MorphkitEngine({ store, userId: 'alice', config: config2, compiler: nodeCompiler(), loader: nodeLoader, bootStorage: null })
+    const v2 = new PleatkitEngine({ store, userId: 'alice', config: config2, compiler: nodeCompiler(), loader: nodeLoader, bootStorage: null })
     const filesHash = await hashFiles(mine.files)
-    const ro = (m: MorphkitConfig['manifest']) => Object.fromEntries(m.readonly.map((f) => [f.path, f.source]))
+    const ro = (m: PleatkitConfig['manifest']) => Object.fromEntries(m.readonly.map((f) => [f.path, f.source]))
     const k1 = await bundleKey({ namespace: 'default', filesHash, contextHash: await contextHash(manifest, ro(manifest)), cssMode: 'palette' })
     const k2 = await bundleKey({ namespace: 'default', filesHash, contextHash: await contextHash(config2.manifest, ro(config2.manifest)), cssMode: 'palette' })
     expect(k2).not.toBe(k1)

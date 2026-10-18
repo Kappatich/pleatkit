@@ -9,25 +9,25 @@ interface AppRegistry {
   ensure(names?: string[]): Promise<void>
 }
 
-interface MorphkitGlobal {
+interface PleatkitGlobal {
   apps: Record<string, AppRegistry>
 }
 
 declare global {
-  var __morphkit: MorphkitGlobal | undefined
+  var __pleatkit: PleatkitGlobal | undefined
 }
 
-function globalRegistry(): MorphkitGlobal {
+function globalRegistry(): PleatkitGlobal {
   const g = globalThis as Record<string, unknown>
-  const current = g[EXTERNALS_GLOBAL] as Partial<MorphkitGlobal> | undefined
+  const current = g[EXTERNALS_GLOBAL] as Partial<PleatkitGlobal> | undefined
   if (!current || typeof current !== 'object' || !current.apps) g[EXTERNALS_GLOBAL] = { ...(current ?? {}), apps: {} }
-  return g[EXTERNALS_GLOBAL] as MorphkitGlobal
+  return g[EXTERNALS_GLOBAL] as PleatkitGlobal
 }
 
 const isLazy = (e: ExternalEntry): e is () => Promise<ModuleNamespace> => typeof e === 'function'
 
 /**
- * Expose host modules to compiled bundles as `globalThis.__morphkit.apps[namespace].require(name)`. Entries may
+ * Expose host modules to compiled bundles as `globalThis.__pleatkit.apps[namespace].require(name)`. Entries may
  * be lazy (`() => import('lucide-react')`, V1 B6): they are resolved by `ensure()` right before a bundle that
  * imports them runs, so a big library is loaded only when an edit uses it.
  */
@@ -40,8 +40,8 @@ export function installExternals(externals: Record<string, ExternalEntry>, names
       const hit = resolved.get(name)
       if (hit) return hit
       const entry = externals[name]
-      if (!entry) throw new Error(`morphkit: module "${name}" is not provided by the host app (add it to externals)`)
-      if (isLazy(entry)) throw new Error(`morphkit: lazy module "${name}" was not loaded before the edit ran`)
+      if (!entry) throw new Error(`pleatkit: module "${name}" is not provided by the host app (add it to externals)`)
+      if (isLazy(entry)) throw new Error(`pleatkit: lazy module "${name}" was not loaded before the edit ran`)
       // Marked as an ES module so esbuild's interop maps `import x from` to the real default export.
       const mod = wrap(entry)
       resolved.set(name, mod)
@@ -77,7 +77,7 @@ export async function importBundle(js: string): Promise<Record<string, ModuleNam
   const url = URL.createObjectURL(new Blob([js], { type: 'text/javascript' }))
   try {
     const mod = (await import(/* @vite-ignore */ url)) as { modules?: Record<string, ModuleNamespace> }
-    if (!mod.modules) throw new Error('morphkit: compiled bundle has no `modules` export')
+    if (!mod.modules) throw new Error('pleatkit: compiled bundle has no `modules` export')
     return mod.modules
   } finally {
     URL.revokeObjectURL(url)
@@ -99,23 +99,23 @@ export async function importUrl(url: string, integrity?: string): Promise<Record
       el.src = abs
       el.integrity = integrity
       el.crossOrigin = 'anonymous'
-      el.setAttribute('data-morphkit-bundle', '')
+      el.setAttribute('data-pleatkit-bundle', '')
       // the element stays as a record of what ran and with which digest; the module cache of the engine keeps
       // their number small (a version already loaded is not imported again)
       el.onload = () => resolve()
       el.onerror = () => {
         el.remove()
-        reject(new Error(`morphkit: the bundle ${url} failed to load or did not match its signed digest`))
+        reject(new Error(`pleatkit: the bundle ${url} failed to load or did not match its signed digest`))
       }
       document.head.appendChild(el)
     })
   }
   const mod = (await import(/* @vite-ignore */ abs)) as { modules?: Record<string, ModuleNamespace> }
-  if (!mod.modules) throw new Error('morphkit: compiled bundle has no `modules` export')
+  if (!mod.modules) throw new Error('pleatkit: compiled bundle has no `modules` export')
   return mod.modules
 }
 
-const STYLE_ATTR = 'data-morphkit-css'
+const STYLE_ATTR = 'data-pleatkit-css'
 
 /** The runtime CSS of edits, one `<style>` per app instance (V1 B6). */
 export function applyCss(rawCss: string, namespace = 'default'): void {

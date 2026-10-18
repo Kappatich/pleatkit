@@ -40,15 +40,15 @@ export function topLevelBlocks(css: string): string[] {
 
 /**
  * CSS from `.css` files of the dynamic zone, scoped to the panels (code review 06 item 9): inside
- * `@scope ([data-morphkit-id])` a selector such as `body` or `.mk-root` matches nothing outside a panel, so an edit
- * cannot restyle the host app or hide morphkit's own buttons. Keyframes and font faces stay at the top level.
+ * `@scope ([data-pleatkit-id])` a selector such as `body` or `.mk-root` matches nothing outside a panel, so an edit
+ * cannot restyle the host app or hide pleatkit's own buttons. Keyframes and font faces stay at the top level.
  */
 export function scopeZoneCss(css: string): string {
   if (!css.trim()) return ''
   const hoisted: string[] = []
   const scoped: string[] = []
   for (const block of topLevelBlocks(css)) (HOISTED_AT_RULES.test(block) ? hoisted : scoped).push(block)
-  return [...hoisted, scoped.length ? `@scope ([data-morphkit-id]) {\n${scoped.join('\n')}\n}` : ''].filter(Boolean).join('\n') + '\n'
+  return [...hoisted, scoped.length ? `@scope ([data-pleatkit-id]) {\n${scoped.join('\n')}\n}` : ''].filter(Boolean).join('\n') + '\n'
 }
 
 /**
@@ -61,5 +61,5 @@ export function layeredCss(css: string): string {
   const top: string[] = []
   const inner: string[] = []
   for (const block of topLevelBlocks(css)) (/^@(property|import|charset)\b/i.test(block) ? top : inner).push(block)
-  return [...top, `@layer morphkit-edits {\n${inner.join('\n')}\n}`].join('\n') + '\n'
+  return [...top, `@layer pleatkit-edits {\n${inner.join('\n')}\n}`].join('\n') + '\n'
 }

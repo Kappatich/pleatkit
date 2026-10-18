@@ -1,4 +1,5 @@
-import { isAppKey, TokenError, verifyUserToken } from '@morphkit/runtime/security'
+import { isAppKey, TokenError, verifyUserToken } from '@pleatkit/runtime/security'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 type Env = Record<string, string | undefined>
 
@@ -35,24 +36,25 @@ export class AgentAuthError extends Error {
 }
 
 /**
- * MORPHKIT_APP_ID (default `default`), MORPHKIT_APP_KEY (`mk_live_…`), MORPHKIT_JWT_SECRET (32+ characters).
+ * PLEATKIT_APP_ID (default `default`), PLEATKIT_APP_KEY (`mk_live_…`), PLEATKIT_JWT_SECRET (32+ characters).
  * With NODE_ENV=production the agent server refuses to start without them (V1 A1): it spends money on a
  * model key, so anonymous callers are never accepted there.
  */
 export function agentAuthFromEnv(env: Env): AgentAuth {
+  pleatkitEnv(env)
   const production = env.NODE_ENV === 'production'
-  const { MORPHKIT_APP_KEY: appKey, MORPHKIT_JWT_SECRET: jwtSecret } = env
+  const { PLEATKIT_APP_KEY: appKey, PLEATKIT_JWT_SECRET: jwtSecret } = env
   if (!appKey && !jwtSecret) {
     if (production) {
       throw new Error(
-        'NODE_ENV=production: refusing to start without credentials. Set MORPHKIT_APP_ID, MORPHKIT_APP_KEY (mk_live_…) and MORPHKIT_JWT_SECRET (the secret your backend signs user tokens with).',
+        'NODE_ENV=production: refusing to start without credentials. Set PLEATKIT_APP_ID, PLEATKIT_APP_KEY (mk_live_…) and PLEATKIT_JWT_SECRET (the secret your backend signs user tokens with).',
       )
     }
     return { credentials: null, production }
   }
-  if (!isAppKey(appKey)) throw new Error('MORPHKIT_APP_KEY must look like mk_live_<24+ characters> (generate one with `morphkit keys new`)')
-  if (!jwtSecret || jwtSecret.length < 32) throw new Error('MORPHKIT_JWT_SECRET must be at least 32 characters')
-  return { credentials: { appId: env.MORPHKIT_APP_ID || 'default', appKey, jwtSecret }, production }
+  if (!isAppKey(appKey)) throw new Error('PLEATKIT_APP_KEY must look like mk_live_<24+ characters> (generate one with `pleatkit keys new`)')
+  if (!jwtSecret || jwtSecret.length < 32) throw new Error('PLEATKIT_JWT_SECRET must be at least 32 characters')
+  return { credentials: { appId: env.PLEATKIT_APP_ID || 'default', appKey, jwtSecret }, production }
 }
 
 /**

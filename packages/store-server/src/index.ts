@@ -1,6 +1,6 @@
 export { createStoreApp, openStore, type StoreDb, type StoreOptions, type StoreAppOptions, type Moderation } from './app.js'
 export { authFromEnv, credentialsFromEnv, resolveCaller, AuthError, type AuthOptions, type AppCredentials, type Caller } from './auth.js'
-export { mintUserToken, verifyUserToken, publicKeyFromAppKey, newAppKey, type MintUserTokenOptions, type UserTokenClaims } from '@morphkit/runtime/security'
+export { mintUserToken, verifyUserToken, publicKeyFromAppKey, newAppKey, type MintUserTokenOptions, type UserTokenClaims } from '@pleatkit/runtime/security'
 export { recordEvent, appendAudit, verifyAuditChain, sweepAlive24h, markEditorActive, EVENT_TYPES, type EventType, type UsageEvent, type AuditEntry } from './ledger.js'
 export { resolveFlags, setFlag, deleteFlag, DEFAULT_FLAGS, type FlagScope } from './flags.js'
 export { idempotencyMiddleware, IDEMPOTENCY_TTL_MS } from './idempotency.js'

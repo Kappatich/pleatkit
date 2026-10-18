@@ -14,7 +14,7 @@ import {
   type CompileError,
   type FileMap,
   type SigningKey,
-} from '@morphkit/runtime/compiler'
+} from '@pleatkit/runtime/compiler'
 import type { AgentCredentials } from './auth.js'
 import type { StoreClient } from './store-client.js'
 import { Workspace, type TypecheckFn } from './workspace.js'

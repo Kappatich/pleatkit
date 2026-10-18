@@ -1,4 +1,4 @@
-import type { BundleSignature, QuotaOp, QuotaOutcome } from '@morphkit/runtime/compiler'
+import type { BundleSignature, QuotaOp, QuotaOutcome } from '@pleatkit/runtime/compiler'
 import type { Identity } from './auth.js'
 
 /**
@@ -24,11 +24,11 @@ export class StoreClient {
   headers(who: Pick<Identity, 'appId' | 'userId'> & Partial<Pick<Identity, 'orgId' | 'environment'>>, extra: Record<string, string> = {}): Record<string, string> {
     return {
       'content-type': 'application/json',
-      'x-morphkit-app': who.appId,
-      ...(who.userId ? { 'x-morphkit-user': who.userId } : {}),
-      ...(who.orgId && who.orgId !== 'default' ? { 'x-morphkit-org': who.orgId } : {}),
-      ...(who.environment ? { 'x-morphkit-env': who.environment } : {}),
-      ...(this.credentials && this.credentials.appId === who.appId ? { authorization: `Bearer ${this.credentials.appKey}` } : { 'x-morphkit-agent': '1' }),
+      'x-pleatkit-app': who.appId,
+      ...(who.userId ? { 'x-pleatkit-user': who.userId } : {}),
+      ...(who.orgId && who.orgId !== 'default' ? { 'x-pleatkit-org': who.orgId } : {}),
+      ...(who.environment ? { 'x-pleatkit-env': who.environment } : {}),
+      ...(this.credentials && this.credentials.appId === who.appId ? { authorization: `Bearer ${this.credentials.appKey}` } : { 'x-pleatkit-agent': '1' }),
       ...extra,
     }
   }
@@ -57,7 +57,7 @@ export class StoreClient {
 
   /** Freeze or unfreeze one user (F6 flag at user scope); the app key is an admin of its app. */
   setUserFlag(who: Pick<Identity, 'appId' | 'userId'>, key: string, value: unknown): Promise<unknown> {
-    return this.call('PUT', '/admin/flags', { appId: who.appId, userId: '' }, { scope: 'user', scopeId: who.userId, key, value }, { 'x-morphkit-admin': '1' })
+    return this.call('PUT', '/admin/flags', { appId: who.appId, userId: '' }, { scope: 'user', scopeId: who.userId, key, value }, { 'x-pleatkit-admin': '1' })
   }
 
   /** DECISIONS 42: claim an agent run by its Idempotency-Key, across agent instances. */

@@ -5,22 +5,25 @@ import { ping } from './ping.js'
 import { keys } from './keys.js'
 import { exportData } from './export.js'
 import { checkSnapshotsCommand } from './check-snapshots.js'
-import { track } from '@morphkit/vite-plugin'
+import { track } from '@pleatkit/vite-plugin'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
+
+pleatkitEnv(process.env)
 
 const VERSION = '0.1.0'
-/** F8: one anonymous event per command (MORPHKIT_TELEMETRY=0 turns it off; README "Telemetry"). */
-const event = (name: string, props: Record<string, string | number | boolean> = {}) => track(name, props, { source: { package: '@morphkit/cli', version: VERSION } })
+/** F8: one anonymous event per command (PLEATKIT_TELEMETRY=0 turns it off; README "Telemetry"). */
+const event = (name: string, props: Record<string, string | number | boolean> = {}) => track(name, props, { source: { package: '@pleatkit/cli', version: VERSION } })
 
 const HELP = `Usage:
-  morphkit doctor [--root <dir>] [--dist <dir>] [--url <app url>] [--json]
-  morphkit ping [--url http://localhost:5173]
-  morphkit keys new | public
-  morphkit export --store <url> --app <id> [--user <id>] [--out <file>]
-  morphkit check-snapshots --store <url> --app <id> [--manifest <file>] [--typecheck] [--root <dir>]
+  pleatkit doctor [--root <dir>] [--dist <dir>] [--url <app url>] [--json]
+  pleatkit ping [--url http://localhost:5173]
+  pleatkit keys new | public
+  pleatkit export --store <url> --app <id> [--user <id>] [--out <file>]
+  pleatkit check-snapshots --store <url> --app <id> [--manifest <file>] [--typecheck] [--root <dir>]
 
-doctor checks the morphkit setup of a Vite + React app and prints what to fix:
-  config     the morphkit plugin in vite.config and its zones
-  react      React 18 or 19, and a single copy shared with @morphkit/runtime
+doctor checks the pleatkit setup of a Vite + React app and prints what to fix:
+  config     the pleatkit plugin in vite.config and its zones
+  react      React 18 or 19, and a single copy shared with @pleatkit/runtime
   panels     every <Dynamic id="x"> has src/dynamic/x.tsx with a default export
   externals  every module the dynamic code may import resolves
   csp        a Content-Security-Policy, if any, allows what the compile mode needs
@@ -31,12 +34,12 @@ ping checks the running app end to end: the manifest it serves, the agent behind
 one agent run over SSE (the agent is asked to change nothing).
 
 keys new prints a fresh app key (mk_live_…, server to server), a user-JWT secret and the public key the app's
-build needs to verify signed bundles; keys public prints the public key of MORPHKIT_APP_KEY. Keep the first
+build needs to verify signed bundles; keys public prints the public key of PLEATKIT_APP_KEY. Keep the first
 two in your server's secret store, never in the repository or the browser.
 
 export writes everything store-server keeps for an app (or one user of it: --user) to a JSON file: snapshots
 with their files, heads, the request log, usage events, and for an app also the audit chain, flags, settings
-and plan. Authenticates with MORPHKIT_APP_KEY (or --key); without it, the development admin header.
+and plan. Authenticates with PLEATKIT_APP_KEY (or --key); without it, the development admin header.
 
 Exit code 1 when a check fails.`
 
@@ -64,14 +67,14 @@ async function main(argv: string[]): Promise<number> {
       const i = rest.indexOf(name)
       return i >= 0 ? rest[i + 1] : undefined
     }
-    const store = arg('--store') ?? process.env.MORPHKIT_STORE_URL
-    const app = arg('--app') ?? process.env.MORPHKIT_APP_ID
+    const store = arg('--store') ?? process.env.PLEATKIT_STORE_URL
+    const app = arg('--app') ?? process.env.PLEATKIT_APP_ID
     if (!store || !app) {
-      console.error('Usage: morphkit export --store <url> --app <id> [--user <id>] [--out <file>]')
+      console.error('Usage: pleatkit export --store <url> --app <id> [--user <id>] [--out <file>]')
       return 1
     }
     const user = arg('--user')
-    const key = arg('--key') ?? process.env.MORPHKIT_APP_KEY
+    const key = arg('--key') ?? process.env.PLEATKIT_APP_KEY
     const out = arg('--out')
     const r = await exportData({ store, app, ...(user ? { user } : {}), ...(key ? { key } : {}), ...(out ? { out } : {}) })
     console.log(r.lines.join('\n'))
@@ -83,14 +86,14 @@ async function main(argv: string[]): Promise<number> {
       const i = rest.indexOf(name)
       return i >= 0 ? rest[i + 1] : undefined
     }
-    const store = arg('--store') ?? process.env.MORPHKIT_STORE_URL
-    const app = arg('--app') ?? process.env.MORPHKIT_APP_ID
-    const manifest = arg('--manifest') ?? 'dist/morphkit.manifest.json'
+    const store = arg('--store') ?? process.env.PLEATKIT_STORE_URL
+    const app = arg('--app') ?? process.env.PLEATKIT_APP_ID
+    const manifest = arg('--manifest') ?? 'dist/pleatkit.manifest.json'
     if (!store || !app) {
-      console.error('Usage: morphkit check-snapshots --store <url> --app <id> [--manifest dist/morphkit.manifest.json] [--typecheck] [--root <app dir>]')
+      console.error('Usage: pleatkit check-snapshots --store <url> --app <id> [--manifest dist/pleatkit.manifest.json] [--typecheck] [--root <app dir>]')
       return 1
     }
-    const key = arg('--key') ?? process.env.MORPHKIT_APP_KEY
+    const key = arg('--key') ?? process.env.PLEATKIT_APP_KEY
     const root = arg('--root')
     const r = await checkSnapshotsCommand({ store, app, manifest, ...(key ? { key } : {}), ...(root ? { root } : {}), typecheck: rest.includes('--typecheck') })
     console.log(r.lines.join('\n'))
@@ -119,7 +122,7 @@ async function main(argv: string[]): Promise<number> {
 main(process.argv.slice(2)).then(
   (code) => process.exit(code),
   (e: Error) => {
-    console.error(`morphkit: ${e.stack ?? e.message}`)
+    console.error(`pleatkit: ${e.stack ?? e.message}`)
     process.exit(2)
   },
 )

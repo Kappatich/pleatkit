@@ -60,7 +60,7 @@ export function renderReport(s: SuiteResult, baseline: Baseline | null, sanity: 
     notes.push(`<p class="note">Transcripts were recorded with prompt ${recordedWith.map(esc).join(', ')}; the current prompt is ${esc(s.prompt.version)}. A replay repeats the recorded answers, so it measures the harness, the tools and the graders, not the new prompt: re-record with a model (stage 5) to measure a prompt change.</p>`)
   if (unpriced.length) notes.push(`<p class="note">${cost === 0 ? 'Cost is $0 because the answers come' : 'Part of the answers come'} from models without a price (${unpriced.map(esc).join(', ')}): scripted or replayed runs. The accounting is the same path a live run uses.</p>`)
   if (s.browser === 'skipped') notes.push('<p class="note">The browser grader did not run (--no-browser).</p>')
-  if (s.typecheck === 'skipped') notes.push('<p class="note">The tsc grader did not run (MORPHKIT_TYPECHECK_ROOT empty).</p>')
+  if (s.typecheck === 'skipped') notes.push('<p class="note">The tsc grader did not run (PLEATKIT_TYPECHECK_ROOT empty).</p>')
 
   const graderRows = GRADERS.map((g) => {
     const r = rates[g]
@@ -94,7 +94,7 @@ ${sanity.problems.length ? `<p class="alert">${sanity.problems.map(esc).join('<b
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>morphkit eval report</title>
+<title>pleatkit eval report</title>
 <style>
 :root{color-scheme:light}
 body{margin:0;background:#fff;color:#111;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -113,7 +113,7 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 .wrap{overflow-x:auto}
 </style></head>
 <body><main>
-<h1>morphkit eval report</h1>
+<h1>pleatkit eval report</h1>
 <p class="meta">${esc(s.kind)} run of ${s.runs.length} task(s) · started ${esc(s.startedAt)} · report ${esc(at.toISOString())} · browser grader ${s.browser} · tsc grader ${s.typecheck}</p>
 <div class="tiles">${tiles.map(([k, v, sub]) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ''}</div>`).join('')}</div>
 ${notes.join('\n')}

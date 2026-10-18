@@ -3,7 +3,7 @@ import * as React from 'react'
 import * as jsxRuntime from 'react/jsx-runtime'
 import { Compiler, type EsbuildApi } from '../src/compiler.js'
 import type { BundleLoader } from '../src/loader.js'
-import type { FileMap, MorphkitConfig, MorphkitManifest } from '../src/types.js'
+import type { FileMap, PleatkitConfig, PleatkitManifest } from '../src/types.js'
 
 export const BASE: FileMap = {
   'src/dynamic/customer-card.tsx': `import { cn } from '@/lib/utils'
@@ -25,7 +25,7 @@ export default function DashboardPanels() {
 }`,
 }
 
-export const manifest: MorphkitManifest = {
+export const manifest: PleatkitManifest = {
   version: 1,
   dynamicRoots: ['src/dynamic/'],
   dynamic: Object.entries(BASE).map(([path, source]) => ({ path, source })),
@@ -38,8 +38,8 @@ export const manifest: MorphkitManifest = {
 
 const utils = { cn: (...c: string[]) => c.filter(Boolean).join(' ') }
 
-export function makeConfig(overrides: Partial<MorphkitConfig> = {}, base: FileMap = BASE): MorphkitConfig {
-  const fallback: MorphkitConfig['fallback'] = {}
+export function makeConfig(overrides: Partial<PleatkitConfig> = {}, base: FileMap = BASE): PleatkitConfig {
+  const fallback: PleatkitConfig['fallback'] = {}
   // Panels have a default export; helper modules (parts/) only named ones, like in a real app.
   for (const path of Object.keys(base)) {
     fallback[path] = path.includes('/parts/') ? { Row: () => null } : { default: Object.assign(() => null, { base: path }) }

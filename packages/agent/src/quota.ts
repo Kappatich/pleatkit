@@ -1,10 +1,10 @@
-import { applyQuotaOps, daily, type BucketState, type QuotaOp, type QuotaOutcome } from '@morphkit/runtime/compiler'
+import { applyQuotaOps, daily, type BucketState, type QuotaOp, type QuotaOutcome } from '@pleatkit/runtime/compiler'
 import type { Identity } from './auth.js'
 import type { StoreClient } from './store-client.js'
 
 /**
  * Limits of an app. Values are data (F14): the default plan below, overridden per app in store-server
- * (`PUT /v1/admin/plan`) or, without a store, by MORPHKIT_PLAN / MORPHKIT_LIMITS.
+ * (`PUT /v1/admin/plan`) or, without a store, by PLEATKIT_PLAN / PLEATKIT_LIMITS.
  */
 export interface PlanLimits {
   /** Model cost of one edit, USD: the run stops when it is reached. */

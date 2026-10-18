@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { CommitRejectedError } from './engine.js'
-import { useMorphkit, useMorphkitState } from './react.js'
+import { usePleatkit, usePleatkitState } from './react.js'
 import type { Snapshot } from './types.js'
 
 const panel: CSSProperties = {
@@ -35,8 +35,8 @@ const mono: CSSProperties = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, 
  * without the agent. Mount it behind a flag such as `?dev=1`.
  */
 export function DevPanel() {
-  const engine = useMorphkit()
-  const state = useMorphkitState()
+  const engine = usePleatkit()
+  const state = usePleatkitState()
   const files = state.draft?.files ?? engine.files()
   const paths = Object.keys(files).sort()
   const [open, setOpen] = useState(true)
@@ -105,15 +105,15 @@ export function DevPanel() {
   if (!open) {
     return (
       <button type="button" style={{ ...btn, position: 'fixed', right: 12, bottom: 12, zIndex: 2147483000 }} onClick={() => setOpen(true)}>
-        morphkit dev
+        pleatkit dev
       </button>
     )
   }
 
   return (
-    <section style={panel} data-testid="mk-dev-panel" aria-label="morphkit developer panel">
+    <section style={panel} data-testid="mk-dev-panel" aria-label="pleatkit developer panel">
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <strong>morphkit dev · {engine.userId}</strong>
+        <strong>pleatkit dev · {engine.userId}</strong>
         <span data-testid="mk-head" style={mono}>
           head: {state.head ? `${state.head.id.slice(-6)} (${state.head.author})` : 'base'}
           {state.draft ? ' · draft' : ''}

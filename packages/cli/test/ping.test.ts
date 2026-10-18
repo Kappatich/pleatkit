@@ -22,7 +22,7 @@ function server(routes: Record<string, () => Response>, seen: { url: string; bod
   }) as typeof fetch
 }
 
-describe('morphkit ping', () => {
+describe('pleatkit ping', () => {
   it('manifest, agent health and one SSE run through the app origin', async () => {
     const seen: { url: string; body?: unknown }[] = []
     const sse = 'event: progress\ndata: {"type":"status","text":"Understanding the request"}\n\nevent: result\ndata: {"verdict":"ok","summary":"Nothing to change."}\n\n'
@@ -30,7 +30,7 @@ describe('morphkit ping', () => {
       'http://app.test/',
       server(
         {
-          '/morphkit.manifest.json': () => json(manifest),
+          '/pleatkit.manifest.json': () => json(manifest),
           '/agent/health': () => json({ ok: true, provider: 'scripted', model: 'scripted' }),
           '/agent/run': () => new Response(sse, { headers: { 'content-type': 'text/event-stream' } }),
         },
@@ -50,13 +50,13 @@ describe('morphkit ping', () => {
   })
 
   it('a dev server answering index.html for /agent/health means the proxy is missing', async () => {
-    const r = await ping('http://app.test', server({ '/morphkit.manifest.json': () => json(manifest) }))
+    const r = await ping('http://app.test', server({ '/pleatkit.manifest.json': () => json(manifest) }))
     expect(r.ok).toBe(false)
     expect(r.lines.at(-1)).toMatch(/\[FAIL\] .*agent\/health answered HTML \(no proxy\).*server\.proxy/)
   })
 
   it('no manifest: the app is not running with the plugin', async () => {
     const r = await ping('http://app.test', server({}))
-    expect(r.lines.at(-1)).toMatch(/\[FAIL\] .*morphkit\.manifest\.json answered HTML/)
+    expect(r.lines.at(-1)).toMatch(/\[FAIL\] .*pleatkit\.manifest\.json answered HTML/)
   })
 })

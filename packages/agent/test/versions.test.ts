@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as esbuild from 'esbuild'
 import { describe, expect, it } from 'vitest'
-import { COMPILER_VERSION, ESBUILD_VERSION } from '@morphkit/runtime/compiler'
+import { COMPILER_VERSION, ESBUILD_VERSION } from '@pleatkit/runtime/compiler'
 
 const packages = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const pkg = (name: string) => JSON.parse(fs.readFileSync(path.join(packages, name, 'package.json'), 'utf8')) as Record<string, Record<string, string>>

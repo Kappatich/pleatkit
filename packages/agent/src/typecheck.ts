@@ -1,16 +1,17 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
-import type { CompileError, FileMap } from '@morphkit/runtime/compiler'
+import type { CompileError, FileMap } from '@pleatkit/runtime/compiler'
 import type { TypecheckFn, WorkspaceInput } from './workspace.js'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /**
  * Type check of the dynamic zone against the app's types (brainstorm 05 #4): esbuild strips types, so an edit
  * that calls `api.listDeals(1)` where the client takes a string compiles and fails at run time. With
- * `typecheck: true` (MORPHKIT_TYPECHECK=1) the agent's `check` also runs TypeScript over the dynamic files with
+ * `typecheck: true` (PLEATKIT_TYPECHECK=1) the agent's `check` also runs TypeScript over the dynamic files with
  * the readonly sources and the core `.d.ts` from the manifest. Only errors in dynamic files are reported.
  *
- * Packages (react, a UI kit) resolve from `root` (the app's folder, MORPHKIT_TYPECHECK_ROOT) when it has them
+ * Packages (react, a UI kit) resolve from `root` (the app's folder, PLEATKIT_TYPECHECK_ROOT) when it has them
  * installed; otherwise they are `any` and only the app's own contracts are checked.
  */
 export interface TypecheckOptions {
@@ -91,7 +92,7 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
           const local = ts.resolveModuleName(spec, containingFile, compilerOptions, virtualHost)
           if (local.resolvedModule) return local
           if (root && !spec.startsWith('.') && !spec.startsWith('/')) {
-            return ts.resolveModuleName(spec, path.join(root, '__morphkit_typecheck__.ts'), { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)
+            return ts.resolveModuleName(spec, path.join(root, '__pleatkit_typecheck__.ts'), { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)
           }
           return local
         }),
@@ -117,10 +118,11 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
   }
 }
 
-/** MORPHKIT_TYPECHECK=1 (+ MORPHKIT_TYPECHECK_ROOT) → a typechecker, else null. */
+/** PLEATKIT_TYPECHECK=1 (+ PLEATKIT_TYPECHECK_ROOT) → a typechecker, else null. */
 export function typecheckFromEnv(env: Record<string, string | undefined>): TypecheckFn | null {
-  if (env.MORPHKIT_TYPECHECK !== '1' && env.MORPHKIT_TYPECHECK !== 'true') return null
-  const root = env.MORPHKIT_TYPECHECK_ROOT ?? null
-  if (root && !fs.existsSync(root)) throw new Error(`MORPHKIT_TYPECHECK_ROOT ${root} does not exist`)
+  pleatkitEnv(env)
+  if (env.PLEATKIT_TYPECHECK !== '1' && env.PLEATKIT_TYPECHECK !== 'true') return null
+  const root = env.PLEATKIT_TYPECHECK_ROOT ?? null
+  if (root && !fs.existsSync(root)) throw new Error(`PLEATKIT_TYPECHECK_ROOT ${root} does not exist`)
   return createTypechecker({ root })
 }

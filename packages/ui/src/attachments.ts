@@ -1,4 +1,4 @@
-import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_DOM_CHARS, panelDomSnapshot as runtimePanelDom, type AgentImage } from '@morphkit/runtime'
+import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_DOM_CHARS, panelDomSnapshot as runtimePanelDom, type AgentImage } from '@pleatkit/runtime'
 
 /** A screenshot waiting in the chat input: what is sent, plus a data URL for the thumbnail. */
 export interface PendingImage extends AgentImage {
@@ -81,8 +81,8 @@ export function addImages(current: PendingImage[], incoming: PendingImage[]): { 
 
 /**
  * Sanitized markup of the panel the user pointed at (data, never instructions). Structure only by default; the
- * visible text only with `includeText` (the app's `sendDomText`), and never `data-morphkit-private` subtrees or
- * form values (brainstorm 05 #3). The serializer lives in @morphkit/runtime.
+ * visible text only with `includeText` (the app's `sendDomText`), and never `data-pleatkit-private` subtrees or
+ * form values (brainstorm 05 #3). The serializer lives in @pleatkit/runtime.
  */
 export function panelDomSnapshot(id: string, root: ParentNode = document, max = MAX_TARGET_DOM_CHARS, includeText = false): string | null {
   return runtimePanelDom(id, { root, max, includeText })

@@ -54,7 +54,7 @@ for (const c of cases) {
     const app = `eval-${c.taskId}-${Date.now().toString(36)}`
     await page.goto(`/?user=alice&app=${app}&eval=1`)
     await page.waitForFunction(() => {
-      const e = (window as unknown as { __morphkitEval?: { getState(): { status: string } } }).__morphkitEval
+      const e = (window as unknown as { __pleatkitEval?: { getState(): { status: string } } }).__pleatkitEval
       return e?.getState().status === 'ready'
     })
     const customer = c.invariants.customer ?? 'Globex'
@@ -65,7 +65,7 @@ for (const c of cases) {
       const committed = await page.evaluate(
         async ({ files, deleted }) => {
           type Engine = { draft: { start(m: string): void; write(p: string, s: string): void; remove(p: string): void; commit(a: string): Promise<{ id: string }> } }
-          const engine = (window as unknown as { __morphkitEval: Engine }).__morphkitEval
+          const engine = (window as unknown as { __pleatkitEval: Engine }).__pleatkitEval
           try {
             engine.draft.start('eval')
             for (const [p, s] of Object.entries(files)) engine.draft.write(p, s)
@@ -83,7 +83,7 @@ for (const c of cases) {
     }
 
     // first, while a render-time throw still shows its banner (it rolls back by itself after 10 s)
-    await soft(problems, 'no crash banner', () => expect(page.getByTestId('morphkit-crash')).toHaveCount(0))
+    await soft(problems, 'no crash banner', () => expect(page.getByTestId('pleatkit-crash')).toHaveCount(0))
     for (const id of PANELS) await soft(problems, `panel ${id} renders`, () => expect(page.getByTestId(id)).toBeVisible())
     for (const check of c.invariants.checks) await runCheck(page, check, problems)
     if (pageErrors.length) problems.push(`page errors: ${pageErrors.slice(0, 3).join(' | ').slice(0, 300)}`)

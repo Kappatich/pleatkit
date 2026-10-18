@@ -1,4 +1,4 @@
-import type { AgentVerdict, ToolLogEntry } from '@morphkit/runtime/compiler'
+import type { AgentVerdict, ToolLogEntry } from '@pleatkit/runtime/compiler'
 import type { ToolCall, ToolResult, ToolSpec } from './types.js'
 import { formatErrors, Workspace, ZoneError } from './workspace.js'
 

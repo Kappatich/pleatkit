@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import Database from 'better-sqlite3'
 import { describe, expect, it } from 'vitest'
-import { HeadConflictError, HttpStore, newAppKey, type Snapshot } from '@morphkit/runtime'
+import { HeadConflictError, HttpStore, newAppKey, type Snapshot } from '@pleatkit/runtime'
 import { createStoreApp, openStore } from '../src/app.js'
 
 function setup(options: Parameters<typeof createStoreApp>[1] = {}) {
@@ -35,7 +35,7 @@ describe('code review 06 §2 test 5: snapshots are insert-only, keyed by (app, i
     const base = snap('alice', null, 'base')
     await alice.put(base)
     await alice.put(base) // a retry without an idempotency key
-    const res = await t.call(`/v1/snapshots/${base.id}`, { 'x-morphkit-user': 'alice', 'x-morphkit-app': 'crm' }, { method: 'PUT', body: JSON.stringify({ ...base, files: { 'src/dynamic/card.tsx': 'evil' } }) })
+    const res = await t.call(`/v1/snapshots/${base.id}`, { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'crm' }, { method: 'PUT', body: JSON.stringify({ ...base, files: { 'src/dynamic/card.tsx': 'evil' } }) })
     expect(res.status).toBe(409)
     expect(((await res.json()) as { code: string }).code).toBe('immutable')
     expect((await alice.get(base.id)).files).toEqual(base.files)
@@ -68,11 +68,11 @@ describe('code review 06 §2 test 5: snapshots are insert-only, keyed by (app, i
   it('refuses a body above the limit with 413 (after authentication)', async () => {
     const t = setup({ bodyLimitBytes: 10_000 })
     const big = snap('alice', null, 'big', { files: { 'src/dynamic/card.tsx': 'x'.repeat(20_000) } })
-    const res = await t.call(`/v1/snapshots/${big.id}`, { 'x-morphkit-user': 'alice', 'x-morphkit-app': 'crm' }, { method: 'PUT', body: JSON.stringify(big) })
+    const res = await t.call(`/v1/snapshots/${big.id}`, { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'crm' }, { method: 'PUT', body: JSON.stringify(big) })
     expect(res.status).toBe(413)
     // without credentials: 401 before the body is read
     const secured = setup({ bodyLimitBytes: 10_000, auth: { apps: { crm: { appKey: newAppKey('test'), jwtSecret: 'x'.repeat(32) } }, demoHeaders: false } })
-    const anon = await secured.call(`/v1/snapshots/${big.id}`, { 'x-morphkit-app': 'crm' }, { method: 'PUT', body: JSON.stringify(big) })
+    const anon = await secured.call(`/v1/snapshots/${big.id}`, { 'x-pleatkit-app': 'crm' }, { method: 'PUT', body: JSON.stringify(big) })
     expect(anon.status).toBe(401)
   })
 
@@ -122,14 +122,14 @@ describe('code review 06 §2 test 3: two tabs move the head (compare-and-set)', 
 describe('admin request list: ordering in SQL, liveness in one join', () => {
   it('pending-review first, then pending-admin, then newest; isHead from the join', async () => {
     const t = setup()
-    const agent = { 'x-morphkit-agent': '1', 'x-morphkit-user': 'alice', 'x-morphkit-app': 'crm' }
+    const agent = { 'x-pleatkit-agent': '1', 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'crm' }
     const ids: string[] = []
     for (const status of ['applied', 'pending-admin', 'failed', 'pending-review', 'applied']) {
       const r = await t.call('/v1/requests', agent, { method: 'POST', body: JSON.stringify({ userId: 'alice', text: status, status, log: [] }) })
       ids.push(((await r.json()) as { id: string }).id)
       await new Promise((res) => setTimeout(res, 2))
     }
-    const list = (await (await t.call('/v1/admin/requests?limit=3', { 'x-morphkit-admin': '1', 'x-morphkit-app': 'crm' })).json()) as { id: string; status: string; isHead: boolean }[]
+    const list = (await (await t.call('/v1/admin/requests?limit=3', { 'x-pleatkit-admin': '1', 'x-pleatkit-app': 'crm' })).json()) as { id: string; status: string; isHead: boolean }[]
     expect(list.map((r) => r.status)).toEqual(['pending-review', 'pending-admin', 'applied'])
     expect(list[2]!.id).toBe(ids[4])
     expect(list.every((r) => r.isHead === false)).toBe(true)

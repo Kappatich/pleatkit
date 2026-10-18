@@ -1,9 +1,9 @@
-import type { Locale } from '@morphkit/runtime'
-import { translator, type UiKey } from '@morphkit/ui'
+import type { Locale } from '@pleatkit/runtime'
+import { translator, type UiKey } from '@pleatkit/ui'
 
 /**
  * Strings that only the admin v3 layout uses (brainstorm 14 §5, DECISIONS 56). The shared en/ru dictionary
- * (DECISIONS 20) lives in @morphkit/ui, which the architect owns; these keys stay here until they move there.
+ * (DECISIONS 20) lives in @pleatkit/ui, which the architect owns; these keys stay here until they move there.
  * Everything else falls through to the shared dictionary.
  */
 const en = {

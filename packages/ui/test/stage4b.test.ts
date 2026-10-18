@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { serializeDom, type DomLike } from '@morphkit/runtime'
+import { serializeDom, type DomLike } from '@pleatkit/runtime'
 import { callAgent } from '../src/sse.js'
 
 const enc = new TextEncoder()
@@ -75,7 +75,7 @@ describe('brainstorm 05 #3: what the agent sees of a panel', () => {
     {},
     el('div', { class: 'card', 'data-testid': 'customer-card', title: 'Globex Corp' }, text('Globex Corp'), el('a', { href: 'https://globex.example/u/123' }, text('site'))),
     el('p', { class: 'contact' }, text('ceo@globex.example, +1 (555) 010-2222')),
-    el('section', { 'data-morphkit-private': '' }, text('SSN 123-45-6789')),
+    el('section', { 'data-pleatkit-private': '' }, text('SSN 123-45-6789')),
     el('input', { type: 'text', value: 'secret' }),
   )
   it('sends structure only by default: no names, no values, no private subtree', () => {
@@ -83,7 +83,7 @@ describe('brainstorm 05 #3: what the agent sees of a panel', () => {
     expect(dom).toContain('data-testid="customer-card"')
     expect(dom).toContain('[text:11]')
     expect(dom).not.toMatch(/Globex|ceo@|555|123-45|secret|globex\.example/)
-    expect(dom).toContain('<section data-morphkit-private>[private]</section>')
+    expect(dom).toContain('<section data-pleatkit-private>[private]</section>')
   })
   it('with sendDomText, sends text with e-mails and numbers masked, still not the private part', () => {
     const dom = serializeDom(panel, { includeText: true })

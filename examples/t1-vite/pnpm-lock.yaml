@@ -8,11 +8,11 @@ importers:
 
   .:
     dependencies:
-      '@morphkit/runtime':
-        specifier: link:..\..\packages\runtime
+      '@pleatkit/runtime':
+        specifier: link:../../packages/runtime
         version: link:../../packages/runtime
-      '@morphkit/ui':
-        specifier: link:..\..\packages\ui
+      '@pleatkit/ui':
+        specifier: link:../../packages/ui
         version: link:../../packages/ui
       react:
         specifier: ^19.1.1
@@ -24,14 +24,14 @@ importers:
       '@eslint/js':
         specifier: ^9.36.0
         version: 9.39.5
-      '@morphkit/agent':
-        specifier: link:..\..\packages\agent
+      '@pleatkit/agent':
+        specifier: link:../../packages/agent
         version: link:../../packages/agent
-      '@morphkit/cli':
-        specifier: link:..\..\packages\cli
+      '@pleatkit/cli':
+        specifier: link:../../packages/cli
         version: link:../../packages/cli
-      '@morphkit/vite-plugin':
-        specifier: link:..\..\packages\vite-plugin
+      '@pleatkit/vite-plugin':
+        specifier: link:../../packages/vite-plugin
         version: link:../../packages/vite-plugin
       '@tailwindcss/vite':
         specifier: ^4.3.3

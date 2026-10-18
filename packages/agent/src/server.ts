@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { streamSSE } from 'hono/streaming'
-import { COMPILER_VERSION, type AgentRefusal, type AgentResult, type AgentRunRequest, type RequestStatus } from '@morphkit/runtime/compiler'
+import { COMPILER_VERSION, type AgentRefusal, type AgentResult, type AgentRunRequest, type RequestStatus } from '@pleatkit/runtime/compiler'
 import { AgentAuthError, identify, type AgentAuth, type Identity } from './auth.js'
 import { BundleService, type CompileInput } from './bundle.js'
 import { t, type MessageKey } from './i18n.js'
@@ -20,7 +20,7 @@ export interface AgentServerOptions {
   /** ...or any other harness (takes precedence). */
   runner?: AgentRunner
   limits?: Partial<AgentLimits>
-  /** @morphkit/store-server base URL; when set, every run is logged there (request, verdict, tool log). */
+  /** @pleatkit/store-server base URL; when set, every run is logged there (request, verdict, tool log). */
   storeUrl?: string | null
   /** Credentials (V1 A1). Default: none, development (requests are trusted as sent). */
   auth?: AgentAuth
@@ -29,7 +29,7 @@ export interface AgentServerOptions {
    * limits from store-server's per-app plan over `plan` (default: the `free` plan).
    */
   quotas?: Quotas | false
-  /** Plan name and overrides used when store-server has none for the app (MORPHKIT_PLAN / MORPHKIT_LIMITS). */
+  /** Plan name and overrides used when store-server has none for the app (PLEATKIT_PLAN / PLEATKIT_LIMITS). */
   plan?: { name?: string; limits?: Record<string, number> }
   /** Allowed browser origin when the app calls the agent cross-origin. */
   corsOrigin?: string | null
@@ -39,7 +39,7 @@ export interface AgentServerOptions {
   fetch?: typeof fetch
   /**
    * The app's manifest as the server knows it (code review 06 item 8): context of the static rules, readonly
-   * sources and core types come from here, never from the request body. MORPHKIT_MANIFEST in the CLI.
+   * sources and core types come from here, never from the request body. PLEATKIT_MANIFEST in the CLI.
    */
   manifest?: ManifestSource | null
   /** SSE comment sent while a run is quiet, so proxies with an idle timeout keep the stream open. Default 15 s. */
@@ -283,13 +283,14 @@ export function createAgentApp(options: AgentServerOptions) {
         const flags = await flagsOf(who)
         // a user frozen for abuse (here or in store-server) is refused like the kill switch (05 #5)
         const frozen = alerts ? await alerts.beforeRun(who) : false
-        const off = flags['morphkit.enabled'] === false || flags['edits.enabled'] === false || frozen
+        // `morphkit.enabled`: the kill switch's pre-rename key, honoured for one release (DECISIONS 68)
+        const off = flags['pleatkit.enabled'] === false || flags['morphkit.enabled'] === false || flags['edits.enabled'] === false || frozen
         const quota = off ? null : quotas ? await quotas.beforeEdit(who) : null
         if (off) {
           result = refusedResult(req, 'disabled', 'disabled', runner)
         } else if (quota && !quota.ok) {
           result = refusedResult(req, 'quota', quota.limit?.startsWith('app') ? 'quotaApp' : 'quotaUser', runner)
-          log(`[morphkit-agent] ${who.appId}/${who.userId}: refused, over the ${quota.limit} limit`)
+          log(`[pleatkit-agent] ${who.appId}/${who.userId}: refused, over the ${quota.limit} limit`)
         } else {
           plan = quota?.plan ?? null
           const limits = { ...options.limits, ...(plan ? { maxCostUsd: Math.min(plan.perEditUsd, options.limits?.maxCostUsd ?? Infinity) } : {}) }
@@ -297,19 +298,19 @@ export function createAgentApp(options: AgentServerOptions) {
             digests: { ...(trusted.manifest?.designSystem ? { designSystem: trusted.manifest.designSystem } : {}), ...(trusted.manifest?.dataContracts ? { dataContracts: trusted.manifest.dataContracts } : {}) } })
         }
         const cost = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
-        const budget = quotas && result.verdict !== 'refused' ? await quotas.afterEdit(who, cost).catch((e: Error) => (log(`[morphkit-agent] could not record the cost: ${e.message}`), null)) : null
+        const budget = quotas && result.verdict !== 'refused' ? await quotas.afterEdit(who, cost).catch((e: Error) => (log(`[pleatkit-agent] could not record the cost: ${e.message}`), null)) : null
         let requestId: string | null = null
         if (store) {
           requestId = await reportRun(store, req, result, who, idemKey).catch((e: Error) => {
-            log(`[morphkit-agent] could not log the request in store-server: ${e.message}`)
+            log(`[pleatkit-agent] could not log the request in store-server: ${e.message}`)
             return null
           })
           // F3: usage ledger; best effort, the user's edit does not wait for it
           const eventKey = idemKey ?? requestId ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
-          void store.events(who, usageEvents(result, requestId, who.userId, eventKey)).catch((e: Error) => log(`[morphkit-agent] could not record usage events: ${e.message}`))
+          void store.events(who, usageEvents(result, requestId, who.userId, eventKey)).catch((e: Error) => log(`[pleatkit-agent] could not record usage events: ${e.message}`))
         }
         log(
-          `[morphkit-agent] ${who.userId}: ${result.verdict} in ${result.timings.totalMs} ms, ${result.modelCalls} model calls, ` +
+          `[pleatkit-agent] ${who.userId}: ${result.verdict} in ${result.timings.totalMs} ms, ${result.modelCalls} model calls, ` +
             `${result.log.length} tool calls${cost ? `, $${cost.toFixed(4)}` : ''} (${result.provider}/${result.model})`,
         )
         // compile: 'server' (V1 B1): compile, sign and store the resulting snapshot now, so the browser's commit
@@ -319,11 +320,11 @@ export function createAgentApp(options: AgentServerOptions) {
           for (const p of result.deleted) delete files[p]
           const out = await bundles
             .compile({ appId: who.appId, files, readonly: req.readonly, context: req.context, components: req.components, protected: trusted.protected, base: trusted.base })
-            .catch((e: Error) => (log(`[morphkit-agent] server compile after the run failed: ${e.message}`), null))
+            .catch((e: Error) => (log(`[pleatkit-agent] server compile after the run failed: ${e.message}`), null))
           if (out?.ok && out.key) result = { ...result, bundle: { key: out.key, filesHash: out.filesHash, compileMs: out.timeMs } }
         }
         if (req.expectedHeadId !== undefined) result = { ...result, expectedHeadId: req.expectedHeadId }
-        if (alerts) await alerts.afterRun(who, { ...result, requestId }, budget).catch((e: Error) => log(`[morphkit-agent] alerts failed: ${e.message}`))
+        if (alerts) await alerts.afterRun(who, { ...result, requestId }, budget).catch((e: Error) => log(`[pleatkit-agent] alerts failed: ${e.message}`))
         settle?.({ ...result, requestId })
         if (claimed && idemKey && store) await store.finishRun(who, idemKey, { ...result, requestId } as unknown as Record<string, unknown>).catch(() => undefined)
         await send('result', { ...result, requestId })
@@ -376,12 +377,12 @@ export function createAgentApp(options: AgentServerOptions) {
     try {
       return c.json(await bundles.compile(input, { check }))
     } catch (e) {
-      log(`[morphkit-agent] compile failed: ${(e as Error).message}`)
+      log(`[pleatkit-agent] compile failed: ${(e as Error).message}`)
       return c.json({ error: 'compile failed' }, 500)
     }
   })
 
-  /** Signed bundles this process compiled (or store-server has), for apps that proxy `/morphkit/b` to the agent. */
+  /** Signed bundles this process compiled (or store-server has), for apps that proxy `/pleatkit/b` to the agent. */
   app.get('/v1/b/:app/:file', async (c) => {
     const f = await bundles.file(c.req.param('app'), c.req.param('file'))
     if (!f) return c.json({ error: 'not found' }, 404)
