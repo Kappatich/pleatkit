@@ -23,6 +23,17 @@ result on the agent server; the browser then loads the signed bundle in under 0.
 try, with a median of one model call. The demo has three panels; a larger app has a larger cached prefix (7.5k tokens
 here) and costs more per edit.
 
+**Measured on two foreign apps** (not ours: stage 5 block 2, 2026-10-18; open-source admin templates
+shadcn-admin and TailAdmin with pleatkit installed by the customer docs, Vite 8; Claude Sonnet 5.5, prompt
+`2026-10-18.5d`, 35 tasks × 2, [`evals/REPORT-2026-10-18-foreign.md`](evals/REPORT-2026-10-18-foreign.md)): **69 of 70
+runs pass** every check, including the rendered result in a headless browser; 51 of 51 edits passed on the first try
+with a median of one model call (the first series on these apps passed 58 of 70; the classifier fixes it led to are in
+the report). An edit costs **$0.026 median** ($0.059 at most) and takes **4.8 s median, 7.3 s p95**:
+these apps send 13k to 34k cached prompt tokens per edit against the demo's 7.7k. On the demo with the same prompt
+an edit takes 3.9 s median since the classifier and the editor model start together. Claude Haiku 5.5 as the editor
+(`PLEATKIT_MODEL=claude-haiku-5-5`) costs about a tenth ($0.003 median per edit on these apps) and passed 33 of 35
+there (42 of 42 on the demo); Sonnet 5.5 stays the default.
+
 ## Packages
 
 | Package | What it does | Repo |
