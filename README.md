@@ -14,6 +14,15 @@ and kept as that user's personal version, with undo, history and an admin who ca
 
 Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Progress and measurements: [`docs/DEVLOG.md`](docs/DEVLOG.md).
 
+**Measured numbers** (on the demo app, not estimates: stage 5, 2026-10-18; Claude Sonnet 5.5 at medium effort,
+prompt `2026-10-18.5a`, 14 eval tasks × 3, [`evals/REPORT-2026-10-18.md`](evals/REPORT-2026-10-18.md)): an edit
+costs **$0.011 median** ($0.014 for a new request, $0.027 at most), plus about $0.02 on the first request after 5 idle
+minutes while the prompt cache is written. It takes **5.1 s median and 8.0 s p95** from the request to a checked
+result on the agent server; the browser then loads the signed bundle in under 0.1 s. Requests answered without an edit
+(needs the server, a question back, off-topic) take 1.4 s and $0.0003. 27 of 27 edits passed the check on the first
+try, with a median of one model call. The demo has three panels; a larger app has a larger cached prefix (7.5k tokens
+here) and costs more per edit.
+
 ## Packages
 
 | Package | What it does | Repo |
