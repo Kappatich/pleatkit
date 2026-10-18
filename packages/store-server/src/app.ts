@@ -3,22 +3,23 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import Database from 'better-sqlite3'
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { applyQuotaOps, signingKeyFromAppKey, sriDigest, verifyBundleSignature, type BundleSignature, type QuotaOp } from '@pleatkit/runtime/compiler'
 import { AuthError, resolveCaller, type AuthOptions, type Caller } from './auth.js'
 import { buildExport } from './export.js'
 import { deleteFlag, FLAG_SCOPES, listFlags, resolveFlags, setFlag, type FlagScope } from './flags.js'
-import { learningOf, LEARNING_MODES, recordFacts, setOutcome, type Learning } from './facts.js'
 import { idempotencyMiddleware } from './idempotency.js'
+import { eraseSubject, tombstoneId } from './erase.js'
+import { attachExtensions, type ExtensionContext, type StoreDb, type StoreEnv, type StoreExtension } from './extension.js'
 import { appendAudit, EVENT_TYPES, markEditorActive, recordEvent, verifyAuditChain, type EventType } from './ledger.js'
 import { buildReport, parseRange, reportCsv } from './report.js'
 import { grepError, grepSnapshots, planSelectionRollback } from './selection.js'
 import * as schema from './schema.js'
 import { agentRuns, appPlans, appSettings, audit, bundleFiles, events, heads, quotaBuckets, releaseItems, releases, requests, snapshots, wishMaps, type WishCluster } from './schema.js'
 
-export type StoreDb = BetterSQLite3Database<typeof schema>
+export type { StoreDb } from './extension.js'
 
 /**
  * Moderation of agent edits (DECISIONS item 15). `off`: an applied edit is just applied. `review`: it is
@@ -41,9 +42,16 @@ export interface StoreAppOptions {
   environment?: string
   /** Largest request body, bytes (`PLEATKIT_STORE_BODY_LIMIT`). Default 4 MiB. */
   bodyLimitBytes?: number
-  /** DECISIONS 44: default of the per-app `learning` flag (`PLEATKIT_LEARNING`). Default `off` (self-host). */
-  learning?: Learning
+  /**
+   * DECISIONS 70.1: modules on top of the open core (the managed cloud's `@pleatkit/store-cloud`): their tables,
+   * routes, jobs and hooks. None by default.
+   */
+  extensions?: readonly StoreExtension[]
 }
+
+/** DECISIONS 70.3: wish items per read (the map's default input) and the most one read returns. */
+export const WISH_ITEMS_DEFAULT = 500
+export const WISH_ITEMS_MAX = 2000
 
 /** A snapshot of a big zone is a few hundred KB; a request log with tool results stays well under this. */
 export const DEFAULT_BODY_LIMIT = 4 * 1024 * 1024
@@ -67,6 +75,7 @@ export function openStore(options: StoreOptions = {}): { db: StoreDb; close: () 
   const pk = (sqlite.prepare('PRAGMA table_info(snapshots)').all() as { name: string; pk: number }[]).filter((c) => c.pk > 0).map((c) => c.name)
   if (!pk.includes('app_id')) sqlite.transaction(() => sqlite.exec(schema.SNAPSHOT_PK_MIGRATION))()
   sqlite.exec(schema.SNAPSHOT_TRIGGERS)
+  sqlite.exec(schema.ERASURE_TRIGGERS)
   return { db: drizzle(sqlite, { schema }), close: () => sqlite.close() }
 }
 
@@ -95,7 +104,7 @@ function toSnapshot(r: SnapshotRow) {
 const STATUSES = ['proposed', 'applied', 'pending-review', 'clarifying', 'rejected', 'pending-admin', 'in-progress', 'rolled-back', 'failed', 'refused'] as const
 const now = () => new Date().toISOString()
 
-type Env = { Variables: { caller: Caller } }
+type Env = StoreEnv
 const caller = (c: Context<Env>): Caller => c.get('caller')
 
 /** Bundle key of a server-compiled bundle: lowercase hex, the only thing allowed in a public bundle URL. */
@@ -104,6 +113,8 @@ const KEY_RE = /^[0-9a-f]{16,64}$/
 export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
   const auth: AuthOptions = options.auth ?? { demoHeaders: true }
   if (auth.production && auth.demoHeaders) throw new Error('demo headers are not allowed in production')
+  const extensions = options.extensions ?? []
+  attachExtensions(db, extensions)
   const app = new Hono<Env>()
   const region = options.region ?? 'local'
   const defaultEnvironment = options.environment ?? 'development'
@@ -133,6 +144,8 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
       props: extra.props ?? null,
       ...place(who),
     })
+  /** An outcome of an agent edit, for the extensions (the cloud's L1 facts). */
+  const outcome = (requestId: string, label: string) => extensions.forEach((e) => e.onOutcome?.(db, requestId, label))
   const defaultModeration: Moderation = options.moderation ?? 'off'
   const moderationOf = (appId: string): Moderation =>
     (db.select().from(appSettings).where(eq(appSettings.appId, appId)).get()?.moderation as Moderation | undefined) ?? defaultModeration
@@ -185,19 +198,22 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     }
     await next()
   })
-  // C8: every call made while acting as a user goes to the audit chain with both ids, reads included
+  // C8: every call made while acting as a user goes to the audit chain with both ids, reads included.
+  // DECISIONS 70.5: support reads as the user and never writes; only the admin role writes as a user. A refused
+  // write is audited too, with its 403.
   api.use('*', async (c, next) => {
     const who = caller(c)
+    if (!who.viewer) return next()
+    const read = c.req.method === 'GET' || c.req.method === 'HEAD'
+    const path = c.req.path.replace(/^\/v1(?=\/)/, '')
+    const record = (status: number) =>
+      audited(who, read ? 'impersonate.read' : 'impersonate.write', 'user', who.userId, { viewer: who.viewer, user: who.userId, role: who.role, method: c.req.method, path, status })
+    if (!read && who.role !== 'admin') {
+      record(403)
+      return c.json({ error: 'support reads as a user and cannot write; only an admin may write as a user', code: 'support-read-only' }, 403)
+    }
     await next()
-    if (!who.viewer) return
-    audited(who, c.req.method === 'GET' || c.req.method === 'HEAD' ? 'impersonate.read' : 'impersonate.write', 'user', who.userId, {
-      viewer: who.viewer,
-      user: who.userId,
-      role: who.role,
-      method: c.req.method,
-      path: c.req.path.replace(/^\/v1(?=\/)/, ''),
-      status: c.res.status,
-    })
+    record(c.res.status)
   })
   // Bodies are read only after the caller is known, and never beyond the limit (code review 06 item 7): 413
   api.use('*', bodyLimit({ maxSize: options.bodyLimitBytes ?? DEFAULT_BODY_LIMIT, onError: (c) => c.json({ error: 'request body is too large' }, 413) }))
@@ -358,7 +374,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     // the user undid an agent edit: its snapshot left the head for its parent (F3)
     if (old?.requestId && old.parentId === snap.id) {
       event(who, 'edit.reverted', snap.userId, old.requestId, { props: { by: 'user' } })
-      setOutcome(db, old.requestId, 'reverted:user')
+      outcome(old.requestId, 'reverted:user')
     }
     return c.body(null, 204)
   })
@@ -509,27 +525,26 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
         gist: typeof b.gist === 'string' ? b.gist.slice(0, 120) : null,
       })
       .run()
-    // L1 fingerprint, when the app's learning flag allows it (DECISIONS 44)
-    recordFacts(
-      db,
-      {
-        requestId: id,
+    // extensions see the run (the cloud writes its L1 fingerprint when the app's learning flag allows it)
+    if (extensions.length) {
+      const logged = {
+        id,
         appId: who.appId,
         orgId: who.orgId,
         userId: b.userId,
         target: b.target ?? null,
         verdict: b.verdict ?? 'failed',
         intentLabel: typeof b.intentLabel === 'string' ? b.intentLabel : null,
-        usage: Array.isArray(b.usage) ? (b.usage as { model: string; calls: number; costUsd: number | null }[]) : null,
-        log: Array.isArray(b.log) ? (b.log as { tool: string; ok: boolean; violation?: string }[]) : [],
-        timings: (b.timings as { totalMs?: number } | null) ?? null,
+        usage: Array.isArray(b.usage) ? b.usage : null,
+        log: Array.isArray(b.log) ? b.log : [],
+        timings: b.timings && typeof b.timings === 'object' ? b.timings : null,
         promptVersion: typeof b.promptVersion === 'string' ? b.promptVersion : null,
         model: b.model ?? null,
         provider: b.provider ?? null,
         compilerVersion: typeof (b as unknown as { compilerVersion?: unknown }).compilerVersion === 'string' ? (b as unknown as { compilerVersion: string }).compilerVersion : null,
-      },
-      learningOf(db, who.appId, options.learning ?? 'off'),
-    )
+      }
+      for (const e of extensions) e.onRequestLogged?.(db, logged)
+    }
     audited(who, 'request.create', 'request', id, { userId: b.userId, verdict: b.verdict ?? 'failed', status })
     markEditorActive(db, { appId: who.appId, orgId: who.orgId, userId: b.userId, requestId: id, ...place(who) })
     return c.json({ id }, 201)
@@ -589,19 +604,9 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json(rows.map(({ r: { files: _files, log, ...r }, headSnapshot }) => ({ ...r, toolCalls: log.length, isHead: Boolean(r.snapshotId) && headSnapshot === r.snapshotId })))
   })
 
-  api.get('/admin/settings', (c) => c.json({ moderation: moderationOf(caller(c).appId), default: defaultModeration, learning: learningOf(db, caller(c).appId, options.learning ?? 'off') }))
-
-  /** DECISIONS 44: `{ learning: 'off' | 'aggregate' | 'contribute' }` for this app. */
-  api.put('/admin/learning', async (c) => {
-    const who = caller(c)
-    const b = await c.req.json<{ learning?: string }>().catch(() => ({}) as { learning?: string })
-    if (!LEARNING_MODES.includes(b.learning as Learning)) return c.json({ error: 'learning must be off, aggregate or contribute' }, 400)
-    db.insert(appSettings)
-      .values({ appId: who.appId, moderation: moderationOf(who.appId), updatedAt: now(), learning: b.learning! })
-      .onConflictDoUpdate({ target: appSettings.appId, set: { learning: b.learning!, updatedAt: now() } })
-      .run()
-    audited(who, 'settings.learning', 'app', who.appId, { learning: b.learning })
-    return c.json({ learning: b.learning })
+  api.get('/admin/settings', (c) => {
+    const appId = caller(c).appId
+    return c.json(Object.assign({ moderation: moderationOf(appId), default: defaultModeration }, ...extensions.map((e) => e.settings?.(db, appId) ?? {})))
   })
 
   // --- DECISIONS 42: agent runs by Idempotency-Key, shared by all agent instances ---
@@ -694,7 +699,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     if (!r.ok) return c.json({ error: r.error }, 409)
     patchRequest(req.id, { status: 'rolled-back' })
     audited(who, 'request.rollback', 'request', req.id, { userId: req.userId })
-    setOutcome(db, req.id, 'reverted:admin')
+    outcome(req.id, 'reverted:admin')
     event(who, 'edit.reverted', req.userId, req.id, { props: { by: 'admin' } })
     return c.json({ status: 'rolled-back' })
   })
@@ -823,16 +828,26 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
 
   // --- C9: the wish-list map ---
 
-  /** What the zone could not serve: needs-backend, partial and out-of-zone requests of the range (L0, this tenant). */
-  const wishItems = (appId: string, fromMs: number, toMs: number) =>
+  /**
+   * What the zone could not serve: needs-backend, partial and out-of-zone requests of the range (L0, this tenant),
+   * newest first, at most `limit` (DECISIONS 70.3: the wish map reads 500 by default).
+   */
+  const unserved = (appId: string, fromMs: number, toMs: number) =>
+    and(
+      eq(requests.appId, appId),
+      gte(requests.createdAtMs, fromMs),
+      sql`${requests.createdAtMs} < ${toMs}`,
+      sql`(${requests.verdict} IN ('needs-backend', 'partial', 'not-editable') OR ${requests.intentLabel} = 'out-of-zone')`,
+    )
+  const wishItems = (appId: string, fromMs: number, toMs: number, limit: number) =>
     db
       .select()
       .from(requests)
-      .where(and(eq(requests.appId, appId), gte(requests.createdAtMs, fromMs), sql`${requests.createdAtMs} < ${toMs}`))
-      .orderBy(desc(requests.createdAtMs))
-      .limit(2000)
+      .where(unserved(appId, fromMs, toMs))
+      // newest first; rowid orders requests logged in the same millisecond
+      .orderBy(desc(requests.createdAtMs), sql`rowid DESC`)
+      .limit(limit)
       .all()
-      .filter((r) => ['needs-backend', 'partial', 'not-editable'].includes(r.verdict) || r.intentLabel === 'out-of-zone')
       .map((r) => ({
         id: r.id,
         userId: r.userId,
@@ -849,7 +864,9 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     const who = caller(c)
     const range = parseRange(c.req.query('from'), c.req.query('to'))
     if ('error' in range) return c.json({ error: range.error }, 400)
-    return c.json({ from: range.fromMs, to: range.toMs, items: wishItems(who.appId, range.fromMs, range.toMs) })
+    const limit = Math.min(Math.max(Number(c.req.query('limit') ?? WISH_ITEMS_DEFAULT) || WISH_ITEMS_DEFAULT, 1), WISH_ITEMS_MAX)
+    const total = db.select({ n: sql<number>`count(*)` }).from(requests).where(unserved(who.appId, range.fromMs, range.toMs)).get()?.n ?? 0
+    return c.json({ from: range.fromMs, to: range.toMs, total, items: wishItems(who.appId, range.fromMs, range.toMs, limit) })
   })
 
   /** The latest wish map, each cluster with its counts from the request log. */
@@ -934,7 +951,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
       audited(who, 'snapshot.rollback-selection', 'head', p.userId, { from: p.from, to: p.to, grep: b.grep })
       if (p.requestId) {
         event(who, 'edit.reverted', p.userId, p.requestId, { props: { by: 'admin', selection: true } })
-        setOutcome(db, p.requestId, 'reverted:admin')
+        outcome(p.requestId, 'reverted:admin')
       }
     }
     audited(who, 'selection.rollback', 'app', who.appId, { grep: b.grep, matched: result.plan.length, rolledBack: done.length })
@@ -1075,6 +1092,41 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     audited(who, 'release.rollback', 'release', release, { restored: out.restored.length, kept: out.kept.length })
     return c.json(out)
   })
+
+  // --- DECISIONS 70.2: erasure of a user's or the app's data ---
+
+  /**
+   * `DELETE /v1/admin/users/:id` and `DELETE /v1/admin/apps/:id`, admin only (support gets 403 like every admin
+   * write). Without `?confirm=` (or with a stale one) nothing is deleted: 409 with what would go and the token
+   * for exactly that. With it, everything of the subject goes in one transaction and a tombstone without personal
+   * data is appended to the audit chain.
+   */
+  const erase = async (c: Context<Env>, userId: string | null) => {
+    const who = caller(c)
+    if (who.viewer) return c.json({ error: 'erase as yourself, not while acting as a user' }, 400)
+    const subject = { appId: who.appId, userId }
+    const r = await eraseSubject(db, subject, c.req.query('confirm'), extensions)
+    if (!r.erased) {
+      return c.json({ error: 'confirm with the token for what is there now: ?confirm=<token>', code: 'confirm-required', confirm: r.plan.confirm, counts: r.plan.counts }, 409)
+    }
+    const tombstone = tombstoneId()
+    // the counts and a random id only: the tombstone says that an erasure happened, not whose data it was
+    audited(who, userId ? 'erase.user' : 'erase.app', userId ? 'user' : 'app', tombstone, { counts: r.counts })
+    return c.json({ erased: true, tombstone, counts: r.counts })
+  }
+  api.delete('/admin/users/:id', (c) => {
+    const id = c.req.param('id')
+    if (!id || id.length > 200) return c.json({ error: 'bad user id' }, 400)
+    return erase(c, id)
+  })
+  api.delete('/admin/apps/:id', (c) => {
+    if (c.req.param('id') !== caller(c).appId) return c.json({ error: 'an admin erases their own app only' }, 403)
+    return erase(c, null)
+  })
+
+  // extensions add their routes behind the same auth, body limit, idempotency and admin rules
+  const ctx: ExtensionContext = { db, audited: (who, action, objectType, objectId, details = null) => audited(who, action, objectType, objectId, details), place }
+  for (const e of extensions) e.routes?.(api, ctx)
 
   app.route('/v1', api)
   // unversioned routes: the API before /v1 (kept for existing clients; new clients use /v1)

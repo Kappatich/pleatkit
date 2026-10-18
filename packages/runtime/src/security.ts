@@ -61,8 +61,9 @@ export const USER_TOKEN_MAX_TTL_S = 15 * 60
 export const CLOCK_SKEW_S = 60
 
 /**
- * `user`: their own version. `support` (C8): reads the app's request log and may act as one user at a time
- * (`x-pleatkit-act-as`), every call audited; no admin writes. `admin`: everything in /admin.
+ * `user`: their own version. `support` (C8): reads the app's request log and may view one user at a time
+ * (`x-pleatkit-act-as`), every call audited; no admin writes and no writes as the user (DECISIONS 70.5).
+ * `admin`: everything in /admin, and writes as a user.
  */
 export type UserRole = 'user' | 'support' | 'admin'
 
@@ -73,7 +74,7 @@ export interface UserTokenClaims {
   app: string
   /** Customer organization (tenant) of the user; `default` when the app has no organizations. */
   org?: string
-  /** `admin` may use /admin routes of the app; `support` may read them and act as a user. Default `user`. */
+  /** `admin` may use /admin routes of the app; `support` may read them and view a user's version (read only). Default `user`. */
   role?: UserRole
   /** Environment of the app (`production`, `staging`, ...), recorded on every row. */
   env?: string

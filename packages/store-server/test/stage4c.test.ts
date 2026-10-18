@@ -76,7 +76,7 @@ describe('C8: support and admin roles', () => {
     expect((await t.call('/v1/admin/requests', { authorization: `Bearer ${forged}` })).status).toBe(401)
   })
 
-  it('impersonation: support sees the user’s version and history; every read and write is audited with both ids', async () => {
+  it('impersonation: support sees the user’s version and history; only an admin writes as the user; all audited with both ids', async () => {
     const t = setup({ auth: { apps: { crm: { appKey: APP_KEY, jwtSecret: SECRET } } } })
     const token = (userId: string, role: 'user' | 'support' | 'admin') => mintUserToken({ secret: SECRET, userId, appId: 'crm', role })
     const alice = t.user('alice', { token: await token('alice', 'user') })
@@ -91,19 +91,25 @@ describe('C8: support and admin roles', () => {
     const asAlice = t.user('alice', { token: await token('carol', 'support'), viewer: 'carol' })
     expect((await asAlice.head('alice'))?.id).toBe(v1.id)
     expect((await asAlice.list('alice')).map((s) => s.id)).toEqual([v1.id, base.id])
-    // and restores her original version (a write, as alice)
-    await asAlice.setHead('alice', base.id)
+    // DECISIONS 70.5: support cannot write as alice (403, and the attempt is audited); nothing moved
+    await expect(asAlice.setHead('alice', base.id)).rejects.toThrow(/403/)
+    expect((await alice.head('alice'))?.id).toBe(v1.id)
+    // an admin restores her original version (a write, as alice)
+    const adminAsAlice = t.user('alice', { token: await token('dave', 'admin'), viewer: 'dave' })
+    await adminAsAlice.setHead('alice', base.id)
     expect((await alice.head('alice'))?.id).toBe(base.id)
 
     const rows = t.auditRows().slice(before)
     const imp = rows.filter((r) => r.action.startsWith('impersonate.'))
-    expect(imp.map((r) => r.action)).toEqual(['impersonate.read', 'impersonate.read', 'impersonate.write'])
-    for (const r of imp) {
-      expect(r.actor).toBe('support:carol:as:alice')
-      expect(JSON.parse(r.details)).toMatchObject({ viewer: 'carol', user: 'alice', role: 'support' })
-    }
+    expect(imp.map((r) => [r.actor, r.action, JSON.parse(r.details).status])).toEqual([
+      ['support:carol:as:alice', 'impersonate.read', 200],
+      ['support:carol:as:alice', 'impersonate.read', 200],
+      ['support:carol:as:alice', 'impersonate.write', 403],
+      ['admin:dave:as:alice', 'impersonate.write', 204],
+    ])
+    for (const r of imp) expect(JSON.parse(r.details)).toMatchObject({ user: 'alice' })
     // the write's own audit row names both as well
-    expect(rows.find((r) => r.action === 'head.set')?.actor).toBe('support:carol:as:alice')
+    expect(rows.filter((r) => r.action === 'head.set').map((r) => r.actor)).toEqual(['admin:dave:as:alice'])
     expect(verifyAuditChain(t.db, 'crm').ok).toBe(true)
 
     // a plain user cannot act as someone else; bob cannot read alice without it either
