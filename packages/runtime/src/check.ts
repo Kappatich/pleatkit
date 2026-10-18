@@ -642,6 +642,9 @@ function rulesForFile(path: string, parsed: Parsed, ctx: CheckContext, push: (e:
           if (name === 'dangerouslySetInnerHTML' || lower === 'srcdoc') report(a, 'no-raw-html', `${name} is not allowed; render with JSX`)
           else if (URL_ATTRS.has(lower)) {
             if (a.value === null) continue
+            // stage 5 (foreign apps): `data` loads a URL only on an element (<object>, banned above); on a component
+            // it is a prop like any other (recharts' <BarChart data={rows}>, tables), not a request
+            if (lower === 'data' && !/^[a-z]/.test(tag)) continue
             checkUrl(report, a, a.value as N, `<${tag || 'element'} ${name}>`, { allowMail: lower === 'href' })
           }
         }

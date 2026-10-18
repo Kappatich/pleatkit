@@ -62,6 +62,8 @@ describe('static check: the bypass corpus (code review 06 §2 test 4, brainstorm
     ['script tag', '<script>{"x"}</script>', 'no-raw-html'],
     ['style tag', '<style>{"body{display:none}"}</style>', 'no-raw-html'],
     ['object tag', '<object data="https://evil.example/x" />', 'no-raw-html'],
+    ['data on an element', '<x-viewer data={data.url} />', 'no-computed-url'],
+    ['data on an element, absolute', '<x-viewer data="https://evil.example/x" />', 'no-remote-request'],
     ['inline style url', `<div style={{ background: 'url(//evil.example/p.png)' }} />`, 'no-remote-css'],
   ])('JSX: %s', async (_name, jsx, rule) => {
     expect(await rules(`export default function P({ data }: { data: any }) { return <>${jsx}</> }`)).toContain(rule)
@@ -70,6 +72,7 @@ describe('static check: the bypass corpus (code review 06 §2 test 4, brainstorm
   it('keeps ordinary panel code clean', async () => {
     const ok = `import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+const Chart = (p: { data: unknown[] }) => <div>{p.data.length}</div>
 export default function P({ data }: { data: { id: string; parent?: string } }) {
   const [open, setOpen] = useState(false)
   const parent = data.parent
@@ -86,6 +89,7 @@ export default function P({ data }: { data: { id: string; parent?: string } }) {
       <a href="#top">top</a>
       <img src="/logo.png" alt="" />
       <Button onClick={() => setOpen(!open)}>{parent}{path}</Button>
+      <Chart data={[data]} />
     </div>
   )
 }`
