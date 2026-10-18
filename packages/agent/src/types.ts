@@ -1,4 +1,5 @@
 import type { AgentImage, RequestClass, TokenUsage } from '@pleatkit/runtime/compiler'
+import type { ClusterInput, ClusterOutput } from './wishes.js'
 
 /** JSON schema of a tool's input. Every tool is strict: all properties required, no extra ones. */
 export interface ToolSpec {
@@ -84,5 +85,7 @@ export interface ModelProvider {
   readonly name: 'anthropic' | 'openai-compatible' | 'scripted' | (string & {})
   readonly model: string
   classify(input: ClassifyInput, signal: AbortSignal): Promise<Classification>
+  /** C9: group the week's unserved requests into themes, one classifier call (the wish-list map). Optional. */
+  cluster?(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput>
   start(prompt: PromptParts, tools: ToolSpec[], meta: { request: string }): ModelSession
 }

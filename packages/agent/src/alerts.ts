@@ -10,9 +10,10 @@ import { pleatkitEnv } from '@pleatkit/runtime/env'
  * - `static-rule`: an edit tried something the static rules refuse (a remote request, a cookie read...);
  * - `budget`: the app crossed 50 %, 80 % or 100 % of its daily dollar budget (once per threshold per day);
  * - `freeze`: one user looked like abuse (rule violations, a burst of requests, a large share of the app's
- *   budget) and was frozen alone (`edits.enabled: false` for that user), instead of the whole app running out.
+ *   budget) and was frozen alone (`edits.enabled: false` for that user), instead of the whole app running out;
+ * - `digest`: the weekly digest (C5, `pleatkit digest --week --send`), its markdown in `details.markdown`.
  */
-export type AlertKind = 'static-rule' | 'budget' | 'freeze'
+export type AlertKind = 'static-rule' | 'budget' | 'freeze' | 'digest'
 
 export interface Alert {
   kind: AlertKind
@@ -39,7 +40,7 @@ export class WebhookSink implements AlertSink {
     const res = await this.fetchFn(this.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: `[pleatkit ${alert.severity}] ${alert.title}`, alert }),
+      body: JSON.stringify({ text: alert.kind === 'digest' ? `${alert.title}\n\n${String(alert.details.markdown ?? '')}` : `[pleatkit ${alert.severity}] ${alert.title}`, alert }),
       signal: AbortSignal.timeout(5_000),
     })
     if (!res.ok) throw new Error(`alert webhook answered ${res.status}`)
@@ -58,11 +59,14 @@ export class EmailSink implements AlertSink {
     private readonly fetchFn: typeof fetch = (...a) => globalThis.fetch(...a),
   ) {}
   async send(alert: Alert): Promise<void> {
-    const text = [alert.title, '', ...Object.entries(alert.details).map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`), '', `app ${alert.appId}${alert.userId ? `, user ${alert.userId}` : ''}, ${alert.at}`].join('\n')
+    const text =
+      alert.kind === 'digest'
+        ? String(alert.details.markdown ?? '')
+        : [alert.title, '', ...Object.entries(alert.details).map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`), '', `app ${alert.appId}${alert.userId ? `, user ${alert.userId}` : ''}, ${alert.at}`].join('\n')
     const res = await this.fetchFn(this.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...(this.token ? { authorization: `Bearer ${this.token}` } : {}) },
-      body: JSON.stringify({ to: this.to, subject: `[pleatkit ${alert.severity}] ${alert.title}`, text }),
+      body: JSON.stringify({ to: this.to, subject: alert.kind === 'digest' ? alert.title : `[pleatkit ${alert.severity}] ${alert.title}`, text }),
       signal: AbortSignal.timeout(5_000),
     })
     if (!res.ok) throw new Error(`alert e-mail API answered ${res.status}`)

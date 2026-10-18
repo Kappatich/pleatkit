@@ -62,32 +62,7 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  */
 export function configFromEnv(env: Env = process.env): AgentConfig {
   pleatkitEnv(env)
-  const explicit = env.PLEATKIT_PROVIDER
-  const kind = explicit ?? (env.PLEATKIT_API_KEY ? 'anthropic' : 'scripted')
-  let provider: ModelProvider
-  if (kind === 'anthropic') {
-    const apiKey = env.PLEATKIT_API_KEY ?? env.POLYMORPH_API_KEY ?? env.ANTHROPIC_API_KEY
-    if (!apiKey) throw new Error('PLEATKIT_PROVIDER=anthropic needs PLEATKIT_API_KEY (or ANTHROPIC_API_KEY)')
-    provider = new AnthropicProvider({
-      apiKey,
-      baseURL: env.PLEATKIT_BASE_URL,
-      model: env.PLEATKIT_MODEL,
-      classifierModel: env.PLEATKIT_CLASSIFIER_MODEL,
-      effort: (env.PLEATKIT_EFFORT as 'medium' | undefined) ?? 'medium',
-      fallbacks: env.PLEATKIT_FALLBACKS !== 'off',
-      stream: env.PLEATKIT_STREAM === '1',
-    })
-  } else if (kind === 'openai-compatible' || kind === 'openai' || kind === 'openrouter') {
-    const apiKey = env.PLEATKIT_API_KEY ?? env.OPENAI_API_KEY ?? env.OPENROUTER_API_KEY
-    if (!apiKey) throw new Error('PLEATKIT_PROVIDER=openai-compatible needs PLEATKIT_API_KEY')
-    const baseURL = env.PLEATKIT_BASE_URL ?? (kind === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1')
-    if (!env.PLEATKIT_MODEL) throw new Error('PLEATKIT_PROVIDER=openai-compatible needs PLEATKIT_MODEL')
-    provider = new OpenAICompatibleProvider({ apiKey, baseURL, model: env.PLEATKIT_MODEL, classifierModel: env.PLEATKIT_CLASSIFIER_MODEL })
-  } else if (kind === 'scripted') {
-    provider = new ScriptedProvider(env.PLEATKIT_FIXTURES ?? 'fixtures', { delayMs: num(env.PLEATKIT_SCRIPTED_DELAY_MS) ?? 0 })
-  } else {
-    throw new Error(`Unknown PLEATKIT_PROVIDER "${kind}"`)
-  }
+  const provider = providerFromEnv(env)
   let planLimits: Record<string, number> | undefined
   if (env.PLEATKIT_LIMITS) {
     try {
@@ -117,4 +92,39 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
       ...(num(env.PLEATKIT_MAX_OUTPUT_TOKENS) ? { maxOutputTokens: num(env.PLEATKIT_MAX_OUTPUT_TOKENS) } : {}),
     },
   }
+}
+
+/**
+ * The model provider alone (PLEATKIT_PROVIDER, PLEATKIT_API_KEY, PLEATKIT_MODEL, PLEATKIT_CLASSIFIER_MODEL,
+ * PLEATKIT_FIXTURES...): what `pleatkit digest` and `pleatkit carry-over` need, without the server's settings.
+ */
+export function providerFromEnv(env: Env = process.env): ModelProvider {
+  pleatkitEnv(env)
+  const explicit = env.PLEATKIT_PROVIDER
+  const kind = explicit ?? (env.PLEATKIT_API_KEY ? 'anthropic' : 'scripted')
+  let provider: ModelProvider
+  if (kind === 'anthropic') {
+    const apiKey = env.PLEATKIT_API_KEY ?? env.POLYMORPH_API_KEY ?? env.ANTHROPIC_API_KEY
+    if (!apiKey) throw new Error('PLEATKIT_PROVIDER=anthropic needs PLEATKIT_API_KEY (or ANTHROPIC_API_KEY)')
+    provider = new AnthropicProvider({
+      apiKey,
+      baseURL: env.PLEATKIT_BASE_URL,
+      model: env.PLEATKIT_MODEL,
+      classifierModel: env.PLEATKIT_CLASSIFIER_MODEL,
+      effort: (env.PLEATKIT_EFFORT as 'medium' | undefined) ?? 'medium',
+      fallbacks: env.PLEATKIT_FALLBACKS !== 'off',
+      stream: env.PLEATKIT_STREAM === '1',
+    })
+  } else if (kind === 'openai-compatible' || kind === 'openai' || kind === 'openrouter') {
+    const apiKey = env.PLEATKIT_API_KEY ?? env.OPENAI_API_KEY ?? env.OPENROUTER_API_KEY
+    if (!apiKey) throw new Error('PLEATKIT_PROVIDER=openai-compatible needs PLEATKIT_API_KEY')
+    const baseURL = env.PLEATKIT_BASE_URL ?? (kind === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1')
+    if (!env.PLEATKIT_MODEL) throw new Error('PLEATKIT_PROVIDER=openai-compatible needs PLEATKIT_MODEL')
+    provider = new OpenAICompatibleProvider({ apiKey, baseURL, model: env.PLEATKIT_MODEL, classifierModel: env.PLEATKIT_CLASSIFIER_MODEL })
+  } else if (kind === 'scripted') {
+    provider = new ScriptedProvider(env.PLEATKIT_FIXTURES ?? 'fixtures', { delayMs: num(env.PLEATKIT_SCRIPTED_DELAY_MS) ?? 0 })
+  } else {
+    throw new Error(`Unknown PLEATKIT_PROVIDER "${kind}"`)
+  }
+  return provider
 }

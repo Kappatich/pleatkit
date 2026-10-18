@@ -4,6 +4,7 @@ import type { RequestClass, TokenUsage } from '@pleatkit/runtime/compiler'
 import { emptyUsage } from '../pricing.js'
 import { intentOf } from './anthropic.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, TurnOptions } from '../types.js'
+import type { ClusterInput, ClusterOutput, WishCluster } from '../wishes.js'
 
 /**
  * A scripted conversation: the provider replays the tool calls of each turn instead of asking a model, so the
@@ -16,6 +17,11 @@ export interface ScriptFixture {
   match: string[]
   classify?: { label: RequestClass; reason?: string; question?: string; options?: string[]; intentLabel?: string; gist?: string }
   turns: ScriptTurn[]
+  /**
+   * C9: themes of the wish-list map. The scripted `cluster` call puts each request into the first theme with a
+   * matching pattern (case-insensitive, on the request text); requests no theme matches are left to the fallback.
+   */
+  wishes?: { panel: string; title: string; kind: WishCluster['kind']; match: string[] }[]
 }
 
 export interface ScriptTurn {
@@ -50,7 +56,7 @@ export function loadFixtures(dir: string): LoadedFixture[] {
     .sort()
     .map((f) => {
       const fx = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as ScriptFixture
-      return { ...fx, dir, patterns: fx.match.map((m) => new RegExp(m, 'i')) }
+      return { ...fx, turns: fx.turns ?? [], dir, patterns: (fx.match ?? []).map((m) => new RegExp(m, 'i')) }
     })
 }
 
@@ -86,6 +92,21 @@ export class ScriptedProvider implements ModelProvider {
       usage: emptyUsage(),
       model: 'scripted-classifier',
     }
+  }
+
+  /** C9: the wish-list map from the fixtures' `wishes` themes, without a model. */
+  async cluster(input: ClusterInput, signal?: AbortSignal): Promise<ClusterOutput> {
+    if (this.pace.delayMs && signal) await delay(this.pace.delayMs, signal)
+    const themes = this.fixtures.flatMap((f) => (f.wishes ?? []).map((w) => ({ ...w, patterns: w.match.map((m) => new RegExp(m, 'i')) })))
+    const clusters: WishCluster[] = []
+    for (const item of input.items) {
+      const theme = themes.find((t) => t.patterns.some((p) => p.test(item.text)))
+      if (!theme) continue
+      let k = clusters.find((c) => c.title === theme.title && c.panel === theme.panel)
+      if (!k) clusters.push((k = { panel: theme.panel, title: theme.title, kind: theme.kind, requestIds: [] }))
+      k.requestIds.push(item.id)
+    }
+    return { clusters, usage: emptyUsage(), model: 'scripted-classifier' }
   }
 
   /** What each scripted run received besides text: a model would see the images, the script only notes them. */

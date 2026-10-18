@@ -1,4 +1,4 @@
-import { isAppKey, TokenError, verifyUserToken } from '@pleatkit/runtime/security'
+import { isAppKey, TokenError, verifyUserToken, type UserRole } from '@pleatkit/runtime/security'
 import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 type Env = Record<string, string | undefined>
@@ -23,6 +23,8 @@ export interface Identity {
   userId: string
   environment: string | null
   via: 'jwt' | 'demo'
+  /** C8: the token's role (`user` without a token); only `admin` may rebuild the wish map. */
+  role?: UserRole
 }
 
 export class AgentAuthError extends Error {
@@ -71,7 +73,7 @@ export async function identify(authorization: string | undefined, body: { userId
       const claims = await verifyUserToken(token, creds.jwtSecret)
       if (claims.app !== creds.appId) throw new AgentAuthError(403, 'the token belongs to another app')
       if (body.userId && body.userId !== claims.sub) throw new AgentAuthError(403, 'the request is for another user than the token')
-      return { appId: claims.app, orgId: claims.org ?? 'default', userId: claims.sub, environment: claims.env ?? null, via: 'jwt' }
+      return { appId: claims.app, orgId: claims.org ?? 'default', userId: claims.sub, environment: claims.env ?? null, via: 'jwt', role: claims.role ?? 'user' }
     } catch (e) {
       if (e instanceof TokenError) throw new AgentAuthError(401, e.message)
       throw e
