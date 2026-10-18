@@ -1,4 +1,4 @@
-import type { AgentResult, AgentVerdict } from '@pleatkit/runtime/compiler'
+import type { AgentResult, AgentVerdict, UsageByModel } from '@pleatkit/runtime/compiler'
 
 /** Dynamic path → repo-relative path of the file with its content (`apps/demo-crm/e2e/fixtures/…`). */
 export type FileRefMap = Record<string, string>
@@ -16,8 +16,13 @@ export interface FileInvariant {
 
 /** One check in the rendered demo app, after the result is committed in a headless browser. */
 export interface BrowserCheck {
-  /** `data-testid` of the element. */
-  testid: string
+  /**
+   * `data-testid` of the element. Use it for ids the app documents (the demo's panel conventions: data fields keep
+   * `data-testid` equal to the field name); for anything else check text or behaviour (`byText`, `contains`).
+   */
+  testid?: string
+  /** The element whose whole text is this, any case (inside `within`, or inside `testid` when both are given). */
+  byText?: string
   /** `data-testid` of the panel to look in (default: the whole page). */
   within?: string
   /** Exact number of matching elements (0: must not exist). Default: at least one, the first is checked. */
@@ -28,6 +33,8 @@ export interface BrowserCheck {
   contains?: string
   /** Substring of the first match's class attribute. */
   class?: string
+  /** Regular expression a class attribute of the first match or of an element inside it must match (`text-(red|destructive)`). */
+  classMatches?: string
   /** An attribute of the first match and its exact value. */
   attr?: { name: string; value: string }
 }
@@ -111,6 +118,8 @@ export interface Tokens {
 
 export interface TaskRun {
   taskId: string
+  /** 1, 2, … when a task runs several times (`--trials`, or several transcripts of a set). */
+  trial?: number
   title: string
   agent: AgentKind
   expectedVerdict: AgentVerdict
@@ -124,6 +133,10 @@ export interface TaskRun {
   /** Usage rows whose model has no price (scripted, replay of scripted): their cost is unknown, not 0. */
   unpricedModels: string[]
   tokens: Tokens
+  /** The main model of the run (a replay: the recorded one). */
+  model?: string
+  /** Usage by model as the agent reports it (classifier and main loop), for `cacheHitRate()`. */
+  usage?: UsageByModel[]
   ms: number
   stopReason?: AgentResult['stopReason']
   graders: GraderResult[]
@@ -152,14 +165,22 @@ export interface SuiteResult {
   aborted?: { reason: string; notRun: string[] }
   browser: 'ran' | 'skipped'
   typecheck: 'ran' | 'skipped'
+  /** Named set of transcripts (`--set live`): `evals/recordings/<set>/`. Absent: the scripted transcripts. */
+  set?: string
+  /** The main model of a live run, and whether the classifier ran first (`--no-classifier`). */
+  model?: string
+  classifier?: boolean
   runs: TaskRun[]
 }
 
-/** `evals/baseline.json`: the pinned results new runs are compared with. */
+/**
+ * The pinned results new runs are compared with: `evals/baseline.json` (the live series), `evals/baseline.scripted.json`
+ * (the scripted transcripts). With several trials a task's entry sums them: `passes` of `trials`, cost of all trials.
+ */
 export interface Baseline {
   pinnedAt: string
   promptVersion: string
   prompt: PromptInfo
-  tasks: Record<string, { pass: boolean; verdict: AgentVerdict | null; failed: string[]; costUsd: number; modelCalls: number }>
+  tasks: Record<string, { pass: boolean; verdict: AgentVerdict | null; failed: string[]; costUsd: number; modelCalls: number; passes?: number; trials?: number }>
   passRate: number
 }

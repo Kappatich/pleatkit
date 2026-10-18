@@ -29,13 +29,16 @@ async function soft(problems: string[], what: string, fn: () => Promise<void>): 
 }
 
 function locate(page: Page, c: BrowserCheck): Locator {
-  const scope = c.within ? page.getByTestId(c.within) : page.locator('body')
-  return scope.getByTestId(c.testid)
+  let loc = c.within ? page.getByTestId(c.within) : page.locator('body')
+  if (c.testid) loc = loc.getByTestId(c.testid)
+  // the element whose whole text is this (any case, outer spaces ignored), not its ancestors
+  if (c.byText !== undefined) loc = loc.getByText(new RegExp(`^\\s*${c.byText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i'))
+  return loc
 }
 
 async function runCheck(page: Page, c: BrowserCheck, problems: string[]): Promise<void> {
   const loc = locate(page, c)
-  const name = `${c.within ? c.within + ' › ' : ''}${c.testid}`
+  const name = [c.within, c.testid, c.byText !== undefined ? `"${c.byText}"` : undefined].filter(Boolean).join(' › ')
   if (c.count !== undefined) await soft(problems, `${name} count`, () => expect(loc).toHaveCount(c.count!))
   if (c.count === 0) return
   const first = loc.first()
@@ -43,6 +46,15 @@ async function runCheck(page: Page, c: BrowserCheck, problems: string[]): Promis
   if (c.text !== undefined) await soft(problems, `${name} text`, () => expect(first).toHaveText(c.text!))
   if (c.contains !== undefined) await soft(problems, `${name} contains`, () => expect(first).toContainText(c.contains!))
   if (c.class !== undefined) await soft(problems, `${name} class`, () => expect(first).toHaveClass(new RegExp(c.class!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))))
+  if (c.classMatches !== undefined)
+    await soft(problems, `${name} class`, async () => {
+      // on the element or inside it: a highlighted value is often a span within the field's element
+      const ok = await first.evaluate((el, src) => {
+        const re = new RegExp(src)
+        return [el, ...Array.from(el.querySelectorAll('*'))].some((e) => re.test(e.getAttribute('class') ?? ''))
+      }, c.classMatches!)
+      if (!ok) throw new Error(`no class matching /${c.classMatches}/ on the element or inside it (its class: "${(await first.getAttribute('class')) ?? ''}")`)
+    })
   if (c.attr) await soft(problems, `${name} [${c.attr.name}]`, () => expect(first).toHaveAttribute(c.attr!.name, c.attr!.value))
 }
 

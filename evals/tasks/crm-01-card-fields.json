@@ -14,12 +14,13 @@
         "path": "src/dynamic/customer-card.tsx",
         "mustContain": [
           "data-testid=\"customer-card\"",
-          "data-testid=\"due-date\"",
-          "export default function CustomerCard",
-          "{ customer }: { customer: Customer }",
-          "data-testid=\"phone\"",
-          "data-testid=\"city\"",
-          "data-testid=\"source\""
+          "data-testid=\"due-date\""
+        ],
+        "mustMatch": [
+          "export default function CustomerCard\\s*\\(\\s*\\{\\s*customer\\s*\\}",
+          "[.'\"`]phone\\b",
+          "[.'\"`]city\\b",
+          "[.'\"`]source\\b"
         ]
       }
     ],
@@ -42,22 +43,22 @@
         {
           "testid": "phone",
           "within": "customer-card",
-          "text": "+1 555 0102"
+          "contains": "+1 555 0102"
         },
         {
           "testid": "city",
           "within": "customer-card",
-          "text": "Springfield"
+          "contains": "Springfield"
         },
         {
           "testid": "source",
           "within": "customer-card",
-          "text": "Referral"
+          "contains": "Referral"
         },
         {
           "testid": "due-date",
           "within": "customer-card",
-          "class": "text-red-600"
+          "classMatches": "(text|bg|border|ring)-(red|rose|destructive)"
         },
         {
           "testid": "deals-table",

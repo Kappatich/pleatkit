@@ -36,13 +36,8 @@
     "browser": {
       "checks": [
         {
-          "testid": "average-deal",
-          "within": "dashboard-panels",
-          "contains": "$35,300"
-        },
-        {
           "testid": "dashboard-panels",
-          "contains": "Average deal"
+          "contains": "$35,300"
         }
       ]
     }

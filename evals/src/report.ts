@@ -1,4 +1,5 @@
 import { diffBaseline, type DiffStatus } from './baseline.js'
+import { median, seriesMetrics } from './metrics.js'
 import { graderRates, passRate } from './runner.js'
 import type { Baseline, GraderName, SuiteResult, TaskRun } from './types.js'
 
@@ -12,12 +13,7 @@ const esc = (s: unknown): string => String(s).replace(/[&<>"']/g, (c) => ({ '&':
 const pct = (x: number | null): string => (x === null ? '—' : `${Math.round(x * 1000) / 10} %`)
 const usd = (x: number | null): string => (x === null ? '—' : `$${x.toFixed(x > 0 && x < 0.01 ? 4 : 2)}`)
 const num = (x: number): string => x.toLocaleString('en-US')
-const median = (xs: number[]): number => {
-  if (!xs.length) return 0
-  const s = [...xs].sort((a, b) => a - b)
-  const m = Math.floor(s.length / 2)
-  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2
-}
+const secs = (ms: number): string => `${(ms / 1000).toFixed(1)} s`
 const GRADERS: GraderName[] = ['verdict', 'change', 'check', 'typecheck', 'invariants', 'predicates', 'budget', 'browser']
 const STATUS_TEXT: Record<DiffStatus, string> = { pass: 'pass', fail: 'still failing', fixed: 'fixed', regressed: 'REGRESSED', new: 'new task' }
 
@@ -41,13 +37,21 @@ export function renderReport(s: SuiteResult, baseline: Baseline | null, sanity: 
   const firstTries = s.runs.filter((r) => r.firstTry !== null)
   const recordedWith = [...new Set(s.runs.map((r) => r.recording?.promptVersion).filter((v): v is string => Boolean(v)))]
   const passed = s.runs.filter((r) => r.pass).length
+  const m = seriesMetrics(s)
+  const trials = s.runs.some((r) => r.trial !== undefined)
+  const unit = trials ? 'runs' : 'tasks'
+  const label = (r: TaskRun) => (r.trial === undefined ? r.taskId : `${r.taskId} #${r.trial}`)
+  // cacheHitRate() over the agent's usage rows; results written before they were kept fall back to the token totals
+  const hit = m.cacheHitRate ?? (allInput ? tokens.cacheRead / allInput : null)
 
   const tiles: [string, string, string?][] = [
-    ['Pass rate', `${pct(passRate(s))}`, `${passed} of ${s.runs.length} tasks`],
+    ['Pass rate', `${pct(passRate(s))}`, `${passed} of ${s.runs.length} ${unit}${trials ? `; ${m.tasksAllPass} of ${m.tasks.length} tasks pass every trial` : ''}`],
     ['Baseline', pct(d.passRate.baseline), baseline ? `pinned ${baseline.pinnedAt.slice(0, 16).replace('T', ' ')}, prompt ${baseline.promptVersion}` : 'none pinned (pnpm eval:pin)'],
     ['Cost', usd(cost), `${unpriced.length ? `unpriced models: ${unpriced.join(', ')}; ` : ''}cap ${s.budget.capUsd === null ? 'none' : usd(s.budget.capUsd)}`],
     ['Tokens', num(allInput + tokens.output), `in ${num(tokens.input)} · cache read ${num(tokens.cacheRead)} · cache write ${num(tokens.cacheWrite)} · out ${num(tokens.output)}`],
-    ['Cache hit rate', allInput ? pct(tokens.cacheRead / allInput) : '—', 'hypothesis H1: ≥ 80 %'],
+    ['Cache hit rate', pct(hit), `cacheHitRate() over every call${m.mainCacheHitRate !== null ? `; main model only ${pct(m.mainCacheHitRate)}` : ''}; H1: ≥ 80 %`],
+    ['Cost per edit', m.costPerEdit.runs ? `median $${m.costPerEdit.median.toFixed(4)}` : '—', `max $${m.costPerEdit.max.toFixed(4)} over ${m.costPerEdit.runs} runs that changed files; per request median ${usd(m.costPerRequest.median)}; H4: ≤ $0.10`],
+    ['Latency', `median ${secs(m.latencyMs.median)}`, `p90 ${secs(m.latencyMs.p90)}, max ${secs(m.latencyMs.max)}${s.kind === 'replay' ? ' (replay: not model latency)' : ''}; H5: p95 ≤ 45 s`],
     ['Model calls', `median ${median(s.runs.filter((r) => r.modelCalls > 0).map((r) => r.modelCalls))}`, `${s.runs.reduce((t, r) => t + r.modelCalls, 0)} in total; H3: median ≤ 3`],
     ['First try', firstTries.length ? pct(firstTries.filter((r) => r.firstTry).length / firstTries.length) : '—', `of ${firstTries.length} runs that wrote files; H2: ≥ 70 %`],
     ['Prompt', s.prompt.version, `prefix ≈ ${num(s.prompt.prefixTokens)} tokens${d.prompt.prefixTokensBaseline !== null && d.prompt.prefixTokensBaseline !== s.prompt.prefixTokens ? ` (baseline ${num(d.prompt.prefixTokensBaseline)}, ${s.prompt.prefixTokens > d.prompt.prefixTokensBaseline ? '+' : ''}${num(s.prompt.prefixTokens - d.prompt.prefixTokensBaseline)})` : ''}`],
@@ -67,6 +71,10 @@ export function renderReport(s: SuiteResult, baseline: Baseline | null, sanity: 
     return `<tr><td>${g}</td><td class="n">${r && r.total ? pct(r.pass / r.total) : '—'}</td><td class="n">${r ? `${r.pass} / ${r.total}` : '—'}</td><td class="n">${r ? s.runs.length - r.total : s.runs.length}</td></tr>`
   }).join('')
 
+  const trialRows = m.tasks
+    .map((t) => `<tr><td class="st ${t.passes === t.trials ? 'ok' : t.passes ? '' : 'bad'}">${t.passes} / ${t.trials}</td><td><b>${esc(t.taskId)}</b><br><span class="dim">${esc(t.title)}</span></td><td>${esc(t.expected)}</td><td>${t.verdicts.map((v) => (v === t.expected ? esc(v) : `<b class="badtext">${esc(v)}</b>`)).join(', ')}</td><td class="n">${t.medianCalls}</td><td class="n">${usd(t.medianCostUsd)}</td><td class="n">${secs(t.medianMs)}</td><td class="${d.status[t.taskId] === 'regressed' ? 'badtext' : d.status[t.taskId] === 'fixed' ? 'oktext' : 'dim'}">${STATUS_TEXT[d.status[t.taskId]!]}</td></tr>`)
+    .join('\n')
+
   const taskRows = s.runs
     .map((r) => {
       const st = d.status[r.taskId]!
@@ -74,7 +82,7 @@ export function renderReport(s: SuiteResult, baseline: Baseline | null, sanity: 
       const t = r.tokens
       return `<tr class="${r.pass ? '' : 'failrow'}">
 <td class="st ${r.pass ? 'ok' : 'bad'}">${r.pass ? 'PASS' : 'FAIL'}</td>
-<td><b>${esc(r.taskId)}</b><br><span class="dim">${esc(r.title)}</span></td>
+<td><b>${esc(label(r))}</b><br><span class="dim">${esc(r.title)}</span></td>
 <td>${esc(r.expectedVerdict)}${r.verdict !== r.expectedVerdict ? ` → <b class="badtext">${esc(r.verdict)}</b>` : ''}</td>
 ${GRADERS.map((g) => chip(r, g)).join('')}
 <td class="n">${r.modelCalls}</td><td class="n">${num(t.input + t.cacheRead + t.cacheWrite)} / ${num(t.output)}</td><td class="n">${usd(r.costUsd)}</td><td class="n">${num(r.ms)}</td>
@@ -114,14 +122,19 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 </style></head>
 <body><main>
 <h1>pleatkit eval report</h1>
-<p class="meta">${esc(s.kind)} run of ${s.runs.length} task(s) · started ${esc(s.startedAt)} · report ${esc(at.toISOString())} · browser grader ${s.browser} · tsc grader ${s.typecheck}</p>
+<p class="meta">${esc(s.kind)} run${s.set ? ` of the set ${esc(s.set)}` : ''} of ${s.runs.length} ${unit}${s.model ? ` · model ${esc(s.model)}` : ''}${s.classifier === false ? ' · classifier off' : ''} · started ${esc(s.startedAt)} · report ${esc(at.toISOString())} · browser grader ${s.browser} · tsc grader ${s.typecheck}</p>
 <div class="tiles">${tiles.map(([k, v, sub]) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>${sub ? `<div class="s">${esc(sub)}</div>` : ''}</div>`).join('')}</div>
 ${notes.join('\n')}
 <h2>Against the baseline</h2>
 ${baseline ? `<p>Pass rate ${pct(d.passRate.baseline)} → ${pct(d.passRate.now)}; prompt ${esc(d.prompt.baseline)} → ${esc(d.prompt.now)}; cost ${usd(d.cost.baseline)} → ${usd(d.cost.now)}. Regressed: ${d.regressions.length ? d.regressions.map(esc).join(', ') : 'none'}. Fixed: ${d.fixes.length ? d.fixes.map(esc).join(', ') : 'none'}. New tasks: ${d.added.length ? d.added.map(esc).join(', ') : 'none'}.${d.missing.length ? ` Not in this run: ${d.missing.map(esc).join(', ')}.` : ''}</p>` : '<p>No baseline pinned yet: <code>pnpm eval:pin</code> pins the current results.</p>'}
 <h2>Graders</h2>
 <div class="wrap"><table><thead><tr><th>Grader</th><th class="n">Pass rate</th><th class="n">Passed</th><th class="n">Not applicable</th></tr></thead><tbody>${graderRows}</tbody></table></div>
-<h2>Tasks</h2>
+${trials ? `<h2>Tasks across trials</h2>
+<div class="wrap"><table><thead><tr><th>Passed</th><th>Task</th><th>Expected</th><th>Verdicts</th><th class="n">Calls (median)</th><th class="n">Cost (median)</th><th class="n">Time (median)</th><th>vs baseline</th></tr></thead>
+<tbody>
+${trialRows}
+</tbody></table></div>` : ''}
+<h2>${trials ? 'Runs' : 'Tasks'}</h2>
 <div class="wrap"><table><thead><tr><th></th><th>Task</th><th>Verdict</th>${GRADERS.map((g) => `<th title="${g}">${g.slice(0, 5)}</th>`).join('')}<th class="n">Calls</th><th class="n">Tokens in / out</th><th class="n">Cost</th><th class="n">ms</th><th>vs baseline</th></tr></thead>
 <tbody>
 ${taskRows}

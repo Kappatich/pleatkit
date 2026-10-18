@@ -50,3 +50,28 @@ describe('task format', () => {
     expect(p.trusted.base[CARD]).toBe(p.start[CARD])
   })
 })
+
+describe('browser checks by text (stage 5)', () => {
+  it('a check needs a testid, a text or a panel; classMatches must be a valid expression', () => {
+    const t = changeTask({ invariants: { browser: { checks: [{ within: 'customer-card', byText: 'active', classMatches: 'rounded' }, {} as never, { testid: 'x', classMatches: '(' }] } } })
+    const problems = validateTask(t, 'y.json').join('\n')
+    expect(problems).toMatch(/checks\[1\] needs testid, byText or within/)
+    expect(problems).toMatch(/invalid regular expression \(/)
+    expect(problems).not.toMatch(/checks\[0\]/)
+  })
+})
+
+describe('the demo documents the testid convention the field checks rely on (stage 5)', () => {
+  it('vite.config passes docs/design-system.md as the designSystem docs, and it states the rule', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { DEMO_DIR } = await import('../src/tasks.js')
+    expect(fs.readFileSync(path.join(DEMO_DIR, 'vite.config.ts'), 'utf8')).toMatch(/designSystem: \{ components: \['@\/components\/ui\/\*'\], docs: 'docs\/design-system\.md' \}/)
+    const docs = fs.readFileSync(path.join(DEMO_DIR, 'docs', 'design-system.md'), 'utf8')
+    expect(docs).toMatch(/Data fields keep `data-testid` equal to the field name/)
+    // a testid checked inside a panel is a data field of the demo (the convention), never one a fixture made up
+    const fields = new Set(['phone', 'city', 'source', 'due-date', 'email', 'status'])
+    const used = loadTasks().flatMap((t) => (t.invariants?.browser?.checks ?? []).filter((c) => c.testid && c.within).map((c) => `${t.id}: ${c.testid}`))
+    expect(used.filter((u) => !fields.has(u.split(': ')[1]!))).toEqual([])
+  })
+})

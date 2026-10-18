@@ -10,12 +10,24 @@ uses the demo's production build.
 
 ```bash
 pnpm eval:sanity    # reference solutions pass every grader; the null agent fails every task that needs a change
-pnpm eval:replay    # every task against its transcript in evals/recordings; exit 1 on a regression vs the baseline
+pnpm eval:replay    # every task against its scripted transcript; exit 1 on a regression vs evals/baseline.scripted.json
+pnpm eval:replay -- --set live   # every trial of the live series (evals/recordings/live/) vs evals/baseline.json
 pnpm eval:report    # evals/report/index.html from the last replay (and sanity) results
-pnpm eval:pin       # the last replay becomes evals/baseline.json (with its PROMPT_VERSION)
+pnpm eval:pin       # the last replay becomes the baseline of its set (with its PROMPT_VERSION)
 pnpm eval:record    # re-record evals/recordings from the scripted fixtures (after changing a task or a fixture)
-# options: -- --only crm-01,crm-04   -- --no-browser   -- --no-typecheck
+# options: -- --only crm-01,crm-04   -- --set <name>   -- --no-browser   -- --no-typecheck   -- --no-classifier
 ```
+
+Two sets of transcripts, two baselines:
+
+| Set | Transcripts | Baseline | What its replay tests |
+|---|---|---|---|
+| scripted (no `--set`) | `evals/recordings/<task>.jsonl`, from the scripted fixtures | `evals/baseline.scripted.json` | the harness, the tools and the graders on fixed answers; `crm-04` fails on purpose |
+| `live` | `evals/recordings/live/<task>.t<n>.jsonl`, three trials per task, recorded from the model | `evals/baseline.json` (DECISIONS 67.1: pinned on the first live run) | that the graders, tools and check still agree with what the model answered under the pinned prompt |
+
+Other named sets (`smoke-4c1`, `matrix-haiku`, `matrix-no-classifier`, …) live next to them with the same file
+names and no baseline. Each named set keeps the record results of its live run in `<set>/record.json`: the only
+place with real latencies (a replay's timings are the harness's, not the model's).
 
 ## How a run works
 
@@ -36,6 +48,14 @@ Then the graders run on the result. Each returns pass or fail and a reason; "ski
 | `predicates` | the named custom checks in `evals/src/predicates.ts` hold |
 | `budget` | the run stayed under its dollar cap and was not stopped for money |
 | `browser` | in the demo app (headless Chromium, its own ports 4283/8898–8900), the result is committed through the engine (`draft.commit('agent')` under `?eval=1`, compiled and signed by the agent server), then: no crash banner, the three panels render, and the task's `browser.checks` hold |
+
+A check finds its element by a `data-testid` the app documents, or by text. The demo documents one rule in
+`apps/demo-crm/docs/design-system.md`, which reaches the agent's cached prompt as `designSystem.docs`: data fields keep
+`data-testid` equal to the field name (`due-date`, `phone`, `city`, `source`). Checks may use those ids and the
+panels' own ids. Anything else (a total row, a pill, a new tile) is checked by what the user sees: `contains` on the
+panel, `byText` (the element whose whole text is this, any case) and `classMatches` (a class on the element or inside
+it matches a regular expression). Text invariants check behaviour too (`mustMatch` on reading `meta.phone`), not the
+fixture's formatting. `evals/test/tasks.test.ts` refuses a testid inside a panel that is not a documented field.
 
 A task passes when every grader passes.
 
@@ -94,8 +114,22 @@ A new kind of check is one function in `evals/src/predicates.ts` and its name in
 `crm-04-deals-total-row` fails on purpose: its recording is the demo's scenario 4 (an edit that compiles and throws
 while rendering). The text invariants and the browser grader catch it; `check` and `tsc` do not.
 
-## Stage 5
+## Stage 5: live runs
 
-`pnpm eval:record -- --live` records with the configured model (`PLEATKIT_PROVIDER`, `PLEATKIT_MODEL`, …) and refuses
-without `PLEATKIT_API_KEY` and `PLEATKIT_EVAL_BUDGET_USD`. It overwrites `evals/recordings`; the replay then becomes the
-regression test of that live run.
+`pnpm eval:record -- --live` records with the configured model (`PLEATKIT_PROVIDER`, `PLEATKIT_MODEL`, …) into the set
+`live` (or `--set <name>`) and refuses without `PLEATKIT_API_KEY` and `PLEATKIT_EVAL_BUDGET_USD`. `--trials 3` runs each
+task three times in a row; `--no-classifier` skips the classifier, so the main model answers every request. A live
+record runs the browser grader right away, so `<set>/record.json` has the full grades and the real timings.
+
+```bash
+PLEATKIT_EVAL_BUDGET_USD=6 pnpm eval:record -- --live --trials 3                 # the series: 14 × 3 on Sonnet 5.5
+PLEATKIT_MODEL=claude-haiku-5-5 pnpm eval:record -- --live --set matrix-haiku --only crm-01,crm-02,…
+pnpm eval:replay -- --set live && pnpm eval:pin -- --set live                  # offline; pins evals/baseline.json
+pnpm eval:report -- --set live --from record --baseline scripted --out evals/report/live.html
+```
+
+With trials the report adds a table of tasks across trials (passes of trials, verdicts, median calls, cost and time)
+and tiles for the latency (median, p90), cost per edit (median, max over runs that changed files) and
+`cacheHitRate()` over every call and over the main model's calls. A task's baseline entry sums its trials
+(`passes` of `trials`); a replay regresses when a smaller share of a task's trials passes. `pnpm eval:pin -- --set <name>`
+refuses transcripts recorded with another `PROMPT_VERSION`.
