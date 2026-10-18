@@ -85,3 +85,59 @@ describe('server compile (V1 B1)', () => {
     expect((await app.request(`/agent/v1/b/test/${result.bundle!.key}.js`)).status).toBe(200)
   })
 })
+
+describe('the bundle is in the store before "compiled" is answered (DECISIONS 70.8)', () => {
+  /** A store-server stand-in whose bundle writes wait for `release()` and fail while `failing` is set. */
+  function slowStore() {
+    const stored = new Map<string, string>()
+    const state = { puts: 0, failing: false, release: () => undefined as void }
+    let gate = new Promise<void>((r) => (state.release = r))
+    const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'content-type': 'application/json' } })
+    const f = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input))
+      if (url.pathname === '/v1/quota') return json({ ok: true, tokens: {} })
+      if (url.pathname === '/v1/plan') return json({ plan: null, limits: {} })
+      if (url.pathname === '/v1/flags') return json({ flags: {} })
+      const put = /^\/v1\/bundles\/([0-9a-f]+)$/.exec(url.pathname)
+      if (put && init?.method === 'PUT') {
+        state.puts++
+        await gate
+        if (state.failing) return json({ error: 'disk full' }, 500)
+        stored.set(put[1]!, String(init.body))
+        return new Response(null, { status: 204 })
+      }
+      const get = /^\/v1\/b\/test\/([0-9a-f]+)\.json$/.exec(url.pathname)
+      if (get) return stored.has(get[1]!) ? json(JSON.parse(stored.get(get[1]!)!).signature) : json({ error: 'not found' }, 404)
+      return json({ error: `unexpected ${url.pathname}` }, 404)
+    }) as typeof fetch
+    return { f, stored, state, reopen: () => (gate = new Promise<void>((r) => (state.release = r))) }
+  }
+
+  it('a second compile of the same key waits for the first one’s store write', async () => {
+    const s = slowStore()
+    const app = createAgentApp({ provider: phone, log: () => undefined, storeUrl: 'http://store.test', fetch: s.f })
+    const answered: string[] = []
+    const first = Promise.resolve(post(app, 'compile', compileBody())).then(async (r) => (answered.push('first'), (await r.json()) as { ok: boolean; key: string }))
+    const second = Promise.resolve(post(app, 'compile', compileBody())).then(async (r) => (answered.push('second'), (await r.json()) as { ok: boolean; key: string }))
+    await new Promise((r) => setTimeout(r, 300))
+    expect(answered).toEqual([]) // neither says "compiled" while the bundle is not in the store
+    s.state.release()
+    const [a, b] = await Promise.all([first, second])
+    expect(a.key).toBe(b.key)
+    expect(s.state.puts).toBe(1)
+    expect(s.stored.has(a.key)).toBe(true)
+  })
+
+  it('a failed store write is not cached as compiled: the next compile writes again', async () => {
+    const s = slowStore()
+    s.state.failing = true
+    s.state.release()
+    const app = createAgentApp({ provider: phone, log: () => undefined, storeUrl: 'http://store.test', fetch: s.f })
+    expect((await post(app, 'compile', compileBody())).status).toBe(500)
+    s.state.failing = false
+    const out = (await (await post(app, 'compile', compileBody())).json()) as { ok: boolean; key: string }
+    expect(out.ok).toBe(true)
+    expect(s.state.puts).toBe(2)
+    expect(s.stored.has(out.key)).toBe(true)
+  })
+})

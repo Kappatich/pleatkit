@@ -73,6 +73,8 @@ async function tailwindCss(input: string, sources: string[]): Promise<string> {
  */
 export class BundleService {
   private readonly cache = new Map<string, StoredBundle>()
+  /** Compiles of a key in flight: a second request for the same key waits for the first one's store write. */
+  private readonly inflight = new Map<string, Promise<void>>()
   private signing: Promise<SigningKey> | null
 
   constructor(
@@ -98,26 +100,44 @@ export class BundleService {
     const cssMode = context.css?.mode === 'tailwind' ? 'tailwind' : 'palette'
     const key = await bundleKey({ namespace: context.namespace, filesHash, contextHash: await contextHash(context, input.readonly), cssMode })
     if (options.check) return { ok: true, errors: [], key, filesHash, timeMs: Math.round(performance.now() - started) }
-    if (!this.cache.has(this.cacheKey(input.appId, key))) {
-      const sources = [...Object.values(input.readonly), ...Object.entries(input.files).filter(([p]) => !p.endsWith('.css')).map(([, s]) => s)]
-      const tw = cssMode === 'tailwind' && context.css?.input ? await tailwindCss(context.css.input, sources) : ''
-      const js = ws.lastBundle.js
-      const css = [ws.lastBundle.css, tw].filter(Boolean).join('\n')
-      const payload = {
-        v: 1 as const,
-        app: input.appId,
-        key,
-        filesHash,
-        js: await sriDigest(js),
-        css: await sriDigest(css),
-        externals: ws.lastBundle.externals ?? [],
-        compiler: COMPILER_VERSION,
-        createdAt: new Date().toISOString(),
+    const ck = this.cacheKey(input.appId, key)
+    if (!this.cache.has(ck)) {
+      const lastBundle = ws.lastBundle
+      // DECISIONS 70.8 (found while chasing crm-07): "compiled" is answered only once the bundle is where the
+      // browser loads it from.
+      // The cache entry used to be written before the store write finished, so a second compile of the same key
+      // (another tab, a retry, the chat and the commit) answered at once and the browser asked store-server for a
+      // bundle it did not have yet; a failed store write left the key cached and never stored.
+      let pending = this.inflight.get(ck)
+      if (!pending) {
+        pending = (async () => {
+          const sources = [...Object.values(input.readonly), ...Object.entries(input.files).filter(([p]) => !p.endsWith('.css')).map(([, s]) => s)]
+          const tw = cssMode === 'tailwind' && context.css?.input ? await tailwindCss(context.css.input, sources) : ''
+          const js = lastBundle.js
+          const css = [lastBundle.css, tw].filter(Boolean).join('\n')
+          const payload = {
+            v: 1 as const,
+            app: input.appId,
+            key,
+            filesHash,
+            js: await sriDigest(js),
+            css: await sriDigest(css),
+            externals: lastBundle.externals ?? [],
+            compiler: COMPILER_VERSION,
+            createdAt: new Date().toISOString(),
+          }
+          const signature: BundleSignature = this.signing ? await signBundle(payload, await this.signing) : { payload }
+          // stored before the browser asks for it; without a store this process serves it
+          if (this.store) await this.store.putBundle(input.appId, key, { js, css, signature })
+          this.remember(input.appId, key, { js, css, signature })
+        })()
+        this.inflight.set(ck, pending)
+        void pending.then(
+          () => this.inflight.delete(ck),
+          () => this.inflight.delete(ck),
+        )
       }
-      const signature: BundleSignature = this.signing ? await signBundle(payload, await this.signing) : { payload }
-      this.remember(input.appId, key, { js, css, signature })
-      // stored before the browser asks for it; without a store this process serves it
-      if (this.store) await this.store.putBundle(input.appId, key, { js, css, signature })
+      await pending
     }
     return { ok: true, errors: [], key, filesHash, timeMs: Math.round(performance.now() - started) }
   }
