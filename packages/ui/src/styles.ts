@@ -64,6 +64,7 @@ const CSS = `
 .mk-history li:first-child { border-top: 1px solid var(--mk-ink); padding-top: 9px; }
 .mk-history .mk-v { font: 700 12px var(--mk-mono); color: var(--mk-ink); }
 .mk-history .mk-t { font: 500 11.5px var(--mk-mono); color: var(--mk-ink-3); }
+.mk-history .mk-id { font: 500 10.5px var(--mk-mono); color: var(--mk-ink-3); margin-left: 8px; letter-spacing: .02em; }
 .mk-history li.mk-cur { color: var(--mk-ink); border-bottom: 2px solid var(--mk-red); }
 .mk-history li.mk-cur .mk-t { color: var(--mk-red-ink); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .mk-history li.mk-rej { opacity: .5; text-decoration: line-through; }
