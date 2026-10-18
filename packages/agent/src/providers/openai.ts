@@ -96,6 +96,10 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
   }
 
+  get clusterModel(): string {
+    return this.classifierModel
+  }
+
   /** C9: the wish-list map in one classifier call (JSON mode). */
   async cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
     const r = await this.chat(

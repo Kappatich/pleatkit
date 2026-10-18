@@ -1,6 +1,6 @@
 import type { Alert, AlertSink } from './alerts.js'
 import type { ModelProvider } from './types.js'
-import { buildWishMap, type WishCluster } from './wishes.js'
+import { buildWishMap, type WishCluster, type WishLimits } from './wishes.js'
 
 /**
  * C5, the weekly digest (`pleatkit digest --week`): what happened in an app over the last week, as markdown for a
@@ -18,6 +18,8 @@ export interface DigestOptions {
   days?: number
   now?: number
   fetch?: typeof fetch
+  /** DECISIONS 70.3: requests and dollars of the wish map's one call (defaults 500 and $0.50). */
+  wishLimits?: Partial<WishLimits>
 }
 
 type Row = Record<string, string | number>
@@ -36,7 +38,7 @@ export interface Digest {
   rows: Row[]
   pending: { review: number; admin: number }
   audit: { ok: boolean; rows: number; brokenAt: number | null }
-  wishes: { clusters: WishSummary[]; model: string | null; calls: number; built: 'now' | 'stored' | 'none' }
+  wishes: { clusters: WishSummary[]; model: string | null; calls: number; built: 'now' | 'stored' | 'none'; items?: number; total?: number; clustered?: number; estimatedUsd?: number | null; costUsd?: number | null }
 }
 
 export async function buildDigest(o: DigestOptions): Promise<Digest> {
@@ -49,7 +51,8 @@ export async function buildDigest(o: DigestOptions): Promise<Digest> {
     return (await res.json()) as T
   }
   const days = o.days ?? 7
-  const to = o.now ?? Date.now()
+  // the store's `to` is exclusive: a request logged in this very millisecond belongs to the digest too
+  const to = o.now ?? Date.now() + 1
   const from = to - days * 24 * 60 * 60 * 1000
   const report = await get<{ rows: Row[]; total: Row }>(`/report?format=json&from=${from}&to=${to}`)
   const stats = await get<{ pendingReview: number }>('/admin/stats')
@@ -57,10 +60,10 @@ export async function buildDigest(o: DigestOptions): Promise<Digest> {
   const audit = (await get<{ verify: Digest['audit'] }>('/admin/audit?verify=1&limit=1')).verify
   let wishes: Digest['wishes']
   if (o.provider) {
-    const map = await buildWishMap({ provider: o.provider, storeUrl: o.storeUrl, appId: o.appId, appKey: o.appKey ?? null, panels: o.panels ?? [], fromMs: from, toMs: to, fetch: f })
+    const map = await buildWishMap({ provider: o.provider, storeUrl: o.storeUrl, appId: o.appId, appKey: o.appKey ?? null, panels: o.panels ?? [], fromMs: from, toMs: to, fetch: f, ...(o.wishLimits ? { limits: o.wishLimits } : {}) })
     // counts per theme as /admin shows them
     const stored = await get<{ map: { clusters: WishSummary[] } | null }>('/admin/wishes')
-    wishes = { clusters: stored.map?.clusters ?? map.clusters, model: map.model, calls: map.calls, built: 'now' }
+    wishes = { clusters: stored.map?.clusters ?? map.clusters, model: map.model, calls: map.calls, built: 'now', items: map.items, total: map.total, clustered: map.clustered, estimatedUsd: map.estimatedUsd, costUsd: map.costUsd }
   } else {
     const stored = await get<{ map: { clusters: WishSummary[]; model: string | null } | null }>('/admin/wishes')
     wishes = { clusters: stored.map?.clusters ?? [], model: stored.map?.model ?? null, calls: 0, built: stored.map ? 'stored' : 'none' }
@@ -115,6 +118,9 @@ export function digestMarkdown(d: Digest): string {
       lines.push('')
     }
     lines.push(`Built ${d.wishes.built === 'now' ? `now by one classifier call (${d.wishes.model ?? 'no model'})` : 'earlier (the latest stored map)'}.`)
+    const w = d.wishes
+    if (w.built === 'now' && w.total !== undefined && w.items !== undefined && w.total > w.items) lines.push(`Read the newest ${w.items} of ${w.total} requests (the cap per call).`)
+    if (w.built === 'now' && w.clustered !== undefined && w.items !== undefined && w.clustered < w.items) lines.push(`${w.items - w.clustered} older requests were grouped without the model to stay within the budget.`)
   }
   lines.push('', '## By organization', '', '| Organization | Requests | Users | Applied | Live 24 h | Needs backend | Cost |', '|---|---:|---:|---:|---:|---:|---:|')
   const orgs = new Map<string, Row>()

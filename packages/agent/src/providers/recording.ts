@@ -67,6 +67,10 @@ export class RecordingProvider implements ModelProvider {
     return output
   }
 
+  get clusterModel(): string | undefined {
+    return this.inner.clusterModel
+  }
+
   /** C9: the clustering call of the wish-list map gets a transcript of its own. */
   async cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
     if (!this.inner.cluster) return { clusters: [], usage: null, model: null }

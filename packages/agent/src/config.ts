@@ -8,7 +8,7 @@ import { manifestSourceFromEnv, type ManifestSource } from './manifest.js'
 import { typecheckFromEnv } from './typecheck.js'
 import type { TypecheckFn } from './workspace.js'
 import type { ModelProvider } from './types.js'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
+import { wishLimitsFromEnv, type WishLimits } from './wishes.js'
 
 export interface AgentConfig {
   provider: ModelProvider
@@ -25,6 +25,8 @@ export interface AgentConfig {
   typecheck: TypecheckFn | null
   /** PLEATKIT_ALERT_* and PLEATKIT_FREEZE (05 #5). */
   alerts: Pick<AlertsOptions, 'sinks' | 'freeze'>
+  /** DECISIONS 70.3: PLEATKIT_WISHES_MAX_ITEMS (default 500) and PLEATKIT_WISHES_BUDGET_USD (default 0.50). */
+  wishes: WishLimits
 }
 
 type Env = Record<string, string | undefined>
@@ -56,12 +58,12 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * PLEATKIT_ALERT_WEBHOOK  URL that gets a JSON POST for every alert (Slack-compatible `text`)
  * PLEATKIT_ALERT_EMAIL_URL, PLEATKIT_ALERT_EMAIL_TO, PLEATKIT_ALERT_EMAIL_TOKEN  e-mail through an HTTP e-mail API
  * PLEATKIT_FREEZE      off, or JSON {"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}
+ * PLEATKIT_WISHES_MAX_ITEMS, PLEATKIT_WISHES_BUDGET_USD  the wish map's one call: at most 500 requests and $0.50 by default
  * PLEATKIT_MANIFEST    path or URL of the app's dist/pleatkit.manifest.json: the static rules, readonly sources and core
  *                      types come from it, not from the browser (required with NODE_ENV=production);
  *                      PLEATKIT_MANIFESTS='{"<appId>": "<path or URL>"}' for several apps
  */
 export function configFromEnv(env: Env = process.env): AgentConfig {
-  pleatkitEnv(env)
   const provider = providerFromEnv(env)
   let planLimits: Record<string, number> | undefined
   if (env.PLEATKIT_LIMITS) {
@@ -81,6 +83,7 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
     manifest,
     typecheck: typecheckFromEnv(env),
     alerts: alertsFromEnv(env),
+    wishes: wishLimitsFromEnv(env),
     plan: { ...(env.PLEATKIT_PLAN ? { name: env.PLEATKIT_PLAN } : {}), ...(planLimits ? { limits: planLimits } : {}) },
     provider,
     port: num(env.PLEATKIT_AGENT_PORT) ?? 8789,
@@ -99,7 +102,6 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
  * PLEATKIT_FIXTURES...): what `pleatkit digest` and `pleatkit carry-over` need, without the server's settings.
  */
 export function providerFromEnv(env: Env = process.env): ModelProvider {
-  pleatkitEnv(env)
   const explicit = env.PLEATKIT_PROVIDER
   const kind = explicit ?? (env.PLEATKIT_API_KEY ? 'anthropic' : 'scripted')
   let provider: ModelProvider

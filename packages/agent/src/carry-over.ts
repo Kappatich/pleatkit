@@ -1,6 +1,7 @@
 import { changedPaths, fileHashes, manifestReleaseHash, ulid, type AgentRunRequest, type FileMap, type PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { runAgent } from './loop.js'
 import { contextFromManifest, manifestPanels, trustedInput } from './manifest.js'
+import { resolvePlan } from './quota.js'
 import type { ModelProvider } from './types.js'
 import { Workspace, type TypecheckFn } from './workspace.js'
 
@@ -33,10 +34,13 @@ export interface CarryOverOptions {
   /** The agent for edits the release also changed; without one those users stay `stale`. */
   provider?: ModelProvider | null
   /**
-   * Most one migration may cost. A migration starts only while this whole amount fits in what is left of the
-   * budget, so a run never spends past it. Default $0.30, the per-edit default of the plans.
+   * Most one migration may cost (`--per-user-usd`). A migration starts only while this whole amount fits in what is
+   * left of the budget, so a run never spends past it. Without it (DECISIONS 70.4) the cap is the `perEditUsd` of
+   * the app's plan in store-server, else of `plan` (the agent's PLEATKIT_PLAN / PLEATKIT_LIMITS), else of `free`.
    */
   perUserUsd?: number
+  /** The plan to use when store-server has none for the app (PLEATKIT_PLAN / PLEATKIT_LIMITS). */
+  plan?: { name?: string; limits?: Record<string, number> }
   /** Resume also retries users whose migration failed or was declined earlier (`stale`, `failed`). */
   retry?: boolean
   typecheck?: TypecheckFn | null
@@ -62,6 +66,10 @@ export interface CarryOverResult {
   budgetUsd: number
   /** Users handled in this invocation (users done in an earlier one are in `skipped`). */
   items: CarryItem[]
+  /** The per-user cap the run used, and where it came from. */
+  perUserUsd: number
+  perUserSource: 'flag' | 'plan'
+  plan: string
   skipped: number
   counts: Record<string, number>
 }
@@ -134,6 +142,11 @@ export async function carryOverRelease(o: CarryOverOptions): Promise<CarryOverRe
     spent = started.release.spentUsd
     done = new Map(started.items.map((i) => [i.userId, i]))
   }
+  // DECISIONS 70.4: the per-user cap is the app's plan's per-edit limit unless the operator gave one
+  const stored = o.perUserUsd === undefined ? (await store.call<{ plan: string | null; limits: Record<string, number> }>('GET', '/plan')).body : null
+  const planName = stored?.plan ?? o.plan?.name ?? 'free'
+  const cap = o.perUserUsd ?? resolvePlan(planName, { ...o.plan?.limits, ...stored?.limits }).perEditUsd
+  log(`per-user cap $${cap.toFixed(2)} (${o.perUserUsd === undefined ? `plan ${planName}` : '--per-user-usd'})`)
   const items: CarryItem[] = []
   let skipped = 0
   let budgetHit = false
@@ -195,7 +208,6 @@ export async function carryOverRelease(o: CarryOverOptions): Promise<CarryOverRe
       continue
     }
     const left = o.budgetUsd - spent
-    const cap = o.perUserUsd ?? 0.3
     // a migration starts only when its whole cap fits in what is left: the run never spends past the budget
     if (budgetHit || left < cap) {
       budgetHit = true
@@ -246,7 +258,7 @@ export async function carryOverRelease(o: CarryOverOptions): Promise<CarryOverRe
   const status: CarryOverResult['status'] = o.dryRun ? 'dry-run' : budgetHit ? 'budget' : 'done'
   if (!o.dryRun) await store.call('POST', `/admin/releases/${runId}/finish`, { status })
   const counts = items.reduce<Record<string, number>>((m, i) => ((m[i.state] = (m[i.state] ?? 0) + 1), m), {})
-  return { release: runId, status, spentUsd: Number(spent.toFixed(6)), budgetUsd: o.budgetUsd, items, skipped, counts }
+  return { release: runId, status, spentUsd: Number(spent.toFixed(6)), budgetUsd: o.budgetUsd, items, skipped, counts, perUserUsd: cap, perUserSource: o.perUserUsd === undefined ? 'plan' : 'flag', plan: planName }
 }
 
 /** Restore the heads a carry-over run moved (users who edited again since keep their newer version). */
