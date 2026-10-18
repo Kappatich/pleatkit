@@ -3,11 +3,15 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { trustedInput, type TrustedInput } from '@pleatkit/agent'
 import type { AgentImage, AgentRunRequest, AgentVerdict, FileMap, PleatkitManifest } from '@pleatkit/runtime/compiler'
+import { APPS, isAppId, manifestFile, type AppId } from './apps.js'
 import type { EvalTask, FileRefMap } from './types.js'
 
 export const EVALS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const REPO_ROOT = path.resolve(EVALS_DIR, '..')
 export const TASKS_DIR = path.join(EVALS_DIR, 'tasks')
+/** The task suites: the demo's 14 (`evals/tasks`) and the foreign apps' (`evals/tasks/apps`, DECISIONS 73.1). */
+export const SUITES = { demo: TASKS_DIR, apps: path.join(TASKS_DIR, 'apps') } as const
+export type Suite = keyof typeof SUITES
 export const RECORDINGS_DIR = path.join(EVALS_DIR, 'recordings')
 export const RESULTS_DIR = path.join(EVALS_DIR, 'results')
 /** The baseline of the live series (DECISIONS 67.1: pinned on the first live run). */
@@ -36,7 +40,7 @@ export function validateTask(t: Partial<EvalTask>, file = '(task)'): string[] {
   const p: string[] = []
   const at = (m: string) => p.push(`${file}: ${m}`)
   if (!t.id || !/^[a-z0-9][a-z0-9-]*$/.test(t.id)) at('id must be lower-case letters, digits and dashes')
-  if (t.app !== 'demo-crm') at('app must be "demo-crm"')
+  if (!isAppId(t.app)) at(`app must be one of ${Object.keys(APPS).join(', ')}`)
   if (!t.title) at('title is required')
   if (!t.request || !t.request.trim()) at('request is required')
   if (!t.expected || !VERDICTS.includes(t.expected.verdict)) at(`expected.verdict must be one of ${VERDICTS.join(', ')}`)
@@ -51,10 +55,11 @@ export function validateTask(t: Partial<EvalTask>, file = '(task)'): string[] {
   for (const [name, map] of refs) for (const [k, v] of Object.entries(map ?? {})) if (!fs.existsSync(repoPath(v))) at(`${name}["${k}"]: ${v} does not exist`)
   for (const img of t.images ?? []) if (!fs.existsSync(repoPath(img))) at(`images: ${img} does not exist`)
   for (const [i, c] of (t.invariants?.browser?.checks ?? []).entries()) {
-    if (!c.testid && c.byText === undefined && !c.within) at(`invariants.browser.checks[${i}] needs testid, byText or within`)
+    if (!c.testid && c.byText === undefined && c.textMatches === undefined && !c.within && !c.panel && !c.selector && !c.role) at(`invariants.browser.checks[${i}] needs testid, byText, within or panel`)
+    if (c.panel && isAppId(t.app) && !Object.values(APPS[t.app].panels).flat().includes(c.panel)) at(`invariants.browser.checks[${i}].panel: ${c.panel} is not a panel of ${t.app}`)
   }
-  const classRes = (t.invariants?.browser?.checks ?? []).flatMap((c) => (c.classMatches ? [c.classMatches] : []))
-  for (const re of [...(t.invariants?.forbidden ?? []), ...(t.invariants?.files ?? []).flatMap((f) => [...(f.mustMatch ?? []), ...(f.mustNotMatch ?? [])]), ...classRes]) {
+  const classRes = (t.invariants?.browser?.checks ?? []).flatMap((c) => [c.classMatches, c.textMatches, c.matches, c.name, c.css?.matches].filter((x): x is string => typeof x === 'string'))
+  for (const re of [...(t.invariants?.forbidden ?? []), ...(t.invariants?.files ?? []).flatMap((f) => [...(f.mustMatch ?? []), ...(f.mustNotMatch ?? [])]), ...(t.invariants?.anyMustMatch ?? []), ...classRes]) {
     try {
       new RegExp(re, 'm')
     } catch {
@@ -82,9 +87,20 @@ export function loadTasks(dir = TASKS_DIR, only?: string[]): EvalTask[] {
   return only?.length ? tasks.filter((t) => only.some((o) => t.id === o || t.id.startsWith(o))) : tasks
 }
 
-export function loadManifest(file = DEMO_MANIFEST): PleatkitManifest {
-  if (!fs.existsSync(file)) throw new Error(`${path.relative(REPO_ROOT, file)} is missing: run "pnpm build" first (the eval tasks run against the demo's build manifest).`)
+/** Tasks of several suites (`demo`, `apps`), in that order. */
+export function loadSuites(suites: Suite[], only?: string[]): EvalTask[] {
+  return suites.flatMap((s) => (fs.existsSync(SUITES[s]) ? loadTasks(SUITES[s], only) : []))
+}
+
+export function loadManifest(file = DEMO_MANIFEST, app: AppId = 'demo-crm'): PleatkitManifest {
+  if (!fs.existsSync(file)) throw new Error(`${path.relative(REPO_ROOT, file)} is missing: run "${APPS[app].build}" first (the eval tasks run against the app's build manifest).`)
   return JSON.parse(fs.readFileSync(file, 'utf8')) as PleatkitManifest
+}
+
+/** The build manifest of every app the tasks use. */
+export function loadManifests(tasks: Pick<EvalTask, 'app'>[]): Partial<Record<AppId, PleatkitManifest>> {
+  const apps = [...new Set(tasks.map((t) => t.app))]
+  return Object.fromEntries(apps.map((a) => [a, loadManifest(manifestFile(a), a)]))
 }
 
 export const baseFiles = (m: PleatkitManifest): FileMap => Object.fromEntries(m.dynamic.map((f) => [f.path, f.source]))

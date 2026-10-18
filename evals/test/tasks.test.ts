@@ -31,7 +31,7 @@ describe('task format', () => {
   it('validateTask names each problem', () => {
     const problems = validateTask({ id: 'Bad Id', app: 'other' as never, request: '', expected: { verdict: 'ok', change: true }, images: ['nope.png'], invariants: { forbidden: ['('] } }, 'x.json')
     expect(problems.join('\n')).toMatch(/x\.json: id must be/)
-    expect(problems.join('\n')).toMatch(/app must be "demo-crm"/)
+    expect(problems.join('\n')).toMatch(/app must be one of demo-crm, shadcn-admin, tailadmin/)
     expect(problems.join('\n')).toMatch(/request is required/)
     expect(problems.join('\n')).toMatch(/needs a reference solution/)
     expect(problems.join('\n')).toMatch(/images: nope\.png does not exist/)
@@ -55,7 +55,7 @@ describe('browser checks by text (stage 5)', () => {
   it('a check needs a testid, a text or a panel; classMatches must be a valid expression', () => {
     const t = changeTask({ invariants: { browser: { checks: [{ within: 'customer-card', byText: 'active', classMatches: 'rounded' }, {} as never, { testid: 'x', classMatches: '(' }] } } })
     const problems = validateTask(t, 'y.json').join('\n')
-    expect(problems).toMatch(/checks\[1\] needs testid, byText or within/)
+    expect(problems).toMatch(/checks\[1\] needs testid, byText, within or panel/)
     expect(problems).toMatch(/invalid regular expression \(/)
     expect(problems).not.toMatch(/checks\[0\]/)
   })

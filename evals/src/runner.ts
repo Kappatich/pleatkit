@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { buildPrompt, PROMPT_VERSION, readTranscript, RecordingProvider, runAgent, typecheckFromEnv, type ModelProvider, type TypecheckFn } from '@pleatkit/agent'
 import type { PleatkitManifest } from '@pleatkit/runtime/compiler'
+import { APPS, routeOf, type AppId } from './apps.js'
 import { BudgetExceededError, EvalBudget, gradeBudget } from './budget.js'
 import { gradeRun, type RunResult } from './graders.js'
 import { recordingFile } from './providers.js'
@@ -12,6 +13,11 @@ import type { AgentKind, BrowserInvariants, EvalTask, GraderResult, PromptInfo, 
 /** What the browser grader needs of one run: the files to commit in the demo app and what to look for. */
 export interface BrowserCase {
   taskId: string
+  /** The task's app (absent: the demo) and the route to open there. */
+  app?: AppId
+  path?: string
+  /** Panels that must render on that route after the commit. */
+  panels?: string[]
   files: Record<string, string>
   deleted: string[]
   invariants: BrowserInvariants
@@ -24,7 +30,9 @@ export interface SuiteOptions {
   kind: SuiteResult['kind']
   agent: AgentKind
   tasks: EvalTask[]
-  manifest: PleatkitManifest
+  /** The build manifest tasks run against: one for all (tests), or one per app (`manifests`, preferred when given). */
+  manifest?: PleatkitManifest
+  manifests?: Partial<Record<AppId, PleatkitManifest>>
   providerFor: (task: EvalTask, trial: number) => ModelProvider
   /** Runs per task (default 1): a number, or per task (a replay runs every transcript a set holds). */
   trials?: number | ((task: EvalTask) => number)
@@ -32,11 +40,15 @@ export interface SuiteOptions {
   set?: string
   /** Run the cheap classifier first (default true, as the agent server does). */
   classify?: boolean
+  /** DECISIONS 73.3: parallel (default, as the agent server) or sequential classifier. */
+  classifierMode?: 'parallel' | 'sequential'
   /** The main model of a live run, recorded in the result. */
   model?: string
   budget?: EvalBudget
   /** tsc grader (PLEATKIT_TYPECHECK_ROOT); null skips it. */
   typecheck?: TypecheckFn | null
+  /** tsc grader per app (each app's own node_modules); wins over `typecheck` when given. */
+  typecheckFor?: (app: AppId) => TypecheckFn | null
   /** Playwright grader; null skips it. */
   browser?: BrowserGrader | null
   /** Record every run into `<dir>/<taskId>.jsonl`, or `<taskId>.t<trial>.jsonl` in a named set (RecordingProvider). */
@@ -54,7 +66,9 @@ export const digestsOf = (m: PleatkitManifest): PromptDigests => ({ ...(m.design
 export function promptInfo(manifest: PleatkitManifest, sample: PreparedTask): PromptInfo {
   const parts = buildPrompt(sample.request, undefined, digestsOf(manifest))
   const prefixChars = parts.instructions.length + parts.cached.length
-  return { version: PROMPT_VERSION, prefixChars, prefixTokens: Math.round(prefixChars / 3.5) }
+  // DECISIONS 73.5, counted with the API: the English instructions ≈ 2.9 characters per token, the app's code ≈ 2.2,
+  // the tool definitions ≈ 900 tokens (the old 3.5 characters per token missed 40 % of the demo's 7,467)
+  return { version: PROMPT_VERSION, prefixChars, prefixTokens: Math.round(parts.instructions.length / 2.9 + parts.cached.length / 2.2) + 900 }
 }
 
 const firstTry = (r: RunResult): boolean | null => {
@@ -89,9 +103,15 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
   const log = o.log ?? (() => undefined)
   const budget = o.budget ?? new EvalBudget(null)
   const typecheck = o.typecheck ?? null
+  const manifestOf = (t: Pick<EvalTask, 'app' | 'id'>): PleatkitManifest => {
+    const m = o.manifests?.[t.app] ?? o.manifest
+    if (!m) throw new Error(`no build manifest for ${t.app} (task ${t.id})`)
+    return m
+  }
+  const typecheckOf = (app: AppId): TypecheckFn | null => (o.typecheckFor ? o.typecheckFor(app) : typecheck)
   const startedAt = new Date().toISOString()
   const runs: TaskRun[] = []
-  const prepared = o.tasks.map((t) => prepareTask(t, o.manifest))
+  const prepared = o.tasks.map((t) => prepareTask(t, manifestOf(t)))
   const trialsOf = (t: EvalTask): number => (typeof o.trials === 'function' ? o.trials(t) : (o.trials ?? 1))
   const numbered = o.set !== undefined || o.tasks.some((t) => trialsOf(t) > 1)
   const queue = prepared.flatMap((p) => Array.from({ length: trialsOf(p.task) }, (_, i) => ({ p, trial: i + 1 })))
@@ -123,8 +143,9 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
       protected: p.trusted.protected,
       base: p.trusted.base,
       typecheck: loopTypecheck,
-      digests: digestsOf(o.manifest),
+      digests: digestsOf(manifestOf(task)),
       ...(o.classify === false ? { classify: false } : {}),
+      ...(o.classifierMode ? { classifierMode: o.classifierMode } : {}),
     })
     let recording: TaskRun['recording']
     if (o.recordDir && tmp) {
@@ -144,15 +165,17 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
     results.set(key, result)
     const costUsd = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
     budget.charge(costUsd)
-    const graders = [...(await gradeRun(p, result, typecheck)), gradeBudget(costUsd, cap, result.stopReason, limit)]
+    const graders = [...(await gradeRun(p, result, typecheckOf(task.app))), gradeBudget(costUsd, cap, result.stopReason, limit)]
     runs.push({
       taskId: task.id,
+      ...(task.app !== 'demo-crm' ? { app: task.app } : {}),
       ...(numbered ? { trial } : {}),
       title: task.title,
       agent: o.agent,
       expectedVerdict: task.expected.verdict,
       verdict: result.verdict,
       summary: result.summary,
+      ...(result.backendNote ? { backendNote: result.backendNote } : {}),
       changedFiles: Object.keys(result.files),
       modelCalls: result.modelCalls,
       firstTry: firstTry(result),
@@ -162,6 +185,7 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
       ...(provider.model ? { model: provider.model.replace(/^replay:/, '') } : {}),
       usage: result.usage,
       ms: result.timings.totalMs,
+      timings: result.timings,
       ...(result.stopReason ? { stopReason: result.stopReason } : {}),
       graders,
       pass: false,
@@ -173,14 +197,18 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
 
   const keyOf = (r: TaskRun) => (numbered ? runKey(r.taskId, r.trial) : r.taskId)
   const cases: BrowserCase[] = runs.flatMap((r) => {
-    const inv = o.tasks.find((t) => t.id === r.taskId)!.invariants?.browser
+    const task = o.tasks.find((t) => t.id === r.taskId)!
+    const inv = task.invariants?.browser
     const res = results.get(keyOf(r))!
-    return inv ? [{ taskId: keyOf(r), files: res.files, deleted: res.deleted, invariants: inv }] : []
+    if (!inv) return []
+    const route = inv.path ?? routeOf(task.app, task.target ?? inv.checks.find((c) => c.panel)?.panel)
+    const app = task.app !== 'demo-crm' ? { app: task.app, path: route, panels: APPS[task.app].panels[route] ?? [] } : {}
+    return [{ taskId: keyOf(r), ...app, files: res.files, deleted: res.deleted, invariants: inv }]
   })
   let browserResults: Record<string, GraderResult> = {}
   const browserRan = Boolean(o.browser && cases.length)
   if (o.browser && cases.length) {
-    log(`browser: ${cases.length} case(s) in the demo app (headless)`)
+    log(`browser: ${cases.length} case(s) in ${[...new Set(cases.map((c) => c.app ?? 'demo-crm'))].join(', ')} (headless)`)
     browserResults = await o.browser(cases)
   }
   for (const r of runs) {
@@ -200,7 +228,7 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
     kind: o.kind,
     startedAt,
     finishedAt: new Date().toISOString(),
-    prompt: promptInfo(o.manifest, prepared[0] ?? prepareTask(o.tasks[0]!, o.manifest)),
+    prompt: suitePromptInfo(o.tasks, manifestOf, prepared),
     budget: { capUsd: budget.capUsd, spentUsd: budget.spentUsd },
     ...(aborted ? { aborted } : {}),
     browser: browserRan ? 'ran' : 'skipped',
@@ -208,8 +236,25 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
     ...(o.set !== undefined ? { set: o.set } : {}),
     ...(o.model ? { model: o.model } : {}),
     ...(o.classify === false ? { classifier: false } : {}),
+    ...(o.classifierMode === 'sequential' ? { classifierMode: 'sequential' as const } : {}),
     runs,
   }
+}
+
+/** promptInfo of the first task's app; with several apps, each app's prefix too. */
+function suitePromptInfo(tasks: EvalTask[], manifestOf: (t: EvalTask) => PleatkitManifest, prepared: PreparedTask[]): PromptInfo {
+  const first = prepared[0] ?? prepareTask(tasks[0]!, manifestOf(tasks[0]!))
+  const info = promptInfo(manifestOf(first.task), first)
+  const apps = [...new Set(tasks.map((t) => t.app))]
+  if (apps.length < 2) return info
+  const byApp = Object.fromEntries(
+    apps.map((a) => {
+      const p = prepared.find((x) => x.task.app === a)!
+      const i = promptInfo(manifestOf(p.task), p)
+      return [a, { prefixChars: i.prefixChars, prefixTokens: i.prefixTokens }]
+    }),
+  )
+  return { ...info, byApp }
 }
 
 export const passRate = (s: Pick<SuiteResult, 'runs'>): number => (s.runs.length ? s.runs.filter((r) => r.pass).length / s.runs.length : 0)

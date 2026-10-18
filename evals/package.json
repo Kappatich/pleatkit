@@ -12,7 +12,9 @@
     "replay": "tsx src/cli.ts replay",
     "sanity": "tsx src/cli.ts sanity",
     "pin": "tsx src/cli.ts pin",
-    "report": "tsx src/cli.ts report"
+    "report": "tsx src/cli.ts report",
+    "classify": "tsx src/classifier-probe.ts",
+    "summarize": "tsx src/summarize.ts"
   },
   "dependencies": {
     "@pleatkit/agent": "workspace:*",

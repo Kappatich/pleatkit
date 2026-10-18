@@ -9,7 +9,8 @@ import { recordingFile, replayProvider, scriptedProvider, trialsIn } from './pro
 import { renderReport, type SanityResult } from './report.js'
 import { passRate, runKey, runSuite } from './runner.js'
 import { runSanity } from './sanity.js'
-import { BASELINE_FILE, baselineFileOf, DEMO_DIR, loadManifest, loadTasks, REPO_ROOT, REPORT_FILE, RESULTS_DIR, SCRIPTED_BASELINE_FILE, setDir } from './tasks.js'
+import { typecheckRootOf, type AppId } from './apps.js'
+import { BASELINE_FILE, baselineFileOf, loadManifests, loadSuites, REPO_ROOT, REPORT_FILE, RESULTS_DIR, SCRIPTED_BASELINE_FILE, setDir, SUITES, type Suite } from './tasks.js'
 import type { Baseline, EvalTask, SuiteResult, TaskRun } from './types.js'
 
 /**
@@ -22,7 +23,8 @@ import type { Baseline, EvalTask, SuiteResult, TaskRun } from './types.js'
  * pnpm eval:sanity   reference solutions pass every grader; the null agent fails every task that needs a change
  * pnpm eval:pin      pin the last replay results as evals/baseline.json
  * pnpm eval:report   write evals/report/index.html from the last replay (and sanity) results
- * Options: --only <id,id>, --set <name>, --no-browser (skip Playwright), --no-typecheck (skip tsc); report: --from
+ * Options: --tasks demo|apps|all (default demo; a replay of a named set takes every task it has transcripts for),
+ * --only <id,id>, --set <name>, --no-browser (skip Playwright), --no-typecheck (skip tsc); report: --from
  * record|replay, --baseline scripted|live|<file>, --out <file>.
  */
 const args = process.argv.slice(2)
@@ -38,9 +40,14 @@ const rel = (p: string) => path.relative(REPO_ROOT, p).replace(/\\/g, '/')
 /** A path the user typed: relative to where pnpm was run (INIT_CWD), not to evals/ where the script runs. */
 const fromCaller = (p: string) => path.resolve(process.env.INIT_CWD ?? process.cwd(), p)
 const resultFile = (name: string) => path.join(RESULTS_DIR, `${name}.json`)
-/** `--set <name>`: a named set of transcripts under evals/recordings/<name>/ (a live record defaults to `live`). */
-const set = value('set') ?? (command === 'record' && flag('live') ? 'live' : undefined)
+/** `--tasks demo|apps|all`: the task suites (the demo's 14, the foreign apps' 35). */
+const tasksArg = value('tasks') ?? 'demo'
+const suites: Suite[] = tasksArg === 'all' ? ['demo', 'apps'] : (tasksArg.split(',') as Suite[])
+/** `--set <name>`: a named set of transcripts under evals/recordings/<name>/ (a live record defaults to `live`, or `apps` for the apps suite). */
+const set = value('set') ?? (command === 'record' && flag('live') ? (tasksArg === 'apps' ? 'apps' : 'live') : undefined)
 const resultName = (kind: string) => (set ? `${kind}-${set}` : kind)
+/** The sanity results of a suite: `sanity` (demo), `sanity-apps`, `sanity-all`. */
+const sanityName = tasksArg === 'demo' ? 'sanity' : `sanity-${tasksArg}`
 
 function save(name: string, data: unknown): void {
   fs.mkdirSync(RESULTS_DIR, { recursive: true })
@@ -50,12 +57,19 @@ function load<T>(file: string): T | null {
   return fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, 'utf8')) as T) : null
 }
 
-/** DECISIONS 63.4: tsc runs when the app's node_modules are found (PLEATKIT_TYPECHECK_ROOT, else the demo app). */
-function typecheck() {
+/**
+ * DECISIONS 63.4: tsc runs when the app's node_modules are found: PLEATKIT_TYPECHECK_ROOT for every app when it is
+ * set (empty: off), else each app's own folder.
+ */
+const typecheckers = new Map<AppId, ReturnType<typeof typecheckerFromEnv>>()
+function typecheckFor(app: AppId) {
   if (flag('no-typecheck')) return null
-  const env = { ...process.env }
-  if (env.PLEATKIT_TYPECHECK_ROOT === undefined && fs.existsSync(path.join(DEMO_DIR, 'node_modules', 'react'))) env.PLEATKIT_TYPECHECK_ROOT = DEMO_DIR
-  return typecheckerFromEnv(env)
+  if (!typecheckers.has(app)) {
+    const env = { ...process.env }
+    if (env.PLEATKIT_TYPECHECK_ROOT === undefined) env.PLEATKIT_TYPECHECK_ROOT = typecheckRootOf(app) ?? ''
+    typecheckers.set(app, typecheckerFromEnv(env))
+  }
+  return typecheckers.get(app)!
 }
 const browser = () => (flag('no-browser') || process.env.PLEATKIT_EVAL_BROWSER === '0' ? null : playwrightGrader({ log }))
 
@@ -75,11 +89,19 @@ async function main(): Promise<number> {
     console.error(`--set must be lower-case letters, digits, dots and dashes, got "${set}"`)
     return 2
   }
-  const manifest = command === 'pin' || command === 'report' ? null : loadManifest()
-  const tasks = command === 'pin' || command === 'report' ? [] : loadTasks(undefined, only)
+  for (const su of suites) if (!(su in SUITES)) {
+    console.error(`--tasks must be demo, apps or all, got "${tasksArg}"`)
+    return 2
+  }
+  // a replay of a named set runs every task it holds transcripts for, whatever its suite
+  const loadFrom: Suite[] = command === 'replay' && set && !value('tasks') ? ['demo', 'apps'] : suites
+  const tasks = command === 'pin' || command === 'report' ? [] : loadSuites(loadFrom, only)
+  if (command === 'replay' && set) for (let i = tasks.length - 1; i >= 0; i--) if (!trialsIn(tasks[i]!.id, setDir(set)).length) tasks.splice(i, 1)
+  const manifests = command === 'pin' || command === 'report' ? {} : loadManifests(tasks)
   const budget = new EvalBudget(budgetFromEnv())
   const dir = setDir(set)
   const classify = !flag('no-classifier')
+  const classifierMode = flag('sequential-classifier') ? ('sequential' as const) : undefined
 
   switch (command) {
     case 'record': {
@@ -101,14 +123,15 @@ async function main(): Promise<number> {
         kind: 'record',
         agent: live ? 'live' : 'scripted',
         tasks: run,
-        manifest: manifest!,
+        manifests,
         providerFor: (t) => provider ?? scriptedProvider(t),
         trials,
         ...(set ? { set } : {}),
         classify,
+        ...(classifierMode ? { classifierMode } : {}),
         ...(provider ? { model: provider.model } : {}),
         budget,
-        typecheck: typecheck(),
+        typecheckFor,
         // a live run is graded in the browser right away: its timings are the real ones, a replay's are not
         browser: live ? browser() : null,
         recordDir: dir,
@@ -133,7 +156,7 @@ async function main(): Promise<number> {
         kind: 'replay',
         agent: 'replay',
         tasks: inSet,
-        manifest: manifest!,
+        manifests,
         ...(set
           ? {
               set,
@@ -143,8 +166,9 @@ async function main(): Promise<number> {
             }
           : { providerFor: (t: EvalTask) => replayProvider(t), recordingOf: (t: EvalTask) => recordingFile(t.id) }),
         classify,
+        ...(classifierMode ? { classifierMode } : {}),
         budget,
-        typecheck: typecheck(),
+        typecheckFor,
         browser: browser(),
         log,
       })
@@ -162,8 +186,8 @@ async function main(): Promise<number> {
       return d.regressions.length || s.aborted ? 1 : 0
     }
     case 'sanity': {
-      const r = await runSanity({ tasks, manifest: manifest!, budget, typecheck: typecheck(), browser: browser(), log })
-      save('sanity', r)
+      const r = await runSanity({ tasks, manifests, budget, typecheckFor, browser: browser(), log })
+      save(sanityName, r)
       log(summary(r.reference))
       log(summary(r.null))
       if (r.problems.length) {
@@ -202,7 +226,7 @@ async function main(): Promise<number> {
       }
       const b = value('baseline')
       const baseFile = b === 'scripted' ? SCRIPTED_BASELINE_FILE : b === 'live' ? BASELINE_FILE : b ? fromCaller(b) : baselineFileOf(set)
-      const html = renderReport(s, load<Baseline>(baseFile), set ? null : load<SanityResult>(resultFile('sanity')))
+      const html = renderReport(s, load<Baseline>(baseFile), set ? null : load<SanityResult>(resultFile(sanityName)))
       const out = value('out') ? fromCaller(value('out')!) : REPORT_FILE
       fs.mkdirSync(path.dirname(out), { recursive: true })
       fs.writeFileSync(out, html)

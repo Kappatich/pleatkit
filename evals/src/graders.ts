@@ -50,7 +50,7 @@ export function typecheckerFromEnv(env: Record<string, string | undefined> = pro
 /** Text invariants: files that must keep testids and props, forbidden patterns, files that must stay as they were. */
 export function gradeInvariants(p: PreparedTask, result: RunResult): GraderResult {
   const inv = p.task.invariants
-  if (!inv || (!inv.files?.length && !inv.forbidden?.length && !inv.unchanged?.length)) return { grader: 'invariants', pass: true, skipped: true, reason: 'no text invariants' }
+  if (!inv || (!inv.files?.length && !inv.forbidden?.length && !inv.unchanged?.length && !inv.anyMustMatch?.length)) return { grader: 'invariants', pass: true, skipped: true, reason: 'no text invariants' }
   const final = finalFiles(p.start, result)
   const problems: string[] = []
   for (const f of inv.files ?? []) {
@@ -67,6 +67,10 @@ export function gradeInvariants(p: PreparedTask, result: RunResult): GraderResul
   for (const r of inv.forbidden ?? []) {
     const re = new RegExp(r, 'm')
     for (const [path, src] of Object.entries(result.files)) if (re.test(src)) problems.push(`${path} has the forbidden pattern /${r}/`)
+  }
+  for (const r of inv.anyMustMatch ?? []) {
+    const re = new RegExp(r, 'm')
+    if (!Object.values(final).some((src) => re.test(src))) problems.push(`no dynamic file matches /${r}/`)
   }
   for (const path of inv.unchanged ?? []) if (path in result.files || result.deleted.includes(path)) problems.push(`${path} was changed`)
   return problems.length ? { grader: 'invariants', pass: false, reason: problems.join('; ') } : { grader: 'invariants', pass: true, reason: 'all text invariants hold' }

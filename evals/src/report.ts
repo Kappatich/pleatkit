@@ -52,6 +52,7 @@ export function renderReport(s: SuiteResult, baseline: Baseline | null, sanity: 
     ['Cache hit rate', pct(hit), `cacheHitRate() over every call${m.mainCacheHitRate !== null ? `; main model only ${pct(m.mainCacheHitRate)}` : ''}; H1: ≥ 80 %`],
     ['Cost per edit', m.costPerEdit.runs ? `median $${m.costPerEdit.median.toFixed(4)}` : '—', `max $${m.costPerEdit.max.toFixed(4)} over ${m.costPerEdit.runs} runs that changed files; per request median ${usd(m.costPerRequest.median)}; H4: ≤ $0.10`],
     ['Latency', `median ${secs(m.latencyMs.median)}`, `p90 ${secs(m.latencyMs.p90)}, max ${secs(m.latencyMs.max)}${s.kind === 'replay' ? ' (replay: not model latency)' : ''}; H5: p95 ≤ 45 s`],
+    ['Edit latency', m.editLatencyMs.runs ? `median ${secs(m.editLatencyMs.median)}` : '—', `p95 ${secs(m.editLatencyMs.p95)} over ${m.editLatencyMs.runs} runs that changed files; answered by the classifier alone: median ${secs(m.classifierOnlyMs.median)} (${m.classifierOnlyMs.runs})${m.overlapMs.runs ? `; parallel start saved median ${secs(m.overlapMs.median)} (${m.overlapMs.runs} runs)` : ''}`],
     ['Model calls', `median ${median(s.runs.filter((r) => r.modelCalls > 0).map((r) => r.modelCalls))}`, `${s.runs.reduce((t, r) => t + r.modelCalls, 0)} in total; H3: median ≤ 3`],
     ['First try', firstTries.length ? pct(firstTries.filter((r) => r.firstTry).length / firstTries.length) : '—', `of ${firstTries.length} runs that wrote files; H2: ≥ 70 %`],
     ['Prompt', s.prompt.version, `prefix ≈ ${num(s.prompt.prefixTokens)} tokens${d.prompt.prefixTokensBaseline !== null && d.prompt.prefixTokensBaseline !== s.prompt.prefixTokens ? ` (baseline ${num(d.prompt.prefixTokensBaseline)}, ${s.prompt.prefixTokens > d.prompt.prefixTokensBaseline ? '+' : ''}${num(s.prompt.prefixTokens - d.prompt.prefixTokensBaseline)})` : ''}`],
@@ -65,6 +66,17 @@ export function renderReport(s: SuiteResult, baseline: Baseline | null, sanity: 
   if (unpriced.length) notes.push(`<p class="note">${cost === 0 ? 'Cost is $0 because the answers come' : 'Part of the answers come'} from models without a price (${unpriced.map(esc).join(', ')}): scripted or replayed runs. The accounting is the same path a live run uses.</p>`)
   if (s.browser === 'skipped') notes.push('<p class="note">The browser grader did not run (--no-browser).</p>')
   if (s.typecheck === 'skipped') notes.push('<p class="note">The tsc grader did not run (PLEATKIT_TYPECHECK_ROOT empty).</p>')
+
+  // stage 5 block 2: the foreign apps next to the demo, one row per app
+  const apps = [...new Set(s.runs.map((r) => r.app ?? 'demo-crm'))]
+  const appRows = apps
+    .map((a) => {
+      const runs = s.runs.filter((r) => (r.app ?? 'demo-crm') === a)
+      const am = seriesMetrics({ runs })
+      const prefix = s.prompt.byApp?.[a as keyof NonNullable<typeof s.prompt.byApp>]?.prefixTokens ?? (apps.length === 1 ? s.prompt.prefixTokens : null)
+      return `<tr><td><b>${esc(a)}</b></td><td class="n">${am.passed} / ${am.runs} (${pct(am.runs ? am.passed / am.runs : 0)})</td><td class="n">${am.tasksAllPass} / ${am.tasks.length}</td><td class="n">${am.firstTry.of ? `${am.firstTry.yes} / ${am.firstTry.of}` : '—'}</td><td class="n">${am.modelCalls.median}</td><td class="n">${am.costPerEdit.runs ? `$${am.costPerEdit.median.toFixed(4)}` : '—'}</td><td class="n">${am.editLatencyMs.runs ? secs(am.editLatencyMs.median) : '—'}</td><td class="n">${pct(am.mainCacheHitRate)}</td><td class="n">${prefix === null ? '—' : '≈ ' + num(prefix)}</td></tr>`
+    })
+    .join('')
 
   const graderRows = GRADERS.map((g) => {
     const r = rates[g]
@@ -127,6 +139,8 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 ${notes.join('\n')}
 <h2>Against the baseline</h2>
 ${baseline ? `<p>Pass rate ${pct(d.passRate.baseline)} → ${pct(d.passRate.now)}; prompt ${esc(d.prompt.baseline)} → ${esc(d.prompt.now)}; cost ${usd(d.cost.baseline)} → ${usd(d.cost.now)}. Regressed: ${d.regressions.length ? d.regressions.map(esc).join(', ') : 'none'}. Fixed: ${d.fixes.length ? d.fixes.map(esc).join(', ') : 'none'}. New tasks: ${d.added.length ? d.added.map(esc).join(', ') : 'none'}.${d.missing.length ? ` Not in this run: ${d.missing.map(esc).join(', ')}.` : ''}</p>` : '<p>No baseline pinned yet: <code>pnpm eval:pin</code> pins the current results.</p>'}
+${apps.length > 1 || apps[0] !== 'demo-crm' ? `<h2>By app</h2>
+<div class="wrap"><table><thead><tr><th>App</th><th class="n">Passed</th><th class="n">Tasks, every trial</th><th class="n">First try</th><th class="n">Calls (median)</th><th class="n">Cost per edit (median)</th><th class="n">Edit latency (median)</th><th class="n">Cache, main model</th><th class="n">Prefix tokens</th></tr></thead><tbody>${appRows}</tbody></table></div>` : ''}
 <h2>Graders</h2>
 <div class="wrap"><table><thead><tr><th>Grader</th><th class="n">Pass rate</th><th class="n">Passed</th><th class="n">Not applicable</th></tr></thead><tbody>${graderRows}</tbody></table></div>
 ${trials ? `<h2>Tasks across trials</h2>
