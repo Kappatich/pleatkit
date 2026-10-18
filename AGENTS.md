@@ -1,6 +1,6 @@
 # AGENTS.md
 
-For coding agents working in this repository (DECISIONS 43: under 200 lines). For agents installing morphkit into
+For coding agents working in this repository (DECISIONS 43: under 200 lines). For agents installing pleatkit into
 another app, read [`docs/for-agents/AGENTS.md`](docs/for-agents/AGENTS.md) instead.
 
 ## Read first, in this order
@@ -17,7 +17,7 @@ another app, read [`docs/for-agents/AGENTS.md`](docs/for-agents/AGENTS.md) inste
 |---|---|---|
 | `packages/runtime` | browser runtime: engine, `check` (shared with the server), loader, stores, React bindings | MIT; no Node APIs in `src/` |
 | `packages/agent` | agent server: model loop, tools, providers, bundle signing, alerts | MIT |
-| `packages/store-server` | snapshots, heads, request log, quotas, audit, facts | private (morphkit-cloud) |
+| `packages/store-server` | snapshots, heads, request log, quotas, audit, facts | private (pleatkit-cloud) |
 | `packages/vite-plugin` | zones, manifest, digests, externals | MIT |
 | `packages/ui` | chat drawer | the architect owns the look; ask before touching |
 | `packages/cli` | doctor, ping, keys, export, check-snapshots | MIT |
@@ -35,7 +35,7 @@ cd examples/t1-vite && pnpm build && pnpm smoke                    # the docs st
 ```
 
 No model key is needed: the agent runs the `scripted` provider (recorded answers in `apps/demo-crm/e2e/fixtures/agent`).
-`pnpm agent:live` and `pnpm e2e:live` need `MORPHKIT_API_KEY` and spend money; never run them without being asked.
+`pnpm agent:live` and `pnpm e2e:live` need `PLEATKIT_API_KEY` and spend money; never run them without being asked.
 
 ## Rules
 
@@ -53,5 +53,5 @@ No model key is needed: the agent runs the `scripted` provider (recorded answers
 
 - Wire protocol browser ↔ agent: `packages/runtime/src/protocol.ts`.
 - The one `check`: `packages/runtime/src/compiler.ts` (`Compiler.compile`) + `check.ts` (rules).
-- Server trust: the agent takes context, readonly sources and types from `MORPHKIT_MANIFEST` (`packages/agent/src/manifest.ts`).
+- Server trust: the agent takes context, readonly sources and types from `PLEATKIT_MANIFEST` (`packages/agent/src/manifest.ts`).
 - Incidents: `docs/ops/incident.md`. Production setup: `docs/for-agents/production.md`.

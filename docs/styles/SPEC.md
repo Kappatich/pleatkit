@@ -1,6 +1,6 @@
 # Style gallery spec (for the five research agents)
 
-Product: morphkit. An AI agent rewrites the React UI panels a developer allows, per user, with undo, history and an admin dashboard. Surfaces that need a visual language: a chat drawer inside a customer's app ("ask for a change"), a version history, an admin dashboard with requests/diffs, a landing page.
+Product: pleatkit. An AI agent rewrites the React UI panels a developer allows, per user, with undo, history and an admin dashboard. Surfaces that need a visual language: a chat drawer inside a customer's app ("ask for a change"), a version history, an admin dashboard with requests/diffs, a landing page.
 
 Goal: 20 genuinely different design directions per agent, 100 total. Minte's rule: NOT the same layout in different colours, NOT different palettes over the same card/button set. Each direction must bring its OWN components, taken from a real non-AI visual tradition (print, instruments, software history, cartography/engineering, graphic design movements). They must still fit a developer-facing B2B product: readable, usable, not a joke.
 
@@ -32,7 +32,7 @@ Write ONE file: `styles-<LETTER>.json` (the letter is given in your task) in the
 - Root: `<div class="tile s-<id>">` containing a `<style>` whose EVERY rule is prefixed with `.s-<id> ` (scoping). No global selectors, no `body`, no `*`. No external scripts. No images except inline SVG you write yourself (small). No `<link>` tags (fonts are declared in `fonts`).
 - Fixed tile width is set by the gallery (360px); make the content fit at 360px wide, any height up to ~560px. Use `font-size` 11–15px.
 - The tile must show, in that style's own vocabulary (not a generic card):
-  1. a header strip with the product name "morphkit" and a zone/panel label (e.g. "customer-card.tsx · dynamic"),
+  1. a header strip with the product name "pleatkit" and a zone/panel label (e.g. "customer-card.tsx · dynamic"),
   2. a customer panel with 3 fields (Email hank@globex.example · City Springfield · Next payment Oct 11, 2026 overdue) where "overdue" is visually marked,
   3. a user request line: "Add phone and city; overdue in red",
   4. three progress lines (Reading the card · Changing the fields · Checking the build) with the last one in a "done" state,

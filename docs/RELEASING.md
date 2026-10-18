@@ -1,6 +1,6 @@
-# Releasing morphkit to npm (V1 A6)
+# Releasing pleatkit to npm (V1 A6)
 
-Nothing is published yet: the `@morphkit` scope and the npm account belong to Minte (DECISIONS 27). This
+Nothing is published yet: the `@pleatkit` scope and the npm account belong to Minte (DECISIONS 27). This
 page is the prepared path, so the first release is a checklist, not a project.
 
 ## Principles
@@ -11,19 +11,19 @@ page is the prepared path, so the first release is a checklist, not a project.
 - **Provenance on every package.** `.npmrc` sets `provenance=true` and every public package has
   `publishConfig.provenance: true`, so npm shows which commit and workflow built the tarball.
 - **2FA on the npm account** (auth and writes) and on the GitHub account that owns the repository.
-- Only the MIT packages are published: `@morphkit/runtime`, `@morphkit/vite-plugin`, `@morphkit/ui`,
-  `@morphkit/agent`, `@morphkit/cli`. `@morphkit/store-server` is `private` and never published (F12).
+- Only the MIT packages are published: `@pleatkit/runtime`, `@pleatkit/vite-plugin`, `@pleatkit/ui`,
+  `@pleatkit/agent`, `@pleatkit/cli`. `@pleatkit/store-server` is `private` and never published (F12).
 
 ## One-time setup (Minte)
 
-1. Create the npm organization `morphkit` (scope `@morphkit`); enable "Require two-factor authentication"
+1. Create the npm organization `pleatkit` (scope `@pleatkit`); enable "Require two-factor authentication"
    for the organization.
 2. For the very first version of each package, trusted publishing cannot be configured before the package
    exists. Either publish `0.0.0-placeholder` once from Minte's machine with 2FA
    (`npm publish --access public` in each package, then deprecate it), or use npm's "pending trusted
    publisher" if the account has it.
 3. On npmjs.com, for each of the five packages: Settings → Trusted publishing → GitHub Actions, repository
-   `Kappatich/morphkit`, workflow `release.yml`, environment `npm`.
+   `Kappatich/pleatkit`, workflow `release.yml`, environment `npm`.
 4. In GitHub: create the environment `npm` with a required reviewer (Minte), so a release always needs a click.
 5. Copy `docs/release/release.yml` to `.github/workflows/release.yml` and push it.
 

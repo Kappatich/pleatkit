@@ -1,4 +1,4 @@
-/* morphkit site, design v3: Swiss grid poster + SBB timetable. See docs/DESIGN.md */
+/* pleatkit site, design v3: Swiss grid poster + SBB timetable. See docs/DESIGN.md */
 :root {
   --paper: #ffffff; --paper-2: #f4f4f2; --canvas: #ececea;
   --ink: #111111; --ink-2: #4a4a4a; --ink-3: #8a8a8a;
@@ -129,7 +129,7 @@ nav.links .btn { padding: 7px 12px; font-size: 13px; }
 .pane .due { color: var(--ink-3); font: 12px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pane .due.overdue { color: var(--red-ink); font-weight: 600; }
 
-/* the drawer, as in @morphkit/ui */
+/* the drawer, as in @pleatkit/ui */
 .drawer { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto; min-width: 0; }
 .drawer-head { display: flex; align-items: center; gap: 4px; padding: 12px 10px 8px 14px; }
 .drawer-head b { font: 700 17px var(--sans); letter-spacing: -.02em; margin-right: auto; }

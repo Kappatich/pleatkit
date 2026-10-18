@@ -1,16 +1,16 @@
-# morphkit
+# pleatkit
 
-> morphkit lets users of a React + Vite app change its interface by asking an in-app agent. The agent rewrites only the files you mark as dynamic; each change is compiled on the agent server (or in the browser with esbuild-wasm), signed, loaded from the app's own origin, swapped in without a reload, and saved as that user's own version with undo, history and admin rollback. MIT, bring your own model key (the key stays on your agent server).
+> pleatkit lets users of a React + Vite app change its interface by asking an in-app agent. The agent rewrites only the files you mark as dynamic; each change is compiled on the agent server (or in the browser with esbuild-wasm), signed, loaded from the app's own origin, swapped in without a reload, and saved as that user's own version with undo, history and admin rollback. MIT, bring your own model key (the key stays on your agent server).
 
 Version 0.1.0 (2026-10-18). Not on npm yet: install from a local checkout with `link:` (see install). Supported: Vite 6 to 8, React 18 or 19, TypeScript 5, optional Tailwind 4. Not supported: Next.js, webpack.
 
-## For coding agents installing morphkit
+## For coding agents installing pleatkit
 
-- [AGENTS.md](docs/for-agents/AGENTS.md): what morphkit is, zones, invariants, the order of work
+- [AGENTS.md](docs/for-agents/AGENTS.md): what pleatkit is, zones, invariants, the order of work
 - [install.md](docs/for-agents/install.md): steps 0 to 7, each with command, expected output, and what to do if it differs
-- [verify.md](docs/for-agents/verify.md): acceptance checks (`morphkit doctor`, `morphkit ping`, an edit in the browser, no key in the bundle)
+- [verify.md](docs/for-agents/verify.md): acceptance checks (`pleatkit doctor`, `pleatkit ping`, an edit in the browser, no key in the bundle)
 - [troubleshooting.md](docs/for-agents/troubleshooting.md): symptom, cause, command
-- [examples/t1-vite](examples/t1-vite): a fresh `create vite` app with morphkit installed by following the docs; `pnpm smoke` checks it end to end
+- [examples/t1-vite](examples/t1-vite): a fresh `create vite` app with pleatkit installed by following the docs; `pnpm smoke` checks it end to end
 
 ## Reference
 
@@ -22,11 +22,11 @@ Version 0.1.0 (2026-10-18). Not on npm yet: install from a local checkout with `
 
 ## Packages
 
-- `@morphkit/vite-plugin`: zones, manifest, externals registry, fallback bundle, runtime Tailwind module
-- `@morphkit/runtime`: `MorphkitProvider`, `<Dynamic id>`, snapshots, compiler, `LocalStore`, `HttpStore`
-- `@morphkit/ui`: `MorphkitChat` (chat drawer, screenshots, clarifying question, undo, history)
-- `@morphkit/agent`: agent server (`morphkit-agent`), providers anthropic / openai-compatible / scripted
-- `@morphkit/cli`: `morphkit doctor`, `morphkit ping`, `morphkit keys`, `morphkit export`
+- `@pleatkit/vite-plugin`: zones, manifest, externals registry, fallback bundle, runtime Tailwind module
+- `@pleatkit/runtime`: `PleatkitProvider`, `<Dynamic id>`, snapshots, compiler, `LocalStore`, `HttpStore`
+- `@pleatkit/ui`: `PleatkitChat` (chat drawer, screenshots, clarifying question, undo, history)
+- `@pleatkit/agent`: agent server (`pleatkit-agent`), providers anthropic / openai-compatible / scripted
+- `@pleatkit/cli`: `pleatkit doctor`, `pleatkit ping`, `pleatkit keys`, `pleatkit export`
 
 ## Optional
 

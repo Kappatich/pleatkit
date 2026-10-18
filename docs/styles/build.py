@@ -65,7 +65,7 @@ page = f'''<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Style gallery</title>
-<meta name="description" content="{len(styles)} направлений дизайна для morphkit: каждое со своими компонентами, палитрой и шрифтами, без ИИ-клише.">
+<meta name="description" content="{len(styles)} направлений дизайна для pleatkit: каждое со своими компонентами, палитрой и шрифтами, без ИИ-клише.">
 {font_link}
 <style>
   :root {{ --bg: #ffffff; --fg: #111; --mute: #666; --line: #ddd; --chip: #f2f2f2; --pick: #ffd500; }}
