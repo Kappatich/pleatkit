@@ -2,10 +2,10 @@
 
 All notable changes to the pleatkit packages. Versions follow semver; while they are `0.x`, a minor version may
 break, and every break is marked **Breaking** with its migration step. Policy: README, "Changelog and breaking
-changes". Nothing is published to npm yet. 0.2.0 is the first public release; it contains everything below, the
+changes". Nothing is published to npm yet. 0.3.0 is the first public release; it contains everything below, the
 "Unreleased" sections included (they are the stages that led to it).
 
-## 0.2.0 (prepared 2026-10-18, not published yet)
+## 0.3.0 (prepared 2026-10-18, not published yet; numbered 0.3.0 at the founder's request, there was no 0.2.0)
 
 ### Added
 - **The store is open source.** `@pleatkit/store-server` is MIT and published (DECISIONS 70.1): snapshots, heads,

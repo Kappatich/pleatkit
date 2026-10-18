@@ -11,7 +11,7 @@ import { bugReport } from './report.js'
 import fs from 'node:fs'
 import { track } from '@pleatkit/vite-plugin'
 
-const VERSION = '0.2.0'
+const VERSION = '0.3.0'
 /** F8: one anonymous event per command (PLEATKIT_TELEMETRY=0 turns it off; README "Telemetry"). */
 const event = (name: string, props: Record<string, string | number | boolean> = {}) => track(name, props, { source: { package: '@pleatkit/cli', version: VERSION } })
 

@@ -17,7 +17,7 @@ export { track, telemetryStatus, sanitizeProps, TELEMETRY_ENDPOINT, type Telemet
 
 export const MANIFEST_FILE = 'pleatkit.manifest.json'
 /** Version reported in telemetry events (F8). */
-export const PLUGIN_VERSION = '0.2.0'
+export const PLUGIN_VERSION = '0.3.0'
 /** Dev-server path of the isolated-panel host script (under `base`). */
 export const ISOLATED_DEV_PATH = '@pleatkit/isolated-host.js'
 /** Built file name prefix of the isolated-panel host script (`assets/pleatkit-isolated-host-<hash>.js`). */
