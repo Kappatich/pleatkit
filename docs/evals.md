@@ -185,3 +185,25 @@ sequential classifier: the A/B), `probe-5b`, `probe-5d`, `apps-5d-probe` (small 
 
 The classifier and the main model start together by default (DECISIONS 73.3); `--sequential-classifier` waits for the
 classifier as before, for comparisons. A run's `timings.overlapMs` is the time the parallel start saved.
+
+## Stage 5, block 3
+
+- **The loop type-checks.** Every run (record, replay, sanity) runs the agent loop with the same type check as the
+  agent server (DECISIONS 74.2: on when the app's `node_modules` are found), against each app's own packages.
+  `--no-loop-typecheck` (or `--no-typecheck`, or `PLEATKIT_TYPECHECK=0`) runs the loop without it, as before.
+- **`pnpm eval:cancel -- --tasks all`** (needs `PLEATKIT_API_KEY`, a few cents per task): for every task the classifier
+  answers alone, the request as the server runs it (the streamed early call, cancelled when the classifier answers;
+  `cancelledCall` says what the stream had reported) and the same first call plain and to its end (what a plain cancel
+  could at most have billed). Writes `evals/results/cancel-probe.json`. `--only`, `--skip-before`.
+- **`eval:classify`** takes `--probes <file>` (requests that are not tasks: `evals/probes/*.json`, `{ id, app, request,
+  expected }`), `--repeat n` (the classifier is noisy on mixed requests), `--out <name>`, and prints how many labels route
+  right and how much of the classifier's input came from the prompt cache:
+
+```bash
+pnpm eval:classify -- --probes evals/probes/mixed-requests.json --repeat 3 --out mixed-after
+pnpm eval:classify -- --tasks all --only crm-10-partial-phone-history,sa-15-tasks-days-left-and-reminders --repeat 5
+```
+
+Sets of this block: `apps-5f` (Sonnet 5.5, prompt 5f, 35 × 1), `probe-5f` (the five demo smoke tasks, sa-12, crm-10,
+sa-15, × 2), `probe-5f-haiku` (sa-12 and ta-09 with Haiku 5.5 as the editor). Numbers: the "Block 3" section of
+[`evals/REPORT-2026-10-18-foreign.md`](../evals/REPORT-2026-10-18-foreign.md#block-3); the probe results are kept in `evals/probes/results/` (`evals/results/` is not committed).
