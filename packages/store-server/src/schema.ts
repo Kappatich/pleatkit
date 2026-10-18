@@ -280,6 +280,70 @@ export const agentRuns = sqliteTable(
   (t) => [primaryKey({ columns: [t.appId, t.userId, t.key] })],
 )
 
+/**
+ * C10: one bulk carry-over of the users' edits to a new release (`pleatkit carry-over --release <hash>`). The run is
+ * resumable: its items say which users are done; `spent_usd` is the sum of their model cost, checked against the
+ * budget on every resume. A rollback moves every head the run set back to the head before it.
+ */
+export const releases = sqliteTable(
+  'releases',
+  {
+    appId: text('app_id').notNull(),
+    release: text('release').notNull(),
+    /** running | done | budget | rolled-back */
+    status: text('status').notNull(),
+    budgetUsd: real('budget_usd').notNull(),
+    spentUsd: real('spent_usd').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    rolledBackAt: text('rolled_back_at'),
+  },
+  (t) => [primaryKey({ columns: [t.appId, t.release] })],
+)
+
+/** C10: what the carry-over did for one user: the head before and after, how, and what it cost. */
+export const releaseItems = sqliteTable(
+  'release_items',
+  {
+    appId: text('app_id').notNull(),
+    release: text('release').notNull(),
+    userId: text('user_id').notNull(),
+    fromSnapshot: text('from_snapshot').notNull(),
+    toSnapshot: text('to_snapshot'),
+    /** carried (no model) | migrated (the agent) | current | stale | budget | failed | moved | rolled-back | kept */
+    state: text('state').notNull(),
+    costUsd: real('cost_usd').notNull(),
+    error: text('error'),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.appId, t.release, t.userId] })],
+)
+
+/** C9: the wish-list map, clusters of requests the dynamic zone cannot serve, built by one classifier call. */
+export const wishMaps = sqliteTable(
+  'wish_maps',
+  {
+    seq: integer('seq').primaryKey({ autoIncrement: true }),
+    appId: text('app_id').notNull(),
+    createdAt: text('created_at').notNull(),
+    fromMs: integer('from_ms').notNull(),
+    toMs: integer('to_ms').notNull(),
+    provider: text('provider'),
+    model: text('model'),
+    items: integer('items').notNull(),
+    clusters: text('clusters', { mode: 'json' }).$type<WishCluster[]>().notNull(),
+  },
+  (t) => [index('wish_maps_by_app').on(t.appId, t.seq)],
+)
+
+export interface WishCluster {
+  panel: string
+  title: string
+  /** needs-backend | out-of-zone */
+  kind: string
+  requestIds: string[]
+}
+
 /** Columns added after the first release, for databases created before them (SQLite has no ADD COLUMN IF NOT EXISTS). */
 export const ADDED_COLUMNS: { table: string; column: string; type: string }[] = [
   { table: 'requests', column: 'attachments', type: 'TEXT' },
@@ -377,6 +441,19 @@ CREATE TABLE IF NOT EXISTS app_plans (
 CREATE TABLE IF NOT EXISTS bundles (
   app_id TEXT NOT NULL, hash TEXT NOT NULL, js TEXT NOT NULL, css TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (app_id, hash)
 );
+CREATE TABLE IF NOT EXISTS releases (
+  app_id TEXT NOT NULL, release TEXT NOT NULL, status TEXT NOT NULL, budget_usd REAL NOT NULL, spent_usd REAL NOT NULL,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, rolled_back_at TEXT, PRIMARY KEY (app_id, release)
+);
+CREATE TABLE IF NOT EXISTS release_items (
+  app_id TEXT NOT NULL, release TEXT NOT NULL, user_id TEXT NOT NULL, from_snapshot TEXT NOT NULL, to_snapshot TEXT, state TEXT NOT NULL,
+  cost_usd REAL NOT NULL, error TEXT, updated_at TEXT NOT NULL, PRIMARY KEY (app_id, release, user_id)
+);
+CREATE TABLE IF NOT EXISTS wish_maps (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT, app_id TEXT NOT NULL, created_at TEXT NOT NULL, from_ms INTEGER NOT NULL, to_ms INTEGER NOT NULL,
+  provider TEXT, model TEXT, items INTEGER NOT NULL, clusters TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS wish_maps_by_app ON wish_maps (app_id, seq);
 `
 
 /** Run after DDL and ADDED_COLUMNS: snapshots are insert-only (the agent request may be linked once). */

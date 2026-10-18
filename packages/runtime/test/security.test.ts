@@ -26,6 +26,13 @@ describe('user tokens (V1 A1)', () => {
     expect(claims.exp - claims.iat).toBe(900)
   })
 
+  it('C8: the support role verifies; an unknown role is refused', async () => {
+    const support = await mintUserToken({ secret: SECRET, userId: 'carol', appId: 'crm', role: 'support' })
+    expect((await verifyUserToken(support, SECRET)).role).toBe('support')
+    const owner = await mintUserToken({ secret: SECRET, userId: 'carol', appId: 'crm', role: 'owner' as never })
+    await expect(verifyUserToken(owner, SECRET)).rejects.toThrow('bad role')
+  })
+
   it('refuses a wrong secret, a tampered body, alg none, expired and long-lived tokens', async () => {
     const token = await mintUserToken({ secret: SECRET, userId: 'alice', appId: 'crm' })
     await expect(verifyUserToken(token, 'y'.repeat(40))).rejects.toThrow('bad token signature')
@@ -95,5 +102,23 @@ describe('quota token buckets (V1 A4)', () => {
     expect(state.get('user:alice:edits')!.tokens).toBe(1)
     // half a day later the dollar bucket has refilled by 0.5
     expect(run([{ ...edits, op: 'take' }, { ...usd, op: 'peek' }], 43_200_000 + 1000).ok).toBe(true)
+  })
+})
+
+describe('C8: HttpStore acting as a user', () => {
+  it('sends x-pleatkit-act-as with the viewer as the development user, or with the viewer’s token', async () => {
+    const { HttpStore } = await import('../src/store/http.js')
+    const seen: Record<string, string>[] = []
+    const fetchFn = (async (_url: string, init?: RequestInit) => {
+      seen.push(init?.headers as Record<string, string>)
+      return new Response(JSON.stringify({ snapshot: null }), { status: 200 })
+    }) as unknown as typeof fetch
+    await new HttpStore({ baseUrl: '/s', userId: 'alice', viewer: 'carol', fetch: fetchFn }).head('alice')
+    expect(seen[0]).toMatchObject({ 'x-pleatkit-user': 'carol', 'x-pleatkit-act-as': 'alice' })
+    await new HttpStore({ baseUrl: '/s', userId: 'alice', viewer: 'carol', token: 'tok', fetch: fetchFn }).head('alice')
+    expect(seen[1]).toMatchObject({ 'x-pleatkit-act-as': 'alice', authorization: 'Bearer tok' })
+    expect(seen[1]!['x-pleatkit-user']).toBeUndefined()
+    await new HttpStore({ baseUrl: '/s', userId: 'alice', fetch: fetchFn }).head('alice')
+    expect(seen[2]!['x-pleatkit-act-as']).toBeUndefined()
   })
 })

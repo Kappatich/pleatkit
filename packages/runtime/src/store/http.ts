@@ -21,6 +21,13 @@ export interface HttpStoreOptions {
   onAuthExpired?: () => string | null | undefined | Promise<string | null | undefined>
   /** Per-request timeout, ms (code review 06 item 1). Default 5000 for reads, 15000 for writes. */
   timeoutMs?: number
+  /**
+   * Impersonation (C8, `docs/support-playbook.md`): this store reads and writes the version of `userId` on behalf
+   * of a support person or an admin. With a token, the token's subject is that person and its role must be
+   * `support` or `admin`; without one (development) this id is sent as the viewer. Every call is written to the
+   * audit chain with both ids. Sent as `x-pleatkit-act-as: <userId>`.
+   */
+  viewer?: string
   /** Extra headers. */
   headers?: Record<string, string>
   fetch?: typeof fetch
@@ -63,7 +70,13 @@ export class HttpStore implements SnapshotStore {
     this.token = options.token
     this.onAuthExpired = options.onAuthExpired
     this.timeoutMs = options.timeoutMs
-    this.headers = { ...(options.token ? {} : { 'x-pleatkit-user': options.userId }), 'x-pleatkit-app': this.appId, ...options.headers }
+    const viewer = options.viewer
+    this.headers = {
+      ...(options.token ? {} : { 'x-pleatkit-user': viewer ?? options.userId }),
+      ...(viewer ? { 'x-pleatkit-act-as': options.userId } : {}),
+      'x-pleatkit-app': this.appId,
+      ...options.headers,
+    }
     this.fetchFn = options.fetch ?? ((...args) => globalThis.fetch(...args))
   }
 

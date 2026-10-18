@@ -1,13 +1,12 @@
 import { isComponentExport } from './component.js'
 import { Compiler, isScript, type CompilerMetrics, type CompileOptions } from './compiler.js'
-import { COMPILER_VERSION } from './constants.js'
 import { CssCompiler, type CssMetrics } from './css.js'
 import { HeadConflictError, withTimeout } from './errors.js'
 import { applyCss, defaultLoader, installExternals, type BundleLoader } from './loader.js'
 import { isWritablePath, WRITABLE_EXT } from './paths.js'
 import type { AgentRunRequest } from './protocol.js'
 import { browserBootStorage, HEARTBEAT_MS, migrateBootKey, PAGE_ID, previousLoadFailed, readBoot, safeModeRequested, writeBoot, type BootStorage } from './safe-mode.js'
-import { sha256Hex } from './security.js'
+import { changedPaths, fileHashes, releaseHash } from './release.js'
 import { bundleKey, contextHash, ServerBundles, type ServerBundlesOptions } from './server-bundles.js'
 import type {
   CompileError,
@@ -211,27 +210,8 @@ export function componentId(path: string, roots: string[]): string {
   return path.slice(root.length).replace(/\.(tsx|ts|jsx|js|mts|mjs)$/, '')
 }
 
-/** sha256 per file: what the per-file `baseHash` of a snapshot is made of (V1 B5). */
-export async function fileHashes(files: FileMap): Promise<Record<string, string>> {
-  const out: Record<string, string> = {}
-  for (const [p, s] of Object.entries(files)) out[p] = (await sha256Hex(s)).slice(0, 32)
-  return out
-}
-
-/** Paths whose hash differs between two per-file hash maps, including added and removed files. */
-export function changedPaths(a: Record<string, string>, b: Record<string, string>): string[] {
-  return [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((p) => a[p] !== b[p]).sort()
-}
-
-/**
- * Identity of a release for edits (code review 06 item 5): the original dynamic files plus everything else that
- * changes what they compile to (readonly sources, externals, aliases, Tailwind theme, compiler, CSS mode). A
- * snapshot made on another release is `stale`; when none of its files changed in the release it is carried over
- * (recompiled) by itself.
- */
-export async function releaseHash(filesHash: string, ctxHash: string, cssMode: string): Promise<string> {
-  return sha256Hex(JSON.stringify(['mk-release', 1, filesHash, ctxHash, COMPILER_VERSION, cssMode]))
-}
+// fileHashes, changedPaths and releaseHash live in release.ts (shared with the agent server's carry-over, C10)
+export { fileHashes, changedPaths, releaseHash }
 
 /** 32-bit FNV-1a: a cheap signature of panel sources (not a security hash). */
 function fnv(s: string): string {

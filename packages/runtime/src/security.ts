@@ -60,7 +60,11 @@ export const USER_TOKEN_MAX_TTL_S = 15 * 60
 /** Allowed clock skew between the customer's backend and the pleatkit servers, seconds. */
 export const CLOCK_SKEW_S = 60
 
-export type UserRole = 'user' | 'admin'
+/**
+ * `user`: their own version. `support` (C8): reads the app's request log and may act as one user at a time
+ * (`x-pleatkit-act-as`), every call audited; no admin writes. `admin`: everything in /admin.
+ */
+export type UserRole = 'user' | 'support' | 'admin'
 
 export interface UserTokenClaims {
   /** The signed-in user (the same id the runtime uses). */
@@ -69,7 +73,7 @@ export interface UserTokenClaims {
   app: string
   /** Customer organization (tenant) of the user; `default` when the app has no organizations. */
   org?: string
-  /** `admin` may use /admin routes of the app. Default `user`. */
+  /** `admin` may use /admin routes of the app; `support` may read them and act as a user. Default `user`. */
   role?: UserRole
   /** Environment of the app (`production`, `staging`, ...), recorded on every row. */
   env?: string
@@ -151,7 +155,7 @@ export async function verifyUserToken(token: string, secret: string, options: { 
   if (claims.exp < now - CLOCK_SKEW_S) throw new TokenError('token expired')
   if (claims.iat > now + CLOCK_SKEW_S) throw new TokenError('token issued in the future')
   if (claims.exp - claims.iat > USER_TOKEN_MAX_TTL_S) throw new TokenError(`token lifetime is longer than ${USER_TOKEN_MAX_TTL_S} s`)
-  if (claims.role !== undefined && claims.role !== 'user' && claims.role !== 'admin') throw new TokenError('bad role')
+  if (claims.role !== undefined && claims.role !== 'user' && claims.role !== 'support' && claims.role !== 'admin') throw new TokenError('bad role')
   return claims as UserTokenClaims
 }
 

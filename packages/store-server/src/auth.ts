@@ -1,4 +1,4 @@
-import { isAppKey, safeEqual, TokenError, verifyUserToken } from '@pleatkit/runtime/security'
+import { isAppKey, safeEqual, TokenError, verifyUserToken, type UserRole } from '@pleatkit/runtime/security'
 import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /** Secrets of one app: the server-to-server app key and the secret the customer's backend signs user tokens with. */
@@ -25,8 +25,17 @@ export interface AuthOptions {
 export interface Caller {
   appId: string
   orgId: string
+  /** The user whose data the call reads and writes (the impersonated user when `viewer` is set). */
   userId: string | null
+  /** `role === 'admin'`: may use every /admin route. */
   admin: boolean
+  /** C8: `support` reads /admin and may act as a user; `admin` may do everything; the app key is `admin`. */
+  role: UserRole
+  /**
+   * C8 impersonation: the support person or admin acting as `userId` (`x-pleatkit-act-as`). Every call made this
+   * way is written to the audit chain with both ids.
+   */
+  viewer: string | null
   /** Server to server (the agent with the app key). */
   agent: boolean
   environment: string | null
@@ -55,7 +64,7 @@ const bearer = (h: Headers): string | null => {
  * Resolve the caller:
  * - `Authorization: Bearer mk_live_…`: the app key; full authority over that app (agent + admin). The user it
  *   acts for comes from `x-pleatkit-user`.
- * - `Authorization: Bearer <jwt>`: a user token minted by the customer's backend (`mintUserToken`); `role: admin`
+ * - `Authorization: Bearer <jwt>`: a user token minted by the customer's backend (`mintUserToken`); `role: admin` (or `support`, read-only)
  *   for /admin routes.
  * - demo headers, only when enabled and not in production.
  */
@@ -75,6 +84,8 @@ export async function resolveCaller(raw: Headers, auth: AuthOptions): Promise<Ca
       orgId: h('x-pleatkit-org') || 'default',
       userId: h('x-pleatkit-user') || null,
       admin: true,
+      role: 'admin',
+      viewer: null,
       agent: true,
       environment: h('x-pleatkit-env') || null,
       via: 'app-key',
@@ -87,7 +98,8 @@ export async function resolveCaller(raw: Headers, auth: AuthOptions): Promise<Ca
     try {
       const claims = await verifyUserToken(token, creds.jwtSecret)
       if (claims.app !== appId) throw new AuthError(403, 'the token belongs to another app')
-      return { appId, orgId: claims.org ?? 'default', userId: claims.sub, admin: claims.role === 'admin', agent: false, environment: claims.env ?? null, via: 'jwt' }
+      const role = claims.role ?? 'user'
+      return { appId, orgId: claims.org ?? 'default', ...actingAs(h, claims.sub, role), admin: role === 'admin', role, agent: false, environment: claims.env ?? null, via: 'jwt' }
     } catch (e) {
       if (e instanceof TokenError) throw new AuthError(401, e.message)
       throw e
@@ -96,17 +108,32 @@ export async function resolveCaller(raw: Headers, auth: AuthOptions): Promise<Ca
   if (auth.demoHeaders && !auth.production) {
     const appId = headerApp || 'default'
     if (apps[appId]) throw new AuthError(401, 'this app has credentials configured: send a user token or the app key')
+    const role: UserRole = h('x-pleatkit-admin') === '1' || h('x-pleatkit-role') === 'admin' ? 'admin' : h('x-pleatkit-role') === 'support' ? 'support' : 'user'
+    const acting = h('x-pleatkit-act-as') ? actingAs(h, h('x-pleatkit-user') || role, role) : { userId: h('x-pleatkit-user') || null, viewer: null }
     return {
       appId,
       orgId: h('x-pleatkit-org') || 'default',
-      userId: h('x-pleatkit-user') || null,
-      admin: h('x-pleatkit-admin') === '1',
+      ...acting,
+      admin: role === 'admin',
+      role,
       agent: h('x-pleatkit-agent') === '1',
       environment: h('x-pleatkit-env') || null,
       via: 'demo',
     }
   }
   throw new AuthError(401, 'authentication required: Authorization: Bearer <user token or app key>')
+}
+
+/**
+ * C8: `x-pleatkit-act-as: <user>` makes a support person or an admin act as that user (their version, their
+ * history); anyone else gets 403. Without the header the caller acts as themselves.
+ */
+function actingAs(h: Headers, self: string, role: UserRole): { userId: string; viewer: string | null } {
+  const target = h('x-pleatkit-act-as')
+  if (!target) return { userId: self, viewer: null }
+  if (role !== 'support' && role !== 'admin') throw new AuthError(403, 'only support and admin may act as another user')
+  if (target.length > 200) throw new AuthError(403, 'bad act-as user')
+  return { userId: target, viewer: self }
 }
 
 /** The `app` claim, read without verification only to pick the secret to verify with. */
