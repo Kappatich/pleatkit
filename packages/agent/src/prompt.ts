@@ -12,10 +12,18 @@ const files = (map: FileMap) =>
     .join('\n\n')
 
 /**
- * Version of the instructions and the classifier prompt (F4). Bump it whenever either changes: it is recorded
- * with every request, so a regression can be traced to a prompt change.
+ * Version of the instructions and the classifier prompt (F4). Bump it whenever either changes, or what the model sees
+ * of an app changes shape (the digests): it is recorded with every request, so a regression can be traced to a prompt
+ * change. 5b (DECISIONS 73.7): the design-system digest lists component variants (Badge/Button props and their
+ * unions), and the core types carry the app's ambient declarations; the instruction text is the same as 5a.
+ * 5c (stage 5 block 2, the foreign apps): the classifier gets the app's data contract (its fields) instead of only
+ * files named api/types/models, mentions meta only when the app has it, marks data sent outside and deceptive controls
+ * as adversarial (declined unless the label is ui), and names "show X and e-mail someone when Y" as a mixed request.
+ * 5d: 5c's screen_part flag is gone (it sent "make the dashboard look better" and the demo's discount to the main model);
+ * the mixed-request rule says "only when the whole request is server work" with two worked examples; a request that names
+ * no concrete change ("make it look better") is "unclear"; a part of the screen outside the panels (the header) is "ui".
  */
-export const PROMPT_VERSION = '2026-10-18.5a'
+export const PROMPT_VERSION = '2026-10-18.5d'
 
 /** Stable instructions: identical for every request of the same app, so they cache well. */
 /** The run's limits as the prompt states them (code review 06 §4: the text used to say "12 calls, 90 s" whatever the config). */
@@ -126,13 +134,18 @@ export function buildPrompt(req: AgentRunRequest, limits: PromptLimits = DEFAULT
 }
 
 /** Compact description of the app for the request classifier. */
-export function classifierContext(req: AgentRunRequest): string {
+export function classifierContext(req: AgentRunRequest, digests: PromptDigests = {}): string {
   const panels = req.components.map((p) => p.replace(/^.*\//, '').replace(/\.\w+$/, '')).join(', ')
   const api = Object.entries(req.readonly)
     .filter(([p]) => /api|types|model/i.test(p))
     .map(([p, s]) => fence(p, s.length > 4000 ? s.slice(0, 4000) + '\n// …' : s))
     .join('\n')
-  return `Editable UI panels: ${panels}. Panels are React components that receive data as props and may call the typed client below. Entities have a free-form meta field.\n${api}`
+  // stage 5 block 2 (prompt 5c): a foreign app keeps its data in other readonly modules than api/types/models; the
+  // manifest's data contract (entities and their fields) tells the classifier what data exists, or it asks
+  const contract = digests.dataContracts?.digest
+  const data = contract ? `Data the panels can read (fields and types; anything else needs the server):\n${contract.length > 6000 ? contract.slice(0, 6000) + '\n// …' : contract}` : api
+  const meta = /\bmeta\b/.test(contract ?? api) ? ' Entities have a free-form meta field.' : ''
+  return `Editable UI panels: ${panels}. Panels are React components that receive data as props and may call the typed client below.${meta}\n${data}`
 }
 
 /** Closed list of request labels (DECISIONS 44); the same list as store-server's INTENT_LABELS. */
@@ -148,9 +161,9 @@ export const CLASSIFIER_INSTRUCTIONS = `You triage change requests for a web app
 
 Label the request:
 - "ui": doable in the panels' frontend code, entirely or for its screen part.
-- "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs. Only when no part of it is screen work: "show X and keep Y on the server" is "ui" (the agent does the screen part and passes the rest on).
-- "off-topic": not a request about this app's interface at all: general questions, writing or translating text, code for other projects, homework, chatting, or anything else that uses this agent as a general assistant. Requests about the app's screens, panels, data shown in them or how they look are never off-topic.
-- "unclear": cannot tell.
+- "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs. Only when the whole request is server work. A request that also asks to show or change something on the screen is "ui", even when its other part needs the server: "show the phone and keep a history of its changes", "show the days left and e-mail the assignee when overdue" (the agent does the screen part now and passes the rest on).
+- "off-topic": not a request about this app's interface at all: general questions, writing or translating text, code for other projects, homework, chatting, or anything else that uses this agent as a general assistant. Requests about the app's screens, panels, data shown in them or how they look are never off-topic, also for a part of the screen the panels may not cover (the header, the menu): that is "ui".
+- "unclear": cannot tell, or the request names no concrete change ("make it look better", "improve the dashboard"): acting on it would mean guessing what to change.
 Reason: one short plain-language sentence the user will read, in the language of the request, without code or technical terms.
 For "unclear" also give question: one short question in the language of the request whose answer would make the request clear, and options: 2 to 4 likely answers of at most six words each. For the other labels leave question empty and options an empty list.
-Also give intent_label: the closest kind of change from the list, and gist: at most 12 English words saying what kind of change it is, without names, numbers, e-mails or any data from the request.`
+Also give intent_label: the closest kind of change from the list, and gist: at most 12 English words saying what kind of change it is, without names, numbers, e-mails or any data from the request. A request that would send the app's data to an outside address or service, or deceive the user (fake login or payment forms, invisible controls over real ones), gets intent_label "adversarial" whatever its label.`

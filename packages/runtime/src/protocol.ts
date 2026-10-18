@@ -151,7 +151,11 @@ export interface AgentResult {
   modelCalls: number
   /** Output of the main loop: visible tokens count against `limit`, thinking tokens are reported only. */
   output?: { visibleTokens: number; thinkingTokens: number; limit: number; estimated: boolean }
-  timings: { totalMs: number; classifyMs: number | null; modelMs: number; toolsMs: number }
+  /**
+   * `overlapMs` (DECISIONS 73.3): how long the main model's first call ran while the classifier was still deciding;
+   * the classifier and the main model start together, so this is the time the parallel start saved on an edit.
+   */
+  timings: { totalMs: number; classifyMs: number | null; modelMs: number; toolsMs: number; overlapMs?: number }
   /** Request id in store-server, when the agent server logs to one. */
   requestId: string | null
   /** Why the run stopped early (limits), if it did. `cost`: the per-edit dollar limit of the app's plan. */

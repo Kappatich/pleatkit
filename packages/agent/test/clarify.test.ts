@@ -19,7 +19,8 @@ describe('one clarifying question (stage 3b)', () => {
   it('an unclear request returns the question with options; nothing is written and the big model is not called', async () => {
     const provider = scripted(ambiguous)
     const events: AgentProgress[] = []
-    const r = await runAgent(request('make it stand out'), provider, { onProgress: (p) => events.push(p) })
+    // sequential classifier: the big model is never started (the parallel mode starts and cancels it: parallel-classifier.test.ts)
+    const r = await runAgent(request('make it stand out'), provider, { classifierMode: 'sequential', onProgress: (p) => events.push(p) })
     expect(r).toMatchObject({ verdict: 'clarify', summary: 'What should stand out?', clarify: { question: 'What should stand out?', options: ['The overdue date', 'The status'] }, modelCalls: 0, files: {} })
     expect(provider.received).toHaveLength(0)
     expect(events.find((e) => e.type === 'classified')?.text).toBe('I need one detail first')
@@ -61,7 +62,7 @@ describe('one clarifying question (stage 3b)', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       )
     }) as typeof globalThis.fetch
-    const r = await runAgent(request('change it'), new AnthropicProvider({ apiKey: 'k', baseURL: 'http://anthropic.test', fetch }))
+    const r = await runAgent(request('change it'), new AnthropicProvider({ apiKey: 'k', baseURL: 'http://anthropic.test', fetch }), { classifierMode: 'sequential' })
     expect(calls[0].output_config.format.schema.required).toEqual(['label', 'reason', 'question', 'options', 'intent_label', 'gist'])
     expect(calls).toHaveLength(1)
     expect(r.clarify).toEqual({ question: 'Which part should change?', options: ['The card', 'The table'] })

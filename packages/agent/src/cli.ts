@@ -10,7 +10,7 @@ try {
   console.error(`pleatkit agent: ${(e as Error).message}`)
   process.exit(1)
 }
-const app = createAgentApp({ provider: config.provider, limits: config.limits, storeUrl: config.storeUrl, corsOrigin: config.corsOrigin, auth: config.auth, plan: config.plan, manifest: config.manifest, typecheck: config.typecheck, alerts: config.alerts, wishes: config.wishes })
+const app = createAgentApp({ provider: config.provider, limits: config.limits, storeUrl: config.storeUrl, corsOrigin: config.corsOrigin, auth: config.auth, plan: config.plan, manifest: config.manifest, typecheck: config.typecheck, classifierMode: config.classifierMode, alerts: config.alerts, wishes: config.wishes })
 const server = serve({ fetch: app.fetch, port: config.port }, () => {
   console.log(
     `pleatkit agent on http://localhost:${config.port}/agent (provider ${config.provider.name}, model ${config.provider.model}` +

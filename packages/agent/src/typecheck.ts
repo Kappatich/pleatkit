@@ -8,7 +8,9 @@ import type { TypecheckFn, WorkspaceInput } from './workspace.js'
  * Type check of the dynamic zone against the app's types (brainstorm 05 #4): esbuild strips types, so an edit
  * that calls `api.listDeals(1)` where the client takes a string compiles and fails at run time. With
  * `typecheck: true` (PLEATKIT_TYPECHECK=1) the agent's `check` also runs TypeScript over the dynamic files with
- * the readonly sources and the core `.d.ts` from the manifest. Only errors in dynamic files are reported.
+ * the readonly sources and the core `.d.ts` from the manifest. Only errors in dynamic files are reported, and with
+ * the release's files (`input.base`) only those the release does not already have (stage 5: a foreign app's own
+ * panels may not pass this checker's settings). The app's ambient declarations among the core types are roots.
  *
  * Packages (react, a UI kit) resolve from `root` (the app's folder, PLEATKIT_TYPECHECK_ROOT) when it has them
  * installed; otherwise they are `any` and only the app's own contracts are checked.
@@ -29,10 +31,16 @@ const IGNORED = new Set([
 
 const libCache = new Map<string, ts.SourceFile>()
 
+/** An error without its position: the same problem on another line is the same problem. */
+const errorKey = (e: CompileError): string => `${e.file}|${e.text}`
+
 export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
   const root = options.root ? path.resolve(options.root) : null
   const libDir = path.dirname(ts.getDefaultLibFilePath({}))
-  return async (files: FileMap, input: WorkspaceInput): Promise<CompileError[]> => {
+  // stage 5 (foreign apps): the release's own panels can carry type errors under this checker's settings (a
+  // stricter app tsconfig, an app's own lib choices); an edit is refused only for errors it introduced
+  const baseErrors = new Map<string, Set<string>>()
+  const diagnose = async (files: FileMap, input: WorkspaceInput, limit: number): Promise<CompileError[]> => {
     const virtual = new Map<string, string>()
     const add = (map: FileMap) => {
       for (const [p, s] of Object.entries(map)) virtual.set('/' + p, s)
@@ -97,8 +105,11 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
         }),
     }
     const dynamic = Object.keys(files).filter((p) => /\.(tsx|ts|jsx|js)$/.test(p) && input.context.dynamicRoots.some((r) => p.startsWith(r)))
+    // the app's ambient declarations (`declare module '@tanstack/react-table' { … }`, `*.svg?react`) are not
+    // imported by anything: they apply only as roots of the program
+    const ambient = Object.keys(input.coreTypes).filter((p) => p.endsWith('.d.ts') && /^\s*declare\s+(module|global)\b/m.test(input.coreTypes[p]!))
     const program = ts.createProgram(
-      dynamic.map((p) => '/' + p),
+      [...dynamic, ...ambient].map((p) => '/' + p),
       compilerOptions,
       host,
     )
@@ -110,11 +121,31 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
         if (IGNORED.has(d.code)) continue
         const { line, character } = d.start !== undefined ? sf.getLineAndCharacterOfPosition(d.start) : { line: 0, character: 0 }
         out.push({ file: p, line: line + 1, column: character + 1, text: `${ts.flattenDiagnosticMessageText(d.messageText, ' ')} (TS${d.code}) [typecheck]`, rule: 'typecheck' })
-        if (out.length >= 20) return out
+        if (out.length >= limit) return out
       }
     }
     return out
   }
+  return async (files: FileMap, input: WorkspaceInput): Promise<CompileError[]> => {
+    const errors = await diagnose(files, input, 200)
+    const base = input.base
+    if (!errors.length || !base || !Object.keys(base).length) return errors.slice(0, 20)
+    const key = JSON.stringify(Object.keys(base).sort().map((p) => [p, base[p]!.length, hashText(base[p]!)]))
+    let known = baseErrors.get(key)
+    if (!known) {
+      known = new Set((await diagnose(base, input, 1000)).map(errorKey))
+      if (baseErrors.size > 50) baseErrors.clear()
+      baseErrors.set(key, known)
+    }
+    return errors.filter((e) => !known.has(errorKey(e))).slice(0, 20)
+  }
+}
+
+/** A cheap 32-bit hash for the cache key of a release's files (not security relevant). */
+function hashText(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+  return h
 }
 
 /** PLEATKIT_TYPECHECK=1 (+ PLEATKIT_TYPECHECK_ROOT) → a typechecker, else null. */
