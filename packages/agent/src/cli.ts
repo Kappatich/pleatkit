@@ -2,9 +2,6 @@
 import { serve } from '@hono/node-server'
 import { configFromEnv } from './config.js'
 import { createAgentApp } from './server.js'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
-
-pleatkitEnv(process.env)
 
 let config: ReturnType<typeof configFromEnv>
 try {
@@ -13,7 +10,7 @@ try {
   console.error(`pleatkit agent: ${(e as Error).message}`)
   process.exit(1)
 }
-const app = createAgentApp({ provider: config.provider, limits: config.limits, storeUrl: config.storeUrl, corsOrigin: config.corsOrigin, auth: config.auth, plan: config.plan, manifest: config.manifest, typecheck: config.typecheck, alerts: config.alerts })
+const app = createAgentApp({ provider: config.provider, limits: config.limits, storeUrl: config.storeUrl, corsOrigin: config.corsOrigin, auth: config.auth, plan: config.plan, manifest: config.manifest, typecheck: config.typecheck, alerts: config.alerts, wishes: config.wishes })
 const server = serve({ fetch: app.fetch, port: config.port }, () => {
   console.log(
     `pleatkit agent on http://localhost:${config.port}/agent (provider ${config.provider.name}, model ${config.provider.model}` +

@@ -26,6 +26,9 @@ export interface DigestArgs {
   noWishes?: boolean
   /** Panel ids for the wish map, from the build manifest when it exists. */
   manifest?: string
+  /** DECISIONS 70.3: `--wishes-max-items`, `--wishes-budget-usd` (over PLEATKIT_WISHES_*; defaults 500 and $0.50). */
+  wishMaxItems?: number
+  wishBudgetUsd?: number
   env?: Record<string, string | undefined>
   fetch?: typeof fetch
   cwd?: string
@@ -51,7 +54,8 @@ export async function digestCommand(a: DigestArgs): Promise<{ ok: boolean; lines
   }
   let d
   try {
-    d = await agent.buildDigest({ storeUrl: a.store, appId: a.app, appKey: a.key ?? null, provider, panels, days: a.days ?? 7, ...(a.fetch ? { fetch: a.fetch } : {}) })
+    const wishLimits = { ...agent.wishLimitsFromEnv(env), ...(a.wishMaxItems !== undefined ? { maxItems: a.wishMaxItems } : {}), ...(a.wishBudgetUsd !== undefined ? { budgetUsd: a.wishBudgetUsd } : {}) }
+    d = await agent.buildDigest({ storeUrl: a.store, appId: a.app, appKey: a.key ?? null, provider, panels, days: a.days ?? 7, wishLimits, ...(a.fetch ? { fetch: a.fetch } : {}) })
   } catch (e) {
     return { ok: false, lines: [(e as Error).message, ...(/401/.test((e as Error).message) ? ['set PLEATKIT_APP_KEY (or pass --key) for a production store'] : [])] }
   }
@@ -115,6 +119,15 @@ export async function carryOverCommand(a: CarryOverArgs): Promise<{ ok: boolean;
     return { ok: false, lines: [`carry-over needs a model provider for the edits it cannot carry by itself: ${(e as Error).message}`] }
   }
   const typecheck = a.typecheck ? agent.createTypechecker({ root: a.root ?? null }) : null
+  // DECISIONS 70.4: without --per-user-usd the cap comes from the app's plan; the agent's PLEATKIT_PLAN / PLEATKIT_LIMITS when the store has none
+  let plan: { name?: string; limits?: Record<string, number> } | undefined
+  if (a.perUserUsd === undefined && (env.PLEATKIT_PLAN || env.PLEATKIT_LIMITS)) {
+    try {
+      plan = { ...(env.PLEATKIT_PLAN ? { name: env.PLEATKIT_PLAN } : {}), ...(env.PLEATKIT_LIMITS ? { limits: JSON.parse(env.PLEATKIT_LIMITS) as Record<string, number> } : {}) }
+    } catch {
+      return { ok: false, lines: ['PLEATKIT_LIMITS must be JSON, e.g. {"perEditUsd": 0.2}'] }
+    }
+  }
   const lines: string[] = []
   let r
   try {
@@ -128,6 +141,7 @@ export async function carryOverCommand(a: CarryOverArgs): Promise<{ ok: boolean;
       provider,
       typecheck,
       ...(a.perUserUsd !== undefined ? { perUserUsd: a.perUserUsd } : {}),
+      ...(plan ? { plan } : {}),
       ...(a.dryRun ? { dryRun: true } : {}),
       ...(a.retry ? { retry: true } : {}),
       ...(a.fetch ? { fetch: a.fetch } : {}),
@@ -139,7 +153,7 @@ export async function carryOverCommand(a: CarryOverArgs): Promise<{ ok: boolean;
   const counts = Object.entries(r.counts)
     .map(([k, v]) => `${v} ${k}`)
     .join(', ')
-  const head = `${r.status === 'dry-run' ? 'dry run: ' : ''}release ${r.release}: ${counts || 'nothing to do'}${r.skipped ? ` (${r.skipped} done earlier)` : ''}; spent $${r.spentUsd.toFixed(4)} of $${r.budgetUsd.toFixed(2)}`
+  const head = `${r.status === 'dry-run' ? 'dry run: ' : ''}release ${r.release}: ${counts || 'nothing to do'}${r.skipped ? ` (${r.skipped} done earlier)` : ''}; spent $${r.spentUsd.toFixed(4)} of $${r.budgetUsd.toFixed(2)}; at most $${r.perUserUsd.toFixed(2)} per user (${r.perUserSource === 'flag' ? '--per-user-usd' : `plan ${r.plan}`})`
   const tail =
     r.status === 'budget'
       ? `stopped at the budget: run the same command with a higher --budget-usd to carry over the rest (users marked "budget")`

@@ -9,13 +9,15 @@ import { t, type MessageKey } from './i18n.js'
 import { loopRunner, validateRequest, type AgentLimits, type AgentRunner } from './loop.js'
 import { Alerts, type AlertsOptions } from './alerts.js'
 import { manifestPanels, resolveManifest, trustedInput, type ManifestSource } from './manifest.js'
-import { buildWishMap } from './wishes.js'
+import { buildWishMap, type WishLimits } from './wishes.js'
 import type { TypecheckFn } from './workspace.js'
 import { MemoryQuotaBackend, Quotas, resolvePlan, StoreQuotaBackend, type PlanLimits } from './quota.js'
 import { StoreClient } from './store-client.js'
 import type { ModelProvider } from './types.js'
 
 export interface AgentServerOptions {
+  /** DECISIONS 70.3: the wish map's cap per call and its budget (PLEATKIT_WISHES_MAX_ITEMS, PLEATKIT_WISHES_BUDGET_USD). */
+  wishes?: Partial<WishLimits>
   /** The built-in loop over a model provider... */
   provider?: ModelProvider
   /** ...or any other harness (takes precedence). */
@@ -284,8 +286,7 @@ export function createAgentApp(options: AgentServerOptions) {
         const flags = await flagsOf(who)
         // a user frozen for abuse (here or in store-server) is refused like the kill switch (05 #5)
         const frozen = alerts ? await alerts.beforeRun(who) : false
-        // `morphkit.enabled`: the kill switch's pre-rename key, honoured for one release (DECISIONS 68)
-        const off = flags['pleatkit.enabled'] === false || flags['morphkit.enabled'] === false || flags['edits.enabled'] === false || frozen
+        const off = flags['pleatkit.enabled'] === false || flags['edits.enabled'] === false || frozen
         const quota = off ? null : quotas ? await quotas.beforeEdit(who) : null
         if (off) {
           result = refusedResult(req, 'disabled', 'disabled', runner)
@@ -413,8 +414,8 @@ export function createAgentApp(options: AgentServerOptions) {
     const panels = manifest ? manifestPanels(manifest).map((p) => p.replace(/^.*\//, '').replace(/\.(tsx|ts|jsx|js)$/, '')) : []
     try {
       const to = Date.now()
-      const map = await buildWishMap({ provider: options.provider, storeUrl: store.base, appId, appKey: auth.credentials?.appId === appId ? auth.credentials.appKey : null, panels, fromMs: to - days * 86_400_000, toMs: to, ...(options.fetch ? { fetch: options.fetch } : {}) })
-      log(`[pleatkit-agent] ${appId}: wish map of ${map.items} requests in ${map.clusters.length} themes (${map.calls} model call)`)
+      const map = await buildWishMap({ provider: options.provider, storeUrl: store.base, appId, appKey: auth.credentials?.appId === appId ? auth.credentials.appKey : null, panels, fromMs: to - days * 86_400_000, toMs: to, ...(options.wishes ? { limits: options.wishes } : {}), ...(options.fetch ? { fetch: options.fetch } : {}) })
+      log(`[pleatkit-agent] ${appId}: wish map of ${map.items} of ${map.total} requests in ${map.clusters.length} themes (${map.calls} model call, ${map.clustered} by the model, estimate $${map.estimatedUsd?.toFixed(4) ?? '?'} of $${map.limits.budgetUsd})`)
       return c.json(map)
     } catch (e) {
       log(`[pleatkit-agent] wish map failed: ${(e as Error).message}`)

@@ -87,5 +87,7 @@ export interface ModelProvider {
   classify(input: ClassifyInput, signal: AbortSignal): Promise<Classification>
   /** C9: group the week's unserved requests into themes, one classifier call (the wish-list map). Optional. */
   cluster?(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput>
+  /** The model `cluster` calls, so its cost can be estimated before the call (DECISIONS 70.3). */
+  readonly clusterModel?: string
   start(prompt: PromptParts, tools: ToolSpec[], meta: { request: string }): ModelSession
 }

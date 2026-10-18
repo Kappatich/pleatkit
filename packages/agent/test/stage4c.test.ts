@@ -15,7 +15,7 @@ import { ScriptedProvider, type ScriptFixture } from '../src/providers/scripted.
 import { createAgentApp } from '../src/server.js'
 import type { ModelProvider } from '../src/index.js'
 import type { TokenUsage } from '@pleatkit/runtime/compiler'
-import { buildWishMap, clusterWishes, normalizeClusters, type WishItem } from '../src/wishes.js'
+import { buildWishMap, clusterWishes, DEFAULT_WISH_LIMITS, estimateClusterUsd, normalizeClusters, wishLimitsFromEnv, type ClusterInput, type WishItem } from '../src/wishes.js'
 import { BASE_CARD, CARD, GOOD_CARD, TABLE } from './helpers.js'
 
 function storeSetup(options: Parameters<typeof createStoreApp>[1] = {}) {
@@ -135,6 +135,75 @@ describe('C9: the wish-list map, one classifier call', () => {
     const as = async (role: 'user' | 'admin') => secure.request('/agent/v1/wishes', { method: 'POST', headers: { authorization: `Bearer ${await mintUserToken({ secret: SECRET, userId: 'x', appId: 'crm', role })}` }, body: '{}' })
     expect((await as('user')).status).toBe(403)
     expect((await secure.request('/agent/v1/wishes', { method: 'POST', headers: { 'x-pleatkit-admin': '1' }, body: JSON.stringify({ appId: 'crm' }) })).status).toBe(401)
+  })
+})
+
+describe('DECISIONS 70.3: the wish map reads at most 500 requests and spends at most $0.50 per call', () => {
+  /** A clustering provider priced as Sonnet 5.5 that records what it was sent. */
+  function counting(model = 'claude-sonnet-5-5') {
+    const sent: ClusterInput[] = []
+    const provider: ModelProvider = {
+      name: 'counting',
+      model,
+      clusterModel: model,
+      classify: async () => ({ label: 'ui', reason: '', usage: null, model: null }),
+      start: () => {
+        throw new Error('not used')
+      },
+      cluster: async (input) => (sent.push(input), { clusters: [{ panel: 'deals-table', title: 'All', kind: 'needs-backend', requestIds: input.items.map((i) => i.id) }], usage: { inputTokens: 1000, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 }, model }),
+    }
+    return { provider, sent }
+  }
+  const many = (n: number): WishItem[] => Array.from({ length: n }, (_, i) => ({ id: `r${i}`, panel: 'deals-table', kind: 'needs-backend', text: `request number ${i} `.padEnd(300, 'x') }))
+
+  it('defaults 500 and $0.50; PLEATKIT_WISHES_* override them, bad values keep the defaults', () => {
+    expect(DEFAULT_WISH_LIMITS).toEqual({ maxItems: 500, budgetUsd: 0.5 })
+    expect(wishLimitsFromEnv({})).toEqual({ maxItems: 500, budgetUsd: 0.5 })
+    expect(wishLimitsFromEnv({ PLEATKIT_WISHES_MAX_ITEMS: '50', PLEATKIT_WISHES_BUDGET_USD: '0.1' })).toEqual({ maxItems: 50, budgetUsd: 0.1 })
+    expect(wishLimitsFromEnv({ PLEATKIT_WISHES_MAX_ITEMS: 'lots', PLEATKIT_WISHES_BUDGET_USD: '-1' })).toEqual({ maxItems: 500, budgetUsd: 0.5 })
+  })
+
+  it('one call reads the newest 500 of 600 requests by default', async () => {
+    const c = counting()
+    const map = await clusterWishes(c.provider, many(600), [])
+    expect(c.sent[0]!.items).toHaveLength(500)
+    expect(c.sent[0]!.items[0]!.id).toBe('r0')
+    expect(map).toMatchObject({ items: 500, clustered: 500, calls: 1 })
+    expect(map.estimatedUsd!).toBeLessThanOrEqual(0.5)
+    expect(map.costUsd).toBeCloseTo(costUsd('claude-sonnet-5-5', { inputTokens: 1000, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 })!, 9)
+  })
+
+  it('over the budget the oldest requests are grouped without the model; nothing fits: no call at all', async () => {
+    const c = counting()
+    const map = await clusterWishes(c.provider, many(400), [], undefined, { budgetUsd: 0.06 })
+    const n = c.sent[0]!.items.length
+    expect(n).toBeGreaterThan(10)
+    expect(n).toBeLessThan(400)
+    expect(c.sent[0]!.items.map((i) => i.id)).toEqual(many(n).map((i) => i.id)) // the newest first
+    expect(map.estimatedUsd!).toBeLessThanOrEqual(0.06)
+    expect(estimateClusterUsd('claude-sonnet-5-5', { items: many(n + 1), panels: [] })!).toBeGreaterThan(0.06)
+    expect(map).toMatchObject({ items: 400, clustered: n, calls: 1 })
+    // every request is still in exactly one theme
+    expect(map.clusters.flatMap((k) => k.requestIds).sort()).toEqual(many(400).map((i) => i.id).sort())
+
+    const none = counting()
+    const skipped = await clusterWishes(none.provider, many(5), [], undefined, { budgetUsd: 0.01 })
+    expect(none.sent).toHaveLength(0)
+    expect(skipped).toMatchObject({ calls: 0, clustered: 0, items: 5 })
+    expect(skipped.clusters.flatMap((k) => k.requestIds)).toHaveLength(5)
+  })
+
+  it('store-server returns at most `limit` wish items (500 by default) and the total; buildWishMap asks for maxItems', async () => {
+    const t = storeSetup()
+    for (let i = 0; i < 7; i++) await t.request(`u${i}`, `wish ${i}`, 'needs-backend')
+    await t.request('x', 'served', 'ok')
+    const page = (await (await t.call('GET', '/admin/wish-items?limit=3', t.admin)).json()) as { total: number; items: { text: string }[] }
+    expect(page.total).toBe(7)
+    expect(page.items.map((i) => i.text)).toEqual(['wish 6', 'wish 5', 'wish 4'])
+    const c = counting()
+    const map = await buildWishMap({ provider: c.provider, storeUrl: 'http://store.test', appId: 'crm', fetch: t.fetchVia, limits: { maxItems: 4 } })
+    expect(map).toMatchObject({ items: 4, total: 7, clustered: 4 })
+    expect(c.sent[0]!.items).toHaveLength(4)
   })
 })
 
@@ -288,6 +357,29 @@ describe('C10: pleatkit carry-over --release <hash> --budget-usd', () => {
     expect((await head('alice')).id).toBe('01A1')
     expect((await head('bob')).id).toBe('01bob1')
     expect((await head('dave')).id).toBe('01D0')
+  })
+
+  it('DECISIONS 70.4: the per-user cap is the perEditUsd of the app’s plan; --per-user-usd overrides it', async () => {
+    const hash = await manifestReleaseHash(manifest)
+    const one = 2 * costUsd('claude-sonnet-5-5', TURN_USAGE)!
+    const run = async (extra: Partial<Parameters<typeof carryOverRelease>[0]>, plan?: { plan: string; limits: Record<string, number> }) => {
+      const t = storeSetup()
+      await seedRelease(t)
+      if (plan) expect((await t.call('PUT', '/admin/plan', t.admin, plan)).status).toBe(200)
+      return carryOverRelease({ storeUrl: 'http://store.test', appId: 'crm', manifest, release: hash, provider: priced().provider, budgetUsd: one * 1.5, fetch: t.fetchVia, ...extra })
+    }
+    // the app's plan allows one migration per user at 1.1 of its cost: bob goes through, carol waits for money
+    const byPlan = await run({}, { plan: 'team', limits: { perEditUsd: one * 1.1 } })
+    expect(byPlan).toMatchObject({ perUserSource: 'plan', plan: 'team' })
+    expect(byPlan.perUserUsd).toBeCloseTo(one * 1.1, 9)
+    expect(byPlan.items.map((i) => `${i.userId}:${i.state}`)).toEqual(['alice:carried', 'bob:migrated', 'carol:budget'])
+    // the flag wins over the plan: a cap of twice the cost never fits in 1.5
+    const byFlag = await run({ perUserUsd: one * 2 }, { plan: 'team', limits: { perEditUsd: one * 1.1 } })
+    expect(byFlag).toMatchObject({ perUserSource: 'flag', perUserUsd: one * 2 })
+    expect(byFlag.items.map((i) => `${i.userId}:${i.state}`)).toEqual(['alice:carried', 'bob:budget', 'carol:budget'])
+    // no plan in the store: the agent's PLEATKIT_PLAN, then free
+    expect(await run({ dryRun: true, plan: { name: 'team' } })).toMatchObject({ perUserUsd: 0.5, plan: 'team', perUserSource: 'plan' })
+    expect(await run({ dryRun: true })).toMatchObject({ perUserUsd: 0.3, plan: 'free' })
   })
 
   it('without an agent the conflicting users stay stale; a dry run writes nothing', async () => {

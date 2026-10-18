@@ -6,6 +6,7 @@ import { createStoreApp, openStore } from '../../store-server/src/index.js'
 import { manifestReleaseHash, type PleatkitManifest, type Snapshot } from '@pleatkit/runtime/compiler'
 import { checkSnapshotsCommand } from '../src/check-snapshots.js'
 import { carryOverCommand, digestCommand } from '../src/ops.js'
+import { eraseCommand } from '../src/erase.js'
 import { bugReport, redact } from '../src/report.js'
 
 const here = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
@@ -84,6 +85,10 @@ describe('C5/C9: pleatkit digest --week', () => {
     expect(r.ok).toBe(true)
     const md = fs.readFileSync(path.join(cwd, 'digest.md'), 'utf8')
     expect(md).toContain('- **Discounts on deals** (needs backend): 1 request, 1 user')
+    // DECISIONS 70.3: --wishes-max-items caps what the one call reads
+    for (const u of ['bob', 'carol']) await t.call('POST', '/requests', { 'x-pleatkit-agent': '1', 'x-pleatkit-user': u }, { userId: u, text: 'discount please', verdict: 'needs-backend', status: 'pending-admin', log: [] })
+    const capped = await digestCommand({ store: 'http://store.test', app: 'crm', env, fetch: t.fetchVia, wishMaxItems: 2 })
+    expect(capped.markdown).toContain('Read the newest 2 of 3 requests (the cap per call).')
     const sent = await digestCommand({ store: 'http://store.test', app: 'crm', env, fetch: t.fetchVia, send: true, noWishes: true })
     expect(sent.ok).toBe(false)
     expect(sent.lines.at(-1)).toMatch(/PLEATKIT_ALERT_WEBHOOK/)
@@ -118,7 +123,12 @@ describe('C10: pleatkit carry-over', () => {
     expect(wrong.ok).toBe(false)
     expect(wrong.lines.join('\n')).toContain(hash)
     const dry = await carryOverCommand({ ...base, release: hash, dryRun: true })
-    expect(dry.lines[0]).toMatch(/^dry run: release [0-9a-f]{16}: 1 migrated; spent \$0\.0000 of \$1\.00$/)
+    expect(dry.lines[0]).toMatch(/^dry run: release [0-9a-f]{16}: 1 migrated; spent \$0\.0000 of \$1\.00; at most \$0\.30 per user \(plan free\)$/)
+    // DECISIONS 70.4: the app's plan sets the cap, the flag overrides it, PLEATKIT_PLAN is the fallback
+    await t.call('PUT', '/admin/plan', { 'x-pleatkit-admin': '1' }, { plan: 'team', limits: {} })
+    expect((await carryOverCommand({ ...base, release: hash, dryRun: true })).lines[0]).toMatch(/at most \$0\.50 per user \(plan team\)$/)
+    expect((await carryOverCommand({ ...base, release: hash, dryRun: true, perUserUsd: 0.07 })).lines[0]).toMatch(/at most \$0\.07 per user \(--per-user-usd\)$/)
+    await t.call('PUT', '/admin/plan', { 'x-pleatkit-admin': '1' }, { plan: '', limits: {} })
     // the scripted provider has no answer for the migration: alice keeps her version and is reported stale
     const run = await carryOverCommand({ ...base, release: hash })
     expect(run.ok).toBe(true)
@@ -155,4 +165,41 @@ describe.skipIf(!fs.existsSync(DEMO_MANIFEST))('DECISIONS 67.5: pleatkit check-s
     expect(typed.lines.find((l) => l.includes(' bob '))).toMatch(/^\[FAIL\]/)
     expect(typed.lines.join('\n')).toMatch(/score/)
   }, 60_000)
+})
+
+describe('DECISIONS 70.2: pleatkit erase', () => {
+  const CARD = 'src/dynamic/card.tsx'
+  it('prints what would go and a token; with --confirm erases the user; the app the same way', async () => {
+    const t = store()
+    await t.put(snap('01A', 'alice', null, { [CARD]: 'export default function Card() { return <div>v1</div> }\n' }), false)
+    await t.put(snap('01B', 'alice', '01A', { [CARD]: 'export default function Card() { return <div>mine</div> }\n' }), true)
+    await t.put(snap('01C', 'bob', null, { [CARD]: 'export default function Card() { return <div>v1</div> }\n' }), true)
+    const base = { store: 'http://store.test', app: 'crm', fetch: t.fetchVia }
+    const plan = await eraseCommand({ ...base, user: 'alice' })
+    expect(plan).toMatchObject({ ok: true, erased: false })
+    expect(plan.lines).toContain('  snapshots: 2')
+    const token = /--confirm ([0-9a-f]+)/.exec(plan.lines.at(-1)!)![1]!
+    const stale = await eraseCommand({ ...base, user: 'alice', confirm: 'f'.repeat(16) })
+    expect(stale).toMatchObject({ ok: false, erased: false })
+    const done = await eraseCommand({ ...base, user: 'alice', confirm: token })
+    expect(done).toMatchObject({ ok: true, erased: true })
+    expect(done.lines.at(-1)).toMatch(/^audit tombstone erased:[0-9a-f]{16} /)
+    expect((await t.call('GET', '/heads/alice', { 'x-pleatkit-user': 'alice' })).status).toBe(200)
+    expect(((await (await t.call('GET', '/heads/alice', { 'x-pleatkit-user': 'alice' })).json()) as { snapshot: unknown }).snapshot).toBeNull()
+
+    const app = await eraseCommand(base)
+    expect(app.lines[0]).toMatch(/^erasing app crm/)
+    const appToken = /--confirm ([0-9a-f]+)/.exec(app.lines.at(-1)!)![1]!
+    expect(await eraseCommand({ ...base, confirm: appToken })).toMatchObject({ ok: true, erased: true })
+    expect(((await (await t.call('GET', '/heads/bob', { 'x-pleatkit-user': 'bob' })).json()) as { snapshot: unknown }).snapshot).toBeNull()
+  })
+
+  it('a non-admin is told what it needs', async () => {
+    const { db } = openStore()
+    const app = createStoreApp(db, { auth: { apps: { crm: { appKey: 'mk_live_0123456789abcdefghijklmnop', jwtSecret: 's'.repeat(40) } } } })
+    const fetchVia = ((input: string | URL | Request, init?: RequestInit) => app.request(input instanceof Request ? input : String(input), init)) as typeof fetch
+    const r = await eraseCommand({ store: 'http://store.test', app: 'crm', user: 'alice', fetch: fetchVia })
+    expect(r.ok).toBe(false)
+    expect(r.lines.join('\n')).toMatch(/PLEATKIT_APP_KEY/)
+  })
 })

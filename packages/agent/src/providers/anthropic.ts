@@ -3,7 +3,7 @@ import type { TokenUsage } from '@pleatkit/runtime/compiler'
 import { CLASSIFIER_INSTRUCTIONS, INTENT_LABELS } from '../prompt.js'
 import { perCallMaxTokens } from './budget.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
-import { CLUSTER_SCHEMA, clusterMessage, parseClusters, WISHES_INSTRUCTIONS, type ClusterInput, type ClusterOutput } from '../wishes.js'
+import { CLUSTER_MAX_TOKENS, CLUSTER_SCHEMA, clusterMessage, parseClusters, WISHES_INSTRUCTIONS, type ClusterInput, type ClusterOutput } from '../wishes.js'
 
 type MessageParam = Anthropic.Beta.BetaMessageParam
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -128,12 +128,16 @@ export class AnthropicProvider implements ModelProvider {
     }
   }
 
+  get clusterModel(): string {
+    return this.classifierModel
+  }
+
   /** C9: the wish-list map in one classifier call (structured output, low effort). */
   async cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
     const msg = await this.client.messages.create(
       {
         model: this.classifierModel,
-        max_tokens: 4096,
+        max_tokens: CLUSTER_MAX_TOKENS,
         output_config: { effort: 'low', format: { type: 'json_schema', schema: CLUSTER_SCHEMA } },
         system: WISHES_INSTRUCTIONS,
         messages: [{ role: 'user', content: clusterMessage(input) }],

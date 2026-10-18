@@ -6,12 +6,10 @@ import { keys } from './keys.js'
 import { exportData } from './export.js'
 import { checkSnapshotsCommand } from './check-snapshots.js'
 import { carryOverCommand, digestCommand } from './ops.js'
+import { eraseCommand } from './erase.js'
 import { bugReport } from './report.js'
 import fs from 'node:fs'
 import { track } from '@pleatkit/vite-plugin'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
-
-pleatkitEnv(process.env)
 
 const VERSION = '0.1.0'
 /** F8: one anonymous event per command (PLEATKIT_TELEMETRY=0 turns it off; README "Telemetry"). */
@@ -25,8 +23,11 @@ const HELP = `Usage:
   pleatkit check-snapshots --store <url> --app <id> [--manifest <file>] [--typecheck] [--root <dir>]
   pleatkit report [--root <dir>] [--dist <dir>] [--url <app url>] [--out <file>]
   pleatkit digest --week --store <url> --app <id> [--out <file>] [--send] [--no-wishes] [--manifest <file>]
+                  [--wishes-max-items <n>] [--wishes-budget-usd <n>]
   pleatkit carry-over --release <hash> --budget-usd <n> --store <url> --app <id> [--manifest <file>]
                       [--per-user-usd <n>] [--dry-run] [--retry] [--typecheck] [--rollback]
+  pleatkit erase --user <id> --app <id> --store <url> [--confirm <token>]
+  pleatkit erase --app <id> --store <url> [--confirm <token>]
 
 doctor checks the pleatkit setup of a Vite + React app and prints what to fix:
   config     the pleatkit plugin in vite.config and its zones
@@ -57,12 +58,19 @@ environment with keys, tokens and secrets redacted, and a summary of the build m
 digest --week prints the weekly digest as markdown: requests and outcomes, cost, carry-overs, what waits on the
 admin, the audit chain, and the wish map (one classifier call over the week's requests the panels could not
 serve; the model provider comes from PLEATKIT_PROVIDER / PLEATKIT_API_KEY like the agent's). --send sends it
-through PLEATKIT_ALERT_WEBHOOK and/or PLEATKIT_ALERT_EMAIL_URL + _TO.
+through PLEATKIT_ALERT_WEBHOOK and/or PLEATKIT_ALERT_EMAIL_URL + _TO. The wish map reads at most 500 requests
+and spends at most $0.50 (--wishes-max-items, --wishes-budget-usd, or PLEATKIT_WISHES_MAX_ITEMS / _BUDGET_USD).
 
 carry-over carries every user's edits to a new release: by itself where the release did not touch the files the
 user changed, with the agent where it did, never past --budget-usd. The store keeps the progress: run it again
 (with a higher budget) to continue. --release is the build's release hash (or 8+ characters of it; the command
-prints it when it does not match). --rollback puts every user back on the version before the run.
+prints it when it does not match). --rollback puts every user back on the version before the run. One user's
+migration may cost at most the perEditUsd of the app's plan; --per-user-usd overrides it.
+
+erase deletes everything store-server keeps about one user (--user) or the whole app (no --user): snapshots,
+heads, requests, usage events, bundles, run records, flags, carry-over rows, the cloud's facts. The first run
+prints what would go and a confirm token; run it again with --confirm <token> to erase. An audit tombstone
+without personal data stays. Admin only (PLEATKIT_APP_KEY, or --key).
 
 Exit code 1 when a check fails.`
 
@@ -147,7 +155,20 @@ async function main(argv: string[]): Promise<number> {
     if (command === 'digest') {
       const out = opt('--out')
       const days = rest.includes('--week') || !opt('--days') ? 7 : Number(opt('--days'))
-      const r = await digestCommand({ store, app, ...(key ? { key } : {}), days, ...(out ? { out } : {}), send: rest.includes('--send'), noWishes: rest.includes('--no-wishes'), manifest: opt('--manifest') ?? 'dist/pleatkit.manifest.json' })
+      const wishMax = opt('--wishes-max-items')
+      const wishBudget = opt('--wishes-budget-usd')
+      const r = await digestCommand({
+        store,
+        app,
+        ...(key ? { key } : {}),
+        days,
+        ...(out ? { out } : {}),
+        send: rest.includes('--send'),
+        noWishes: rest.includes('--no-wishes'),
+        manifest: opt('--manifest') ?? 'dist/pleatkit.manifest.json',
+        ...(wishMax !== undefined ? { wishMaxItems: Number(wishMax) } : {}),
+        ...(wishBudget !== undefined ? { wishBudgetUsd: Number(wishBudget) } : {}),
+      })
       console.log(r.lines.join('\n'))
       if (r.ok) await event('digest.run', { sent: rest.includes('--send') })
       return r.ok ? 0 : 1
@@ -177,6 +198,21 @@ async function main(argv: string[]): Promise<number> {
     })
     console.log(r.lines.join('\n'))
     if (r.ok) await event(rollback ? 'carry-over.rollback' : 'carry-over.run')
+    return r.ok ? 0 : 1
+  }
+  if (command === 'erase') {
+    const store = opt('--store') ?? process.env.PLEATKIT_STORE_URL
+    const user = opt('--user')
+    const app = opt('--app') ?? (user ? process.env.PLEATKIT_APP_ID : undefined)
+    if (!store || !app) {
+      console.error('Usage: pleatkit erase --user <id> --app <id> --store <url> [--confirm <token>]  |  pleatkit erase --app <id> --store <url> [--confirm <token>]')
+      return 1
+    }
+    const key = opt('--key') ?? process.env.PLEATKIT_APP_KEY
+    const confirm = opt('--confirm')
+    const r = await eraseCommand({ store, app, ...(user ? { user } : {}), ...(key ? { key } : {}), ...(confirm ? { confirm } : {}) })
+    console.log(r.lines.join('\n'))
+    if (r.ok && r.erased) await event('erase.run', { scope: user ? 'user' : 'app' })
     return r.ok ? 0 : 1
   }
   if (command !== 'doctor') {

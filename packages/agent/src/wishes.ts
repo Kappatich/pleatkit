@@ -1,4 +1,5 @@
 import type { TokenUsage } from '@pleatkit/runtime/compiler'
+import { costUsd, priceOf } from './pricing.js'
 import type { ModelProvider } from './types.js'
 
 /**
@@ -37,6 +38,27 @@ export interface ClusterOutput {
   clusters: WishCluster[]
   usage: TokenUsage | null
   model: string | null
+}
+
+/**
+ * DECISIONS 70.3: one clustering call reads at most `maxItems` requests (the newest of the range) and may cost at
+ * most `budgetUsd`, estimated before the call from the prompt's size and the classifier's price with the whole
+ * output allowance. Requests over the budget are grouped without the model (fallback themes, free); requests over
+ * `maxItems` are not read. Defaults 500 and $0.50; PLEATKIT_WISHES_MAX_ITEMS and PLEATKIT_WISHES_BUDGET_USD, or
+ * `pleatkit digest --wishes-max-items --wishes-budget-usd`.
+ */
+export interface WishLimits {
+  maxItems: number
+  budgetUsd: number
+}
+export const DEFAULT_WISH_LIMITS: WishLimits = { maxItems: 500, budgetUsd: 0.5 }
+/** Output allowance of the clustering call (`max_tokens`), counted in full by the estimate. */
+export const CLUSTER_MAX_TOKENS = 4096
+
+/** The limits from the environment; bad or missing values keep the defaults. */
+export function wishLimitsFromEnv(env: Record<string, string | undefined>): WishLimits {
+  const n = (v: string | undefined) => (v !== undefined && v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : undefined)
+  return { maxItems: Math.floor(n(env.PLEATKIT_WISHES_MAX_ITEMS) ?? DEFAULT_WISH_LIMITS.maxItems), budgetUsd: n(env.PLEATKIT_WISHES_BUDGET_USD) ?? DEFAULT_WISH_LIMITS.budgetUsd }
 }
 
 /** Version of the clustering instructions (separate from the edit prompt's PROMPT_VERSION). */
@@ -138,14 +160,73 @@ export interface WishMap {
   usage: TokenUsage | null
   /** Model calls made: 1 with a provider that clusters, 0 for an empty digest or the fallback. */
   calls: number
+  /** Requests the model grouped; the rest of `items` went into fallback themes because of the budget. */
+  clustered: number
+  /** The estimate the budget was checked against (null: the model's price is unknown), and the cost after. */
+  estimatedUsd: number | null
+  costUsd: number | null
+  limits: WishLimits
 }
 
-/** One classifier call over the digest's items (none when there is nothing to group). */
-export async function clusterWishes(provider: ModelProvider, items: WishItem[], panels: string[], signal: AbortSignal = AbortSignal.timeout(120_000)): Promise<WishMap> {
-  if (!items.length) return { clusters: [], items: 0, provider: provider.name, model: null, usage: null, calls: 0 }
-  if (!provider.cluster) return { clusters: fallbackClusters(items), items: items.length, provider: provider.name, model: null, usage: null, calls: 0 }
-  const out = await provider.cluster({ items: items.map(({ id, panel, kind, text }) => ({ id, panel, kind, text })), panels }, signal)
-  return { clusters: normalizeClusters(out.clusters, items), items: items.length, provider: provider.name, model: out.model, usage: out.usage, calls: 1 }
+const toInput = (items: WishItem[], panels: string[]): ClusterInput => ({ items: items.map(({ id, panel, kind, text }) => ({ id, panel, kind, text })), panels })
+
+/**
+ * Upper estimate of one clustering call: about 3 characters per input token (prompt and requests; English text
+ * averages nearer 4) and the whole output allowance. Null when the classifier's price is unknown.
+ */
+export function estimateClusterUsd(model: string | null | undefined, input: ClusterInput): number | null {
+  const price = model ? priceOf(model) : null
+  if (!price) return null
+  const inputTokens = Math.ceil((WISHES_INSTRUCTIONS.length + clusterMessage(input).length) / 3)
+  return (inputTokens * price.input + CLUSTER_MAX_TOKENS * price.output) / 1_000_000
+}
+
+/**
+ * One classifier call over the digest's items (none when there is nothing to group), at most `limits.maxItems`
+ * of them (the first, i.e. the newest) and within `limits.budgetUsd` by the estimate: the oldest requests that do
+ * not fit go into fallback themes. When not even one fits, no call is made.
+ */
+export async function clusterWishes(
+  provider: ModelProvider,
+  allItems: WishItem[],
+  panels: string[],
+  signal: AbortSignal = AbortSignal.timeout(120_000),
+  limits: Partial<WishLimits> = {},
+): Promise<WishMap> {
+  const lim: WishLimits = { ...DEFAULT_WISH_LIMITS, ...limits }
+  const items = allItems.slice(0, lim.maxItems)
+  const none = { provider: provider.name, model: null, usage: null, calls: 0, clustered: 0, estimatedUsd: null, costUsd: null, limits: lim }
+  if (!items.length) return { ...none, clusters: [], items: 0 }
+  if (!provider.cluster) return { ...none, clusters: fallbackClusters(items), items: items.length }
+  // the largest newest-first prefix whose estimate fits the budget (binary search: the estimate grows with n)
+  const estimate = (n: number) => estimateClusterUsd(provider.clusterModel, toInput(items.slice(0, n), panels))
+  let n = items.length
+  if ((estimate(n) ?? 0) > lim.budgetUsd) {
+    let lo = 0
+    let hi = n
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2)
+      if ((estimate(mid) ?? 0) <= lim.budgetUsd) lo = mid
+      else hi = mid - 1
+    }
+    n = lo
+  }
+  if (n === 0) return { ...none, clusters: fallbackClusters(items), items: items.length, estimatedUsd: estimate(1) }
+  const sent = items.slice(0, n)
+  const out = await provider.cluster(toInput(sent, panels), signal)
+  return {
+    // the model's themes over what it read; normalizeClusters puts everything else into fallback themes
+    clusters: normalizeClusters(out.clusters, items),
+    items: items.length,
+    provider: provider.name,
+    model: out.model,
+    usage: out.usage,
+    calls: 1,
+    clustered: n,
+    estimatedUsd: estimate(n),
+    costUsd: out.model && out.usage ? costUsd(out.model, out.usage) : null,
+    limits: lim,
+  }
 }
 
 export interface BuildWishMapOptions {
@@ -161,19 +242,22 @@ export interface BuildWishMapOptions {
   fetch?: typeof fetch
   /** Store the map in store-server for /admin's Wishes screen. Default true. */
   save?: boolean
+  /** DECISIONS 70.3: at most this many requests, within this budget (defaults 500 and $0.50). */
+  limits?: Partial<WishLimits>
 }
 
 /** Read the range's wish items from store-server, cluster them with one call, store the map. */
-export async function buildWishMap(o: BuildWishMapOptions): Promise<WishMap & { from: number; to: number }> {
+export async function buildWishMap(o: BuildWishMapOptions): Promise<WishMap & { from: number; to: number; total: number }> {
   const f = o.fetch ?? ((...a) => globalThis.fetch(...a))
   const base = o.storeUrl.replace(/\/$/, '').replace(/\/v1$/, '') + '/v1'
   const headers = { 'content-type': 'application/json', 'x-pleatkit-app': o.appId, ...(o.appKey ? { authorization: `Bearer ${o.appKey}` } : { 'x-pleatkit-admin': '1' }) }
-  const to = o.toMs ?? Date.now()
+  const to = o.toMs ?? Date.now() + 1 // exclusive: this millisecond's requests count
   const from = o.fromMs ?? to - 7 * 24 * 60 * 60 * 1000
-  const res = await f(`${base}/admin/wish-items?from=${from}&to=${to}`, { headers })
+  const limits: WishLimits = { ...DEFAULT_WISH_LIMITS, ...o.limits }
+  const res = await f(`${base}/admin/wish-items?from=${from}&to=${to}&limit=${limits.maxItems}`, { headers })
   if (!res.ok) throw new Error(`store-server wish-items answered ${res.status}: ${(await res.text()).slice(0, 200)}`)
-  const { items } = (await res.json()) as { items: WishItem[] }
-  const map = await clusterWishes(o.provider, items, o.panels ?? [])
+  const { items, total } = (await res.json()) as { items: WishItem[]; total?: number }
+  const map = await clusterWishes(o.provider, items, o.panels ?? [], undefined, limits)
   if (o.save !== false) {
     const put = await f(`${base}/admin/wishes`, {
       method: 'PUT',
@@ -182,5 +266,5 @@ export async function buildWishMap(o: BuildWishMapOptions): Promise<WishMap & { 
     })
     if (!put.ok) throw new Error(`store-server wishes answered ${put.status}: ${(await put.text()).slice(0, 200)}`)
   }
-  return { ...map, from, to }
+  return { ...map, from, to, total: total ?? items.length }
 }
