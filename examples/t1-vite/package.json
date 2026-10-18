@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "agent": "pleatkit-agent",
+    "store": "pleatkit-store",
     "smoke": "node scripts/smoke.mjs --browser",
     "pleatkit-doctor": "pleatkit doctor"
   },
@@ -22,6 +23,7 @@
     "@eslint/js": "^9.36.0",
     "@pleatkit/agent": "link:../../packages/agent",
     "@pleatkit/cli": "link:../../packages/cli",
+    "@pleatkit/store-server": "link:../../packages/store-server",
     "@pleatkit/vite-plugin": "link:../../packages/vite-plugin",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.20.5",

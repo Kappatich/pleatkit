@@ -6,6 +6,7 @@ where following them failed, the docs (or pleatkit) were fixed. See the DEVLOG, 
 
 - `src/dynamic/orders-table.tsx`: the one dynamic panel, mounted as `<Dynamic id="orders-table">` in `src/App.tsx`
 - `src/readonly/api.ts`: data and helpers the panel imports as `@/readonly/api`
+- `src/main.tsx`: `HttpStore` against store-server (`pnpm store`, proxied as `/pleatkit-store`), the default since stage 4c
 - `fixtures/agent/`: a recorded agent answer, so the chat works without a model key
 
 It lives inside the pleatkit repository but is not part of its pnpm workspace, and links the packages from
@@ -15,9 +16,9 @@ It lives inside the pleatkit repository but is not part of its pnpm workspace, a
 pnpm install --ignore-workspace
 pnpm build
 pnpm pleatkit-doctor # no [FAIL] (not `pnpm doctor`: that is pnpm's own command)
-pnpm smoke           # agent + vite preview + pleatkit ping + one chat edit, headless; stops both servers
+pnpm smoke           # store-server + agent + vite preview + pleatkit ping + one chat edit and a reload, headless; stops all three
 ```
 
-By hand: `PLEATKIT_FIXTURES=fixtures/agent pnpm agent` in one terminal, `pnpm dev` in another, open
-http://localhost:5173, click Customize and ask "Show the status and make overdue orders red". With
-`PLEATKIT_API_KEY` set the agent uses Claude and any request works.
+By hand: `pnpm store` in one terminal, `PLEATKIT_FIXTURES=fixtures/agent PLEATKIT_STORE_URL=http://localhost:8790 pnpm agent`
+in another, `pnpm dev` in a third, open http://localhost:5173, click Customize and ask "Show the status and make
+overdue orders red". With `PLEATKIT_API_KEY` set the agent uses Claude and any request works.

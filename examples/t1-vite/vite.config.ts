@@ -4,6 +4,12 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import pleatkit from '@pleatkit/vite-plugin'
 
+const proxy = {
+  '/agent': 'http://localhost:8789',
+  '/pleatkit-store': { target: 'http://localhost:8790', rewrite: (p: string) => p.replace(/^\/pleatkit-store/, '') },
+  '/pleatkit/b': { target: 'http://localhost:8790', rewrite: (p: string) => p.replace(/^\/pleatkit\/b/, '/v1/b') },
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -23,7 +29,7 @@ export default defineConfig({
     // one React for the app and @pleatkit/runtime (needed when pleatkit is linked from a checkout)
     dedupe: ['react', 'react-dom'],
   },
-  // the agent server, and the signed bundles of edits it compiles (compile: 'server', the default)
-  server: { proxy: { '/agent': 'http://localhost:8789', '/pleatkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/pleatkit\/b/, '/agent/v1/b') } } },
-  preview: { proxy: { '/agent': 'http://localhost:8789', '/pleatkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/pleatkit\/b/, '/agent/v1/b') } } },
+  // the agent server, store-server (the users' versions), and the signed bundles of edits (compile: 'server', the default)
+  server: { proxy },
+  preview: { proxy },
 })
