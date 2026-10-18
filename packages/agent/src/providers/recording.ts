@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { PROMPT_VERSION } from '../prompt.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
+import type { ClusterInput, ClusterOutput } from '../wishes.js'
 
 /**
  * Full transcripts of model runs (brainstorm 04 §6, §8 items 2 and 11). `RecordingProvider` wraps any provider and
@@ -16,6 +17,7 @@ export type TranscriptLine =
   | { kind: 'start'; prompt: Omit<PromptParts, 'images'> & { images: number }; tools: string[]; request: string }
   | { kind: 'turn'; index: number; results: ToolResult[]; turn: ModelTurn; ms: number; maxOutputTokens: number }
   | { kind: 'say'; text: string }
+  | { kind: 'cluster'; input: ClusterInput; output: ClusterOutput; ms: number }
 
 export interface RecordingOptions {
   /** Directory of transcripts; one `<runId>.jsonl` per run. */
@@ -65,6 +67,17 @@ export class RecordingProvider implements ModelProvider {
     return output
   }
 
+  /** C9: the clustering call of the wish-list map gets a transcript of its own. */
+  async cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
+    if (!this.inner.cluster) return { clusters: [], usage: null, model: null }
+    const file = this.open()
+    const started = performance.now()
+    const output = await this.inner.cluster(input, signal)
+    this.write({ kind: 'cluster', input, output, ms: Math.round(performance.now() - started) }, file)
+    this.current = null
+    return output
+  }
+
   start(prompt: PromptParts, tools: ToolSpec[], meta: { request: string }): ModelSession {
     // a run without the classifier (target, clarification, migration) starts its own file
     const file = this.current && fs.existsSync(this.current) && !fs.readFileSync(this.current, 'utf8').includes('"kind":"start"') ? this.current : this.open()
@@ -111,6 +124,12 @@ export class ReplayProvider implements ModelProvider {
     const c = this.lines.find((l) => l.kind === 'classify')
     if (!c || c.kind !== 'classify') return { label: 'ui', reason: '', usage: null, model: null }
     return c.output
+  }
+
+  /** The recorded clustering answer of a wish-list map transcript. */
+  async cluster(): Promise<ClusterOutput> {
+    const c = this.lines.find((l) => l.kind === 'cluster')
+    return c && c.kind === 'cluster' ? c.output : { clusters: [], usage: null, model: null }
   }
 
   start(): ModelSession {

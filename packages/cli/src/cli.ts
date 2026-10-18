@@ -5,6 +5,9 @@ import { ping } from './ping.js'
 import { keys } from './keys.js'
 import { exportData } from './export.js'
 import { checkSnapshotsCommand } from './check-snapshots.js'
+import { carryOverCommand, digestCommand } from './ops.js'
+import { bugReport } from './report.js'
+import fs from 'node:fs'
 import { track } from '@pleatkit/vite-plugin'
 import { pleatkitEnv } from '@pleatkit/runtime/env'
 
@@ -20,6 +23,10 @@ const HELP = `Usage:
   pleatkit keys new | public
   pleatkit export --store <url> --app <id> [--user <id>] [--out <file>]
   pleatkit check-snapshots --store <url> --app <id> [--manifest <file>] [--typecheck] [--root <dir>]
+  pleatkit report [--root <dir>] [--dist <dir>] [--url <app url>] [--out <file>]
+  pleatkit digest --week --store <url> --app <id> [--out <file>] [--send] [--no-wishes] [--manifest <file>]
+  pleatkit carry-over --release <hash> --budget-usd <n> --store <url> --app <id> [--manifest <file>]
+                      [--per-user-usd <n>] [--dry-run] [--retry] [--typecheck] [--rollback]
 
 doctor checks the pleatkit setup of a Vite + React app and prints what to fix:
   config     the pleatkit plugin in vite.config and its zones
@@ -40,6 +47,22 @@ two in your server's secret store, never in the repository or the browser.
 export writes everything store-server keeps for an app (or one user of it: --user) to a JSON file: snapshots
 with their files, heads, the request log, usage events, and for an app also the audit chain, flags, settings
 and plan. Authenticates with PLEATKIT_APP_KEY (or --key); without it, the development admin header.
+
+check-snapshots carries every user's current version over to a new build and compiles it (with --typecheck,
+type-checks it too): the users whose version would be marked stale, before the release goes out.
+
+report writes pleatkit-report.md for a bug report: doctor's findings, versions, the Vite config and the pleatkit
+environment with keys, tokens and secrets redacted, and a summary of the build manifest. Read it, then attach it.
+
+digest --week prints the weekly digest as markdown: requests and outcomes, cost, carry-overs, what waits on the
+admin, the audit chain, and the wish map (one classifier call over the week's requests the panels could not
+serve; the model provider comes from PLEATKIT_PROVIDER / PLEATKIT_API_KEY like the agent's). --send sends it
+through PLEATKIT_ALERT_WEBHOOK and/or PLEATKIT_ALERT_EMAIL_URL + _TO.
+
+carry-over carries every user's edits to a new release: by itself where the release did not touch the files the
+user changed, with the agent where it did, never past --budget-usd. The store keeps the progress: run it again
+(with a higher budget) to continue. --release is the build's release hash (or 8+ characters of it; the command
+prints it when it does not match). --rollback puts every user back on the version before the run.
 
 Exit code 1 when a check fails.`
 
@@ -97,6 +120,63 @@ async function main(argv: string[]): Promise<number> {
     const root = arg('--root')
     const r = await checkSnapshotsCommand({ store, app, manifest, ...(key ? { key } : {}), ...(root ? { root } : {}), typecheck: rest.includes('--typecheck') })
     console.log(r.lines.join('\n'))
+    return r.ok ? 0 : 1
+  }
+  const opt = (name: string) => {
+    const i = rest.indexOf(name)
+    return i >= 0 ? rest[i + 1] : undefined
+  }
+  if (command === 'report') {
+    const out = path.resolve(opt('--out') ?? 'pleatkit-report.md')
+    const dist = opt('--dist')
+    const url = opt('--url')
+    const r = await bugReport({ root: path.resolve(opt('--root') ?? process.cwd()), ...(dist ? { dist } : {}), ...(url ? { url } : {}), cliVersion: VERSION })
+    fs.writeFileSync(out, r.markdown)
+    console.log(`wrote ${out}: ${r.findings.filter((f) => f.status === 'fail').length} failed checks. Read it, then attach it to the issue.`)
+    await event('report.run')
+    return 0
+  }
+  if (command === 'digest' || command === 'carry-over') {
+    const store = opt('--store') ?? process.env.PLEATKIT_STORE_URL
+    const app = opt('--app') ?? process.env.PLEATKIT_APP_ID
+    const key = opt('--key') ?? process.env.PLEATKIT_APP_KEY
+    if (!store || !app) {
+      console.error(`Usage: see pleatkit --help (${command} needs --store and --app, or PLEATKIT_STORE_URL and PLEATKIT_APP_ID)`)
+      return 1
+    }
+    if (command === 'digest') {
+      const out = opt('--out')
+      const days = rest.includes('--week') || !opt('--days') ? 7 : Number(opt('--days'))
+      const r = await digestCommand({ store, app, ...(key ? { key } : {}), days, ...(out ? { out } : {}), send: rest.includes('--send'), noWishes: rest.includes('--no-wishes'), manifest: opt('--manifest') ?? 'dist/pleatkit.manifest.json' })
+      console.log(r.lines.join('\n'))
+      if (r.ok) await event('digest.run', { sent: rest.includes('--send') })
+      return r.ok ? 0 : 1
+    }
+    const release = opt('--release')
+    const budget = Number(opt('--budget-usd'))
+    const rollback = rest.includes('--rollback')
+    if (!release || (!rollback && !(budget >= 0 && opt('--budget-usd') !== undefined))) {
+      console.error('Usage: pleatkit carry-over --release <hash> --budget-usd <dollars> --store <url> --app <id> [--manifest dist/pleatkit.manifest.json]')
+      return 1
+    }
+    const perUser = opt('--per-user-usd')
+    const root = opt('--root')
+    const r = await carryOverCommand({
+      store,
+      app,
+      ...(key ? { key } : {}),
+      release,
+      budgetUsd: rollback ? 0 : budget,
+      manifest: opt('--manifest') ?? 'dist/pleatkit.manifest.json',
+      ...(perUser ? { perUserUsd: Number(perUser) } : {}),
+      dryRun: rest.includes('--dry-run'),
+      retry: rest.includes('--retry'),
+      rollback,
+      typecheck: rest.includes('--typecheck'),
+      ...(root ? { root } : {}),
+    })
+    console.log(r.lines.join('\n'))
+    if (r.ok) await event(rollback ? 'carry-over.rollback' : 'carry-over.run')
     return r.ok ? 0 : 1
   }
   if (command !== 'doctor') {

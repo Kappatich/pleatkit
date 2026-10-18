@@ -3,6 +3,7 @@ import { perCallMaxTokens } from './budget.js'
 import { CLASSIFIER_INSTRUCTIONS } from '../prompt.js'
 import { clarifyOf } from './anthropic.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
+import { clusterMessage, parseClusters, WISHES_INSTRUCTIONS, type ClusterInput, type ClusterOutput } from '../wishes.js'
 
 export interface OpenAICompatibleOptions {
   apiKey: string
@@ -93,6 +94,22 @@ export class OpenAICompatibleProvider implements ModelProvider {
     } catch {
       return { label: 'unclear', reason: '', usage: usageOf(r.usage), model: r.model ?? this.classifierModel }
     }
+  }
+
+  /** C9: the wish-list map in one classifier call (JSON mode). */
+  async cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
+    const r = await this.chat(
+      {
+        model: this.classifierModel,
+        messages: [
+          { role: 'system', content: WISHES_INSTRUCTIONS },
+          { role: 'user', content: clusterMessage(input) },
+        ],
+        response_format: { type: 'json_object' },
+      },
+      signal,
+    )
+    return { clusters: parseClusters(textOf(r.choices[0]?.message.content)), usage: usageOf(r.usage), model: r.model ?? this.classifierModel }
   }
 
   start(prompt: PromptParts, tools: ToolSpec[]): ModelSession {

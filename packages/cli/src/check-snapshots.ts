@@ -9,6 +9,7 @@ export interface CheckSnapshotsArgs {
   typecheck?: boolean
   /** App folder for package types when type checking (default: the manifest's folder's parent). */
   root?: string
+  fetch?: typeof fetch
 }
 
 /**
@@ -21,7 +22,7 @@ export async function checkSnapshotsCommand(a: CheckSnapshotsArgs): Promise<{ ok
   if (!fs.existsSync(a.manifest)) return { ok: false, lines: [`no manifest at ${a.manifest}: run your build (vite build) first`] }
   const manifest = JSON.parse(fs.readFileSync(a.manifest, 'utf8')) as PleatkitManifest
   const typecheck = a.typecheck ? agent.createTypechecker({ root: a.root ?? null }) : null
-  const r = await agent.checkSnapshots({ storeUrl: a.store, appId: a.app, manifest, appKey: a.key ?? null, typecheck })
+  const r = await agent.checkSnapshots({ storeUrl: a.store, appId: a.app, manifest, appKey: a.key ?? null, typecheck, ...(a.fetch ? { fetch: a.fetch } : {}) })
   const lines = [`checked ${r.checked} personal version(s) of ${a.app} against ${a.manifest}${a.typecheck ? ' (with type check)' : ''}`]
   for (const x of r.results) {
     lines.push(`${x.ok ? '[ok]  ' : '[FAIL]'} ${x.userId} ${x.snapshotId} (changed: ${x.userFiles.join(', ') || 'none'})`)
