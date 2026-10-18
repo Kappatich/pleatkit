@@ -11,8 +11,8 @@ The customer's backend mints the user token (`mintUserToken`, HS256, at most 15 
 | Role | Can | Cannot |
 |---|---|---|
 | `user` | read and change their own version through the drawer | see anyone else's version or anything under `/admin` |
-| `support` | read everything under `/v1/admin` (requests, stats, wishes, code search, releases, flags, events, audit, plan); act as one user at a time ("view as"), every call audited | change anything under `/admin` (no approve, reject, rollback, flags, plan, settings, bulk operations); export (`/v1/admin/export`); the pilot report (`/v1/report`) |
-| `admin` | everything above, plus every write under `/admin`, the export and the report | — |
+| `support` | read everything under `/v1/admin` (requests, stats, wishes, code search, releases, flags, events, audit, plan); view one user at a time ("view as"): read their version and history, every call audited | change anything under `/admin` (no approve, reject, rollback, flags, plan, settings, bulk operations, erasure); **write as a user** (restore a version, store a snapshot: 403 since 0.2, DECISIONS 70.5); export (`/v1/admin/export`); the pilot report (`/v1/report`) |
+| `admin` | everything above, plus every write under `/admin`, writes as a user ("view as" with an admin token), the export, the report and erasure | — |
 
 The app key (`mk_live_…`, server to server) is an admin of its app. Roles are enforced by store-server
 (`packages/store-server/src/auth.ts`, `app.ts`); a token with any other role is refused (401).
@@ -29,14 +29,18 @@ How it works:
 - The browser sends `x-pleatkit-act-as: <user id>` with the support person's own token (`HttpStore({ userId:
   '<user>', viewer: '<support id>', token })`). store-server accepts it only for `support` and `admin` tokens;
   a `user` token with the header gets 403.
-- Every call made this way, reads included, adds a row to the app's audit chain: action `impersonate.read` or
-  `impersonate.write`, actor `support:<viewer>:as:<user>`, details `{ viewer, user, role, method, path, status }`.
-  A write also keeps its own audit row (`head.set`, `snapshot.create`) with the same two-id actor. The chain is
-  hash-linked; `/admin?view=audit` shows these rows with an "as" mark and verifies the chain.
+- **Support only reads.** Any write with the header and a `support` token (moving the head, storing a snapshot,
+  logging a request) gets 403 `support-read-only`, and nothing changes. Only an `admin` token writes as a user.
+- Every call made this way, reads and refused writes included, adds a row to the app's audit chain: action
+  `impersonate.read` or `impersonate.write`, actor `<role>:<viewer>:as:<user>`, details
+  `{ viewer, user, role, method, path, status }` (a refused write has `status: 403`). An admin's write also keeps its
+  own audit row (`head.set`, `snapshot.create`) with the same two-id actor. The chain is hash-linked;
+  `/admin?view=audit` shows these rows with an "as" mark and verifies the chain.
 - In the demo: `/admin` → open a request → **View as {user}** opens `/?user=<user>&as=support`: a black banner
   "Viewing as {user}", the user's panels, no chat. **Exit** goes back to /admin.
-- The chat is not shown in the support view on purpose: support does not make edits in the user's name. To undo
-  something for the user, use the admin's **Undo for {user}** (an admin) or ask the user to press undo.
+- The chat is not shown in the support view on purpose: support does not make edits in the user's name, and
+  store-server refuses support's writes as a user anyway. To undo something for the user, ask an admin (**Undo for
+  {user}**, or "view as" with an admin token) or ask the user to press undo or restore the version in the drawer.
 
 ## Before you answer: find the version
 
@@ -51,7 +55,8 @@ How it works:
 | Ticket | Check | Answer / action |
 |---|---|---|
 | "My screen looks different from yesterday" | The request log for the user; the diff of the latest edit | Tell them which request changed it; they undo it in the drawer (↶) or restore a version from the history |
-| "My change is gone" | Is the version still the head? An admin rollback, a code-search rollback, a release rollback? (`/admin?view=audit`, filter by the user) | Say who rolled it back and why (the audit row); restore only with the admin's agreement |
+| "My change is gone" | Is the version still the head? An admin rollback, a code-search rollback, a release rollback? (`/admin?view=audit`, filter by the user) | Say who rolled it back and why (the audit row); the user restores it from the drawer's history, or an admin does it for them |
+| "Delete my data" (a data subject request) | Which app and which user id; the request comes from the customer, not from the end user directly | Escalate to the customer's admin: `pleatkit erase --user <id> --app <app>` (two steps, a confirm token); support cannot erase. Keep the tombstone id the command prints with the ticket ([security/retention.md](security/retention.md)) |
 | "The panel shows 'the app was updated'" | `/admin?view=releases`: was the user carried over, `stale`, `budget`? | They press "carry over" or "reset" in the banner; or the admin resumes `pleatkit carry-over` with more budget |
 | "The panel is broken / blank" | Safe mode? The request's tool log and the browser console (`[pleatkit] …`) | `?pleatkit=safe` shows the original; the user undoes the edit; file a bug with `pleatkit report` |
 | "It says 'Sent to the administrator'" | The request is `needs backend` (`pending-admin`) | The admin takes it into work or rejects it; it is on the Wishes screen too |
@@ -74,5 +79,5 @@ How it works:
 | Level | Who | When |
 |---|---|---|
 | 1 | support (`support` role) | tickets above |
-| 2 | the customer's admin (`admin` role) | rollbacks, flags, plan, releases |
+| 2 | the customer's admin (`admin` role) | rollbacks, flags, plan, releases, writes as a user, erasure |
 | 3 | pleatkit on duty ([ops/incident.md](ops/incident.md)) | an incident, a bug in pleatkit, a vulnerability ([../SECURITY.md](../SECURITY.md)) |

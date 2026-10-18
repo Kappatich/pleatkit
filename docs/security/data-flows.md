@@ -65,7 +65,7 @@ end user's browser ──(1)──▶ agent server ──(3)──▶ model prov
 |---|---|---|
 | Snapshots (the panel code of every version of every user), heads | tenant | the user (their own), support (acting as the user, audited), admin |
 | Request log: text, target, proposed files, tool log, usage, cost | tenant (L0) | admin and support of the app |
-| Request facts: intent label, verdict, counts, cost, keyed ids (HMAC with a per-app salt), no text, no code | tenant (L1) | the app's operator; written only when the app's `learning` flag allows |
+| Request facts: intent label, verdict, counts, cost, keyed ids (HMAC with a per-app salt), no text, no code | tenant (L1) | the app's operator; written only in the managed cloud (the `@pleatkit/store-cloud` module; the open store has no such table) and only when the app's `learning` flag allows |
 | Usage events (`edit.requested`, `tokens.used`, `cost.usd`...) | tenant | admin, support |
 | Audit chain (every write, every admin action, every impersonated call), append-only, hash-linked | tenant | admin, support; exported with the app |
 | Wish maps (themes with request ids), release runs, flags, plan, settings | tenant | admin, support |

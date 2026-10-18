@@ -56,7 +56,7 @@ Expect: lines like `+ @pleatkit/runtime 0.1.0 <- ../pleatkit/packages/runtime` f
 
 If not:
 - `ERR_PNPM_...workspace`, or pnpm installs a different project: the app is inside another pnpm workspace. Add `--ignore-workspace` to every `pnpm add` / `pnpm install` in the app.
-- Once pleatkit is on npm, the same step is `pnpm add @pleatkit/runtime @pleatkit/ui && pnpm add -D @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli` (store-server is then the cloud's or your self-hosted one).
+- Once pleatkit is on npm, the same step is `pnpm add @pleatkit/runtime @pleatkit/ui && pnpm add -D @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli @pleatkit/store-server` (the store is open source since 0.2; with the managed cloud you point `HttpStore` at the cloud instead and skip it).
 
 ## Step 3. Configure Vite
 

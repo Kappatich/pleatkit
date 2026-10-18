@@ -17,7 +17,8 @@ another app, read [`docs/for-agents/AGENTS.md`](docs/for-agents/AGENTS.md) inste
 |---|---|---|
 | `packages/runtime` | browser runtime: engine, `check` (shared with the server), loader, stores, React bindings | MIT; no Node APIs in `src/` |
 | `packages/agent` | agent server: model loop, tools, providers, bundle signing, alerts | MIT |
-| `packages/store-server` | snapshots, heads, request log, quotas, audit, facts | private (pleatkit-cloud) |
+| `packages/store-server` | the open store: snapshots, heads, request log, quotas, audit, roles, releases, erasure; `StoreExtension` | MIT, published |
+| `packages/store-cloud` | cloud-only store modules (learning layer, `request_facts`) on the extension hook | private, never published |
 | `packages/vite-plugin` | zones, manifest, digests, externals | MIT |
 | `packages/ui` | chat drawer | the architect owns the look; ask before touching |
 | `packages/cli` | doctor, ping, keys, export, check-snapshots, report, digest, carry-over | MIT |
@@ -32,6 +33,7 @@ pnpm install && pnpm build && pnpm test && pnpm e2e && pnpm lint   # the definit
 pnpm typecheck
 pnpm dev                                                         # demo + agent + store, one command
 cd examples/t1-vite && pnpm build && pnpm smoke                    # the docs still work
+node scripts/release-check.mjs                                   # before a release: versions, metadata, dry-run publish
 ```
 
 No model key is needed: the agent runs the `scripted` provider (recorded answers in `apps/demo-crm/e2e/fixtures/agent`).
