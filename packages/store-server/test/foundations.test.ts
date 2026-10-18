@@ -92,6 +92,9 @@ describe('F3: append-only usage events', () => {
     expect(await (await t.call('/v1/events', t.agent('alice'), { method: 'POST', body: JSON.stringify(batch) })).json()).toEqual({ stored: 0 })
     expect((await t.call('/v1/events', t.as('alice'), { method: 'POST', body: JSON.stringify(batch) })).status).toBe(403)
     expect((await t.call('/v1/events', t.agent('alice'), { method: 'POST', body: JSON.stringify({ events: [{ type: 'free.money', value: 1, unit: 'usd' }] }) })).status).toBe(400)
+    // stage 5 block 3: a run stopped by the model provider's rate limit is counted (the /admin Plan screen shows it)
+    const limited = { events: [{ type: 'edit.rate_limited', value: 1, unit: 'edit', userId: 'alice', dedupeKey: 'edit.rate_limited:k2' }] }
+    expect(await (await t.call('/v1/events', t.agent('alice'), { method: 'POST', body: JSON.stringify(limited) })).json()).toEqual({ stored: 1 })
     expect(() => t.raw.exec('UPDATE events SET value = 0')).toThrow(/append-only/)
     expect(() => t.raw.exec('DELETE FROM events')).toThrow(/append-only/)
   })

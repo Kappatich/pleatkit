@@ -153,9 +153,12 @@ describe('stage 5: the release passes check, the budget counted by the API (DECI
     const fromData = `const rows = [{ image: '/images/a.jpg' }]
 export default function Orders() { return <div>{rows.map((r) => <img key={r.image} src={r.image} />)}</div> }
 `
-    const bad = await checkRelease(manifest(fromData), agent)
+    // DECISIONS 74.3: a URL from data on a plain element is now the runtime guard's to decide; an outside host is not
+    expect(await checkRelease(manifest(fromData), agent)).toMatchObject({ id: 'release', status: 'ok' })
+    const outside = fromData.replace('src={r.image}', "src={'https://cdn.example/' + r.image}")
+    const bad = await checkRelease(manifest(outside), agent)
     expect(bad).toMatchObject({ id: 'release', status: 'fail' })
-    expect(bad.details.join(' ')).toMatch(/no-computed-url/)
+    expect(bad.details.join(' ')).toMatch(/no-remote-request/)
     const literal = fromData.replace('src={r.image}', 'src={`/images/${r.image}`}').replace("'/images/a.jpg'", "'a.jpg'")
     expect(await checkRelease(manifest(literal), agent)).toMatchObject({ id: 'release', status: 'ok' })
     expect(await checkRelease(manifest(literal), null)).toMatchObject({ id: 'release', status: 'warn' })

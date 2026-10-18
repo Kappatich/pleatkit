@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { AgentRunRequest, PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { trustedInput } from './manifest.js'
-import { buildPrompt, PROMPT_VERSION } from './prompt.js'
+import { buildPrompt, digestsFromManifest, PROMPT_VERSION } from './prompt.js'
 import { DEFAULT_MODEL } from './providers/anthropic.js'
 import { TOOLS } from './tools.js'
 
@@ -46,7 +46,7 @@ export function sampleRequest(manifest: PleatkitManifest, request = 'Make the ti
 export async function countPromptTokens(manifest: PleatkitManifest, o: CountTokensOptions): Promise<PromptTokenCount> {
   const client = new Anthropic({ apiKey: o.apiKey, ...(o.baseURL ? { baseURL: o.baseURL } : {}), ...(o.fetch ? { fetch: o.fetch } : {}), maxRetries: 1 })
   const model = o.model ?? DEFAULT_MODEL
-  const digests = { ...(manifest.designSystem ? { designSystem: manifest.designSystem } : {}), ...(manifest.dataContracts ? { dataContracts: manifest.dataContracts } : {}) }
+  const digests = digestsFromManifest(manifest)
   const parts = buildPrompt(sampleRequest(manifest), undefined, digests)
   const messages = [{ role: 'user' as const, content: parts.user }]
   // the same shape as AnthropicProvider sends: tools, then the two system blocks, then the request

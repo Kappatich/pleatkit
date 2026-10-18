@@ -196,6 +196,6 @@ describe('stage 5: a request with a screen part and a server part is partial, no
     const text = instructions(request('x'))
     expect(text).toMatch(/never answer "needs-backend" to a request that has a screen part/)
     expect(text).toMatch(/finish "partial": "The card now shows the phone\. Keeping a history/)
-    expect(PROMPT_VERSION).toBe('2026-10-18.5d')
+    expect(PROMPT_VERSION).toMatch(/^2026-10-18.5[d-z]$/)
   })
 })

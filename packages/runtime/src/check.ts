@@ -155,6 +155,12 @@ const JS_URL = /^[\s\u0000-\u001f]*j[\s\u0000-\u001f]*a[\s\u0000-\u001f]*v[\s\u0
 /** A computed URL is fine when its fixed start already pins it to this origin: `/customers/${id}`, `./x`, `?q=`, `#a`. */
 const PINNED_PREFIX = /^(\/[^/\\\s]|\.\.?\/|\?|#)/
 const MAIL = /^(mailto|tel):/i
+/**
+ * DECISIONS 74.3: on a plain element (`<img>`, `<a>`, `<video>`, `<form>`) these may take a URL from data: the runtime
+ * guard (`url-guard.ts`) keeps it only when it resolves to the app's own origin. A fixed absolute or `javascript:` start
+ * written in the code is still refused here.
+ */
+const GUARDED_URL_ATTRS = new Set(['src', 'href', 'poster', 'action', 'formaction'])
 /** Element properties and attributes that make the browser load or navigate to a URL. */
 const URL_ATTRS = new Set(['src', 'href', 'action', 'formaction', 'srcset', 'poster', 'data', 'ping', 'background', 'xlink:href', 'xlinkhref', 'cite', 'codebase', 'manifest', 'imagesrcset'])
 const BANNED_TAGS = new Set(['script', 'style', 'object', 'embed', 'base', 'meta', 'applet', 'frame', 'frameset', 'portal'])
@@ -189,7 +195,7 @@ const WATCHED = new Set([
 
 const HINT = {
   network: 'talk to the server only through the typed client in the readonly zone, or fetch("/relative/url")',
-  url: 'use a relative URL written in the code ("/customers/" + id is fine, a URL from data or an absolute one is not)',
+  url: 'use a relative URL written in the code ("/customers/" + id is fine) or a URL from data on a plain element such as <img src> or <a href> (it is shown only when it stays on this app); no absolute URL and no URL from data anywhere else',
   css: 'use colors, gradients or images that ship with the app; no absolute or computed url()',
 }
 
@@ -278,7 +284,7 @@ function urlParts(n: N): { text: string; computed: boolean } | null {
 }
 
 /** A URL the browser will load or navigate to: relative and written in the code, or the edit is refused. */
-function checkUrl(report: Report, node: N, value: N | undefined | null, what: string, opts: { allowMail?: boolean } = {}): void {
+function checkUrl(report: Report, node: N, value: N | undefined | null, what: string, opts: { allowMail?: boolean; guarded?: boolean } = {}): void {
   if (!value) return
   if (value.type === 'Identifier' && value.name === 'undefined') return
   if (value.type === 'Literal' && (value.value === null || value.value === undefined)) return
@@ -290,11 +296,14 @@ function checkUrl(report: Report, node: N, value: N | undefined | null, what: st
   if (value.type === 'JSXExpressionContainer') return checkUrl(report, node, value.expression as N, what, opts)
   if (value.type === 'JSXEmptyExpression') return
   const parts = urlParts(value)
+  // 74.3: a URL from data on a plain element is decided at render time by the runtime guard (same origin only)
+  if (!parts && opts.guarded) return
   if (!parts) return report(node, 'no-computed-url', `${what} with a URL computed at run time is not allowed: ${HINT.url}`)
   if (JS_URL.test(parts.text)) return report(node, 'no-computed-url', `${what} with a javascript: URL is not allowed`)
   if (opts.allowMail && MAIL.test(parts.text)) return
   if (ABSOLUTE_URL.test(parts.text)) return report(node, 'no-remote-request', `${what} to "${parts.text.slice(0, 80)}" is not allowed: only relative URLs of this app (${HINT.url})`)
   if (parts.computed && !PINNED_PREFIX.test(parts.text)) {
+    if (opts.guarded) return
     return report(node, 'no-computed-url', `${what} starts with a computed part, so it could point to another site: ${HINT.url}`)
   }
 }
@@ -645,7 +654,7 @@ function rulesForFile(path: string, parsed: Parsed, ctx: CheckContext, push: (e:
             // stage 5 (foreign apps): `data` loads a URL only on an element (<object>, banned above); on a component
             // it is a prop like any other (recharts' <BarChart data={rows}>, tables), not a request
             if (lower === 'data' && !/^[a-z]/.test(tag)) continue
-            checkUrl(report, a, a.value as N, `<${tag || 'element'} ${name}>`, { allowMail: lower === 'href' })
+            checkUrl(report, a, a.value as N, `<${tag || 'element'} ${name}>`, { allowMail: lower === 'href', guarded: /^[a-z]/.test(tag) && GUARDED_URL_ATTRS.has(lower) })
           }
         }
         break

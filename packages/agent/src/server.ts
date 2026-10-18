@@ -9,9 +9,11 @@ import { t, type MessageKey } from './i18n.js'
 import { loopRunner, validateRequest, type AgentLimits, type AgentRunner } from './loop.js'
 import { Alerts, type AlertsOptions } from './alerts.js'
 import { manifestPanels, resolveManifest, trustedInput, type ManifestSource } from './manifest.js'
+import { digestsFromManifest } from './prompt.js'
 import { buildWishMap, type WishLimits } from './wishes.js'
 import type { TypecheckFn } from './workspace.js'
 import { MemoryQuotaBackend, Quotas, resolvePlan, StoreQuotaBackend, type PlanLimits } from './quota.js'
+import { modelGate } from './rate-limit.js'
 import { StoreClient } from './store-client.js'
 import type { ModelProvider } from './types.js'
 
@@ -49,10 +51,16 @@ export interface AgentServerOptions {
   heartbeatMs?: number
   /** Largest request body, bytes. Default 16 MiB (three screenshots and a large zone fit). */
   bodyLimitBytes?: number
-  /** Type check edits against the app's `.d.ts` (brainstorm 05 #4); see `createTypechecker`. */
+  /** Type check edits in the agent loop against the app's `.d.ts` (brainstorm 05 #4, DECISIONS 74.2); see `typecheckFromEnv`. */
   typecheck?: TypecheckFn | null
+  /** Type check server compiles (commits) too; default none (only an explicit PLEATKIT_TYPECHECK=1 sets it). */
+  commitTypecheck?: TypecheckFn | null
   /** DECISIONS 73.3: PLEATKIT_CLASSIFIER=sequential waits for the classifier before the main model (default: parallel). */
   classifierMode?: 'parallel' | 'sequential'
+  /** Stage 5 block 3: model calls at a time in this process (the process-wide gate; default 8). */
+  modelConcurrency?: number
+  /** Retries of a model call refused with 429 / overloaded (default 3). */
+  rateLimitRetries?: number
   /** Alerts and automatic freezes (brainstorm 05 #5). Default: freezes on, no sinks (log only). */
   alerts?: Pick<AlertsOptions, 'sinks' | 'freeze'> | Alerts | false
 }
@@ -127,6 +135,8 @@ export function usageEvents(result: Omit<AgentResult, 'requestId'>, requestId: s
       props: { model: u.model, input: u.inputTokens, output: u.outputTokens, cacheRead: u.cacheReadTokens, cacheWrite: u.cacheWriteTokens, thinking: u.thinkingTokens ?? 0 },
     })),
     { ...base, type: 'cost.usd', value: cost, unit: 'usd', dedupeKey: `cost.usd:${key}`, props: { provider: result.provider, priced: result.usage.every((u) => u.costUsd !== null) } },
+    // stage 5 block 3: a run the provider's rate limit stopped (the /admin Plan screen counts them per day)
+    ...(result.rateLimited ? [{ ...base, type: 'edit.rate_limited', value: 1, unit: 'edit', dedupeKey: `edit.rate_limited:${key}`, props: { provider: result.provider, model: result.model } }] : []),
   ]
 }
 
@@ -180,7 +190,8 @@ export function createAgentApp(options: AgentServerOptions) {
           return p ? resolvePlan(p.plan ?? options.plan?.name, { ...options.plan?.limits, ...p.limits }) : fallbackPlan()
         }))
 
-  const bundles = new BundleService(auth.credentials, store, 500, options.typecheck ?? null)
+  if (options.modelConcurrency) modelGate.resize(options.modelConcurrency)
+  const bundles = new BundleService(auth.credentials, store, 500, options.commitTypecheck ?? null)
   const alerts = options.alerts === false ? null : options.alerts instanceof Alerts ? options.alerts : new Alerts({ sinks: [], ...options.alerts, store, log })
 
   // F6: flags per user, cached briefly (the kill switch takes effect within this time)
@@ -222,7 +233,7 @@ export function createAgentApp(options: AgentServerOptions) {
     }
   }
 
-  const health = (c: Context) => c.json({ ok: true, provider: runner.name, model: runner.model, store: Boolean(store), auth: Boolean(auth.credentials) })
+  const health = (c: Context) => c.json({ ok: true, provider: runner.name, model: runner.model, store: Boolean(store), auth: Boolean(auth.credentials), modelCalls: { ...modelGate.load, limit: modelGate.limit } })
   app.get('/health', health)
   app.get('/v1/health', health)
 
@@ -298,8 +309,8 @@ export function createAgentApp(options: AgentServerOptions) {
         } else {
           plan = quota?.plan ?? null
           const limits = { ...options.limits, ...(plan ? { maxCostUsd: Math.min(plan.perEditUsd, options.limits?.maxCostUsd ?? Infinity) } : {}) }
-          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null, ...(options.classifierMode ? { classifierMode: options.classifierMode } : {}),
-            digests: { ...(trusted.manifest?.designSystem ? { designSystem: trusted.manifest.designSystem } : {}), ...(trusted.manifest?.dataContracts ? { dataContracts: trusted.manifest.dataContracts } : {}) } })
+          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null, ...(options.classifierMode ? { classifierMode: options.classifierMode } : {}), ...(options.rateLimitRetries !== undefined ? { rateLimitRetries: options.rateLimitRetries } : {}),
+            digests: digestsFromManifest(trusted.manifest) })
         }
         const cost = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
         const budget = quotas && result.verdict !== 'refused' ? await quotas.afterEdit(who, cost).catch((e: Error) => (log(`[pleatkit-agent] could not record the cost: ${e.message}`), null)) : null

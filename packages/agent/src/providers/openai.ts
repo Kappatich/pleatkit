@@ -70,7 +70,13 @@ export class OpenAICompatibleProvider implements ModelProvider {
       body: JSON.stringify(body),
       signal,
     })
-    if (!res.ok) throw new Error(`Model API ${res.status}: ${(await res.text()).slice(0, 500)}`)
+    if (!res.ok) {
+      // status and headers go with the error: the agent loop retries 429/5xx after retry-after (rate-limit.ts)
+      const err = new Error(`Model API ${res.status}: ${(await res.text()).slice(0, 500)}`) as Error & { status: number; headers: Headers }
+      err.status = res.status
+      err.headers = res.headers
+      throw err
+    }
     return (await res.json()) as ChatResponse
   }
 
@@ -133,13 +139,20 @@ export class OpenAICompatibleProvider implements ModelProvider {
         pendingText = text
       },
       next: async (results: ToolResult[], options: TurnOptions): Promise<ModelTurn> => {
+        const length = messages.length
+        const pending = pendingText
         for (const r of results) messages.push({ role: 'tool', tool_call_id: r.id, content: r.ok ? r.content : `ERROR: ${r.content}` })
         if (pendingText) messages.push({ role: 'user', content: pendingText })
         pendingText = null
-        const r = await this.chat(
-          { model: this.model, messages, tools: toolDefs, tool_choice: 'auto', max_completion_tokens: perCallMaxTokens(options.maxOutputTokens) },
-          options.signal,
-        )
+        let r: ChatResponse
+        try {
+          r = await this.chat({ model: this.model, messages, tools: toolDefs, tool_choice: 'auto', max_completion_tokens: perCallMaxTokens(options.maxOutputTokens) }, options.signal)
+        } catch (e) {
+          // a failed call leaves the conversation as it was, so the loop can retry it (rate-limit.ts)
+          messages.length = length
+          pendingText = pending
+          throw e
+        }
         const choice = r.choices[0]
         if (!choice) throw new Error('Model API returned no choices')
         messages.push(choice.message)

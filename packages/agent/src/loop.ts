@@ -3,8 +3,9 @@ import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, FileMap, 
 import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
 import { buildPrompt, classifierContext, PROMPT_VERSION, type PromptDigests } from './prompt.js'
+import { callModel, RateLimitedError, type ModelGate } from './rate-limit.js'
 import { checkText, ToolRunner, TOOLS } from './tools.js'
-import type { Classification, ModelProvider, ModelSession, ModelTurn, ToolCall, ToolResult } from './types.js'
+import type { CancelledCall, Classification, ModelProvider, ModelSession, ModelTurn, ToolCall, ToolResult } from './types.js'
 import { Workspace, type TypecheckFn } from './workspace.js'
 
 export interface AgentLimits {
@@ -53,6 +54,9 @@ export interface RunOptions {
    */
   classifierMode?: 'parallel' | 'sequential'
   onProgress?: (p: AgentProgress) => void
+  /** Stage 5 block 3: the concurrency gate of model calls (default: the process-wide `modelGate`) and retries on 429. */
+  gate?: ModelGate
+  rateLimitRetries?: number
   /** Aborts the run, e.g. when the browser disconnects. */
   signal?: AbortSignal
 }
@@ -160,6 +164,8 @@ interface EarlyCall {
   abort: AbortController
   startedAt: number
   endedAt: number | null
+  /** Set by a streaming provider when the cancelled call ends (DECISIONS 74.1). */
+  cancelled: CancelledCall | null
 }
 
 /**
@@ -183,7 +189,10 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   const timeout = AbortSignal.timeout(limits.timeoutMs)
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout
   const meter = new UsageMeter()
-  const ws = new Workspace({ ...req, ...(options.protected?.length ? { protected: options.protected, base: options.base ?? {} } : {}) }, options.typecheck ?? null)
+  // the release's files go to the workspace whenever they are known: the protected-element count needs them, and so
+  // does the type check, which refuses only errors the release does not already have (74.2: shadcn-admin's own panels
+  // carry a CheckedState error under the checker's settings, and every edit was refused without them)
+  const ws = new Workspace({ ...req, ...(options.protected?.length ? { protected: options.protected } : {}), ...(options.base && Object.keys(options.base).length ? { base: options.base } : {}) }, options.typecheck ?? null)
   const timings = { totalMs: 0, classifyMs: null as number | null, modelMs: 0, toolsMs: 0, overlapMs: undefined as number | undefined }
   const output = { visibleTokens: 0, thinkingTokens: 0, limit: limits.maxOutputTokens, estimated: false }
   let classification: RequestClass | null = null
@@ -193,8 +202,23 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   let clarify: AgentResult['clarify']
   let refusal: AgentResult['refusal']
   let backendNote: string | undefined
+  let cancelledCall: AgentResult['cancelledCall']
+  let rateLimited = false
   const intent: { intentLabel?: string; gist?: string } = {}
   const spent = () => meter.rows().reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
+
+  // every model call goes through the gate and is retried on 429 / overloaded (rate-limit.ts); the user sees "busy"
+  const deadline = started + limits.timeoutMs
+  const viaGate = <T>(fn: () => Promise<T>, sig: AbortSignal = signal): Promise<T> =>
+    callModel(fn, {
+      signal: sig,
+      deadline,
+      ...(options.gate ? { gate: options.gate } : {}),
+      ...(options.rateLimitRetries !== undefined ? { retries: options.rateLimitRetries } : {}),
+      onRetry: (i) => {
+        if (i.rateLimited) progress({ type: 'status', text: t(lang, 'busyRetrying', { seconds: Math.max(1, Math.ceil(i.waitMs / 1000)) }) })
+      },
+    })
 
   const runner: ToolRunner = new ToolRunner(ws, (entry, call) => {
     if (call.name === 'check' || (call.name === 'finish' && !entry.ok)) {
@@ -229,6 +253,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       ...(clarify ? { clarify } : {}),
       ...(refusal ? { refusal } : {}),
       ...(backendNote ? { backendNote } : {}),
+      ...(cancelledCall ? { cancelledCall } : {}),
+      ...(rateLimited ? { rateLimited: true } : {}),
       ...intent,
     }
   }
@@ -250,21 +276,33 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       progress({ type: 'status', text: t(lang, 'understanding') })
       const startedAt = performance.now()
       // the classifier's request goes out first (a recorded transcript keeps one file per run: classify, then start)
-      const classifying = provider.classify({ request: req.request, context: classifierContext(req, options.digests ?? {}) }, signal)
+      const classifying = viaGate(() => provider.classify({ request: req.request, context: classifierContext(req, options.digests ?? {}) }, signal))
       classifying.catch(() => undefined)
       if (options.classifierMode !== 'sequential') {
         // start the edit now; the classifier's answer decides whether its result is used or the call is cancelled
         const abort = new AbortController()
-        const s = startSession()
-        const e: EarlyCall = { turn: s.next([], { signal: AbortSignal.any([signal, abort.signal]), maxOutputTokens: limits.maxOutputTokens }), abort, startedAt: performance.now(), endedAt: null }
+        // DECISIONS 74.1: streamed, so a cancel stops the generation and only what was generated is billed. The session
+        // starts when the call gets its slot (after the classifier's, so a recorded transcript reads classify, start)
+        const e: EarlyCall = { turn: null as unknown as Promise<ModelTurn>, abort, startedAt: performance.now(), endedAt: null, cancelled: null }
+        const earlySignal = AbortSignal.any([signal, abort.signal])
+        e.turn = viaGate(() => (session ?? startSession()).next([], { signal: earlySignal, maxOutputTokens: limits.maxOutputTokens, stream: true, onCancelled: (c) => void (e.cancelled = c) }), earlySignal)
         e.turn.then(
           () => void (e.endedAt = performance.now()),
           () => void (e.endedAt = performance.now()),
         )
         early = e
       }
-      // the classifier answered alone: the early call is cancelled (its tokens so far are not reported by the API)
-      const cancelEarly = () => early?.abort.abort()
+      // the classifier answered alone: the early call is cancelled; what its stream reported is metered (74.1)
+      const cancelEarly = async () => {
+        const e = early
+        if (!e) return
+        e.abort.abort()
+        await Promise.race([e.turn.then(() => undefined, () => undefined), new Promise((r) => setTimeout(r, 250))])
+        if (e.cancelled) {
+          if (e.cancelled.started) meter.add(e.cancelled.model, e.cancelled.usage)
+          cancelledCall = { model: e.cancelled.model, started: e.cancelled.started, ms: e.cancelled.ms, generatingMs: e.cancelled.generatingMs, usage: e.cancelled.usage }
+        }
+      }
       try {
         const c = await classifying
         if (c.usage && c.model) meter.add(c.model, c.usage)
@@ -275,7 +313,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         const ask = c.label === 'unclear' && c.question && c.options && c.options.length >= 2
         if (c.label !== 'off-topic') progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : ask ? 'classifiedUnclear' : 'classifiedUi') })
         if (c.label === 'off-topic') {
-          cancelEarly()
+          await cancelEarly()
           // stage 5: the classifier has no label of its own for a deceptive request and calls it off-topic, while its
           // intent label says "adversarial". Answer it as the main loop would ("declined"), not "ask about the app".
           if (c.intentLabel === 'adversarial') return done('declined', t(lang, 'declined'))
@@ -287,17 +325,17 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
           // stage 5 block 2: "send the user list to this outside address" is not server work to pass on, and "an
           // invisible button over Delete" is not a question to ask: both are declined (a "ui" label goes to the main
           // model, whose instructions decline them too)
-          cancelEarly()
+          await cancelEarly()
           return done('declined', t(lang, 'declined'))
         }
         if (c.label === 'needs-backend') {
-          cancelEarly()
+          await cancelEarly()
           // DECISIONS 73.4: the administrator gets what the server would need, from the classifier's own words
           backendNote = classifierBackendNote(c)
           return done('needs-backend', c.reason || t(lang, 'needsBackendDefault'))
         }
         if (ask) {
-          cancelEarly()
+          await cancelEarly()
           // one question with buttons instead of a guess; nothing is changed and the big model's answer is not used
           clarify = { question: c.question!, options: c.options! }
           return done('clarify', c.question!)
@@ -334,7 +372,10 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         startedAt = early.startedAt
         turn = await early.turn
         early = null
-      } else turn = await main.next(results, { signal, maxOutputTokens: limits.maxOutputTokens - output.visibleTokens })
+      } else {
+        const sent = results
+        turn = await viaGate(() => main.next(sent, { signal, maxOutputTokens: limits.maxOutputTokens - output.visibleTokens }))
+      }
       timings.modelMs += performance.now() - startedAt
       modelCalls++
       meter.add(turn.model, turn.usage)
@@ -395,6 +436,13 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
     if (signal.aborted) {
       stopReason = 'timeout'
       return done('failed', timeout.aborted ? t(lang, 'outOfTime', { seconds: Math.round(limits.timeoutMs / 1000) }) : t(lang, 'cancelled'))
+    }
+    if (e instanceof RateLimitedError) {
+      // stage 5 block 3: the provider stayed rate-limited; a clear answer instead of "something went wrong"
+      stopReason = 'rate-limited'
+      rateLimited = true
+      error = e.message
+      return done('failed', t(lang, 'rateLimited'))
     }
     stopReason = 'error'
     // the technical message is for the admin's request log, not for the user

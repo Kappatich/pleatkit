@@ -5,6 +5,7 @@ import picomatch from 'picomatch'
 import ts from 'typescript'
 import { globSync } from 'tinyglobby'
 import { validateZoneGlob } from '@pleatkit/runtime/compiler'
+import { buildAgentContext, DEFAULT_CONTEXT_CAP_TOKENS, type AgentContext } from './context.js'
 import { emitDeclarations } from './declarations.js'
 import { tailwindInput } from './tailwind.js'
 
@@ -67,6 +68,12 @@ export interface PleatkitOptions {
    * `{ components: ['@/components/ui/*'], docs: 'docs/design-system.md' }`.
    */
   designSystem?: { components?: string[]; docs?: string }
+  /**
+   * DECISIONS 74.6: the readonly context of the agent's cached prompt holds only the declarations the panels can reach
+   * (their imports, followed through barrels and the types they use), capped at `capTokens` (estimated, default
+   * 12,000). `false` puts every readonly source and core type in the prompt, as before.
+   */
+  agentContext?: { capTokens?: number } | false
 }
 
 export interface ManifestFile {
@@ -91,6 +98,11 @@ export interface PleatkitManifest {
   designSystem?: { digest: string; docs?: string }
   /** Data contracts for the agent: types and client methods of the readonly zone (brainstorm 04 §1). */
   dataContracts?: { digest: string }
+  /**
+   * DECISIONS 74.6: what the agent's cached prompt shows of the readonly zone and core types: the `.d.ts` of what the
+   * panels reach, instead of every source. Server-side only (the browser copy of the manifest leaves it out).
+   */
+  agentContext?: AgentContext
 }
 
 export const DEFAULT_EXTERNALS = ['react', 'react-dom', 'react/jsx-runtime']
@@ -142,6 +154,7 @@ export function resolveOptions(options: PleatkitOptions) {
     isolateEdits: options.isolateEdits ?? false,
     sendDomText: options.sendDomText ?? false,
     designSystem: options.designSystem ?? null,
+    agentContext: options.agentContext === false ? null : { capTokens: options.agentContext?.capTokens ?? DEFAULT_CONTEXT_CAP_TOKENS },
   }
 }
 
@@ -236,6 +249,19 @@ export function buildManifest(root: string, options: PleatkitOptions): PleatkitM
     coreTypes = [...coreTypes, ...ambientDeclarations(root, coreTypes)]
   }
 
+  const agentContext = o.agentContext
+    ? buildAgentContext({
+        root,
+        alias: o.alias,
+        dynamic,
+        readonly,
+        coreTypes,
+        resolve: (spec, importer) => resolveProjectFile(root, spec, importer, o.alias),
+        isDynamic: (f) => isDynamic(f),
+        capTokens: o.agentContext.capTokens,
+      })
+    : null
+
   return {
     version: 1,
     dynamicRoots: [...new Set(o.dynamic.map(globRoot))],
@@ -247,7 +273,8 @@ export function buildManifest(root: string, options: PleatkitOptions): PleatkitM
     alias: o.alias,
     css: cssInfo(root, o.css, o.tailwindEntry),
     ...(o.protected.length ? { protected: o.protected } : {}),
-    ...digests(root, o, readonly, coreTypes),
+    ...digests(root, o, readonly, coreTypes, agentContext),
+    ...(agentContext ? { agentContext } : {}),
   }
 }
 
@@ -263,13 +290,26 @@ export function ambientDeclarations(root: string, already: ManifestFile[] = []):
 }
 
 /** Digests for the agent's cached prompt prefix (brainstorm 04 §1): design system and data contracts. */
-function digests(root: string, o: ReturnType<typeof resolveOptions>, readonly: ManifestFile[], coreTypes: ManifestFile[]): Pick<PleatkitManifest, 'designSystem' | 'dataContracts'> {
+function digests(root: string, o: ReturnType<typeof resolveOptions>, readonly: ManifestFile[], coreTypes: ManifestFile[], context: AgentContext | null = null): Pick<PleatkitManifest, 'designSystem' | 'dataContracts'> {
   const out: Pick<PleatkitManifest, 'designSystem' | 'dataContracts'> = {}
   const patterns = o.designSystem?.components ?? []
   if (patterns.length) {
     const prefixes = patterns.map((p) => (aliasToPath(p.replace(/\*$/, ''), o.alias) ?? p.replace(/\*$/, '')).replace(/\/$/, ''))
     const files = [...readonly, ...coreTypes].filter((f) => prefixes.some((p) => f.path.startsWith(p)))
-    const digest = designSystemDigest(files)
+    // 74.6: with a trimmed context, the components the panels reach keep their props; the others are listed by name
+    // (still importable, read_file shows their props)
+    const stem = (p: string) => p.replace(/(\.d)?\.(tsx?|jsx?|mts)$/, '')
+    const reached = context ? new Set([...context.files.map((f) => stem(f.path)), ...context.omitted.map(stem)]) : null
+    let digest = designSystemDigest(reached ? files.filter((f) => reached.has(stem(f.path))) : files)
+    if (reached) {
+      const others = files
+        .filter((f) => !reached.has(stem(f.path)))
+        .flatMap((f) => {
+          const line = designSystemDigest([f])
+          return line ? [`${line.replace(/^[^:]+: /, '').split('; ').map((e) => e.replace(/\(.*$/, '')).join(', ')} (${f.path})`] : []
+        })
+      if (others.length) digest += `${digest ? '\n' : ''}Also available, props in the file (read_file): ${others.join('; ')}`
+    }
     let docs: string | undefined
     if (o.designSystem?.docs) {
       const file = path.join(root, o.designSystem.docs)

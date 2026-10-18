@@ -147,6 +147,11 @@ export interface PleatkitManifest {
   designSystem?: { digest: string; docs?: string }
   /** Data contracts for the agent: entities and client methods, from the readonly zone's `.d.ts`. */
   dataContracts?: { digest: string }
+  /**
+   * DECISIONS 74.6: what the agent's cached prompt shows of the readonly zone and core types: the `.d.ts` of what the
+   * panels reach (their imports, through barrels and the types they use), capped. Missing on older builds.
+   */
+  agentContext?: { files: ManifestFile[]; omitted: string[]; estimatedTokens: number; capTokens: number; untrimmedTokens: number }
 }
 
 export type ModuleNamespace = Record<string, unknown>
