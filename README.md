@@ -37,7 +37,7 @@ Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Progress and measurement
   lives in this monorepo for now (`private`, `UNLICENSED`, never published) and moves to the cloud repository as it is.
 
 **Self-host: the open store. Cloud: the same core plus the cloud package** (DECISIONS 70.1). Nothing in the open
-packages imports the cloud package; the store binary loads it only when it is installed next to it.
+packages imports the cloud package; the store binary loads it only for a deployment whose `package.json` depends on it.
 
 ## Run the demo
 
@@ -179,7 +179,7 @@ applied for the user at once but marked `pending-review`; it waits at the top of
 approved or rolled back with one click. (Holding edits until approval is deliberately not built.)
 `PLEATKIT_RETENTION` (JSON `{"textDays": 90, "logDays": 30}`): request text and tool logs are blanked after that,
 hourly. `PLEATKIT_STORE_EXTENSIONS`: `none` runs the open core only; unset, the binary loads `@pleatkit/store-cloud`
-when it is installed (the managed cloud; it also reads `PLEATKIT_LEARNING` and `factsDays`).
+when the deployment's `package.json` depends on it (the managed cloud; it also reads `PLEATKIT_LEARNING` and `factsDays`).
 
 Interface language: `<PleatkitChat locale="ru">` switches the chat, the agent's progress lines and its summaries
 to Russian (`en` by default); the demo takes `?lang=ru`, the dashboard too. Strings live in one dictionary per
