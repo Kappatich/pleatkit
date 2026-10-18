@@ -70,7 +70,7 @@ Links inside panels use relative paths (`<Link to="/customers/$id" params={{ id 
 - **react-i18next:** list `'react-i18next'` in `externals`; the panel keeps `const { t } = useTranslation()`. The locale files are not in any zone, so an edit cannot add keys: new labels are written as `t('clients', { defaultValue: 'Clients' })` or as plain text in the panel's language.
 - **Charts:** list the library (`'recharts'`, or `'react-apexcharts'` for ApexCharts) in `externals`. Chart data the panel shows belongs in the panel's props or a readonly module (`@/readonly/dashboard`), not `Math.random()`.
 - **TanStack Table:** the table panel (`src/dynamic/users-table.tsx`) imports its columns from a helper next to it (`./users-columns`), `'@tanstack/react-table'` is an external, and the app's generic table helpers (`@/components/data-table`) are readonly. Module augmentations such as `declare module '@tanstack/react-table' { interface ColumnMeta … }` in `src/*.d.ts` reach the agent's type check by themselves.
-- **Images and links from data:** the static rules refuse a URL taken from data (`<img src={row.image}>`). Keep the file name in the data and write the folder in the code: ``<img src={`/images/user/${row.image}`} />``.
+- **Images and links from data:** `<img src={row.image}>` and `<a href={row.url}>` on plain elements are fine when the URLs are this app's own (relative or same origin); the runtime drops any other URL when the element is created. `mailto:` and `tel:` links built from data are fine too (``<a href={`mailto:${user.email}`}>``). For files on another host, keep the file name in the data and write the folder in the code: ``<img src={`/images/user/${row.image}`} />``.
 
 ## The design-system profile (`designSystem`)
 

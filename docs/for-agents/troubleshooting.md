@@ -103,7 +103,7 @@ Cause: the agent runs without a key (scripted provider) and has no recorded answ
 Run: start the agent with `PLEATKIT_API_KEY=<key>`, or add a recorded answer to `fixtures/` ([verify.md](verify.md) check 3).
 
 **Every edit fails: the chat says "Something went wrong on our side and nothing was changed", and the request log shows `finish` refused for a line of a file the edit did not touch.**
-Cause: every edit is checked with the whole dynamic zone, and one of the release's own panels breaks a static rule. Typical in an existing app: an image or link whose URL comes from data (`<img src={product.image}>`, rule `no-computed-url`).
+Cause: every edit is checked with the whole dynamic zone, and one of the release's own panels breaks a static rule. Typical in an existing app: a URL from data passed to a component (`<Avatar src={user.avatar}>`, rule `no-computed-url`) or an absolute URL to another host written in the code (`no-remote-request`). A URL from data on a plain element (`<img src={product.image}>`) is allowed (stage 5 block 3): the runtime keeps it only on the app's origin.
 Run: `pnpm exec pleatkit doctor`: `[FAIL] release` lists the lines. Keep the file name in the data and write the folder in the code (``src={`/images/${product.image}`}``), rebuild, run doctor again.
 
 **The spacing between a panel and its neighbours disappeared after moving it into `<Dynamic>`.**

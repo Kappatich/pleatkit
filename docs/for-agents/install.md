@@ -164,7 +164,7 @@ import { Dynamic } from '@pleatkit/runtime'
 Hooks of the router or of the page (`route.useSearch()`, `useNavigate()`) stay in the page: pass their results as props (`props={{ data, search, navigate }}`), see [recipes.md](recipes.md).
 
 Two things in existing panels that the check refuses or that change the layout:
-- An image or link whose URL comes from data (`<img src={product.image}>`, `<a href={row.url}>`) is refused by the static rules (a URL from data could point anywhere), and so is every later edit of the zone. Keep the file name in the data and write the folder in the code: ``src={`/images/product/${product.image}`}``. `pleatkit doctor` reports such lines (`[FAIL] release`).
+- An image or link whose URL comes from data on a plain element (`<img src={product.image}>`, `<a href={row.url}>`) is allowed (stage 5 block 3): at render time the runtime keeps the URL only when it is a relative path or points to the app's own origin, and drops it otherwise (`//cdn.other.com/a.jpg`, `javascript:`, `data:`). Images from another host (a CDN) are not shown: keep the file name in the data and write the folder in the code (``src={`/images/product/${product.image}`}``), or serve them through your origin. A URL from data passed to a component's prop (`<Avatar src={row.url}>`) or to `fetch` is still refused by the static rules, and so is every later edit of the zone; `pleatkit doctor` reports such lines (`[FAIL] release`).
 - `<Dynamic>` renders a wrapper with `display: contents`. A parent that spaces its children with margins (`space-y-6`, `space-x-*`, `divide-*`) loses the spacing around it: use `flex flex-col gap-6` (or a grid gap) on the parent instead.
 
 Run:

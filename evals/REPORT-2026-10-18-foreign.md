@@ -234,3 +234,139 @@ so it tests the harness, tools and graders, not the prompt.
    Policy question for the architect (CODEOWNERS path).
 7. **Prefix size:** shadcn-admin's 33.8k cached tokens are mostly readonly helpers and the 10k tail is the two tables;
    `pleatkit doctor` warns. A trimmed readonly zone (helpers as `.d.ts`) would roughly halve the cost per edit.
+
+## Block 3
+
+DECISIONS 74.1 to 74.6 plus two items from the coordinator (the classifier's prompt cache, rate limits). Executor:
+Claude Opus 5.5. Editor Claude Sonnet 5.5 (Haiku 5.5 for two probes), classifier Claude Haiku 5.5. Prompt
+`2026-10-18.5d` → `5e` (URL rule, `mailto:`/`tel:`, trimmed context) → **`5f`** (classifier example, classifier cache
+layout). New sets: `apps-5f` (the apps, 35 × 1, 5f; HTML `report/apps-sonnet-5f-2026-10-18.html`), `probe-5f` (the five
+demo smoke tasks, sa-12, crm-10, sa-15, × 2), `probe-5f-haiku` (sa-12 and ta-09 on Haiku, × 2). Results of the
+probes (copied from the ignored `evals/results/`): `evals/probes/results/cancel-probe.json`, `classify-{mixed-before,mixed-after,mixed-tasks-before,mixed-tasks-after,all-5f,cache-before,cache-after}.json`.
+
+### Money (limit $8)
+
+| Run | Cap | Spent |
+|---|---|---|
+| `eval:cancel`: 2 tasks, then the 12 tasks the classifier answers alone (streamed cancel + a full plain first turn each) | — | $0.0329 + $0.1634 |
+| `eval:classify`: mixed probes before/after (10 × 3 twice), crm-10 and sa-15 (× 5 twice), the 42 tasks × 2, cache probes (6 × 2 twice) | — | $0.0488 |
+| `probe-5f`: 7 tasks × 2, Sonnet, 5f | $1.00 | $0.2261 |
+| `probe-5f-haiku`: sa-12, ta-09 × 2, Haiku editor, 5f | $0.30 | $0.0087 |
+| `apps-5f`: 35 × 1, Sonnet, 5f | $3.00 | $0.9875 |
+| **Total reported by the API** | | **$1.47** |
+
+`pleatkit doctor`'s `count_tokens` calls are free. Since this block the cancelled early calls are in the totals (74.1).
+
+### The numbers, before → after
+
+| Item | Before | After |
+|---|---|---|
+| Apps series pass (Sonnet) | 69/70 on 5d (34/35 first trials) | **35/35** on 5f (sa-15 fixed) |
+| Cached prefix, `count_tokens` (74.6) | shadcn-admin 33,819 · TailAdmin 12,767 · demo 7,727 | **13,086** (−61 %) · **6,048** · **6,218** |
+| Cost per edit, apps, median (first trials of 5d vs 5f) | $0.0367 (shadcn-admin $0.0404, TailAdmin $0.0327) | **$0.0329** ($0.0352, $0.0287) |
+| Edit latency, median / p95 | shadcn-admin 4.9 / 8.4 s, TailAdmin 5.0 / 6.5 s | shadcn-admin **7.4 / 11.6 s**, TailAdmin 4.9 / 6.7 s (the loop's type check, below) |
+| Main-model cache hit (first trials) | 76.8 % | 63.1 % (the prefix that is read shrank; the tail written per edit did not) |
+| Cancelled early call (74.1), the 6 cancels that reported usage | the same input + the whole first turn: $0.1033 | streamed and cancelled: **$0.0842** (−18 %; output only) |
+| Classifier on 8 new mixed probes × 3 (74.5) | 6/24 "ui" | **20/24** |
+| Classifier on the 42 tasks × 2 | 84/84 routed right (5d, block 2) | 84/84 (5f) |
+| Classifier input read from cache (coordinator item) | 0 % (24,738 tokens over 12 calls, $0.0033) | **73.8 %** (18,255 read, 6,085 written once per app, 386 uncached; $0.0016) |
+| sa-12 on Haiku (74.4) | 0/1 (refused `mailto:` from data) | **2/2** |
+| ta-09 on Haiku (74.2) | 0/1 (module threw at load) | 2/2 (Haiku did not repeat the mistake; the loop now catches it: regression test) |
+| Demo smoke (crm-01, 02, 05, 10, 13) | 10/10 (`probe-5d` and earlier) | 10/10 |
+
+### 74.1: what a cancelled early call costs
+
+The early call now streams; the tools are unchanged (no `eager_input_streaming` unless `PLEATKIT_STREAM=1`), so streamed
+and plain calls share one cached prefix (checked: a streamed call read the cache a plain call wrote). On a cancel the
+stream is closed and the result says what it had reported (`cancelledCall`). `pnpm eval:cancel` ran the 12 tasks the
+classifier answers alone:
+
+- the cancel came 1.2 to 2.0 s after the request; in **6 of 12** it came before `message_start`, so the API reported
+  nothing; in the other 6 the model had generated for 47 to 971 ms (3 to 17 visible output tokens; thinking is not
+  visible while streaming, so the real output is somewhat higher);
+- a full plain first turn of the same requests writes 184 to 864 output tokens (median 228, ≈ $0.0023): that is what
+  streaming saves per cancel, $0.002 to $0.009;
+- **the input is not saved.** A cancel before `message_start` still left the request's tail in the prompt cache (the
+  following plain call read all 23k tokens of sa-14 from it), so the prompt was processed and is most likely billed. On
+  the apps a request the classifier answers alone now reports $0.02 to $0.03 when the early call reached `message_start`
+  (mostly the cache write of the request's tail: the dynamic files) and $0.0001 when it did not; block 2 showed $0.0003.
+
+Conclusion for the console check: streaming cuts the cancelled call to its input. The rest of the parallel start's
+price is the tail (1.25 × input price to write it into the cache). Options in the recommendations.
+
+### 74.2: the loop's type check
+
+On by default when the app's `node_modules` are found (as 63.4), per app for `PLEATKIT_MANIFESTS`, off in the cloud,
+`PLEATKIT_TYPECHECK=0` to turn off. Two things the first replay found: (1) the release's files reached the workspace
+only when the app had protected elements, so the "errors the release already has" filter did not run and every
+shadcn-admin edit was refused (its own panels carry a `CheckedState` error under the checker's settings); fixed. (2) A
+full check of shadcn-admin's seven panels took 2.5 s; it now checks only the changed files and the dynamic files that
+import them: 1.2 to 1.6 s warm offline, 0.1 to 0.3 s on TailAdmin, about 5 s for the first check of a process. In the
+live series the tools time of a shadcn-admin edit was 2.9 s median (one check per edit), which is the latency above.
+The replays of the scripted, live and apps sets stay green with the check in the loop; Haiku's ta-09 transcript now
+ends with `finish` refused (TS2448) instead of a crashing commit.
+
+### 74.3: URLs from data
+
+The static rules let a computed URL through on a plain element's `src`, `href`, `poster`, `action`, `formAction`; the
+runtime decides when the element is created. The externals registry hands compiled edits a guarded
+`react/jsx-runtime` (`jsx`, `jsxs`), `react` (`createElement`, `cloneElement`) and `react-dom` (resource hints): a URL
+prop is kept only when the WHATWG URL parser resolves it to the page's origin with http(s) (`mailto:`/`tel:` on
+`href`); `dangerouslySetInnerHTML`, `srcDoc` and other hosts' `url()` in `style` are dropped. Bypass cases in
+`check.test.ts`: `//host`, `/\host`, `\\host`, `javascript:` (capitals, tabs, control characters), `data:`, `blob:`,
+`java%73cript:` and `&#106;avascript:` (paths of the app, harmless), `new URL(x, 'https://evil')`,
+`location.origin + '@evil'` and `+ '.evil'`, another port, another scheme, an opaque page origin, spreads and direct
+`jsx()` calls, aliased `createElement`, `cloneElement`, `preinit`. Found on the way and closed by the same guard:
+`<a {...{ href: 'https://evil' }}>`, `<img {...row.props}>`, a destructured `createElement`, and `react-dom`'s
+`preinit('https://evil/x.js')` passed the static rules before. External hosts (`allowedHosts`, 63.1) are still not
+built.
+
+### 74.4 and 74.5: prompts
+
+5e: the static-rules sentence allows a URL from data in `src`/`href` of a plain element ("shown only when it points to
+this app") and `mailto:`/`tel:` links built from data; the bad example now names an outside link. Haiku: sa-12 2/2.
+
+5f: the classifier gets a third mixed example ("colour unpaid invoices red and block new orders from those customers on
+the server") and the rule "split such a request into its parts: if any part changes what the screen shows or how it
+looks, the label is ui". Measured before any series on 8 new mixed probes (`evals/probes/mixed-requests.json`, three
+answers each) plus two server-only controls: 12/30 → 26/30 right; the controls stayed needs-backend 6/6; crm-10 and
+sa-15 were already 10/10 (they are the examples). Still wrong: "every night reassign overdue tasks" (needs-backend 3/3)
+and once "export the revenue to our accounting system" (needs-backend; twice it was `ui` with intent `adversarial`, the
+data-export rule). Live: crm-10 2/2, sa-15 2/2 partial (`probe-5f`), sa-15 1/1 in `apps-5f`.
+
+### 74.6: the trimmed context
+
+The plugin writes `manifest.agentContext`: the `.d.ts` of the readonly modules and core types the release's panels
+reach (names followed through barrels, a module's declarations pull what they import), capped at 12,000 estimated
+tokens (nothing went over: shadcn-admin 6,451, TailAdmin 1,475, demo 1,450). The design-system digest keeps props only
+for the components the panels reach and lists the others by name and file. shadcn-admin's cached prefix: 33,819 →
+13,086 tokens, under the 18k target, with no pass-rate loss (35/35 against 34/35 first trials). The cost per edit fell
+less than the prefix (−13 % on shadcn-admin): an edit's cost is dominated by writing the request's tail (the dynamic
+files, 10k tokens on shadcn-admin) into the cache, which the trimming does not touch.
+
+### The classifier's cache (coordinator)
+
+The classifier's instructions and the app's context now sit in the system prompt with a cache breakpoint; the user
+message holds only the request. The instructions alone are about 600 tokens, above Haiku 5.5's 512-token minimum, so no
+padding was needed: every app's classifier read its fixed part from the cache from the second request on (table above).
+The classification results did not change (12/12 on the cache probes, 84/84 on the tasks).
+
+### Rate limits (coordinator)
+
+Implemented as asked (README, `docs/for-agents/production.md`, ARCHITECTURE): a FIFO gate of 8 concurrent model calls
+per process, retries on 429 / 529 / `overloaded_error` after `retry-after` (else 1, 2, 4 s) up to 3 times with a "busy,
+retrying" step, no retry the deadline would cancel, `rateLimited: true` and an `edit.rate_limited` event counted on the
+/admin Plan screen. Tests with a fake provider answering 429. No live spend.
+
+### Recommendations
+
+1. **The tail's cache write.** Most edits take one model call, yet the automatic cache breakpoint writes the request's
+   tail into the cache on every first call (1.25 × input price; 10k tokens on shadcn-admin, about a third of an edit's
+   cost), and every cancelled early call pays it too. Measure the first call without the tail breakpoint (only the
+   system breakpoint) on `apps`: one-call edits and cancelled calls get cheaper, two-call edits pay the tail twice.
+2. **The loop's type check costs 1.5 to 3 s on apps with heavy types.** Options: keep it (it is what caught ta-09), turn
+   it off per app with `PLEATKIT_TYPECHECK=0`, or run it in a warm worker thread per app (no measurement yet).
+3. **The parallel start's real price** is now visible ($0.02 to $0.03 per request the classifier answers alone on the
+   apps, ≈ $0.006 on the demo). With recommendation 1 it falls; otherwise `PLEATKIT_CLASSIFIER=sequential` for apps
+   whose users ask many non-edit questions remains the alternative (1.2 s slower edits).
+4. Pin `apps-5f` as the apps baseline only after a second trial (`eval:pin` would pin 35 × 1 against the 35 × 2 of 5d).
