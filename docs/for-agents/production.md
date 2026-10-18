@@ -1,6 +1,6 @@
 # Taking pleatkit to production
 
-After [install.md](install.md) works on a developer machine (LocalStore, scripted or real model, no credentials), this is the path to real users. Each step: what to set, how to check it.
+After [install.md](install.md) works on a developer machine (HttpStore against a local store-server, scripted or real model, no credentials), this is the path to real users. Each step: what to set, how to check it.
 
 ## 1. Pieces and where they run
 

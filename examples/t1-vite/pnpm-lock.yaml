@@ -30,6 +30,9 @@ importers:
       '@pleatkit/cli':
         specifier: link:../../packages/cli
         version: link:../../packages/cli
+      '@pleatkit/store-server':
+        specifier: link:../../packages/store-server
+        version: link:../../packages/store-server
       '@pleatkit/vite-plugin':
         specifier: link:../../packages/vite-plugin
         version: link:../../packages/vite-plugin

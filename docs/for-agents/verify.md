@@ -18,10 +18,11 @@ If not: every `[FAIL]` line is followed by `fix: …`; do it and run doctor agai
 
 ## Check 2. The running app reaches the agent: `pleatkit ping`
 
-Start both servers (two terminals, both keep running):
+Start the three servers (three terminals, all keep running):
 
 ```bash
-pnpm agent                     # pleatkit agent on http://localhost:8789/agent (...)
+pnpm store                                          # pleatkit store-server on http://localhost:8790 (...)
+PLEATKIT_STORE_URL=http://localhost:8790 pnpm agent # pleatkit agent on http://localhost:8789/agent (...)
 pnpm exec vite preview --port 4173 --strictPort
 ```
 
@@ -48,11 +49,11 @@ If not: the `[FAIL]` line says which hop failed (the app, the `/agent` proxy, or
 
 With both servers running, open the app, click **Customize** (bottom right), type a request about one of the dynamic panels and press Enter.
 
-Expect, with a key: progress lines (`Understanding the request`, `Changing the …`, `Everything works`), then the badge `Applied` and the panel changes on the page without a reload. **Undo** in the chat brings back the previous version; reloading the page keeps the current one.
+Expect, with a key: progress lines (`Understanding the request`, `Changing the …`, `Everything works`), then the badge `Applied` and the panel changes on the page without a reload. **Undo** in the chat brings back the previous version; reloading the page keeps the current one (it comes back from store-server, also in another browser signed in as the same user).
 
 Without a key, the scripted provider answers only requests it has a recorded answer for. To check the browser part offline, record one: put a JSON file in `fixtures/` of the agent's working directory (format: [`examples/t1-vite/fixtures/agent/01-overdue-red.json`](../../examples/t1-vite/fixtures/agent/01-overdue-red.json)) and start the agent with `PLEATKIT_FIXTURES=fixtures`.
 
-Automated version of checks 2 and 3 for the example app: `pnpm smoke` in [`examples/t1-vite`](../../examples/t1-vite) starts the agent and `vite preview`, runs `pleatkit ping`, drives the chat headless, and stops both servers. Expect its last line: `[ok]   chat edit in the browser: applied; overdue row color …`.
+Automated version of checks 2 and 3 for the example app: `pnpm smoke` in [`examples/t1-vite`](../../examples/t1-vite) starts store-server (in memory), the agent and `vite preview`, runs `pleatkit ping`, drives the chat headless, reloads, and stops the three servers. Expect its last lines: `[ok]   chat edit in the browser: applied; overdue row color …` and `[ok]   after a reload the edit comes back from store-server: …`.
 
 If not: the turn badge says why (`Not done`, `Did not compile`, `Sent to admin`); the browser console has the details (`[pleatkit] …`).
 

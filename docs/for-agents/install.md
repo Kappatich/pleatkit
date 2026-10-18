@@ -27,10 +27,10 @@ pnpm install
 pnpm build:packages
 ```
 
-Expect: the last lines end with `Done`, and this prints `5 packages built`:
+Expect: the last lines end with `Done`, and this prints `6 packages built`:
 
 ```bash
-node -e "const fs=require('fs');const ps=['vite-plugin','runtime','ui','agent','cli'];ps.forEach(p=>fs.accessSync('packages/'+p+'/dist/index.js'));console.log(ps.length+' packages built')"
+node -e "const fs=require('fs');const ps=['vite-plugin','runtime','ui','agent','cli','store-server'];ps.forEach(p=>fs.accessSync('packages/'+p+'/dist/index.js'));console.log(ps.length+' packages built')"
 ```
 
 If not: `pnpm build:packages` prints the failing package first; fix that (usually a Node older than 22).
@@ -41,7 +41,7 @@ In `<APP>`:
 
 ```bash
 pnpm add link:<PLEATKIT>/packages/runtime link:<PLEATKIT>/packages/ui
-pnpm add -D link:<PLEATKIT>/packages/vite-plugin link:<PLEATKIT>/packages/agent link:<PLEATKIT>/packages/cli @types/node@^22
+pnpm add -D link:<PLEATKIT>/packages/vite-plugin link:<PLEATKIT>/packages/agent link:<PLEATKIT>/packages/cli link:<PLEATKIT>/packages/store-server @types/node@^22
 ```
 
 If the app uses Tailwind 4 already, nothing more. To let edits use Tailwind classes in an app without it:
@@ -50,15 +50,17 @@ If the app uses Tailwind 4 already, nothing more. To let edits use Tailwind clas
 pnpm add -D tailwindcss@^4 @tailwindcss/vite@^4
 ```
 
-Expect: lines like `+ @pleatkit/runtime 0.1.0 <- ../pleatkit/packages/runtime` for all five packages, then `Done`.
+Expect: lines like `+ @pleatkit/runtime 0.1.0 <- ../pleatkit/packages/runtime` for all six packages, then `Done`.
+
+`@pleatkit/store-server` is the server that keeps every user's version (snapshots, the request log, the admin's levers). It runs as its own process (step 7); the browser talks to it through `HttpStore`.
 
 If not:
 - `ERR_PNPM_...workspace`, or pnpm installs a different project: the app is inside another pnpm workspace. Add `--ignore-workspace` to every `pnpm add` / `pnpm install` in the app.
-- Once pleatkit is on npm, the same step is `pnpm add @pleatkit/runtime @pleatkit/ui && pnpm add -D @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli`.
+- Once pleatkit is on npm, the same step is `pnpm add @pleatkit/runtime @pleatkit/ui && pnpm add -D @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli` (store-server is then the cloud's or your self-hosted one).
 
 ## Step 3. Configure Vite
 
-Edit `vite.config.ts` so it has the pleatkit plugin, the `@` alias, one React and two proxies: `/agent` (the agent server) and `/pleatkit/b` (the signed bundles of edits it compiles; edits are compiled on the server by default, `compile: 'server'`). A complete file for an app with Tailwind:
+Edit `vite.config.ts` so it has the pleatkit plugin, the `@` alias, one React and three proxies: `/agent` (the agent server), `/pleatkit-store` (store-server, the users' versions) and `/pleatkit/b` (the signed bundles of edits, kept by store-server; edits are compiled on the server by default, `compile: 'server'`). A complete file for an app with Tailwind:
 
 ```ts
 import { fileURLToPath } from 'node:url'
@@ -66,6 +68,12 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import pleatkit from '@pleatkit/vite-plugin'
+
+const proxy = {
+  '/agent': 'http://localhost:8789',
+  '/pleatkit-store': { target: 'http://localhost:8790', rewrite: (p: string) => p.replace(/^\/pleatkit-store/, '') },
+  '/pleatkit/b': { target: 'http://localhost:8790', rewrite: (p: string) => p.replace(/^\/pleatkit\/b/, '/v1/b') },
+}
 
 export default defineConfig({
   plugins: [
@@ -86,12 +94,12 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     dedupe: ['react', 'react-dom'], // required while pleatkit is linked from a checkout
   },
-  server: { proxy: { '/agent': 'http://localhost:8789', '/pleatkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/pleatkit\/b/, '/agent/v1/b') } } },
-  preview: { proxy: { '/agent': 'http://localhost:8789', '/pleatkit/b': { target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/pleatkit\/b/, '/agent/v1/b') } } },
+  server: { proxy },
+  preview: { proxy },
 })
 ```
 
-With store-server (`HttpStore`), point `/pleatkit/b` at store-server's `/v1/b` instead: it keeps the bundles across agent restarts. `compile: 'browser'` in the plugin options compiles in the page with esbuild-wasm instead (no `/pleatkit/b` proxy needed, but the CSP must allow `blob:` and `'wasm-unsafe-eval'`).
+Without store-server (a quick look with `LocalStore`, step 6), point `/pleatkit/b` at the agent instead: `{ target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/pleatkit\/b/, '/agent/v1/b') }`, and drop `/pleatkit-store`. `compile: 'browser'` in the plugin options compiles in the page with esbuild-wasm instead (no `/pleatkit/b` proxy needed, but the CSP must allow `blob:` and `'wasm-unsafe-eval'`).
 
 Keep the app's existing plugins and options; add only what is missing. With Tailwind, `src/index.css` must start with `@import "tailwindcss";`. If the app has a UI kit the panels should use (for example `src/components/ui/*`), add it to `readonly` and to `externals` (`'@/components/ui/*'`).
 
@@ -152,11 +160,12 @@ In the entry file (`src/main.tsx`), wrap the app in `PleatkitProvider` and add `
 
 ```tsx
 import * as config from 'virtual:pleatkit'
-import { LocalStore, PleatkitProvider } from '@pleatkit/runtime'
+import { HttpStore, PleatkitProvider } from '@pleatkit/runtime'
 import { PleatkitChat } from '@pleatkit/ui'
 
-const store = new LocalStore('my-app') // edits stay in this browser; HttpStore for server-side storage
 const userId = currentUser.id // the signed-in user; each user gets their own version
+// every user's version lives in store-server: it follows them to other browsers, and /admin can see and roll it back
+const store = new HttpStore({ baseUrl: '/pleatkit-store', userId, appId: 'my-app' })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -170,6 +179,8 @@ createRoot(document.getElementById('root')!).render(
 
 If the app has no users yet, use a fixed id such as `'demo-user'`. `<PleatkitChat locale="ru">` switches the chat to Russian.
 
+For a quick look without store-server, `new LocalStore('my-app')` keeps the edits in this browser (IndexedDB) instead: no admin view, nothing on other devices. Switch to `HttpStore` before anyone else uses the app.
+
 Run:
 
 ```bash
@@ -180,19 +191,20 @@ Expect: the build ends with `✓ built in …`, the list includes `dist/pleatkit
 
 If not: see [troubleshooting.md](troubleshooting.md) ("Build fails").
 
-## Step 7. Run the agent server
+## Step 7. Run store-server and the agent server
 
-Add a script to the app's `package.json`: `"agent": "pleatkit-agent"`. Then, in a second terminal (it keeps running):
+Add two scripts to the app's `package.json`: `"store": "pleatkit-store"` and `"agent": "pleatkit-agent"`, and `.pleatkit/` to `.gitignore` (store-server's SQLite file). Then, in two more terminals (both keep running):
 
 ```bash
-pnpm agent
+pnpm store
+PLEATKIT_STORE_URL=http://localhost:8790 pnpm agent
 ```
 
-Expect, without a key: `pleatkit agent on http://localhost:8789/agent (provider scripted, model scripted)`. With `PLEATKIT_API_KEY=<key> pnpm agent`: `(provider anthropic, model claude-sonnet-5-5)`.
+Expect: `pleatkit store-server on http://localhost:8790 (.pleatkit/store.db; no credentials, demo headers ON (development only))`, then, without a key, `pleatkit agent on http://localhost:8789/agent (provider scripted, model scripted)`. With `PLEATKIT_API_KEY=<key>` on the agent: `(provider anthropic, model claude-sonnet-5-5)`. On Windows `cmd`, set the variable first: `set PLEATKIT_STORE_URL=http://localhost:8790 && pnpm agent`.
 
-If not: `EADDRINUSE` means port 8789 is taken; set `PLEATKIT_AGENT_PORT` and change the two proxy targets in `vite.config.ts` to match.
+If not: `EADDRINUSE` means port 8790 or 8789 is taken; set `PLEATKIT_STORE_PORT` / `PLEATKIT_AGENT_PORT` and change the proxy targets in `vite.config.ts` to match. A store-server that exits with `refusing to start without credentials` runs with `NODE_ENV=production`: see below.
 
-The key lives only in this process's environment. In production run the agent as its own Node service and route `/agent` (and `/pleatkit/b`, or point it at store-server) of the app's origin to it.
+The model key lives only in the agent's environment. In production run both as their own Node services and route `/agent`, `/pleatkit-store` and `/pleatkit/b` of the app's origin to them ([production.md](production.md)).
 
 Production (`NODE_ENV=production`): the agent server and store-server refuse to start without `PLEATKIT_APP_ID`, `PLEATKIT_APP_KEY` (`mk_live_…`) and `PLEATKIT_JWT_SECRET`. `pnpm exec pleatkit keys new` prints all three plus `PLEATKIT_PUBLIC_KEY`; put the first three in the servers' secret store, never in the repo or a `VITE_` variable. The app's backend mints a 15-minute user token per signed-in user (`mintUserToken` from `@pleatkit/store-server/token`), and the app passes it to `HttpStore({ token })`, `<PleatkitChat token>` and `<PleatkitProvider token>`. Build the app with `PLEATKIT_PUBLIC_KEY` set (or `pleatkit({ publicKey })`): the runtime then runs only bundles signed by the app key.
 
