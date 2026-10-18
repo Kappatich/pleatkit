@@ -71,6 +71,14 @@ function typecheckFor(app: AppId) {
   }
   return typecheckers.get(app)!
 }
+/**
+ * DECISIONS 74.2: the agent loop type-checks as the agent server does by default, against each app's own packages;
+ * `--no-loop-typecheck` (or `--no-typecheck`, or PLEATKIT_TYPECHECK=0) runs the loop without it, as before block 3.
+ */
+function loopTypecheckFor(app: AppId) {
+  if (flag('no-loop-typecheck') || ['0', 'off', 'false'].includes((process.env.PLEATKIT_TYPECHECK ?? '').toLowerCase())) return null
+  return typecheckFor(app)
+}
 const browser = () => (flag('no-browser') || process.env.PLEATKIT_EVAL_BROWSER === '0' ? null : playwrightGrader({ log }))
 
 function summary(s: SuiteResult): string {
@@ -132,6 +140,7 @@ async function main(): Promise<number> {
         ...(provider ? { model: provider.model } : {}),
         budget,
         typecheckFor,
+        loopTypecheckFor: loopTypecheckFor,
         // a live run is graded in the browser right away: its timings are the real ones, a replay's are not
         browser: live ? browser() : null,
         recordDir: dir,
@@ -169,6 +178,7 @@ async function main(): Promise<number> {
         ...(classifierMode ? { classifierMode } : {}),
         budget,
         typecheckFor,
+        loopTypecheckFor: loopTypecheckFor,
         browser: browser(),
         log,
       })
@@ -186,7 +196,7 @@ async function main(): Promise<number> {
       return d.regressions.length || s.aborted ? 1 : 0
     }
     case 'sanity': {
-      const r = await runSanity({ tasks, manifests, budget, typecheckFor, browser: browser(), log })
+      const r = await runSanity({ tasks, manifests, budget, typecheckFor, loopTypecheckFor, browser: browser(), log })
       save(sanityName, r)
       log(summary(r.reference))
       log(summary(r.null))

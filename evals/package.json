@@ -14,7 +14,8 @@
     "pin": "tsx src/cli.ts pin",
     "report": "tsx src/cli.ts report",
     "classify": "tsx src/classifier-probe.ts",
-    "summarize": "tsx src/summarize.ts"
+    "summarize": "tsx src/summarize.ts",
+    "cancel": "tsx src/cancel-probe.ts"
   },
   "dependencies": {
     "@pleatkit/agent": "workspace:*",

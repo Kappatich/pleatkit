@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { buildPrompt, PROMPT_VERSION, readTranscript, RecordingProvider, runAgent, typecheckFromEnv, type ModelProvider, type TypecheckFn } from '@pleatkit/agent'
+import { buildPrompt, digestsFromManifest, PROMPT_VERSION, readTranscript, RecordingProvider, runAgent, typecheckFromEnv, type ModelProvider, type TypecheckFn } from '@pleatkit/agent'
 import type { PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { APPS, routeOf, type AppId } from './apps.js'
 import { BudgetExceededError, EvalBudget, gradeBudget } from './budget.js'
@@ -49,6 +49,11 @@ export interface SuiteOptions {
   typecheck?: TypecheckFn | null
   /** tsc grader per app (each app's own node_modules); wins over `typecheck` when given. */
   typecheckFor?: (app: AppId) => TypecheckFn | null
+  /**
+   * DECISIONS 74.2: the agent loop's own type check per app, as the agent server runs it (on when the app's packages
+   * are found). Default: `typecheckFromEnv(process.env)` for every app.
+   */
+  loopTypecheckFor?: (app: AppId) => TypecheckFn | null
   /** Playwright grader; null skips it. */
   browser?: BrowserGrader | null
   /** Record every run into `<dir>/<taskId>.jsonl`, or `<taskId>.t<trial>.jsonl` in a named set (RecordingProvider). */
@@ -60,7 +65,7 @@ export interface SuiteOptions {
 
 /** The manifest's digests in the cached prefix, as the agent server passes them. */
 type PromptDigests = NonNullable<Parameters<typeof buildPrompt>[2]>
-export const digestsOf = (m: PleatkitManifest): PromptDigests => ({ ...(m.designSystem ? { designSystem: m.designSystem } : {}), ...(m.dataContracts ? { dataContracts: m.dataContracts } : {}) })
+export const digestsOf = (m: PleatkitManifest): PromptDigests => digestsFromManifest(m)
 
 /** Size of the cached prompt prefix for the demo app: what a prompt change costs on every request. */
 export function promptInfo(manifest: PleatkitManifest, sample: PreparedTask): PromptInfo {
@@ -117,7 +122,8 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
   const queue = prepared.flatMap((p) => Array.from({ length: trialsOf(p.task) }, (_, i) => ({ p, trial: i + 1 })))
   let aborted: SuiteResult['aborted']
   const results = new Map<string, RunResult>()
-  const loopTypecheck = typecheckFromEnv(process.env)
+  const envTypecheck = o.loopTypecheckFor ? null : typecheckFromEnv(process.env)
+  const loopTypecheckOf = (app: AppId): TypecheckFn | null => (o.loopTypecheckFor ? o.loopTypecheckFor(app) : envTypecheck)
 
   for (const [i, { p, trial }] of queue.entries()) {
     const task = p.task
@@ -142,7 +148,7 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
       limits: { maxCostUsd: limit },
       protected: p.trusted.protected,
       base: p.trusted.base,
-      typecheck: loopTypecheck,
+      typecheck: loopTypecheckOf(task.app),
       digests: digestsOf(manifestOf(task)),
       ...(o.classify === false ? { classify: false } : {}),
       ...(o.classifierMode ? { classifierMode: o.classifierMode } : {}),
