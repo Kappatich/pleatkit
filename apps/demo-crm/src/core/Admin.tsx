@@ -3,7 +3,8 @@ import { diffLines } from 'diff'
 import type { Locale, Moderation, Snapshot, ToolLogEntry, UsageByModel } from '@pleatkit/runtime'
 import type { UiKey } from '@pleatkit/ui'
 import { adminTranslator, type AdminTranslate } from './admin-i18n'
-import { AUTH, STORE_URL, tokenFor } from './pleatkit'
+import { useAdminApi, useAgentAdmin } from './admin-api'
+import { AuditScreen, EventsScreen, FlagsScreen, PlanScreen, ReleasesScreen, SnapshotsScreen, WishesScreen } from './AdminScreens'
 import './admin.css'
 
 interface RequestRow {
@@ -43,21 +44,13 @@ interface Stats {
   byStatus: Record<string, number>
 }
 
-function useAdminApi(appId: string) {
-  return useCallback(
-    async <T,>(path: string, init?: RequestInit): Promise<T> => {
-      // `?auth=token`: an admin token from the demo's backend; otherwise the development header
-      const auth: Record<string, string> = AUTH === 'token' ? { authorization: `Bearer ${await tokenFor('admin', 'admin')}` } : { 'x-pleatkit-admin': '1' }
-      const res = await fetch(`${STORE_URL}/v1${path}`, {
-        ...init,
-        headers: { ...auth, 'x-pleatkit-app': appId, 'content-type': 'application/json', ...init?.headers },
-      })
-      const body = (await res.json().catch(() => ({}))) as T & { error?: string }
-      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)
-      return body
-    },
-    [appId],
-  )
+/** The screens of /admin, `?view=` (the request log is the default). */
+export const ADMIN_VIEWS = ['requests', 'wishes', 'snapshots', 'releases', 'flags', 'events', 'audit', 'plan'] as const
+export type AdminView = (typeof ADMIN_VIEWS)[number]
+
+function readView(): AdminView {
+  const v = new URLSearchParams(location.search).get('view')
+  return (ADMIN_VIEWS as readonly string[]).includes(v ?? '') ? (v as AdminView) : 'requests'
 }
 
 const cost = (u: UsageByModel[] | null) => (u ?? []).reduce((s, x) => s + (x.costUsd ?? 0), 0)
@@ -105,6 +98,8 @@ function Chevron({ open }: { open: boolean }) {
 export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale }) {
   const tr = useMemo(() => adminTranslator(locale), [locale])
   const call = useAdminApi(appId)
+  const agent = useAgentAdmin(appId)
+  const view = readView()
   const [rows, setRows] = useState<RequestRow[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [open, setOpen] = useState<string | null>(null)
@@ -140,6 +135,12 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
   const appQuery = appId !== 'demo-crm' ? `app=${encodeURIComponent(appId)}` : ''
   const langQuery = locale !== 'en' ? `lang=${locale}` : ''
   const query = [appQuery, langQuery].filter(Boolean).join('&')
+  const viewHref = (v: AdminView) => {
+    const q = [v === 'requests' ? '' : `view=${v}`, appQuery, langQuery].filter(Boolean).join('&')
+    return `/admin${q ? `?${q}` : ''}`
+  }
+  /** C8: open the app as this user (support view): their version, their history; every call is audited. */
+  const viewAsHref = (user: string) => `/?${[`user=${encodeURIComponent(user)}`, 'as=support', appQuery, langQuery].filter(Boolean).join('&')}`
 
   const pendingReview = stats?.pendingReview ?? 0
   const filtering = onlyReview && pendingReview > 0
@@ -175,7 +176,28 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
           </a>
         </div>
       </header>
+      <nav className="adm-nav" data-testid="admin-nav" aria-label={tr('adm.nav')}>
+        {ADMIN_VIEWS.map((v) => (
+          <a key={v} href={viewHref(v)} aria-current={v === view ? 'page' : undefined} data-testid={`admin-nav-${v}`}>
+            {tr(`adm.nav.${v}` as Parameters<AdminTranslate>[0])}
+            {v === 'requests' && pendingReview > 0 && <b className="adm-num">{pendingReview}</b>}
+          </a>
+        ))}
+      </nav>
 
+      {view !== 'requests' && (
+        <main className="adm-main" data-testid={`admin-${view}-screen`}>
+          {view === 'wishes' && <WishesScreen call={call} agent={agent} tr={tr} locale={locale} />}
+          {view === 'snapshots' && <SnapshotsScreen call={call} tr={tr} locale={locale} />}
+          {view === 'releases' && <ReleasesScreen call={call} tr={tr} locale={locale} />}
+          {view === 'flags' && <FlagsScreen call={call} tr={tr} locale={locale} />}
+          {view === 'events' && <EventsScreen call={call} tr={tr} locale={locale} />}
+          {view === 'audit' && <AuditScreen call={call} tr={tr} locale={locale} />}
+          {view === 'plan' && <PlanScreen call={call} tr={tr} locale={locale} />}
+        </main>
+      )}
+
+      {view === 'requests' && (
       <main className="adm-main" data-testid="admin">
         <h1 className="adm-h1">{tr('admin.requests')}</h1>
 
@@ -279,7 +301,7 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
                   {isOpen && (
                     <tr className="adm-detailrow">
                       <td colSpan={6}>
-                        <RequestDetail id={r.id} call={call} tr={tr} onChanged={load} />
+                        <RequestDetail id={r.id} call={call} tr={tr} onChanged={load} viewAs={viewAsHref(r.userId)} />
                       </td>
                     </tr>
                   )}
@@ -289,11 +311,12 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
           </tbody>
         </table>
       </main>
+      )}
     </div>
   )
 }
 
-function RequestDetail({ id, call, tr, onChanged }: { id: string; call: ReturnType<typeof useAdminApi>; tr: AdminTranslate; onChanged: () => Promise<void> }) {
+function RequestDetail({ id, call, tr, onChanged, viewAs }: { id: string; call: ReturnType<typeof useAdminApi>; tr: AdminTranslate; onChanged: () => Promise<void>; viewAs: string }) {
   const [d, setD] = useState<Detail | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -376,6 +399,9 @@ function RequestDetail({ id, call, tr, onChanged }: { id: string; call: ReturnTy
             {tr('admin.reject')}
           </button>
         )}
+        <a className="adm-btn adm-btn-quiet" data-testid="admin-view-as" href={viewAs} title={tr('adm.viewAs.tip', { user: r.userId })}>
+          {tr('adm.viewAs', { user: r.userId })}
+        </a>
         {msg && (
           <span className="adm-msg" data-testid="admin-msg">
             {msg}
