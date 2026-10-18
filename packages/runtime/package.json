@@ -1,6 +1,6 @@
 {
   "name": "@pleatkit/runtime",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Browser runtime for pleatkit: snapshots, esbuild-wasm compiler, hot swap of dynamic React components, undo/redo",
   "license": "MIT",
   "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/runtime#readme",

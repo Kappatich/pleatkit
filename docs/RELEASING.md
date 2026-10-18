@@ -44,9 +44,9 @@ page is the prepared path, so the first release is a checklist, not a project.
    `--provenance --access public`.
 5. Check on npmjs.com that each version shows "Built and signed on GitHub Actions".
 
-## 0.2.0, the first public release (prepared 2026-10-18, not published)
+## 0.3.0, the first public release (prepared 2026-10-18, not published)
 
-- Versions: runtime, vite-plugin, agent, cli, store-server at 0.2.0. `@pleatkit/ui` stays at 0.1.0 in the tree
+- Versions: runtime, vite-plugin, agent, cli, store-server at 0.3.0, ui included
   until the architect applies [`release/ui-0.2.patch`](release/ui-0.2.patch) (version, README, LICENSE, `files`,
   the `Morphkit*` aliases removed; `git apply docs/release/ui-0.2.patch`): packages/ui is the architect's.
   `node scripts/release-check.mjs` fails on exactly that until then.

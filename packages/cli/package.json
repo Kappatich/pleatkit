@@ -1,6 +1,6 @@
 {
   "name": "@pleatkit/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "pleatkit command line: `pleatkit doctor` checks an app's setup, `pleatkit keys` makes app keys, `pleatkit export` exports data",
   "license": "MIT",
   "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/cli#readme",
