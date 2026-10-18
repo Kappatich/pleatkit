@@ -187,3 +187,15 @@ describe('brainstorm 04 §1: digests in the cached prefix, byte-stable', async (
     expect(a.cached).toContain('<data_contracts>')
   })
 })
+
+describe('stage 5: a request with a screen part and a server part is partial, not needs-backend', () => {
+  it('the classifier sends a mixed request to the main loop; the instructions say to do the screen part', async () => {
+    const { CLASSIFIER_INSTRUCTIONS, instructions, PROMPT_VERSION } = await import('../src/prompt.js')
+    expect(CLASSIFIER_INSTRUCTIONS).toMatch(/"ui": doable in the panels' frontend code, entirely or for its screen part/)
+    expect(CLASSIFIER_INSTRUCTIONS).toMatch(/Only when no part of it is screen work: "show X and keep Y on the server" is "ui"/)
+    const text = instructions(request('x'))
+    expect(text).toMatch(/never answer "needs-backend" to a request that has a screen part/)
+    expect(text).toMatch(/finish "partial": "The card now shows the phone\. Keeping a history/)
+    expect(PROMPT_VERSION).toBe('2026-10-18.5a')
+  })
+})

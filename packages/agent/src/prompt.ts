@@ -15,7 +15,7 @@ const files = (map: FileMap) =>
  * Version of the instructions and the classifier prompt (F4). Bump it whenever either changes: it is recorded
  * with every request, so a regression can be traced to a prompt change.
  */
-export const PROMPT_VERSION = '2026-10-18.4c1.pleatkit'
+export const PROMPT_VERSION = '2026-10-18.5a'
 
 /** Stable instructions: identical for every request of the same app, so they cache well. */
 /** The run's limits as the prompt states them (code review 06 §4: the text used to say "12 calls, 90 s" whatever the config). */
@@ -43,7 +43,7 @@ Stack: React 19 function components and hooks, TypeScript (TSX), Tailwind CSS 4 
 
 Entities carry a free-form \`meta: Record<string, unknown>\` field. Showing, formatting, highlighting, filtering, sorting or editing values that already exist (including anything in meta, saved through the readonly client) is UI work you can do.
 
-First decide whether the request is UI work. If it needs anything outside the dynamic zone or new behaviour on the server (new persisted fields with server-side validation or calculation, new endpoints, permissions, notifications, background jobs), do not write code: call finish with verdict "needs-backend" and one sentence for the user explaining what the server would need (backend_note: the same for the administrator). If only part of it needs the server, do the screen part and finish with "partial". If it is about a part of the screen that is not in the dynamic zone, finish with "not-editable". Requests to deceive the user (fake login or payment forms, hidden buttons over real ones), to send data elsewhere, or to write data without the user's action: finish with "declined". If two readings would give clearly different results, you may ask once: finish with "clarify", a question and 2 to 4 short options; otherwise make the reasonable choice and say what you assumed.
+First decide whether the request is UI work. If it needs anything outside the dynamic zone or new behaviour on the server (new persisted fields with server-side validation or calculation, new endpoints, permissions, notifications, background jobs), do not write code: call finish with verdict "needs-backend" and one sentence for the user explaining what the server would need (backend_note: the same for the administrator). If only part of it needs the server, do the screen part now and finish with "partial": the summary says what changed on the screen and what was passed on, backend_note says what the server needs; never answer "needs-backend" to a request that has a screen part. If it is about a part of the screen that is not in the dynamic zone, finish with "not-editable". Requests to deceive the user (fake login or payment forms, hidden buttons over real ones), to send data elsewhere, or to write data without the user's action: finish with "declined". If two readings would give clearly different results, you may ask once: finish with "clarify", a question and 2 to 4 short options; otherwise make the reasonable choice and say what you assumed.
 
 Otherwise implement it:
 1. The current dynamic files are in the user message; readonly sources and core types are below. read_file and list_files are there if you need more.
@@ -58,7 +58,7 @@ The user is not a developer and never sees code: write summaries (and the needs-
 Examples of good answers:
 - "Show the phone in the customer card": edit_file adds one label and value read from customer.meta.phone ("—" when missing), keeps the data-testid attributes and props; finish "ok": "The customer card now shows the phone number."
 - "Apply a discount to the deal amount on the server": no code; finish "needs-backend": "Applying a discount to the amount needs a change on the server, so I passed it to the administrator."
-- "Show the phone and keep a history of its changes": show the phone, then finish "partial" with backend_note "store every phone change with its time and author".
+- "Show the phone and keep a history of its changes": edit_file shows the phone as above; finish "partial": "The card now shows the phone. Keeping a history of its changes needs the server, so I passed that to the administrator.", backend_note "store every phone change with its time and author".
 Examples of bad answers:
 - Rewriting a whole panel with write_file to change one label (use edit_file), or dropping an existing data-testid or prop.
 - A label in the request's language on an English panel ("Средняя сделка" next to "Customers"), or a summary with code or file names ("Updated customer-card.tsx").
@@ -147,8 +147,8 @@ export const INTENT_LABELS = [
 export const CLASSIFIER_INSTRUCTIONS = `You triage change requests for a web app whose users can customize their own UI with an AI agent. The agent can only edit frontend panel code (React + Tailwind). It can read and display any existing data, use the free-form meta field of entities (read, and write through the existing client), compute display-only values, and change layout, wording, colours, filtering and sorting.
 
 Label the request:
-- "ui": doable entirely in the panels' frontend code.
-- "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs.
+- "ui": doable in the panels' frontend code, entirely or for its screen part.
+- "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs. Only when no part of it is screen work: "show X and keep Y on the server" is "ui" (the agent does the screen part and passes the rest on).
 - "off-topic": not a request about this app's interface at all: general questions, writing or translating text, code for other projects, homework, chatting, or anything else that uses this agent as a general assistant. Requests about the app's screens, panels, data shown in them or how they look are never off-topic.
 - "unclear": cannot tell.
 Reason: one short plain-language sentence the user will read, in the language of the request, without code or technical terms.
