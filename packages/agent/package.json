@@ -1,17 +1,18 @@
 {
-  "name": "@morphkit/agent",
+  "name": "@pleatkit/agent",
   "version": "0.1.0",
-  "description": "Agent server for morphkit: model loop with zone-checked file tools, server-side esbuild check, SSE progress",
+  "description": "Agent server for pleatkit: model loop with zone-checked file tools, server-side esbuild check, SSE progress",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Kappatich/morphkit.git",
+    "url": "git+https://github.com/Kappatich/pleatkit.git",
     "directory": "packages/agent"
   },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
+    "pleatkit-agent": "./dist/cli.js",
     "morphkit-agent": "./dist/cli.js"
   },
   "exports": {
@@ -33,7 +34,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
     "@hono/node-server": "^1.19.5",
-    "@morphkit/runtime": "workspace:*",
+    "@pleatkit/runtime": "workspace:*",
     "esbuild": "0.28.2",
     "hono": "^4.10.0",
     "typescript": "~5.9.3",

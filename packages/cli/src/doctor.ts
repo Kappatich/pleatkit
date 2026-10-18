@@ -3,7 +3,8 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { globSync } from 'tinyglobby'
-import { buildManifest, type MorphkitManifest, type MorphkitOptions } from '@morphkit/vite-plugin'
+import { buildManifest, type PleatkitManifest, type PleatkitOptions } from '@pleatkit/vite-plugin'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 export type Status = 'ok' | 'warn' | 'fail'
 
@@ -21,14 +22,14 @@ export interface DoctorOptions {
   /** Built client bundle to scan for secrets. Default `<root>/dist`. */
   dist?: string
   /** For tests: skip loading vite.config and use these options. */
-  morphkitOptions?: MorphkitOptions
+  pleatkitOptions?: PleatkitOptions
   /** Where the app is served (`--url`): plain http:// on another host than localhost has no WebCrypto. */
   url?: string
 }
 
 export interface LoadedConfig {
   file: string | null
-  options: MorphkitOptions | null
+  options: PleatkitOptions | null
   dedupe: string[]
   error?: string
   /** `server` / `preview` host and https of the Vite config (secure-context check). */
@@ -38,7 +39,7 @@ export interface LoadedConfig {
 const CONFIG_FILES = ['vite.config.ts', 'vite.config.mts', 'vite.config.js', 'vite.config.mjs', 'vite.config.cts', 'vite.config.cjs']
 const SCRIPT_EXT = ['.tsx', '.ts', '.jsx', '.js']
 
-/** Load the app's vite.config with Vite itself and find the morphkit plugin's options. */
+/** Load the app's vite.config with Vite itself and find the pleatkit plugin's options. */
 export async function loadViteConfig(root: string): Promise<LoadedConfig> {
   const file = CONFIG_FILES.map((f) => path.join(root, f)).find((f) => fs.existsSync(f)) ?? null
   if (!file) return { file: null, options: null, dedupe: [], error: 'no vite.config.* in ' + root }
@@ -53,7 +54,7 @@ export async function loadViteConfig(root: string): Promise<LoadedConfig> {
     }
     const loaded = await vite.loadConfigFromFile({ command: 'build', mode: 'production' }, file, root, 'silent')
     const plugins = (loaded?.config.plugins ?? []).flat(Infinity as 1) as unknown[]
-    const plugin = plugins.find((p): p is { name: string; api?: { options?: MorphkitOptions } } => typeof p === 'object' && p !== null && (p as { name?: string }).name === 'morphkit')
+    const plugin = plugins.find((p): p is { name: string; api?: { options?: PleatkitOptions } } => typeof p === 'object' && p !== null && (p as { name?: string }).name === 'pleatkit')
     const dedupe = loaded?.config.resolve?.dedupe ?? []
     const server = loaded?.config.server ?? {}
     return { file, options: plugin?.api?.options ?? null, dedupe, served: { host: server.host, https: Boolean(server.https) } }
@@ -87,20 +88,20 @@ export function checkReact(root: string, dedupe: string[]): Finding {
   const version = (JSON.parse(fs.readFileSync(appReact, 'utf8')) as { version: string }).version
   const details = [`app: react ${version}`]
   let status: Status = Number(version.split('.')[0]) >= 18 ? 'ok' : 'fail'
-  let fix = status === 'fail' ? 'morphkit needs React 18 or 19: pnpm add react@19 react-dom@19' : undefined
-  const runtimePkg = realResolve(root, '@morphkit/runtime/package.json')
-  if (!runtimePkg) return { id: 'react', status: 'fail', title: '@morphkit/runtime is not installed', details, fix: 'pnpm add @morphkit/runtime @morphkit/ui' }
+  let fix = status === 'fail' ? 'pleatkit needs React 18 or 19: pnpm add react@19 react-dom@19' : undefined
+  const runtimePkg = realResolve(root, '@pleatkit/runtime/package.json')
+  if (!runtimePkg) return { id: 'react', status: 'fail', title: '@pleatkit/runtime is not installed', details, fix: 'pnpm add @pleatkit/runtime @pleatkit/ui' }
   for (const name of ['react', 'react-dom']) {
     const fromApp = realResolve(root, `${name}/package.json`)
     const fromRuntime = realResolve(path.dirname(runtimePkg), `${name}/package.json`)
     if (fromApp && fromRuntime && fromApp !== fromRuntime) {
-      details.push(`${name}: the app and @morphkit/runtime resolve different copies (${path.dirname(fromApp)} vs ${path.dirname(fromRuntime)})`)
+      details.push(`${name}: the app and @pleatkit/runtime resolve different copies (${path.dirname(fromApp)} vs ${path.dirname(fromRuntime)})`)
       if (dedupe.includes(name)) {
         details.push(`${name} is in resolve.dedupe, so Vite bundles one copy`)
         if (status === 'ok') status = 'warn'
       } else {
         status = 'fail'
-        fix = "two Reacts break hooks: add resolve: { dedupe: ['react', 'react-dom'] } to vite.config (needed when morphkit is linked from a local checkout)"
+        fix = "two Reacts break hooks: add resolve: { dedupe: ['react', 'react-dom'] } to vite.config (needed when pleatkit is linked from a local checkout)"
       }
     }
   }
@@ -113,7 +114,7 @@ const DYNAMIC_ID = /<Dynamic\b[^>]*?\bid=(?:"([^"]+)"|'([^']+)'|\{\s*["'`]([^"'`
 const HAS_DEFAULT = /export\s+default\b|export\s*\{[^}]*\bas\s+default\b[^}]*\}/
 
 /** Every `<Dynamic id="x">` in the app's sources must have `<dynamic root>/x.(tsx|ts|jsx|js)` with a default export. */
-export function checkPanels(root: string, manifest: MorphkitManifest): Finding {
+export function checkPanels(root: string, manifest: PleatkitManifest): Finding {
   const sources = globSync(['src/**/*.{tsx,jsx,ts,js}'], { cwd: root, ignore: ['**/node_modules/**', '**/*.d.ts'] })
   const ids = new Map<string, string>()
   for (const rel of sources) {
@@ -149,7 +150,7 @@ function exists(base: string): boolean {
 }
 
 /** Every external the dynamic code may import must resolve: aliases to a file in the app, packages from node_modules. */
-export function checkExternals(root: string, manifest: MorphkitManifest): Finding {
+export function checkExternals(root: string, manifest: PleatkitManifest): Finding {
   const missing: string[] = []
   for (const spec of manifest.externals) {
     const alias = Object.entries(manifest.alias).find(([k]) => spec === k || spec.startsWith(k + '/'))
@@ -161,7 +162,7 @@ export function checkExternals(root: string, manifest: MorphkitManifest): Findin
     }
   }
   return missing.length
-    ? { id: 'externals', status: 'fail', title: `${missing.length} external${missing.length > 1 ? 's do' : ' does'} not resolve`, details: missing, fix: 'install the package or fix the path, or remove it from `externals` in the morphkit plugin options' }
+    ? { id: 'externals', status: 'fail', title: `${missing.length} external${missing.length > 1 ? 's do' : ' does'} not resolve`, details: missing, fix: 'install the package or fix the path, or remove it from `externals` in the pleatkit plugin options' }
     : { id: 'externals', status: 'ok', title: `${manifest.externals.length} externals resolve`, details: [] }
 }
 
@@ -177,7 +178,7 @@ export function parseCsp(policy: string): Map<string, string[]> {
 }
 
 /**
- * Problems of one policy for morphkit. `browser` compile mode needs blob: modules, WebAssembly and a blob:
+ * Problems of one policy for pleatkit. `browser` compile mode needs blob: modules, WebAssembly and a blob:
  * worker; `server` mode (the default, V1 B1) only needs the page's own origin for scripts.
  */
 export function cspProblems(policy: string, compile: 'server' | 'browser' = 'browser'): string[] {
@@ -186,7 +187,7 @@ export function cspProblems(policy: string, compile: 'server' | 'browser' = 'bro
   const worker = csp.get('worker-src') ?? csp.get('child-src') ?? script
   const problems: string[] = []
   if (compile === 'server') {
-    if (script && !script.includes("'self'") && !script.includes('*')) problems.push("script-src needs 'self' (signed edits load from /morphkit/b/ on the app's origin)")
+    if (script && !script.includes("'self'") && !script.includes('*')) problems.push("script-src needs 'self' (signed edits load from /pleatkit/b/ on the app's origin)")
     return problems
   }
   if (script) {
@@ -202,7 +203,7 @@ const RECOMMENDED_CSP = {
   server: "script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'",
 }
 
-/** Look for a CSP in index.html and in common hosting files, and check it against what morphkit needs. */
+/** Look for a CSP in index.html and in common hosting files, and check it against what pleatkit needs. */
 export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'browser' = 'server'): Finding {
   const recommended = RECOMMENDED_CSP[compile]
   const found: { where: string; policy: string }[] = []
@@ -218,9 +219,9 @@ export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'b
     const m = /Content-Security-Policy["']?\s*[:=,]\s*["']?(?:value["']?\s*:\s*["'])?([^"'\n]+)/i.exec(fs.readFileSync(file, 'utf8'))
     if (m) found.push({ where: rel, policy: m[1]! })
   }
-  const hints = isolated ? ['isolated panels: serve assets/morphkit-isolated-host-*.js with Access-Control-Allow-Origin: *'] : []
+  const hints = isolated ? ['isolated panels: serve assets/pleatkit-isolated-host-*.js with Access-Control-Allow-Origin: *'] : []
   if (found.length === 0) {
-    return { id: 'csp', status: 'ok', title: 'no Content-Security-Policy found in the app', details: [`if you add one, morphkit (compile: '${compile}') needs: ${recommended}`, ...hints] }
+    return { id: 'csp', status: 'ok', title: 'no Content-Security-Policy found in the app', details: [`if you add one, pleatkit (compile: '${compile}') needs: ${recommended}`, ...hints] }
   }
   const problems = found.flatMap((f) => cspProblems(f.policy, compile).map((p) => `${f.where}: ${p}`))
   return problems.length
@@ -242,7 +243,7 @@ export const TAIL_TARGET = 6_000
  * digests) and the tail (the dynamic files and the request). Targets: prefix 20k, tail 6k tokens; over them the
  * edits cost more and the model sees more noise.
  */
-export function checkContextBudget(manifest: MorphkitManifest): Finding {
+export function checkContextBudget(manifest: PleatkitManifest): Finding {
   const sum = (files: { source: string }[]) => files.reduce((s, f) => s + estimateTokens(f.source), 0)
   const readonly = sum(manifest.readonly)
   const types = sum(manifest.coreTypes)
@@ -270,7 +271,7 @@ const LOCAL = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|.*\.localhost)$/i
 
 /**
  * WebCrypto (`crypto.subtle`) exists only in secure contexts: https://, or http://localhost. On a plain http://
- * intranet host morphkit falls back to JS hashing (slower), and signed bundles (`publicKey`) cannot be verified,
+ * intranet host pleatkit falls back to JS hashing (slower), and signed bundles (`publicKey`) cannot be verified,
  * so their edits are refused and the original version is shown.
  */
 export function checkSecureContext(url: string | undefined, served: LoadedConfig['served'], publicKey: boolean): Finding {
@@ -292,7 +293,7 @@ export function checkSecureContext(url: string | undefined, served: LoadedConfig
   if (publicKey) {
     return { id: 'secure-context', status: 'fail', title: 'signed bundles cannot be verified on plain http', details, fix: 'serve the app over https (or localhost): with publicKey set, edits are refused without WebCrypto' }
   }
-  return { id: 'secure-context', status: 'warn', title: 'plain http: hashing falls back to JavaScript', details, fix: 'serve the app over https; morphkit works on http but slower, and production auth (tokens, signed bundles) needs https' }
+  return { id: 'secure-context', status: 'warn', title: 'plain http: hashing falls back to JavaScript', details, fix: 'serve the app over https; pleatkit works on http but slower, and production auth (tokens, signed bundles) needs https' }
 }
 
 // --- secrets in the client bundle ---
@@ -301,7 +302,7 @@ const KEY_PATTERNS: { name: string; re: RegExp }[] = [
   { name: 'Anthropic API key', re: /sk-ant-[A-Za-z0-9_-]{20,}/g },
   { name: 'OpenRouter API key', re: /sk-or-v1-[A-Za-z0-9]{20,}/g },
   { name: 'OpenAI API key', re: /sk-(?!ant-|or-)(?:proj-|svcacct-)?[A-Za-z0-9_-]{32,}/g },
-  { name: 'morphkit app key', re: /mk_live_[A-Za-z0-9]{16,}/g },
+  { name: 'pleatkit app key', re: /mk_live_[A-Za-z0-9]{16,}/g },
 ]
 const SECRET_ENV = /^\s*(VITE_[A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD)[A-Z0-9_]*)\s*=\s*\S/gm
 
@@ -325,10 +326,10 @@ export function checkSecrets(root: string, dist: string): Finding {
     }
   }
   if (leaks.length) {
-    return { id: 'secrets', status: 'fail', title: 'a key can reach the browser', details: leaks, fix: 'remove the key from client code and VITE_ variables; keep it only in the environment of the agent server (MORPHKIT_API_KEY), then rotate it' }
+    return { id: 'secrets', status: 'fail', title: 'a key can reach the browser', details: leaks, fix: 'remove the key from client code and VITE_ variables; keep it only in the environment of the agent server (PLEATKIT_API_KEY), then rotate it' }
   }
   if (!fs.existsSync(dist)) {
-    return { id: 'secrets', status: 'warn', title: `no build to scan (${path.relative(root, dist) || dist})`, details: ['.env files checked'], fix: 'run your build (vite build), then run morphkit doctor again' }
+    return { id: 'secrets', status: 'warn', title: `no build to scan (${path.relative(root, dist) || dist})`, details: ['.env files checked'], fix: 'run your build (vite build), then run pleatkit doctor again' }
   }
   return { id: 'secrets', status: 'ok', title: `no API keys in the client bundle (${scanned} files scanned)`, details: [] }
 }
@@ -339,22 +340,22 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
   const root = path.resolve(options.root)
   const dist = path.resolve(root, options.dist ?? 'dist')
   const findings: Finding[] = []
-  const config: LoadedConfig = options.morphkitOptions ? { file: null, options: options.morphkitOptions, dedupe: ['react', 'react-dom'] } : await loadViteConfig(root)
+  const config: LoadedConfig = options.pleatkitOptions ? { file: null, options: options.pleatkitOptions, dedupe: ['react', 'react-dom'] } : await loadViteConfig(root)
   if (!config.options) {
     findings.push({
       id: 'config',
       status: 'fail',
-      title: config.error ? `could not load the Vite config: ${config.error}` : `no morphkit plugin in ${path.basename(config.file ?? 'vite.config')}`,
+      title: config.error ? `could not load the Vite config: ${config.error}` : `no pleatkit plugin in ${path.basename(config.file ?? 'vite.config')}`,
       details: [],
-      fix: "add morphkit({ zones: { dynamic: ['src/dynamic/**'] }, externals: [...] }) to plugins in vite.config (see docs/for-agents/install.md)",
+      fix: "add pleatkit({ zones: { dynamic: ['src/dynamic/**'] }, externals: [...] }) to plugins in vite.config (see docs/for-agents/install.md)",
     })
   } else {
     const zones = config.options.zones
-    findings.push({ id: 'config', status: 'ok', title: `morphkit plugin found${config.file ? ` in ${path.basename(config.file)}` : ''}`, details: [`dynamic: ${zones.dynamic.join(', ')}`, `readonly: ${(zones.readonly ?? []).join(', ') || '(none)'}`] })
+    findings.push({ id: 'config', status: 'ok', title: `pleatkit plugin found${config.file ? ` in ${path.basename(config.file)}` : ''}`, details: [`dynamic: ${zones.dynamic.join(', ')}`, `readonly: ${(zones.readonly ?? []).join(', ') || '(none)'}`] })
   }
   findings.push(checkReact(root, config.dedupe))
   if (config.options) {
-    let manifest: MorphkitManifest | null = null
+    let manifest: PleatkitManifest | null = null
     try {
       manifest = buildManifest(root, config.options)
     } catch (e) {
@@ -369,7 +370,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
     }
   }
   findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server'))
-  findings.push(checkSecureContext(options.url, config.served, Boolean(config.options?.publicKey ?? process.env.MORPHKIT_PUBLIC_KEY)))
+  findings.push(checkSecureContext(options.url, config.served, Boolean(config.options?.publicKey ?? pleatkitEnv(process.env).PLEATKIT_PUBLIC_KEY)))
   findings.push(checkSecrets(root, dist))
   return findings
 }
@@ -377,7 +378,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
 const MARK: Record<Status, string> = { ok: '[ok]  ', warn: '[warn]', fail: '[FAIL]' }
 
 export function formatFindings(findings: Finding[], root: string): string {
-  const lines = [`morphkit doctor: ${root}`, '']
+  const lines = [`pleatkit doctor: ${root}`, '']
   for (const f of findings) {
     lines.push(`${MARK[f.status]} ${f.id}: ${f.title}`)
     for (const d of f.details) lines.push(`         ${d}`)

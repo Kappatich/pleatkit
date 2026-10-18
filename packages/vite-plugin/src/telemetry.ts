@@ -2,14 +2,15 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /**
  * F8: anonymous, opt-out telemetry of the install funnel (`plugin.build`, `doctor.run`, `doctor.fail:<check>`,
  * `ping.ok`, ...). Events only: a name, a few enum-like properties, the package version, the Node major and the
  * OS platform, and a random install id. Never code, file names, paths, URLs, keys or user data.
  *
- * Off when MORPHKIT_TELEMETRY=0 (or false/off), DO_NOT_TRACK=1, or in CI. It also stays off until a collector
- * exists: TELEMETRY_ENDPOINT is null in this version (MORPHKIT_TELEMETRY_URL sets one), and then nothing is sent
+ * Off when PLEATKIT_TELEMETRY=0 (or false/off), DO_NOT_TRACK=1, or in CI. It also stays off until a collector
+ * exists: TELEMETRY_ENDPOINT is null in this version (PLEATKIT_TELEMETRY_URL sets one), and then nothing is sent
  * and no install id is written.
  */
 export const TELEMETRY_ENDPOINT: string | null = null
@@ -19,7 +20,7 @@ export type TelemetryProps = Record<string, string | number | boolean>
 
 export interface TelemetryOptions {
   env?: Env
-  /** Where `.morphkit/telemetry.json` (install id, notice shown) lives. Default: the user's home directory. */
+  /** Where `.pleatkit/telemetry.json` (install id, notice shown) lives. Default: the user's home directory. */
   home?: string
   fetch?: typeof fetch
   /** Package and version that send the event. */
@@ -29,9 +30,10 @@ export interface TelemetryOptions {
 }
 
 export function telemetryStatus(env: Env = process.env): { enabled: boolean; reason: string; endpoint: string | null } {
-  const endpoint = env.MORPHKIT_TELEMETRY_URL || TELEMETRY_ENDPOINT
-  const off = (env.MORPHKIT_TELEMETRY ?? '').toLowerCase()
-  if (['0', 'false', 'off', 'no'].includes(off)) return { enabled: false, reason: 'MORPHKIT_TELEMETRY=0', endpoint }
+  pleatkitEnv(env)
+  const endpoint = env.PLEATKIT_TELEMETRY_URL || TELEMETRY_ENDPOINT
+  const off = (env.PLEATKIT_TELEMETRY ?? '').toLowerCase()
+  if (['0', 'false', 'off', 'no'].includes(off)) return { enabled: false, reason: 'PLEATKIT_TELEMETRY=0', endpoint }
   if (env.DO_NOT_TRACK === '1' || env.DO_NOT_TRACK === 'true') return { enabled: false, reason: 'DO_NOT_TRACK', endpoint }
   if (env.CI && env.CI !== 'false' && env.CI !== '0') return { enabled: false, reason: 'CI', endpoint }
   if (!endpoint) return { enabled: false, reason: 'no collector configured', endpoint: null }
@@ -70,12 +72,13 @@ export async function track(event: string, props: TelemetryProps = {}, o: Teleme
     const status = telemetryStatus(env)
     if (!status.enabled || !status.endpoint) return false
     if (!/^[a-z][\w.:-]{0,60}$/.test(event)) return false
-    const dir = path.join(o.home ?? os.homedir(), '.morphkit')
-    let state = loadState(dir)
+    const dir = path.join(o.home ?? os.homedir(), '.pleatkit')
+    // `~/.morphkit`: the pre-rename folder (DECISIONS 68); its install id carries over
+    let state = loadState(dir) ?? loadState(path.join(o.home ?? os.homedir(), '.morphkit'))
     if (!state) state = { installId: randomUUID(), noticeShown: false }
     if (!state.noticeShown) {
       ;(o.notice ?? ((l: string) => process.stderr.write(l + '\n')))(
-        'morphkit: anonymous install-funnel events are on (event names only: no code, no paths). Turn them off with MORPHKIT_TELEMETRY=0. See README, "Telemetry".',
+        'pleatkit: anonymous install-funnel events are on (event names only: no code, no paths). Turn them off with PLEATKIT_TELEMETRY=0. See README, "Telemetry".',
       )
       state.noticeShown = true
     }
@@ -88,7 +91,7 @@ export async function track(event: string, props: TelemetryProps = {}, o: Teleme
     const body = {
       event,
       installId: state.installId,
-      package: o.source?.package ?? 'morphkit',
+      package: o.source?.package ?? 'pleatkit',
       version: o.source?.version ?? '0',
       node: Number(process.versions.node.split('.')[0]),
       os: process.platform,

@@ -19,7 +19,7 @@ const run = (taskId: string, pass: boolean, over: Partial<TaskRun> = {}): TaskRu
   ms: 1200,
   graders: [
     { grader: 'verdict', pass, reason: pass ? 'ok' : 'expected ok, got failed <script>' },
-    { grader: 'typecheck', pass: true, skipped: true, reason: 'MORPHKIT_TYPECHECK_ROOT is not set' },
+    { grader: 'typecheck', pass: true, skipped: true, reason: 'PLEATKIT_TYPECHECK_ROOT is not set' },
   ],
   pass,
   ...over,

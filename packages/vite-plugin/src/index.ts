@@ -5,23 +5,23 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import picomatch from 'picomatch'
 import { version as viteVersion, type Connect, type Plugin, type ResolvedConfig, type ViteDevServer } from 'vite'
 import { buildIsolatedHost } from './isolated.js'
-import { aliasToPath, buildManifest, resolveOptions, toPosix, type MorphkitManifest, type MorphkitOptions } from './manifest.js'
+import { aliasToPath, buildManifest, resolveOptions, toPosix, type PleatkitManifest, type PleatkitOptions } from './manifest.js'
 import { generateTailwindModule } from './tailwind.js'
 import { track } from './telemetry.js'
 
-export type { MorphkitManifest, MorphkitOptions, ManifestFile, ZonesOptions } from './manifest.js'
+export type { PleatkitManifest, PleatkitOptions, ManifestFile, ZonesOptions } from './manifest.js'
 export { buildManifest, expandExternals, globRoot, findImports, normalizeZones, designSystemDigest, dataContractsDigest } from './manifest.js'
 export { extractTailwindBlocks, generateTailwindModule } from './tailwind.js'
 export { buildIsolatedHost } from './isolated.js'
 export { track, telemetryStatus, sanitizeProps, TELEMETRY_ENDPOINT, type TelemetryOptions, type TelemetryProps } from './telemetry.js'
 
-export const MANIFEST_FILE = 'morphkit.manifest.json'
+export const MANIFEST_FILE = 'pleatkit.manifest.json'
 /** Version reported in telemetry events (F8). */
 export const PLUGIN_VERSION = '0.1.0'
 /** Dev-server path of the isolated-panel host script (under `base`). */
-export const ISOLATED_DEV_PATH = '@morphkit/isolated-host.js'
-/** Built file name prefix of the isolated-panel host script (`assets/morphkit-isolated-host-<hash>.js`). */
-export const ISOLATED_FILE_PREFIX = 'morphkit-isolated-host-'
+export const ISOLATED_DEV_PATH = '@pleatkit/isolated-host.js'
+/** Built file name prefix of the isolated-panel host script (`assets/pleatkit-isolated-host-<hash>.js`). */
+export const ISOLATED_FILE_PREFIX = 'pleatkit-isolated-host-'
 
 /**
  * The sandboxed frame of an isolated panel has an opaque origin (`Origin: null`), and loads the host script
@@ -39,14 +39,14 @@ export function isolatedCorsMiddleware(): Connect.NextHandleFunction {
 }
 
 const MODULES = [
-  'virtual:morphkit',
-  'virtual:morphkit/manifest',
-  'virtual:morphkit/externals',
-  'virtual:morphkit/fallback',
-  'virtual:morphkit/wasm-url',
-  'virtual:morphkit/css',
-  'virtual:morphkit/tailwind',
-  'virtual:morphkit/isolated',
+  'virtual:pleatkit',
+  'virtual:pleatkit/manifest',
+  'virtual:pleatkit/externals',
+  'virtual:pleatkit/fallback',
+  'virtual:pleatkit/wasm-url',
+  'virtual:pleatkit/css',
+  'virtual:pleatkit/tailwind',
+  'virtual:pleatkit/isolated',
 ] as const
 type VirtualId = (typeof MODULES)[number]
 const RESOLVED_PREFIX = '\0'
@@ -62,7 +62,7 @@ function importPath(root: string, spec: string, alias: Record<string, string>): 
  * icon set, a chart library) is loaded when such an edit runs, not with the app; modules the app imports
  * anyway resolve to the chunk it already has.
  */
-export function generateExternals(manifest: MorphkitManifest, root: string, lazy = false): string {
+export function generateExternals(manifest: PleatkitManifest, root: string, lazy = false): string {
   const lines: string[] = []
   const entries: string[] = []
   manifest.externals.forEach((spec, i) => {
@@ -77,7 +77,7 @@ export function generateExternals(manifest: MorphkitManifest, root: string, lazy
   return `${lines.join('\n')}\nexport default {\n${entries.join('\n')}\n}\n`
 }
 
-export function generateFallback(manifest: MorphkitManifest, root: string): string {
+export function generateFallback(manifest: PleatkitManifest, root: string): string {
   const lines: string[] = []
   const entries: string[] = []
   manifest.dynamic
@@ -89,11 +89,11 @@ export function generateFallback(manifest: MorphkitManifest, root: string): stri
   return `${lines.join('\n')}\nexport default {\n${entries.join('\n')}\n}\n`
 }
 
-/** Absolute path of esbuild.wasm as installed next to @morphkit/runtime (falls back to the app root). */
+/** Absolute path of esbuild.wasm as installed next to @pleatkit/runtime (falls back to the app root). */
 function findWasm(root: string): string | null {
   const bases = [path.join(root, 'package.json')]
   try {
-    bases.unshift(createRequire(path.join(root, 'package.json')).resolve('@morphkit/runtime/package.json'))
+    bases.unshift(createRequire(path.join(root, 'package.json')).resolve('@pleatkit/runtime/package.json'))
   } catch {
     // runtime not installed; try the app itself
   }
@@ -111,12 +111,12 @@ function findWasm(root: string): string | null {
 /**
  * The plugin object as seen by the app's vite.config. Hooks are typed loosely on purpose: the real hooks are
  * checked against this package's Vite, but the declared type must also be assignable to the app's Vite
- * (6 or 7), including when morphkit is linked from a local checkout whose own Vite differs.
+ * (6 or 7), including when pleatkit is linked from a local checkout whose own Vite differs.
  */
-export interface MorphkitVitePlugin {
-  name: 'morphkit'
+export interface PleatkitVitePlugin {
+  name: 'pleatkit'
   enforce: 'pre'
-  api: { options: MorphkitOptions }
+  api: { options: PleatkitOptions }
   config: (...args: any[]) => any
   configResolved: (...args: any[]) => any
   resolveId: (...args: any[]) => any
@@ -128,21 +128,41 @@ export interface MorphkitVitePlugin {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export default function morphkit(options: MorphkitOptions): MorphkitVitePlugin {
-  return createPlugin(options) as unknown as MorphkitVitePlugin
+export default function pleatkit(options: PleatkitOptions): PleatkitVitePlugin {
+  return createPlugin(options) as unknown as PleatkitVitePlugin
 }
 
-function createPlugin(options: MorphkitOptions): Plugin {
+// Pre-rename names (DECISIONS 68), kept for one release and removed in the next minor version.
+/** @deprecated Renamed: `import pleatkit from '@pleatkit/vite-plugin'`. */
+export const morphkit = pleatkit
+/** @deprecated Renamed to `PleatkitVitePlugin`. */
+export type MorphkitVitePlugin = PleatkitVitePlugin
+/** @deprecated Renamed to `PleatkitOptions`. */
+export type MorphkitOptions = PleatkitOptions
+/** @deprecated Renamed to `PleatkitManifest`. */
+export type MorphkitManifest = PleatkitManifest
+/** @deprecated The pre-rename virtual module ids (`virtual:morphkit/...`) resolve to `virtual:pleatkit/...` for one release. */
+export const LEGACY_VIRTUAL_PREFIX = 'virtual:morphkit'
+
+/** `virtual:morphkit/x` → `virtual:pleatkit/x`, or null for any other id. */
+export function legacyVirtualId(id: string): string | null {
+  if (id !== LEGACY_VIRTUAL_PREFIX && !id.startsWith(`${LEGACY_VIRTUAL_PREFIX}/`)) return null
+  const next = 'virtual:pleatkit' + id.slice(LEGACY_VIRTUAL_PREFIX.length)
+  return (MODULES as readonly string[]).includes(next) ? next : null
+}
+
+function createPlugin(options: PleatkitOptions): Plugin {
   const o = resolveOptions(options)
   let config: ResolvedConfig
   let root = process.cwd()
-  let manifest: MorphkitManifest | null = null
+  let manifest: PleatkitManifest | null = null
   let server: ViteDevServer | null = null
   let isolatedCode: Promise<string> | null = null
   const inZones = picomatch([...o.dynamic, ...o.readonly])
   let tracked = false
+  let warnedLegacy = false
 
-  const getManifest = (): MorphkitManifest => (manifest ??= buildManifest(root, options))
+  const getManifest = (): PleatkitManifest => (manifest ??= buildManifest(root, options))
 
   const hostCode = () =>
     (isolatedCode ??= buildIsolatedHost(root, getManifest(), config.command === 'build').catch((e: Error) => {
@@ -152,14 +172,14 @@ function createPlugin(options: MorphkitOptions): Plugin {
 
   const load = async (id: VirtualId, emit: (fileName: string, source: string) => void): Promise<string> => {
     switch (id) {
-      case 'virtual:morphkit':
+      case 'virtual:pleatkit':
         return [
-          `export { default as manifest } from 'virtual:morphkit/manifest'`,
-          `export { default as externals } from 'virtual:morphkit/externals'`,
-          `export { default as fallback } from 'virtual:morphkit/fallback'`,
-          `export { default as wasmURL } from 'virtual:morphkit/wasm-url'`,
-          `export { default as css } from 'virtual:morphkit/css'`,
-          `export { default as isolated } from 'virtual:morphkit/isolated'`,
+          `export { default as manifest } from 'virtual:pleatkit/manifest'`,
+          `export { default as externals } from 'virtual:pleatkit/externals'`,
+          `export { default as fallback } from 'virtual:pleatkit/fallback'`,
+          `export { default as wasmURL } from 'virtual:pleatkit/wasm-url'`,
+          `export { default as css } from 'virtual:pleatkit/css'`,
+          `export { default as isolated } from 'virtual:pleatkit/isolated'`,
           `export const compile = ${JSON.stringify(o.compile)}`,
           `export const publicKey = ${JSON.stringify(o.publicKey)}`,
           // development builds keep an inline source map for edits; production ones do not (code review 06 item 7)
@@ -167,27 +187,27 @@ function createPlugin(options: MorphkitOptions): Plugin {
           `export const isolateEdits = ${JSON.stringify(o.isolateEdits)}`,
           `export const sendDomText = ${JSON.stringify(o.sendDomText)}`,
         ].join('\n')
-      case 'virtual:morphkit/manifest':
+      case 'virtual:pleatkit/manifest':
         return `export default ${JSON.stringify(getManifest())}`
-      case 'virtual:morphkit/externals':
+      case 'virtual:pleatkit/externals':
         return generateExternals(getManifest(), root, o.lazyExternals)
-      case 'virtual:morphkit/fallback':
+      case 'virtual:pleatkit/fallback':
         return generateFallback(getManifest(), root)
-      case 'virtual:morphkit/wasm-url': {
+      case 'virtual:pleatkit/wasm-url': {
         const wasm = findWasm(root)
         if (!wasm) {
-          config.logger.warn('[morphkit] esbuild-wasm not found; runtime compilation will be unavailable')
+          config.logger.warn('[pleatkit] esbuild-wasm not found; runtime compilation will be unavailable')
           return 'export default null'
         }
         return `export { default } from ${JSON.stringify(toPosix(wasm) + '?url')}`
       }
-      case 'virtual:morphkit/css':
+      case 'virtual:pleatkit/css':
         return o.css === 'tailwind'
-          ? `export default { mode: 'tailwind', load: () => import('virtual:morphkit/tailwind') }`
+          ? `export default { mode: 'tailwind', load: () => import('virtual:pleatkit/tailwind') }`
           : `export default { mode: 'palette', load: null }`
-      case 'virtual:morphkit/tailwind':
+      case 'virtual:pleatkit/tailwind':
         return generateTailwindModule(root, o.tailwindEntry)
-      case 'virtual:morphkit/isolated': {
+      case 'virtual:pleatkit/isolated': {
         if (!o.isolated) return `export default null`
         // A separate classic script, never inlined (DECISIONS item 16): works under a strict CSP.
         if (config.command !== 'build') return `export default { url: ${JSON.stringify(config.base + ISOLATED_DEV_PATH)} }`
@@ -200,9 +220,9 @@ function createPlugin(options: MorphkitOptions): Plugin {
   }
 
   return {
-    name: 'morphkit',
+    name: 'pleatkit',
     enforce: 'pre',
-    /** The options as given, for tools such as `morphkit doctor` that read the app's vite.config. */
+    /** The options as given, for tools such as `pleatkit doctor` that read the app's vite.config. */
     api: { options },
 
     config(userConfig) {
@@ -210,9 +230,9 @@ function createPlugin(options: MorphkitOptions): Plugin {
       const include: string[] = []
       try {
         const req = createRequire(path.join(appRoot, 'package.json'))
-        createRequire(req.resolve('@morphkit/runtime/package.json')).resolve('esbuild-wasm/esm/browser.js')
+        createRequire(req.resolve('@pleatkit/runtime/package.json')).resolve('esbuild-wasm/esm/browser.js')
         // The compiler is imported lazily on the first check; prebundle it up front.
-        include.push('@morphkit/runtime > esbuild-wasm/esm/browser.js', '@morphkit/runtime > idb')
+        include.push('@pleatkit/runtime > esbuild-wasm/esm/browser.js', '@pleatkit/runtime > idb')
         if (o.css === 'tailwind') {
           req.resolve('tailwindcss')
           include.push('tailwindcss')
@@ -238,6 +258,12 @@ function createPlugin(options: MorphkitOptions): Plugin {
 
     resolveId(id) {
       if ((MODULES as readonly string[]).includes(id)) return RESOLVED_PREFIX + id
+      const renamed = legacyVirtualId(id)
+      if (renamed) {
+        if (!warnedLegacy) config?.logger.warn(`[pleatkit] "${id}" is deprecated: import "${renamed}" (the old ids are removed in the next release)`)
+        warnedLegacy = true
+        return RESOLVED_PREFIX + renamed
+      }
       return null
     },
 
@@ -291,7 +317,7 @@ function createPlugin(options: MorphkitOptions): Plugin {
     buildStart() {
       manifest = null
       isolatedCode = null
-      // F8: one anonymous event per build or dev start (no paths, no code; off with MORPHKIT_TELEMETRY=0)
+      // F8: one anonymous event per build or dev start (no paths, no code; off with PLEATKIT_TELEMETRY=0)
       if (!tracked) {
         tracked = true
         const m = getManifest()
@@ -301,7 +327,7 @@ function createPlugin(options: MorphkitOptions): Plugin {
           zones: m.dynamic.length > 0,
           isolated: o.isolated,
           vite: Number(viteVersion.split('.')[0]),
-        }, { source: { package: '@morphkit/vite-plugin', version: PLUGIN_VERSION } })
+        }, { source: { package: '@pleatkit/vite-plugin', version: PLUGIN_VERSION } })
       }
       if (config.command === 'build') {
         for (const f of getManifest().dynamic) this.addWatchFile(path.join(root, f.path))

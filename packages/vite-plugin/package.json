@@ -1,11 +1,11 @@
 {
-  "name": "@morphkit/vite-plugin",
+  "name": "@pleatkit/vite-plugin",
   "version": "0.1.0",
-  "description": "Vite plugin for morphkit: zones, manifest, externals registry and fallback bundle for runtime-editable UI",
+  "description": "Vite plugin for pleatkit: zones, manifest, externals registry and fallback bundle for runtime-editable UI",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Kappatich/morphkit.git",
+    "url": "git+https://github.com/Kappatich/pleatkit.git",
     "directory": "packages/vite-plugin"
   },
   "type": "module",
@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@morphkit/runtime": "workspace:*",
+    "@pleatkit/runtime": "workspace:*",
     "picomatch": "^4.0.3",
     "tinyglobby": "^0.2.15",
     "typescript": "~5.9.3",

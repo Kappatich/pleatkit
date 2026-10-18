@@ -1,4 +1,4 @@
-import { Dynamic } from '@morphkit/runtime'
+import { Dynamic } from '@pleatkit/runtime'
 import { orders } from '@/readonly/api'
 
 export default function App() {

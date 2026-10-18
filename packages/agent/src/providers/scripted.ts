@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { RequestClass, TokenUsage } from '@morphkit/runtime/compiler'
+import type { RequestClass, TokenUsage } from '@pleatkit/runtime/compiler'
 import { emptyUsage } from '../pricing.js'
 import { intentOf } from './anthropic.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, TurnOptions } from '../types.js'
@@ -104,7 +104,7 @@ export class ScriptedProvider implements ModelProvider {
                 tool: 'finish',
                 input: {
                   verdict: 'failed',
-                  summary: 'The demo runs without a model key (scripted provider) and has no recorded answer for this request. Set MORPHKIT_API_KEY to use a real model.',
+                  summary: 'The demo runs without a model key (scripted provider) and has no recorded answer for this request. Set PLEATKIT_API_KEY to use a real model.',
                 },
               },
             ],

@@ -7,12 +7,12 @@ export class HeadConflictError extends Error {
     readonly expected: string | null,
     readonly actual: string | null | undefined,
   ) {
-    super(`morphkit: your version changed elsewhere (expected head ${expected ?? 'none'}, found ${actual ?? 'unknown'}); reloaded it, try again`)
+    super(`pleatkit: your version changed elsewhere (expected head ${expected ?? 'none'}, found ${actual ?? 'unknown'}); reloaded it, try again`)
     this.name = 'HeadConflictError'
   }
 }
 
-/** The store (or another morphkit server) did not answer in time. */
+/** The store (or another pleatkit server) did not answer in time. */
 export class StoreUnavailableError extends Error {
   readonly code = 'store-unavailable'
   constructor(message: string) {

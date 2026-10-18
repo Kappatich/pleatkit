@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ReplayProvider, ScriptedProvider, type TranscriptLine } from '@morphkit/agent'
+import { ReplayProvider, ScriptedProvider, type TranscriptLine } from '@pleatkit/agent'
 import { budgetFromEnv, BudgetExceededError, EvalBudget, gradeBudget } from '../src/budget.js'
 import { oracleProvider, recordingFile } from '../src/providers.js'
 import { graderRates, passRate, runSuite, type BrowserCase } from '../src/runner.js'
@@ -74,11 +74,11 @@ function pricedTranscript(turns: number): TranscriptLine[] {
 }
 const pointed = (id: string): EvalTask => changeTask({ id, target: 'customer-card', invariants: {} })
 
-describe('budget: MORPHKIT_EVAL_BUDGET_USD and the per-task cap', () => {
+describe('budget: PLEATKIT_EVAL_BUDGET_USD and the per-task cap', () => {
   it('parses the global cap', () => {
     expect(budgetFromEnv({})).toBeNull()
-    expect(budgetFromEnv({ MORPHKIT_EVAL_BUDGET_USD: '2' })).toBe(2)
-    expect(() => budgetFromEnv({ MORPHKIT_EVAL_BUDGET_USD: 'lots' })).toThrow(/positive number/)
+    expect(budgetFromEnv({ PLEATKIT_EVAL_BUDGET_USD: '2' })).toBe(2)
+    expect(() => budgetFromEnv({ PLEATKIT_EVAL_BUDGET_USD: 'lots' })).toThrow(/positive number/)
   })
 
   it('each task gets the smaller of its cap and what is left; a spent budget refuses the next task', () => {
@@ -88,14 +88,14 @@ describe('budget: MORPHKIT_EVAL_BUDGET_USD and the per-task cap', () => {
     expect(b.limitFor(0.5)).toBeCloseTo(0.2)
     b.charge(0.3)
     expect(() => b.admit('t2', ['t2', 't3'])).toThrow(BudgetExceededError)
-    expect(() => b.admit('t2', ['t2', 't3'])).toThrow(/\$1\.10 spent of MORPHKIT_EVAL_BUDGET_USD=\$1\.00.*2 task\(s\) not run: t2, t3/)
+    expect(() => b.admit('t2', ['t2', 't3'])).toThrow(/\$1\.10 spent of PLEATKIT_EVAL_BUDGET_USD=\$1\.00.*2 task\(s\) not run: t2, t3/)
     expect(() => new EvalBudget(null).admit('t')).not.toThrow()
   })
 
   it('the budget grader reports a cost stop and an overshoot', () => {
     expect(gradeBudget(0.1, 0.5, undefined, 0.5)).toMatchObject({ pass: true, reason: '$0.10 of $0.50' })
     expect(gradeBudget(0.6, 0.5, 'cost', 0.5).reason).toMatch(/stopped by the task cap of \$0\.50/)
-    expect(gradeBudget(0.4, 0.5, 'cost', 0.3).reason).toMatch(/what was left of MORPHKIT_EVAL_BUDGET_USD/)
+    expect(gradeBudget(0.4, 0.5, 'cost', 0.3).reason).toMatch(/what was left of PLEATKIT_EVAL_BUDGET_USD/)
     expect(gradeBudget(0.7, 0.5, undefined, 0.5).pass).toBe(false)
   })
 
@@ -111,6 +111,6 @@ describe('budget: MORPHKIT_EVAL_BUDGET_USD and the per-task cap', () => {
     expect(global.runs.map((r) => r.taskId)).toEqual(['a'])
     expect(global.budget.spentUsd).toBeCloseTo(0.4)
     expect(global.aborted?.notRun).toEqual(['b', 'c'])
-    expect(global.aborted?.reason).toMatch(/Eval budget exhausted: \$0\.40 spent of MORPHKIT_EVAL_BUDGET_USD=\$0\.30\. Stopped before task b/)
+    expect(global.aborted?.reason).toMatch(/Eval budget exhausted: \$0\.40 spent of PLEATKIT_EVAL_BUDGET_USD=\$0\.30\. Stopped before task b/)
   })
 })

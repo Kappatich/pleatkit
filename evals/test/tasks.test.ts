@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadFixtures } from '@morphkit/agent'
+import { loadFixtures } from '@pleatkit/agent'
 import { PREDICATES } from '../src/predicates.js'
 import { FIXTURE_DIRS, loadTasks, prepareTask, validateTask } from '../src/tasks.js'
 import { CARD, changeTask, MANIFEST } from './helpers.js'

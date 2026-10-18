@@ -16,7 +16,7 @@ export interface IsolatedHostOptions {
 
 /** Parent → iframe. `js: null` means "use the original version"; `undefined` keeps the current modules. */
 export interface IsolatedRenderMessage {
-  type: 'morphkit:render'
+  type: 'pleatkit:render'
   id: string
   props: Record<string, unknown>
   version: number
@@ -31,10 +31,10 @@ export interface IsolatedRenderMessage {
 
 /** Iframe → parent. */
 export type IsolatedHostMessage =
-  | { type: 'morphkit:ready' }
-  | { type: 'morphkit:size'; height: number }
-  | { type: 'morphkit:error'; message: string; version: number }
-  | { type: 'morphkit:rendered'; version: number }
+  | { type: 'pleatkit:ready' }
+  | { type: 'pleatkit:size'; height: number }
+  | { type: 'pleatkit:error'; message: string; version: number }
+  | { type: 'pleatkit:rendered'; version: number }
 
 function byId(modules: Record<string, ModuleNamespace>, roots: string[]): Record<string, ModuleNamespace> {
   const out: Record<string, ModuleNamespace> = {}
@@ -53,8 +53,8 @@ class Boundary extends Component<{ version: number; children: ReactNode }, { err
     return { error }
   }
   override componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[morphkit isolated] panel crashed', error, info.componentStack)
-    post({ type: 'morphkit:error', message: error.message, version: this.props.version })
+    console.error('[pleatkit isolated] panel crashed', error, info.componentStack)
+    post({ type: 'pleatkit:error', message: error.message, version: this.props.version })
   }
   override render() {
     return this.state.error ? null : this.props.children
@@ -72,7 +72,7 @@ export function startIsolatedHost(options: IsolatedHostOptions): void {
   let queue: Promise<void> = Promise.resolve()
   window.addEventListener('message', (event: MessageEvent<IsolatedRenderMessage>) => {
     // Only the embedding page may drive this frame.
-    if (event.source !== window.parent || event.data?.type !== 'morphkit:render') return
+    if (event.source !== window.parent || event.data?.type !== 'pleatkit:render') return
     const msg = event.data
     queue = queue.then(() => handle(msg)).catch(() => undefined)
   })
@@ -91,12 +91,12 @@ export function startIsolatedHost(options: IsolatedHostOptions): void {
       }
       if (msg.css !== undefined) applyCss(msg.css)
     } catch (e) {
-      post({ type: 'morphkit:error', message: `Module failed to load: ${(e as Error).message}`, version: msg.version })
+      post({ type: 'pleatkit:error', message: `Module failed to load: ${(e as Error).message}`, version: msg.version })
       return
     }
     const C = modules[msg.id]?.default as ComponentType<Record<string, unknown>> | undefined
     if (!C) {
-      post({ type: 'morphkit:error', message: `Dynamic component "${msg.id}" has no default export`, version: msg.version })
+      post({ type: 'pleatkit:error', message: `Dynamic component "${msg.id}" has no default export`, version: msg.version })
       return
     }
     root.render(
@@ -104,14 +104,14 @@ export function startIsolatedHost(options: IsolatedHostOptions): void {
         <C {...msg.props} />
       </Boundary>,
     )
-    post({ type: 'morphkit:rendered', version: msg.version })
+    post({ type: 'pleatkit:rendered', version: msg.version })
   }
 
   let last = -1
   const report = () => {
     const height = Math.ceil(document.documentElement.getBoundingClientRect().height)
-    if (height !== last) post({ type: 'morphkit:size', height: (last = height) })
+    if (height !== last) post({ type: 'pleatkit:size', height: (last = height) })
   }
   new ResizeObserver(report).observe(document.documentElement)
-  post({ type: 'morphkit:ready' })
+  post({ type: 'pleatkit:ready' })
 }

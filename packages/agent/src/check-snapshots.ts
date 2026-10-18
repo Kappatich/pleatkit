@@ -1,9 +1,9 @@
-import { hashFiles, sha256Hex, type CompileError, type FileMap, type MorphkitManifest } from '@morphkit/runtime/compiler'
+import { hashFiles, sha256Hex, type CompileError, type FileMap, type PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { contextFromManifest, manifestPanels } from './manifest.js'
 import { Workspace, type TypecheckFn } from './workspace.js'
 
 /**
- * `morphkit check-snapshots` (brainstorm 05 #4): before a release goes out, check every user's current version
+ * `pleatkit check-snapshots` (brainstorm 05 #4): before a release goes out, check every user's current version
  * against the new build. Each head is carried over the way the runtime does it (files the user did not change
  * come from the new release), then compiled with the new readonly sources, externals and rules, and type-checked
  * when a typechecker is given. The report lists the users whose version would be marked stale.
@@ -13,8 +13,8 @@ export interface CheckSnapshotsOptions {
   appId: string
   /** The app key (`mk_live_…`); without it the development admin header is used. */
   appKey?: string | null
-  /** The new build's `morphkit.manifest.json`. */
-  manifest: MorphkitManifest
+  /** The new build's `pleatkit.manifest.json`. */
+  manifest: PleatkitManifest
   typecheck?: TypecheckFn | null
   fetch?: typeof fetch
 }
@@ -40,7 +40,7 @@ export async function checkSnapshots(o: CheckSnapshotsOptions): Promise<{ checke
   const f = o.fetch ?? ((...a) => globalThis.fetch(...a))
   const base = o.storeUrl.replace(/\/$/, '').replace(/\/v1$/, '') + '/v1'
   const res = await f(`${base}/admin/export`, {
-    headers: { 'x-morphkit-app': o.appId, ...(o.appKey ? { authorization: `Bearer ${o.appKey}` } : { 'x-morphkit-admin': '1' }) },
+    headers: { 'x-pleatkit-app': o.appId, ...(o.appKey ? { authorization: `Bearer ${o.appKey}` } : { 'x-pleatkit-admin': '1' }) },
   })
   if (!res.ok) throw new Error(`store-server export answered ${res.status}: ${(await res.text()).slice(0, 200)}`)
   const doc = (await res.json()) as { snapshots: ExportedSnapshot[]; heads: { userId: string; snapshotId: string }[] }

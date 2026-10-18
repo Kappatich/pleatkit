@@ -1,4 +1,4 @@
-import type { AgentRunRequest } from '@morphkit/runtime/compiler'
+import type { AgentRunRequest } from '@pleatkit/runtime/compiler'
 import { ScriptedProvider, type ScriptFixture } from '../src/providers/scripted.js'
 
 export const CARD = 'src/dynamic/customer-card.tsx'

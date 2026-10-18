@@ -1,4 +1,4 @@
-import type { AgentRunRequest, FileMap } from '@morphkit/runtime/compiler'
+import type { AgentRunRequest, FileMap } from '@pleatkit/runtime/compiler'
 import type { PromptParts } from './types.js'
 
 const fence = (path: string, source: string) => {
@@ -15,7 +15,7 @@ const files = (map: FileMap) =>
  * Version of the instructions and the classifier prompt (F4). Bump it whenever either changes: it is recorded
  * with every request, so a regression can be traced to a prompt change.
  */
-export const PROMPT_VERSION = '2026-10-18.4c1'
+export const PROMPT_VERSION = '2026-10-18.4c1.pleatkit'
 
 /** Stable instructions: identical for every request of the same app, so they cache well. */
 /** The run's limits as the prompt states them (code review 06 §4: the text used to say "12 calls, 90 s" whatever the config). */
@@ -28,7 +28,7 @@ const DEFAULT_PROMPT_LIMITS: PromptLimits = { maxModelCalls: 12, timeoutMs: 90_0
 export function instructions(req: Pick<AgentRunRequest, 'context'>, limits: PromptLimits = DEFAULT_PROMPT_LIMITS): string {
   const roots = req.context.dynamicRoots.join(', ')
   const externals = req.context.externals.join(', ')
-  return `You are the morphkit UI agent. A user of this web app asks for a change to their own personal version of the interface. You edit only the dynamic zone; your result is compiled (on the server, or in the user's browser) and swapped in without a reload. Other users are not affected.
+  return `You are the pleatkit UI agent. A user of this web app asks for a change to their own personal version of the interface. You edit only the dynamic zone; your result is compiled (on the server, or in the user's browser) and swapped in without a reload. Other users are not affected.
 
 Zones:
 - dynamic (${roots}): you may create and replace files here. A panel file src/dynamic/<id>.tsx is mounted by the host app as <Dynamic id="<id>" props={...}>: it must keep a default-exported React component, and the props it receives are fixed by the host (read the current code to see them).

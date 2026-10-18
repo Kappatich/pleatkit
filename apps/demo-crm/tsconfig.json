@@ -4,7 +4,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] },
-    "types": ["node", "vite/client", "@morphkit/vite-plugin/client"]
+    "types": ["node", "vite/client", "@pleatkit/vite-plugin/client"]
   },
   "include": ["src", "server", "e2e", "vite.config.ts", "playwright.config.ts"],
   "exclude": ["e2e/fixtures"]

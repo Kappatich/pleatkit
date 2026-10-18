@@ -1,4 +1,5 @@
-import { isAppKey, safeEqual, TokenError, verifyUserToken } from '@morphkit/runtime/security'
+import { isAppKey, safeEqual, TokenError, verifyUserToken } from '@pleatkit/runtime/security'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /** Secrets of one app: the server-to-server app key and the secret the customer's backend signs user tokens with. */
 export interface AppCredentials {
@@ -12,7 +13,7 @@ export interface AuthOptions {
   /** Credentials per app id. Apps not listed here can only be used with demo headers (development). */
   apps?: Record<string, AppCredentials>
   /**
-   * Trust `x-morphkit-user` / `x-morphkit-admin` / `x-morphkit-agent` headers (the demo). Development only:
+   * Trust `x-pleatkit-user` / `x-pleatkit-admin` / `x-pleatkit-agent` headers (the demo). Development only:
    * `createStoreApp` refuses it when `production` is set.
    */
   demoHeaders?: boolean
@@ -53,13 +54,15 @@ const bearer = (h: Headers): string | null => {
 /**
  * Resolve the caller:
  * - `Authorization: Bearer mk_live_…`: the app key; full authority over that app (agent + admin). The user it
- *   acts for comes from `x-morphkit-user`.
+ *   acts for comes from `x-pleatkit-user`.
  * - `Authorization: Bearer <jwt>`: a user token minted by the customer's backend (`mintUserToken`); `role: admin`
  *   for /admin routes.
  * - demo headers, only when enabled and not in production.
  */
-export async function resolveCaller(h: Headers, auth: AuthOptions): Promise<Caller> {
-  const headerApp = h('x-morphkit-app') || null
+export async function resolveCaller(raw: Headers, auth: AuthOptions): Promise<Caller> {
+  // `x-morphkit-*`: the pre-rename header names, accepted for one release (DECISIONS 68); the new name wins
+  const h: Headers = (name) => raw(name) ?? (name.startsWith('x-pleatkit-') ? raw(`x-morphkit-${name.slice('x-pleatkit-'.length)}`) : undefined)
+  const headerApp = h('x-pleatkit-app') || null
   const token = bearer(h)
   const apps = auth.apps ?? {}
   if (token && isAppKey(token)) {
@@ -69,11 +72,11 @@ export async function resolveCaller(h: Headers, auth: AuthOptions): Promise<Call
     if (headerApp && headerApp !== appId) throw new AuthError(403, 'the app key belongs to another app')
     return {
       appId,
-      orgId: h('x-morphkit-org') || 'default',
-      userId: h('x-morphkit-user') || null,
+      orgId: h('x-pleatkit-org') || 'default',
+      userId: h('x-pleatkit-user') || null,
       admin: true,
       agent: true,
-      environment: h('x-morphkit-env') || null,
+      environment: h('x-pleatkit-env') || null,
       via: 'app-key',
     }
   }
@@ -95,11 +98,11 @@ export async function resolveCaller(h: Headers, auth: AuthOptions): Promise<Call
     if (apps[appId]) throw new AuthError(401, 'this app has credentials configured: send a user token or the app key')
     return {
       appId,
-      orgId: h('x-morphkit-org') || 'default',
-      userId: h('x-morphkit-user') || null,
-      admin: h('x-morphkit-admin') === '1',
-      agent: h('x-morphkit-agent') === '1',
-      environment: h('x-morphkit-env') || null,
+      orgId: h('x-pleatkit-org') || 'default',
+      userId: h('x-pleatkit-user') || null,
+      admin: h('x-pleatkit-admin') === '1',
+      agent: h('x-pleatkit-agent') === '1',
+      environment: h('x-pleatkit-env') || null,
       via: 'demo',
     }
   }
@@ -121,26 +124,27 @@ type Env = Record<string, string | undefined>
 
 /**
  * Credentials from the environment:
- * - one app: MORPHKIT_APP_ID (default `default`), MORPHKIT_APP_KEY, MORPHKIT_JWT_SECRET;
- * - several: MORPHKIT_APPS = JSON `{ "<appId>": { "appKey": "mk_live_…", "jwtSecret": "…" } }`.
+ * - one app: PLEATKIT_APP_ID (default `default`), PLEATKIT_APP_KEY, PLEATKIT_JWT_SECRET;
+ * - several: PLEATKIT_APPS = JSON `{ "<appId>": { "appKey": "mk_live_…", "jwtSecret": "…" } }`.
  * Throws on malformed values, so a typo never silently falls back to demo mode.
  */
 export function credentialsFromEnv(env: Env): Record<string, AppCredentials> {
+  pleatkitEnv(env)
   const apps: Record<string, AppCredentials> = {}
-  if (env.MORPHKIT_APPS) {
+  if (env.PLEATKIT_APPS) {
     let parsed: unknown
     try {
-      parsed = JSON.parse(env.MORPHKIT_APPS)
+      parsed = JSON.parse(env.PLEATKIT_APPS)
     } catch {
-      throw new Error('MORPHKIT_APPS must be JSON: { "<appId>": { "appKey": "mk_live_…", "jwtSecret": "…" } }')
+      throw new Error('PLEATKIT_APPS must be JSON: { "<appId>": { "appKey": "mk_live_…", "jwtSecret": "…" } }')
     }
     for (const [appId, c] of Object.entries(parsed as Record<string, Partial<AppCredentials>>)) apps[appId] = { appKey: c?.appKey ?? '', jwtSecret: c?.jwtSecret ?? '' }
   }
-  if (env.MORPHKIT_APP_KEY || env.MORPHKIT_JWT_SECRET) {
-    apps[env.MORPHKIT_APP_ID || 'default'] = { appKey: env.MORPHKIT_APP_KEY ?? '', jwtSecret: env.MORPHKIT_JWT_SECRET ?? '' }
+  if (env.PLEATKIT_APP_KEY || env.PLEATKIT_JWT_SECRET) {
+    apps[env.PLEATKIT_APP_ID || 'default'] = { appKey: env.PLEATKIT_APP_KEY ?? '', jwtSecret: env.PLEATKIT_JWT_SECRET ?? '' }
   }
   for (const [appId, c] of Object.entries(apps)) {
-    if (!isAppKey(c.appKey)) throw new Error(`app "${appId}": the app key must look like mk_live_<24+ characters> (generate one with \`morphkit keys new\`)`)
+    if (!isAppKey(c.appKey)) throw new Error(`app "${appId}": the app key must look like mk_live_<24+ characters> (generate one with \`pleatkit keys new\`)`)
     if (!c.jwtSecret || c.jwtSecret.length < 32) throw new Error(`app "${appId}": the user-JWT secret must be at least 32 characters`)
   }
   return apps
@@ -151,13 +155,14 @@ export function credentialsFromEnv(env: Env): Record<string, AppCredentials> {
  * it serves has an app key and a user-JWT secret (V1 A1): demo headers would let anyone write any user's code.
  */
 export function authFromEnv(env: Env): AuthOptions {
+  pleatkitEnv(env)
   const production = env.NODE_ENV === 'production'
   const apps = credentialsFromEnv(env)
   if (production && Object.keys(apps).length === 0) {
     throw new Error(
-      'NODE_ENV=production: refusing to start without credentials. Set MORPHKIT_APP_KEY (mk_live_…, server to server) and ' +
-        'MORPHKIT_JWT_SECRET (HS256 secret for user tokens, 32+ characters), or MORPHKIT_APPS for several apps. Demo headers are disabled in production.',
+      'NODE_ENV=production: refusing to start without credentials. Set PLEATKIT_APP_KEY (mk_live_…, server to server) and ' +
+        'PLEATKIT_JWT_SECRET (HS256 secret for user tokens, 32+ characters), or PLEATKIT_APPS for several apps. Demo headers are disabled in production.',
     )
   }
-  return { apps, production, demoHeaders: !production && env.MORPHKIT_DEMO_HEADERS !== '0' }
+  return { apps, production, demoHeaders: !production && env.PLEATKIT_DEMO_HEADERS !== '0' }
 }

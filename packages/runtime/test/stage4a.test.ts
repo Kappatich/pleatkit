@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as esbuild from 'esbuild-wasm'
-import { Compiler, MORPHKIT_FRAME, type EsbuildApi } from '../src/compiler.js'
-import { MorphkitEngine, type EngineOptions } from '../src/engine.js'
+import { Compiler, PLEATKIT_FRAME, type EsbuildApi } from '../src/compiler.js'
+import { PleatkitEngine, type EngineOptions } from '../src/engine.js'
 import { registryFor } from '../src/loader.js'
 import { isEditFault } from '../src/react.js'
 import { MemoryBootStorage, SAFE_MODE_MOUNT_MS } from '../src/safe-mode.js'
 import { signBundle, signingKeyFromAppKey, sriDigest } from '../src/security.js'
 import { bundleKey, BundleVerificationError, contextHash, ServerBundles } from '../src/server-bundles.js'
 import { MemoryStore } from '../src/store/memory.js'
-import type { CompiledBundle, FileMap, MorphkitConfig } from '../src/types.js'
+import type { CompiledBundle, FileMap, PleatkitConfig } from '../src/types.js'
 import { hashFiles } from '../src/util.js'
 import { BASE, makeConfig, manifest, nodeCompiler, nodeLoader } from './helpers.js'
 
@@ -16,12 +16,12 @@ const CARD = 'src/dynamic/customer-card.tsx'
 const DEALS = 'src/dynamic/deals-table.tsx'
 const nodeEsbuild = async () => esbuild as unknown as EsbuildApi
 
-function engine(store: MemoryStore, extra: Omit<Partial<EngineOptions>, 'config'> & { base?: FileMap; config?: Partial<MorphkitConfig> } = {}) {
+function engine(store: MemoryStore, extra: Omit<Partial<EngineOptions>, 'config'> & { base?: FileMap; config?: Partial<PleatkitConfig> } = {}) {
   const { base, config, ...rest } = extra
-  return new MorphkitEngine({ store, userId: 'alice', config: makeConfig(config ?? {}, base), compiler: nodeCompiler(), loader: nodeLoader, bootStorage: null, ...rest })
+  return new PleatkitEngine({ store, userId: 'alice', config: makeConfig(config ?? {}, base), compiler: nodeCompiler(), loader: nodeLoader, bootStorage: null, ...rest })
 }
 
-async function commit(e: MorphkitEngine, path: string, source: string, message = 'edit') {
+async function commit(e: PleatkitEngine, path: string, source: string, message = 'edit') {
   e.draft.start(message)
   e.draft.write(path, source)
   return e.draft.commit()
@@ -98,12 +98,12 @@ describe('B2: safe mode', () => {
     expect(again.getState().safeMode).toEqual({ reason: 'crash', snapshotId: s.id })
     expect(again.getState().usingFallback).toBe(true)
     expect(again.getState().head?.id).toBe(s.id)
-    expect(again.tags()).toMatchObject({ 'morphkit.snapshotId': 'base', 'morphkit.safeMode': 'crash' })
+    expect(again.tags()).toMatchObject({ 'pleatkit.snapshotId': 'base', 'pleatkit.safeMode': 'crash' })
     await again.leaveSafeMode()
     expect(again.getState()).toMatchObject({ safeMode: null, usingFallback: false })
   })
 
-  it('a version that mounted, or a tab closed within 5 s, does not trigger it; ?morphkit=safe does', async () => {
+  it('a version that mounted, or a tab closed within 5 s, does not trigger it; ?pleatkit=safe does', async () => {
     const boot = new MemoryBootStorage()
     const store = new MemoryStore()
     const v1 = engine(store, { bootStorage: boot, heartbeatMs: 5 })
@@ -135,7 +135,7 @@ describe('B6: one registry per app instance, lazy externals', () => {
       config.externals = { ...config.externals, 'lucide-react': icons }
       config.manifest = { ...config.manifest, externals: [...config.manifest.externals, 'lucide-react'], externalPatterns: [...config.manifest.externalPatterns, 'lucide-react'] }
       const compiler = new Compiler({ ...config.manifest, namespace }, { loadEsbuild: nodeEsbuild })
-      return new MorphkitEngine({ store: new MemoryStore(), userId: 'alice', config, compiler, loader: nodeLoader, bootStorage: null, namespace })
+      return new PleatkitEngine({ store: new MemoryStore(), userId: 'alice', config, compiler, loader: nodeLoader, bootStorage: null, namespace })
     }
     const a = mk('app-a')
     const b = mk('app-b')
@@ -145,29 +145,29 @@ describe('B6: one registry per app instance, lazy externals', () => {
     expect(icons).not.toHaveBeenCalled()
     await commit(a, CARD, `import { Star } from 'lucide-react'\nexport default function C() { return <b><Star /></b> }`)
     expect(icons).toHaveBeenCalledTimes(1)
-    expect(a.currentBundle()?.js).toContain('globalThis.__morphkit.apps["app-a"].require("lucide-react")')
+    expect(a.currentBundle()?.js).toContain('globalThis.__pleatkit.apps["app-a"].require("lucide-react")')
     expect(a.currentBundle()?.externals).toContain('lucide-react')
   })
 })
 
-describe('B7: bundles name their frames morphkit://, tags for error reporting', () => {
+describe('B7: bundles name their frames pleatkit://, tags for error reporting', () => {
   it('ends every bundle with a sourceURL; error boundaries can tell edit frames from app frames', async () => {
     const store = new MemoryStore()
     const e = engine(store)
     await e.init()
     const s = await commit(e, CARD, `export default function C() { return <b>x</b> }`)
-    expect(e.currentBundle()?.js).toMatch(/\/\/# sourceURL=morphkit:\/\/[0-9a-f]{16}\/bundle\.js\s*$/)
-    expect(e.tags()).toMatchObject({ 'morphkit.snapshotId': s.id, 'morphkit.compile': 'browser', 'morphkit.app': 'default' })
-    expect(e.tags()['morphkit.bundle']).toMatch(/^[0-9a-f]{40}$/)
+    expect(e.currentBundle()?.js).toMatch(/\/\/# sourceURL=pleatkit:\/\/[0-9a-f]{16}\/bundle\.js\s*$/)
+    expect(e.tags()).toMatchObject({ 'pleatkit.snapshotId': s.id, 'pleatkit.compile': 'browser', 'pleatkit.app': 'default' })
+    expect(e.tags()['pleatkit.bundle']).toMatch(/^[0-9a-f]{40}$/)
 
     const fromEdit = new Error('boom')
-    fromEdit.stack = 'Error: boom\n    at C (morphkit://0123456789abcdef/bundle.js:3:9)\n    at renderWithHooks (react-dom.js:1:1)'
-    const fromServerBundle = Object.assign(new Error('x'), { stack: 'Error: x\n    at C (http://app.test/morphkit/b/crm/ab12.js:1:2)' })
+    fromEdit.stack = 'Error: boom\n    at C (pleatkit://0123456789abcdef/bundle.js:3:9)\n    at renderWithHooks (react-dom.js:1:1)'
+    const fromServerBundle = Object.assign(new Error('x'), { stack: 'Error: x\n    at C (http://app.test/pleatkit/b/crm/ab12.js:1:2)' })
     const fromApi = Object.assign(new Error('bad data'), { stack: 'Error: bad data\n    at formatDate (http://app.test/assets/index-abc.js:1:2)' })
     expect(isEditFault(fromEdit)).toBe(true)
     expect(isEditFault(fromServerBundle)).toBe(true)
     expect(isEditFault(fromApi)).toBe(false)
-    expect(MORPHKIT_FRAME.test('blob:http://x/1')).toBe(false)
+    expect(PLEATKIT_FRAME.test('blob:http://x/1')).toBe(false)
   })
 })
 
@@ -176,7 +176,7 @@ class FakeServer extends ServerBundles {
   bundles = new Map<string, CompiledBundle>()
   compiles = 0
   constructor(private readonly namespace: string) {
-    super({ agentUrl: 'http://agent.test', bundleUrl: '/morphkit/b', namespace, publicKey: null })
+    super({ agentUrl: 'http://agent.test', bundleUrl: '/pleatkit/b', namespace, publicKey: null })
   }
   override async compile(body: Parameters<ServerBundles['compile']>[0]) {
     this.compiles++
@@ -197,7 +197,7 @@ describe('B1: compile on the server', () => {
     const server = new FakeServer('default')
     const wasm = vi.fn()
     const compiler = { compile: wasm, metrics: { initMs: null, wasmBytes: null, wasmFromCache: null, esbuildVersion: null } }
-    const mk = () => new MorphkitEngine({ store, userId: 'alice', config: makeConfig({ compile: 'server' }), compiler, loader: nodeLoader, bootStorage: null, serverBundles: server })
+    const mk = () => new PleatkitEngine({ store, userId: 'alice', config: makeConfig({ compile: 'server' }), compiler, loader: nodeLoader, bootStorage: null, serverBundles: server })
     const e = mk()
     await e.init()
     expect(e.compileMode).toBe('server')
@@ -234,7 +234,7 @@ describe('B1: compile on the server', () => {
     const server = new FakeServer('default')
     const broken = { compile: vi.fn(async () => Promise.reject(new Error('WebAssembly.compile(): refused by CSP'))), metrics: { initMs: null, wasmBytes: null, wasmFromCache: null, esbuildVersion: null } }
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    const e = new MorphkitEngine({ store: new MemoryStore(), userId: 'alice', config: makeConfig({ compile: 'browser' }), compiler: broken, loader: nodeLoader, bootStorage: null, serverBundles: server })
+    const e = new PleatkitEngine({ store: new MemoryStore(), userId: 'alice', config: makeConfig({ compile: 'browser' }), compiler: broken, loader: nodeLoader, bootStorage: null, serverBundles: server })
     await e.init()
     await commit(e, CARD, `export default function C() { return <b>fallback</b> }`)
     expect(e.compileMode).toBe('server')
@@ -253,16 +253,16 @@ describe('B1/A3: the browser verifies signed bundles before they run', () => {
     const filesHash = 'f'.repeat(64)
     const payload = { v: 1 as const, app: overrides.app ?? 'crm', key, filesHash, js: await sriDigest(js), css: await sriDigest(css), externals: ['react'], compiler: 'x', createdAt: 'now' }
     const signature = overrides.unsigned ? { payload } : await signBundle(payload, await signingKeyFromAppKey(overrides.signWith ?? APP_KEY))
-    const files: Record<string, string> = { [`/morphkit/b/crm/${key}.json`]: JSON.stringify(signature), [`/morphkit/b/crm/${key}.css`]: overrides.css ?? css }
+    const files: Record<string, string> = { [`/pleatkit/b/crm/${key}.json`]: JSON.stringify(signature), [`/pleatkit/b/crm/${key}.css`]: overrides.css ?? css }
     const fetchFn = (async (url: string) => (files[url] !== undefined ? new Response(files[url]) : new Response('no', { status: 404 }))) as unknown as typeof fetch
-    const client = new ServerBundles({ agentUrl: '/agent', bundleUrl: '/morphkit/b', namespace: 'crm', publicKey: (await signingKeyFromAppKey(APP_KEY)).publicKey, fetch: fetchFn })
+    const client = new ServerBundles({ agentUrl: '/agent', bundleUrl: '/pleatkit/b', namespace: 'crm', publicKey: (await signingKeyFromAppKey(APP_KEY)).publicKey, fetch: fetchFn })
     return { client, key, filesHash }
   }
 
   it('accepts a bundle signed by the app key and returns its URL with the SRI digest', async () => {
     const { client, key, filesHash } = await serve()
     const b = await client.load(key, filesHash)
-    expect(b).toMatchObject({ url: `/morphkit/b/crm/${key}.js`, css: '.a{color:red}', externals: ['react'] })
+    expect(b).toMatchObject({ url: `/pleatkit/b/crm/${key}.js`, css: '.a{color:red}', externals: ['react'] })
     expect(b?.integrity).toMatch(/^sha384-/)
     expect(await client.load('cd'.repeat(20), filesHash)).toBeNull()
   })
@@ -293,12 +293,12 @@ describe('F6: flags read by the runtime', () => {
   }
 
   it('the kill switch shows the original version and refuses edits; edits.enabled=false keeps versions but refuses new ones', async () => {
-    const store = new FlaggedStore({ 'morphkit.enabled': true, 'edits.enabled': true })
+    const store = new FlaggedStore({ 'pleatkit.enabled': true, 'edits.enabled': true })
     const e = engine(store)
     await e.init()
     await commit(e, CARD, `export default function C() { return <b>mine</b> }`)
 
-    const killed = engine(new FlaggedStore({ 'morphkit.enabled': false }) as MemoryStore)
+    const killed = engine(new FlaggedStore({ 'pleatkit.enabled': false }) as MemoryStore)
     await killed.init()
     expect(killed.getState()).toMatchObject({ disabled: true, editsEnabled: false, usingFallback: true, status: 'ready' })
 

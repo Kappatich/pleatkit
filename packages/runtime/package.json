@@ -1,11 +1,11 @@
 {
-  "name": "@morphkit/runtime",
+  "name": "@pleatkit/runtime",
   "version": "0.1.0",
-  "description": "Browser runtime for morphkit: snapshots, esbuild-wasm compiler, hot swap of dynamic React components, undo/redo",
+  "description": "Browser runtime for pleatkit: snapshots, esbuild-wasm compiler, hot swap of dynamic React components, undo/redo",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Kappatich/morphkit.git",
+    "url": "git+https://github.com/Kappatich/pleatkit.git",
     "directory": "packages/runtime"
   },
   "type": "module",
@@ -23,6 +23,10 @@
     "./security": {
       "types": "./dist/security.d.ts",
       "import": "./dist/security.js"
+    },
+    "./env": {
+      "types": "./dist/env.d.ts",
+      "import": "./dist/env.js"
     },
     "./isolated-host": {
       "types": "./dist/isolated-host.d.ts",

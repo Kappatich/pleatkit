@@ -118,17 +118,17 @@ test('isolated panel works under a strict CSP: no inline script, host loaded wit
   })
   const hostRequests: { url: string; origin: string | null; cors: string | null }[] = []
   page.on('response', (r) => {
-    if (r.url().includes('morphkit-isolated-host-')) hostRequests.push({ url: r.url(), origin: r.request().headers()['origin'] ?? null, cors: r.headers()['access-control-allow-origin'] ?? null })
+    if (r.url().includes('pleatkit-isolated-host-')) hostRequests.push({ url: r.url(), origin: r.request().headers()['origin'] ?? null, cors: r.headers()['access-control-allow-origin'] ?? null })
   })
 
   const doc = await page.goto(`/?user=alice&app=${appFor(page)}&isolated=1&dev=1&csp=strict&compile=browser`)
   expect(doc?.headers()['content-security-policy']).toContain("script-src 'self' blob: 'wasm-unsafe-eval'")
-  const iframe = page.getByTestId('morphkit-isolated-dashboard-panels')
-  const frame = page.frameLocator('[data-testid="morphkit-isolated-dashboard-panels"]')
+  const iframe = page.getByTestId('pleatkit-isolated-dashboard-panels')
+  const frame = page.frameLocator('[data-testid="pleatkit-isolated-dashboard-panels"]')
   await expect(frame.getByTestId('dashboard-panels')).toContainText('Open pipeline')
 
   const srcdoc = (await iframe.getAttribute('srcdoc')) ?? ''
-  expect(srcdoc).toMatch(/<script src="http:\/\/localhost:\d+\/assets\/morphkit-isolated-host-[0-9a-f]+\.js" crossorigin="anonymous"><\/script>/)
+  expect(srcdoc).toMatch(/<script src="http:\/\/localhost:\d+\/assets\/pleatkit-isolated-host-[0-9a-f]+\.js" crossorigin="anonymous"><\/script>/)
   expect(srcdoc).not.toMatch(/<script>/)
   expect(hostRequests).toHaveLength(1)
   expect(hostRequests[0]).toMatchObject({ origin: 'null', cors: '*' })

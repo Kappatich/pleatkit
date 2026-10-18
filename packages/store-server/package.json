@@ -1,14 +1,14 @@
 {
-  "name": "@morphkit/store-server",
+  "name": "@pleatkit/store-server",
   "version": "0.1.0",
-  "description": "morphkit cloud store: per-user snapshots, heads, compiled bundles and the agent request log, with admin actions (Hono + Drizzle, SQLite for the demo)",
+  "description": "pleatkit cloud store: per-user snapshots, heads, compiled bundles and the agent request log, with admin actions (Hono + Drizzle, SQLite for the demo)",
   "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "morphkit-store": "./dist/cli.js"
+    "pleatkit-store": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -35,7 +35,7 @@
     "better-sqlite3": "^12.4.1",
     "drizzle-orm": "^0.45.0",
     "hono": "^4.10.0",
-    "@morphkit/runtime": "workspace:*"
+    "@pleatkit/runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

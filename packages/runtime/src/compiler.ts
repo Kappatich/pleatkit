@@ -1,5 +1,5 @@
 import type { BuildFailure, Message, Plugin } from 'esbuild-wasm/esm/browser.js'
-import type { CompileError, CompileResult, FileMap, MorphkitManifest } from './types.js'
+import type { CompileError, CompileResult, FileMap, PleatkitManifest } from './types.js'
 import type { CheckContext, TransformFn } from './check.js'
 import { scopeZoneCss } from './css-scope.js'
 import { hashFiles } from './util.js'
@@ -23,16 +23,16 @@ export interface CompilerMetrics {
 }
 
 export interface CompilerOptions {
-  /** URL of esbuild.wasm (from `virtual:morphkit/wasm-url`). Ignored in Node. */
+  /** URL of esbuild.wasm (from `virtual:pleatkit/wasm-url`). Ignored in Node. */
   wasmURL?: string | null
   /** Override how esbuild is loaded (tests pass the Node build). */
   loadEsbuild?: () => Promise<EsbuildApi>
 }
 
-export type CompileContext = Pick<MorphkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'> & Pick<CheckContext, 'protected' | 'base'> & {
+export type CompileContext = Pick<PleatkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'> & Pick<CheckContext, 'protected' | 'base'> & {
   /**
    * Instance namespace (the app id, V1 B6): compiled code reaches host modules through
-   * `globalThis.__morphkit.apps[namespace]`, so two morphkit apps on one page never share a registry.
+   * `globalThis.__pleatkit.apps[namespace]`, so two pleatkit apps on one page never share a registry.
    */
   namespace?: string
 }
@@ -41,20 +41,20 @@ import { COMPILER_VERSION, EXTERNALS_GLOBAL } from './constants.js'
 
 export { COMPILER_VERSION, EXTERNALS_GLOBAL }
 
-/** `globalThis.__morphkit.apps["crm"]`: how compiled code of one app instance reaches its host modules. */
+/** `globalThis.__pleatkit.apps["crm"]`: how compiled code of one app instance reaches its host modules. */
 export const registryExpression = (namespace = 'default'): string => `globalThis.${EXTERNALS_GLOBAL}.apps[${JSON.stringify(namespace)}]`
 
 /**
- * Appended to every bundle (V1 B7): stack frames of edits read `morphkit://<files hash>/bundle.js`, so error
+ * Appended to every bundle (V1 B7): stack frames of edits read `pleatkit://<files hash>/bundle.js`, so error
  * boundaries and Sentry can tell an edit's code from the app's own code.
  */
-export const sourceUrlComment = (filesHash: string): string => `\n//# sourceURL=morphkit://${filesHash.slice(0, 16)}/bundle.js\n`
-export const MORPHKIT_FRAME = /morphkit:\/\/|\/morphkit\/b\/|\/v1\/b\//
-const NS_VFS = 'morphkit-vfs'
-const NS_EXTERNAL = 'morphkit-external'
-const NS_ENTRY = 'morphkit-entry'
+export const sourceUrlComment = (filesHash: string): string => `\n//# sourceURL=pleatkit://${filesHash.slice(0, 16)}/bundle.js\n`
+export const PLEATKIT_FRAME = /pleatkit:\/\/|\/pleatkit\/b\/|\/v1\/b\//
+const NS_VFS = 'pleatkit-vfs'
+const NS_EXTERNAL = 'pleatkit-external'
+const NS_ENTRY = 'pleatkit-entry'
 const SCRIPT_RE = /\.(tsx|ts|jsx|js|mts|mjs)$/
-const WASM_CACHE = 'morphkit-esbuild'
+const WASM_CACHE = 'pleatkit-esbuild'
 
 export const isScript = (path: string): boolean => SCRIPT_RE.test(path)
 
@@ -89,7 +89,7 @@ async function initEsbuild(options: CompilerOptions): Promise<EsbuildApi> {
     metrics.esbuildVersion = api.version
     return api
   }
-  if (!options.wasmURL) throw new Error('morphkit: wasmURL is not configured, cannot compile in the browser')
+  if (!options.wasmURL) throw new Error('pleatkit: wasmURL is not configured, cannot compile in the browser')
   const [api, wasm] = await Promise.all([import('esbuild-wasm/esm/browser.js'), fetchWasm(options.wasmURL)])
   await api.initialize({ wasmModule: wasm.module, worker: true })
   metrics.initMs = performance.now() - started
@@ -137,9 +137,9 @@ export function virtualFsPlugin(files: FileMap, ctx: CompileContext, used?: Set<
   const resolveCtx: ResolveContext = { files, alias: ctx.alias, externals: ctx.externals, externalPatterns: ctx.externalPatterns }
   const registry = registryExpression(ctx.namespace)
   return {
-    name: 'morphkit-virtual-fs',
+    name: 'pleatkit-virtual-fs',
     setup(build) {
-      build.onResolve({ filter: /^morphkit:entry$/ }, () => ({ path: 'entry', namespace: NS_ENTRY }))
+      build.onResolve({ filter: /^pleatkit:entry$/ }, () => ({ path: 'entry', namespace: NS_ENTRY }))
       build.onLoad({ filter: /.*/, namespace: NS_ENTRY }, () => ({
         contents: entrySource(files, ctx.dynamicRoots),
         loader: 'js',
@@ -201,7 +201,7 @@ export class Compiler {
   }
 
   /**
-   * The one `check` of morphkit (code review 06 item 12), the same in the browser and on the agent server:
+   * The one `check` of pleatkit (code review 06 item 12), the same in the browser and on the agent server:
    * bundle the zone with esbuild (syntax, imports, externals), then the static rules, protected elements and the
    * default-export rule over the same AST. A bundle is returned only when everything passes.
    */
@@ -215,7 +215,7 @@ export class Compiler {
     const rules = options.rules === false ? Promise.resolve([]) : import('./check.js').then((m) => m.staticCheck(files, this.checkContext, transform, { components: options.components ?? [] }))
     try {
       const result = await esbuild.build({
-        entryPoints: ['morphkit:entry'],
+        entryPoints: ['pleatkit:entry'],
         bundle: true,
         write: false,
         format: 'esm',

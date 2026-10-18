@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTypechecker } from '@morphkit/agent'
+import { createTypechecker } from '@pleatkit/agent'
 import { finalFiles, gradeChange, gradeCheck, gradeInvariants, gradePredicates, gradeTypecheck, gradeVerdict, type RunResult } from '../src/graders.js'
 import { PREDICATES, visibleStrings } from '../src/predicates.js'
 import { prepareTask } from '../src/tasks.js'

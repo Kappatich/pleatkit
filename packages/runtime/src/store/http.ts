@@ -2,16 +2,16 @@ import { HeadConflictError } from '../errors.js'
 import type { BundleCache, CompiledBundle, Moderation, RequestLinkPatch, RequestLinkResult, Snapshot, SnapshotStore } from '../types.js'
 
 export interface HttpStoreOptions {
-  /** Base URL of @morphkit/store-server, e.g. `/morphkit-store` behind the app's proxy. */
+  /** Base URL of @pleatkit/store-server, e.g. `/pleatkit-store` behind the app's proxy. */
   baseUrl: string
-  /** The signed-in user; sent as `x-morphkit-user`. One store instance per user. */
+  /** The signed-in user; sent as `x-pleatkit-user`. One store instance per user. */
   userId: string
   /** Namespace in a shared store-server. Default `default`. */
   appId?: string
   /**
    * User token for production (V1 A1): an HS256 JWT minted by your backend with `mintUserToken` (15 minutes at
    * most), or a function that returns a fresh one. Sent as `Authorization: Bearer …`; without it the store
-   * falls back to the demo header `x-morphkit-user`, which store-server accepts only in development.
+   * falls back to the demo header `x-pleatkit-user`, which store-server accepts only in development.
    */
   token?: string | ((options?: { refresh?: boolean }) => string | Promise<string>)
   /**
@@ -39,9 +39,9 @@ export class HttpStoreError extends Error {
 }
 
 /**
- * SnapshotStore backed by @morphkit/store-server over HTTP: snapshots, heads and compiled bundles live on
+ * SnapshotStore backed by @pleatkit/store-server over HTTP: snapshots, heads and compiled bundles live on
  * the server, so a user's version follows them across browsers and admins can see and roll back edits.
- * Production auth: a short-lived user token (`token`); without one, the development header `x-morphkit-user`,
+ * Production auth: a short-lived user token (`token`); without one, the development header `x-pleatkit-user`,
  * which store-server accepts only outside production (README, "Production").
  */
 export class HttpStore implements SnapshotStore {
@@ -63,7 +63,7 @@ export class HttpStore implements SnapshotStore {
     this.token = options.token
     this.onAuthExpired = options.onAuthExpired
     this.timeoutMs = options.timeoutMs
-    this.headers = { ...(options.token ? {} : { 'x-morphkit-user': options.userId }), 'x-morphkit-app': this.appId, ...options.headers }
+    this.headers = { ...(options.token ? {} : { 'x-pleatkit-user': options.userId }), 'x-pleatkit-app': this.appId, ...options.headers }
     this.fetchFn = options.fetch ?? ((...args) => globalThis.fetch(...args))
   }
 
@@ -169,7 +169,7 @@ export class HttpStore implements SnapshotStore {
     return this.request<RequestLinkResult>('POST', `/requests/${encodeURIComponent(requestId)}/link`, patch, false, `link:${requestId}:${patch.status}:${patch.snapshotId ?? ''}`)
   }
 
-  /** Flags for this user (F6): the kill switch `morphkit.enabled`, `edits.enabled`, and the app's own. */
+  /** Flags for this user (F6): the kill switch `pleatkit.enabled`, `edits.enabled`, and the app's own. */
   async flags(): Promise<Record<string, unknown>> {
     const r = await this.request<{ flags: Record<string, unknown> }>('GET', '/flags')
     return r?.flags ?? {}

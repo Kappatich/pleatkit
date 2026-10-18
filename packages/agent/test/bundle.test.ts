@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bundleKey, contextHash, hashFiles, mintUserToken, publicKeyFromAppKey, verifyBundleSignature, type AgentResult, type BundleSignature } from '@morphkit/runtime/compiler'
+import { bundleKey, contextHash, hashFiles, mintUserToken, publicKeyFromAppKey, verifyBundleSignature, type AgentResult, type BundleSignature } from '@pleatkit/runtime/compiler'
 import { createAgentApp } from '../src/server.js'
 import { CARD, GOOD_CARD, request, scripted } from './helpers.js'
 
@@ -34,8 +34,8 @@ describe('server compile (V1 B1)', () => {
     expect(out.key).toBe(await bundleKey({ namespace: 'test', filesHash: out.filesHash, contextHash: await contextHash(body.context, body.readonly), cssMode: 'palette' }))
 
     const js = await (await app.request(`/agent/v1/b/test/${out.key}.js`)).text()
-    expect(js).toContain('globalThis.__morphkit.apps["test"].require("@/lib/utils")')
-    expect(js).toMatch(/sourceURL=morphkit:\/\/[0-9a-f]{16}\/bundle\.js/)
+    expect(js).toContain('globalThis.__pleatkit.apps["test"].require("@/lib/utils")')
+    expect(js).toMatch(/sourceURL=pleatkit:\/\/[0-9a-f]{16}\/bundle\.js/)
     expect(js).not.toContain('sourceMappingURL')
     const res = await app.request(`/agent/v1/b/test/${out.key}.json`)
     expect(res.headers.get('access-control-allow-origin')).toBe('*')

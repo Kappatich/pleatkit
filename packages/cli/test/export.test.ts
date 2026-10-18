@@ -4,9 +4,9 @@ import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { exportData } from '../src/export.js'
 
-describe('morphkit export (F9)', () => {
+describe('pleatkit export (F9)', () => {
   it('asks store-server for the app or one user, with the app key, and writes one JSON file', async () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'morphkit-export-'))
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'pleatkit-export-'))
     const doc = { format: 1, appId: 'crm', userId: 'alice', snapshots: [{ id: 's1' }, { id: 's2' }], heads: [{}], requests: [{}], events: [{}, {}, {}] }
     const fetchFn = vi.fn(async () => new Response(JSON.stringify(doc), { headers: { 'content-type': 'application/json' } }))
     const r = await exportData({ store: 'http://store.test/', app: 'crm', user: 'alice', key: 'mk_live_x', fetch: fetchFn as unknown as typeof fetch, cwd, out: 'alice.json' })
@@ -22,7 +22,7 @@ describe('morphkit export (F9)', () => {
     const denied = vi.fn(async () => new Response('{"error":"authentication required"}', { status: 401 }))
     const r = await exportData({ store: 'http://store.test', app: 'crm', fetch: denied as unknown as typeof fetch })
     expect(r.ok).toBe(false)
-    expect(r.lines.join('\n')).toMatch(/401[\s\S]*MORPHKIT_APP_KEY/)
+    expect(r.lines.join('\n')).toMatch(/401[\s\S]*PLEATKIT_APP_KEY/)
     const down = vi.fn(async () => Promise.reject(new Error('ECONNREFUSED')))
     expect((await exportData({ store: 'http://store.test', app: 'crm', fetch: down as unknown as typeof fetch })).lines[0]).toMatch(/could not reach/)
   })

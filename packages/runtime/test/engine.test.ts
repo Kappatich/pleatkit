@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { describe, expect, it, vi } from 'vitest'
-import { CommitRejectedError, MorphkitEngine, ZoneViolationError } from '../src/engine.js'
+import { CommitRejectedError, PleatkitEngine, ZoneViolationError } from '../src/engine.js'
 import { LocalStore } from '../src/store/local.js'
 import { MemoryStore } from '../src/store/memory.js'
 import type { SnapshotStore } from '../src/types.js'
@@ -13,16 +13,16 @@ type Render = () => { props: { children: string } }
 function engineFor(store: SnapshotStore, userId = 'alice') {
   const compiler = nodeCompiler()
   const spy = vi.spyOn(compiler, 'compile')
-  const engine = new MorphkitEngine({ store, userId, config: makeConfig(), compiler, loader: nodeLoader })
+  const engine = new PleatkitEngine({ store, userId, config: makeConfig(), compiler, loader: nodeLoader })
   return { engine, spy }
 }
 
-const cardLabel = (engine: MorphkitEngine) => {
+const cardLabel = (engine: PleatkitEngine) => {
   const C = engine.getState().modules['customer-card']!.default as Render & { base?: string }
   return C.base ? 'BASE' : C().props.children
 }
 
-async function commitCard(engine: MorphkitEngine, label: string) {
+async function commitCard(engine: PleatkitEngine, label: string) {
   engine.draft.start(`set ${label}`)
   engine.draft.write(CARD, editedCard(label))
   return engine.draft.commit()
@@ -31,7 +31,7 @@ async function commitCard(engine: MorphkitEngine, label: string) {
 describe.each([
   ['MemoryStore', () => new MemoryStore()],
   ['LocalStore (IndexedDB)', () => new LocalStore(`test-${Math.random()}`)],
-])('MorphkitEngine with %s', (_name, makeStore) => {
+])('PleatkitEngine with %s', (_name, makeStore) => {
   it('starts on the fallback bundle when the user has no snapshots', async () => {
     const { engine, spy } = engineFor(makeStore())
     await engine.init()

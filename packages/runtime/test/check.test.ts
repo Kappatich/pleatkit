@@ -98,7 +98,7 @@ export default function P({ data }: { data: { id: string; parent?: string } }) {
     expect(e).toMatchObject({ line: 5, rule: 'no-storage' })
   })
 
-  it('checks CSS files of the zone: remote url(), @import, global and morphkit selectors', () => {
+  it('checks CSS files of the zone: remote url(), @import, global and pleatkit selectors', () => {
     const r = (css: string) => cssRules('src/dynamic/x.css', css, {}).map((e) => e.rule)
     expect(r('.card { background: url(https://evil.example/a.png) }')).toEqual(['no-remote-css'])
     expect(r('.card { background: url("//evil.example/a.png") }')).toEqual(['no-remote-css'])
@@ -174,10 +174,10 @@ describe('paths and CSS scoping', () => {
   it('scopes zone CSS to panels and layers edit CSS under the host', () => {
     const scoped = scopeZoneCss('@keyframes spin { to { transform: rotate(1turn) } }\nbody { display: none }\n.card { color: red }')
     expect(scoped).toMatch(/^@keyframes spin/)
-    expect(scoped).toContain('@scope ([data-morphkit-id]) {\nbody { display: none }\n.card { color: red }\n}')
+    expect(scoped).toContain('@scope ([data-pleatkit-id]) {\nbody { display: none }\n.card { color: red }\n}')
     const layered = layeredCss('@property --tw-x { syntax: "*"; inherits: false }\n@layer utilities { .p-2 { padding: 8px } }')
     expect(layered.startsWith('@property --tw-x')).toBe(true)
-    expect(layered).toContain('@layer morphkit-edits {\n@layer utilities')
+    expect(layered).toContain('@layer pleatkit-edits {\n@layer utilities')
   })
   it('decodes source maps', () => {
     expect(decodeMappings('AAAA;AACA')[1]![0]).toEqual([0, 1, 0])

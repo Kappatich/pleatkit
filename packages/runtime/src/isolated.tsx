@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { IsolatedHostMessage, IsolatedRenderMessage } from './isolated-host.js'
-import { CrashBanner, useMorphkit, useMorphkitState } from './react.js'
+import { CrashBanner, usePleatkit, usePleatkitState } from './react.js'
 
 /** How long the frame may take to load and start its host script before the panel shows an error. */
 export const ISOLATED_START_TIMEOUT_MS = 15_000
@@ -9,7 +9,7 @@ export const ISOLATED_START_TIMEOUT_MS = 15_000
 function pageCss(): string {
   const out: string[] = []
   for (const sheet of Array.from(document.styleSheets)) {
-    if (sheet.ownerNode instanceof Element && sheet.ownerNode.hasAttribute('data-morphkit-css')) continue
+    if (sheet.ownerNode instanceof Element && sheet.ownerNode.hasAttribute('data-pleatkit-css')) continue
     try {
       for (const rule of Array.from(sheet.cssRules)) out.push(rule.cssText)
     } catch {
@@ -44,8 +44,8 @@ interface Props {
 
 /** Parent side of an isolated panel: a sandboxed iframe that receives the bundle, CSS and props by postMessage. */
 export function IsolatedFrame({ id, props, headId, autoRollbackMs }: Props) {
-  const engine = useMorphkit()
-  const state = useMorphkitState()
+  const engine = usePleatkit()
+  const state = usePleatkitState()
   const frame = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
   const [height, setHeight] = useState(0)
@@ -54,7 +54,7 @@ export function IsolatedFrame({ id, props, headId, autoRollbackMs }: Props) {
 
   const hostUrl = engine.isolatedHostUrl()
   useEffect(() => {
-    if (!hostUrl) setError({ message: 'Isolated mode is not enabled: set `isolated: true` in the morphkit Vite plugin options', version: -1 })
+    if (!hostUrl) setError({ message: 'Isolated mode is not enabled: set `isolated: true` in the pleatkit Vite plugin options', version: -1 })
   }, [hostUrl])
 
   const doc = useMemo(() => (hostUrl ? isolatedSrcdoc(hostUrl) : null), [hostUrl])
@@ -73,12 +73,12 @@ export function IsolatedFrame({ id, props, headId, autoRollbackMs }: Props) {
     const onMessage = (event: MessageEvent<IsolatedHostMessage>) => {
       if (event.source !== frame.current?.contentWindow) return
       const msg = event.data
-      if (msg?.type === 'morphkit:ready') {
+      if (msg?.type === 'pleatkit:ready') {
         setReady(true)
         setError((e) => (e?.version === -1 ? null : e)) // a slow start is not a crash
       }
-      else if (msg?.type === 'morphkit:size') setHeight(msg.height)
-      else if (msg?.type === 'morphkit:error') setError({ message: msg.message, version: msg.version })
+      else if (msg?.type === 'pleatkit:size') setHeight(msg.height)
+      else if (msg?.type === 'pleatkit:error') setError({ message: msg.message, version: msg.version })
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
@@ -88,7 +88,7 @@ export function IsolatedFrame({ id, props, headId, autoRollbackMs }: Props) {
   useEffect(() => {
     const win = frame.current?.contentWindow
     if (!ready || !win) return
-    const msg: IsolatedRenderMessage = { type: 'morphkit:render', id, props, version: state.version, namespace: engine.namespace }
+    const msg: IsolatedRenderMessage = { type: 'pleatkit:render', id, props, version: state.version, namespace: engine.namespace }
     if (sentVersion.current !== state.version) {
       const bundle = engine.currentBundle()
       msg.js = bundle ? bundle.js : null
@@ -116,7 +116,7 @@ export function IsolatedFrame({ id, props, headId, autoRollbackMs }: Props) {
         <iframe
           ref={frame}
           title={`${id} (isolated)`}
-          data-testid={`morphkit-isolated-${id}`}
+          data-testid={`pleatkit-isolated-${id}`}
           sandbox="allow-scripts"
           srcDoc={doc}
           style={{ display: crashed ? 'none' : 'block', width: '100%', height, border: 0, background: 'transparent' }}

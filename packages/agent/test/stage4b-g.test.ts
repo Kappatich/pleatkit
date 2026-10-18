@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- tests inspect raw JSON wire payloads */
 import * as esbuildWasm from 'esbuild-wasm'
 import { describe, expect, it } from 'vitest'
-import { Compiler, type EsbuildApi, type MorphkitManifest } from '@morphkit/runtime/compiler'
+import { Compiler, type EsbuildApi, type PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { runAgent, CUT_OFF } from '../src/loop.js'
 import { configFromEnv } from '../src/config.js'
 import { trustedInput } from '../src/manifest.js'
@@ -15,7 +15,7 @@ import { BASE_CARD, CARD, GOOD_CARD, TABLE, request, scripted } from './helpers.
 const post = (app: ReturnType<typeof createAgentApp>, body: unknown, path = '/agent/v1/run', headers: Record<string, string> = {}) =>
   app.request(path, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) })
 
-const manifest: MorphkitManifest = {
+const manifest: PleatkitManifest = {
   version: 1,
   dynamicRoots: ['src/dynamic/'],
   dynamic: [
@@ -53,10 +53,10 @@ describe('code review 06 §2 test 4: the client context is not trusted', () => {
     expect(res2.status).toBe(400)
   })
 
-  it('production needs MORPHKIT_MANIFEST', () => {
-    const creds = { NODE_ENV: 'production', MORPHKIT_APP_ID: 'crm', MORPHKIT_APP_KEY: `mk_live_${'a'.repeat(32)}`, MORPHKIT_JWT_SECRET: 's'.repeat(32) }
-    expect(() => configFromEnv(creds)).toThrow(/MORPHKIT_MANIFEST/)
-    expect(configFromEnv({ ...creds, MORPHKIT_MANIFEST: 'dist/morphkit.manifest.json' }).manifest).not.toBeNull()
+  it('production needs PLEATKIT_MANIFEST', () => {
+    const creds = { NODE_ENV: 'production', PLEATKIT_APP_ID: 'crm', PLEATKIT_APP_KEY: `mk_live_${'a'.repeat(32)}`, PLEATKIT_JWT_SECRET: 's'.repeat(32) }
+    expect(() => configFromEnv(creds)).toThrow(/PLEATKIT_MANIFEST/)
+    expect(configFromEnv({ ...creds, PLEATKIT_MANIFEST: 'dist/pleatkit.manifest.json' }).manifest).not.toBeNull()
   })
 })
 

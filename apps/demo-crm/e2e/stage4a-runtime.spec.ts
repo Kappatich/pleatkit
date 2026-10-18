@@ -14,7 +14,7 @@ function cspViolations(page: Page): string[] {
   return out
 }
 
-test('B1: under a CSP without blob: and WebAssembly, a chat edit compiles on the server and loads signed from /morphkit/b', async ({ page }) => {
+test('B1: under a CSP without blob: and WebAssembly, a chat edit compiles on the server and loads signed from /pleatkit/b', async ({ page }) => {
   const violations = cspViolations(page)
   const requests: string[] = []
   page.on('request', (r) => requests.push(r.url()))
@@ -30,14 +30,14 @@ test('B1: under a CSP without blob: and WebAssembly, a chat edit compiles on the
   expect(await color('due-date')).not.toBe(await color('city'))
   expect(await card.getByTestId('overdue-chip').evaluate((el) => getComputedStyle(el).fontSize)).toBe('11px')
 
-  const bundle = await page.locator('script[data-morphkit-bundle]').first().getAttribute('src')
-  expect(bundle).toMatch(/\/morphkit\/b\/[\w-]+\/[0-9a-f]{40}\.js$/)
-  expect(await page.locator('script[data-morphkit-bundle]').first().getAttribute('integrity')).toMatch(/^sha384-/)
+  const bundle = await page.locator('script[data-pleatkit-bundle]').first().getAttribute('src')
+  expect(bundle).toMatch(/\/pleatkit\/b\/[\w-]+\/[0-9a-f]{40}\.js$/)
+  expect(await page.locator('script[data-pleatkit-bundle]').first().getAttribute('integrity')).toMatch(/^sha384-/)
   expect(requests.some((u) => u.endsWith('.wasm'))).toBe(false)
   expect(requests.some((u) => u.startsWith('blob:'))).toBe(false)
-  // B7: the served bundle names its frames morphkit://
+  // B7: the served bundle names its frames pleatkit://
   const js = await (await page.request.get(bundle!)).text()
-  expect(js).toMatch(/\/\/# sourceURL=morphkit:\/\/[0-9a-f]{16}\/bundle\.js\s*$/)
+  expect(js).toMatch(/\/\/# sourceURL=pleatkit:\/\/[0-9a-f]{16}\/bundle\.js\s*$/)
 
   // a reload loads the same signed bundle, still with no blob: and no wasm
   await page.reload()
@@ -80,26 +80,26 @@ test('B1: request -> paint, server compile vs browser compile (scripted agent), 
   expect(result.server.medianTotalMs).toBeGreaterThan(0)
 })
 
-test('B2: ?morphkit=safe shows the original version with a banner; a load that never mounted does it by itself', async ({ page }) => {
+test('B2: ?pleatkit=safe shows the original version with a banner; a load that never mounted does it by itself', async ({ page }) => {
   await openApp(page)
   const card = page.getByTestId('customer-card')
   await editFile(page, CARD, fixture('customer-card.scenario1.tsx'))
   await page.getByTestId('mk-commit').click()
   await expect(card.getByTestId('phone')).toBeVisible()
 
-  await page.goto(`/?user=alice&dev=1&app=${appFor(page)}&morphkit=safe`)
+  await page.goto(`/?user=alice&dev=1&app=${appFor(page)}&pleatkit=safe`)
   await page.getByRole('button', { name: /Globex/ }).click()
-  const banner = page.getByTestId('morphkit-safe-mode')
+  const banner = page.getByTestId('pleatkit-safe-mode')
   await expect(banner).toHaveAttribute('data-reason', 'param')
   await expect(card.getByTestId('phone')).toHaveCount(0)
-  await page.getByTestId('morphkit-safe-retry').click()
+  await page.getByTestId('pleatkit-safe-retry').click()
   await expect(card.getByTestId('phone')).toBeVisible()
   await expect(banner).toBeHidden()
 
   // as if the last load hung for 10 s and the user reloaded: the boot record never got "mounted"
   await page.waitForTimeout(1200) // let this load's heartbeat mark it mounted first
   await page.evaluate((app) => {
-    const key = Object.keys(localStorage).find((k) => k.startsWith(`morphkit:boot:${app}:alice`))!
+    const key = Object.keys(localStorage).find((k) => k.startsWith(`pleatkit:boot:${app}:alice`))!
     const rec = JSON.parse(localStorage.getItem(key)!) as Record<string, unknown>
     localStorage.setItem(key, JSON.stringify({ ...rec, mounted: false, at: Date.now() - 10_000, page: 'the-hung-load' }))
   }, appFor(page))
@@ -107,7 +107,7 @@ test('B2: ?morphkit=safe shows the original version with a banner; a load that n
   await expect(banner).toHaveAttribute('data-reason', 'crash')
   await expect(banner).toContainText('did not load last time')
   await expect(card.getByTestId('phone')).toHaveCount(0)
-  await page.getByTestId('morphkit-safe-reset').click()
+  await page.getByTestId('pleatkit-safe-reset').click()
   await expect(banner).toBeHidden()
   await expect(page.getByTestId('mk-head')).toContainText('(base)')
 })
@@ -152,8 +152,8 @@ test('B6: StrictMode app, one registry and one stylesheet per app instance', asy
   const { turn } = await ask(page, SCENARIO_1)
   await expect(turn).toHaveAttribute('data-status', 'applied')
   const g = await page.evaluate((ns) => {
-    const reg = (globalThis as unknown as { __morphkit?: { apps: Record<string, unknown> } }).__morphkit
-    return { apps: Object.keys(reg?.apps ?? {}), styles: [...document.querySelectorAll('style[data-morphkit-css]')].map((s) => s.getAttribute('data-morphkit-css')), ns }
+    const reg = (globalThis as unknown as { __pleatkit?: { apps: Record<string, unknown> } }).__pleatkit
+    return { apps: Object.keys(reg?.apps ?? {}), styles: [...document.querySelectorAll('style[data-pleatkit-css]')].map((s) => s.getAttribute('data-pleatkit-css')), ns }
   }, app)
   expect(g.apps).toContain(app)
   expect(g.styles).toEqual([app])
@@ -161,11 +161,11 @@ test('B6: StrictMode app, one registry and one stylesheet per app instance', asy
 
 test('B3: an edit that throws is recognised by its bundle frames and rolled back (the app-fault path is unit-tested)', async ({ page }) => {
   await openApp(page)
-  // the edit itself throws: its frame is morphkit://…, so the boundary rolls it back (scenario 4 path)
+  // the edit itself throws: its frame is pleatkit://…, so the boundary rolls it back (scenario 4 path)
   await editFile(page, DEALS, `export default function DealsTable() { throw new Error('edit broke it') }`)
   await page.getByTestId('mk-commit').click()
-  const crash = page.getByTestId('morphkit-crash')
-  await expect(crash).toHaveAttribute('data-morphkit-fault', 'edit')
+  const crash = page.getByTestId('pleatkit-crash')
+  await expect(crash).toHaveAttribute('data-pleatkit-fault', 'edit')
   await expect(crash).toContainText('Rolling back automatically')
   await crash.getByRole('button', { name: 'Roll back' }).click()
   await expect(crash).toHaveCount(0)

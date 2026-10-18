@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { HttpStore, type Snapshot } from '@morphkit/runtime'
-import { signBundle, signingKeyFromAppKey, sriDigest } from '@morphkit/runtime/security'
+import { HttpStore, type Snapshot } from '@pleatkit/runtime'
+import { signBundle, signingKeyFromAppKey, sriDigest } from '@pleatkit/runtime/security'
 import { authFromEnv, createStoreApp, mintUserToken, openStore } from '../src/index.js'
 import { mintUserToken as fromTokenEntry } from '../src/token.js'
 
@@ -28,21 +28,21 @@ const snap = (id: string, userId: string, parentId: string | null): Snapshot => 
 describe('production refuses to start without credentials (V1 A1)', () => {
   it('authFromEnv', () => {
     expect(() => authFromEnv({ NODE_ENV: 'production' })).toThrow(/refusing to start/)
-    expect(() => authFromEnv({ NODE_ENV: 'production', MORPHKIT_APP_KEY: 'sk-123', MORPHKIT_JWT_SECRET: SECRET })).toThrow(/mk_live_/)
-    expect(() => authFromEnv({ NODE_ENV: 'production', MORPHKIT_APP_KEY: APP_KEY, MORPHKIT_JWT_SECRET: 'short' })).toThrow(/32 characters/)
-    expect(() => authFromEnv({ MORPHKIT_APPS: '{not json' })).toThrow(/MORPHKIT_APPS/)
-    const prod = authFromEnv({ NODE_ENV: 'production', MORPHKIT_APP_ID: 'crm', MORPHKIT_APP_KEY: APP_KEY, MORPHKIT_JWT_SECRET: SECRET, MORPHKIT_DEMO_HEADERS: '1' })
+    expect(() => authFromEnv({ NODE_ENV: 'production', PLEATKIT_APP_KEY: 'sk-123', PLEATKIT_JWT_SECRET: SECRET })).toThrow(/mk_live_/)
+    expect(() => authFromEnv({ NODE_ENV: 'production', PLEATKIT_APP_KEY: APP_KEY, PLEATKIT_JWT_SECRET: 'short' })).toThrow(/32 characters/)
+    expect(() => authFromEnv({ PLEATKIT_APPS: '{not json' })).toThrow(/PLEATKIT_APPS/)
+    const prod = authFromEnv({ NODE_ENV: 'production', PLEATKIT_APP_ID: 'crm', PLEATKIT_APP_KEY: APP_KEY, PLEATKIT_JWT_SECRET: SECRET, PLEATKIT_DEMO_HEADERS: '1' })
     expect(prod).toMatchObject({ production: true, demoHeaders: false, apps: { crm: { appKey: APP_KEY } } })
     expect(authFromEnv({})).toMatchObject({ production: false, demoHeaders: true, apps: {} })
-    expect(authFromEnv({ MORPHKIT_DEMO_HEADERS: '0' }).demoHeaders).toBe(false)
+    expect(authFromEnv({ PLEATKIT_DEMO_HEADERS: '0' }).demoHeaders).toBe(false)
     expect(() => createStoreApp(openStore().db, { auth: { production: true, demoHeaders: true } })).toThrow(/production/)
   })
 
   it('without demo headers every route but /health and public bundles needs a token', async () => {
-    const app = createStoreApp(openStore().db, { auth: authFromEnv({ NODE_ENV: 'production', MORPHKIT_APP_ID: 'crm', MORPHKIT_APP_KEY: APP_KEY, MORPHKIT_JWT_SECRET: SECRET }) })
+    const app = createStoreApp(openStore().db, { auth: authFromEnv({ NODE_ENV: 'production', PLEATKIT_APP_ID: 'crm', PLEATKIT_APP_KEY: APP_KEY, PLEATKIT_JWT_SECRET: SECRET }) })
     expect((await app.request('http://store.test/health')).status).toBe(200)
-    expect((await call(app, '/v1/heads/alice', { 'x-morphkit-user': 'alice', 'x-morphkit-app': 'crm' })).status).toBe(401)
-    expect((await call(app, '/v1/admin/requests', { 'x-morphkit-admin': '1' })).status).toBe(401)
+    expect((await call(app, '/v1/heads/alice', { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'crm' })).status).toBe(401)
+    expect((await call(app, '/v1/admin/requests', { 'x-pleatkit-admin': '1' })).status).toBe(401)
     expect((await call(app, '/v1/heads/alice', { authorization: `Bearer ${await userToken('alice')}` })).status).toBe(200)
   })
 })
@@ -59,13 +59,13 @@ describe('user tokens and app keys', () => {
 
     const bobToken = await userToken('bob')
     expect((await call(app, '/v1/heads/alice', { authorization: `Bearer ${bobToken}` })).status).toBe(403)
-    expect((await call(app, '/v1/heads/alice', { 'x-morphkit-user': 'alice', 'x-morphkit-app': 'crm' })).status).toBe(401)
+    expect((await call(app, '/v1/heads/alice', { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'crm' })).status).toBe(401)
     // the same token for another app, a token of another app's secret, an expired token
-    expect((await call(app, '/v1/heads/alice', { authorization: `Bearer ${await userToken('alice')}`, 'x-morphkit-app': 'other' })).status).toBe(401)
+    expect((await call(app, '/v1/heads/alice', { authorization: `Bearer ${await userToken('alice')}`, 'x-pleatkit-app': 'other' })).status).toBe(401)
     const expired = await userToken('alice', { now: Date.now() / 1000 - 3600 })
     expect((await call(app, '/v1/heads/alice', { authorization: `Bearer ${expired}` })).status).toBe(401)
     // apps without credentials still work with demo headers in development
-    expect((await call(app, '/v1/heads/alice', { 'x-morphkit-user': 'alice', 'x-morphkit-app': 'demo' })).status).toBe(200)
+    expect((await call(app, '/v1/heads/alice', { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'demo' })).status).toBe(200)
     expect(fromTokenEntry).toBe(mintUserToken)
   })
 
@@ -73,10 +73,10 @@ describe('user tokens and app keys', () => {
     const app = secureApp()
     expect((await call(app, '/v1/admin/requests', { authorization: `Bearer ${await userToken('alice')}` })).status).toBe(403)
     expect((await call(app, '/v1/admin/requests', { authorization: `Bearer ${await userToken('root', { role: 'admin' })}` })).status).toBe(200)
-    const logged = await call(app, '/v1/requests', { authorization: `Bearer ${APP_KEY}`, 'x-morphkit-user': 'alice' }, { method: 'POST', body: JSON.stringify({ userId: 'alice', text: 'x', log: [] }) })
+    const logged = await call(app, '/v1/requests', { authorization: `Bearer ${APP_KEY}`, 'x-pleatkit-user': 'alice' }, { method: 'POST', body: JSON.stringify({ userId: 'alice', text: 'x', log: [] }) })
     expect(logged.status).toBe(201)
     expect((await call(app, '/v1/admin/requests', { authorization: `Bearer ${APP_KEY}` })).status).toBe(200)
-    expect((await call(app, '/v1/admin/requests', { authorization: `Bearer ${APP_KEY}`, 'x-morphkit-app': 'other' })).status).toBe(403)
+    expect((await call(app, '/v1/admin/requests', { authorization: `Bearer ${APP_KEY}`, 'x-pleatkit-app': 'other' })).status).toBe(403)
     expect((await call(app, '/v1/admin/requests', { authorization: 'Bearer mk_live_doesnotexistdoesnotexist00' })).status).toBe(401)
     // users cannot log requests (only the agent server can)
     const asUser = await call(app, '/v1/requests', { authorization: `Bearer ${await userToken('alice')}` }, { method: 'POST', body: JSON.stringify({ userId: 'bob', text: 'x' }) })
@@ -117,7 +117,7 @@ describe('bundles: signed server bundles are public, browser bundles stay privat
 
   it('a bundle uploaded by one user is never served to another (no cache poisoning)', async () => {
     const app = createStoreApp(openStore().db)
-    const as = (user: string) => ({ 'x-morphkit-user': user, 'x-morphkit-app': 'crm' })
+    const as = (user: string) => ({ 'x-pleatkit-user': user, 'x-pleatkit-app': 'crm' })
     const put = await call(app, '/v1/bundles/v2:tailwind:abc', as('mallory'), { method: 'PUT', body: JSON.stringify({ js: 'evil()', css: '' }) })
     expect(put.status).toBe(204)
     expect((await call(app, '/v1/bundles/v2:tailwind:abc', as('alice'))).status).toBe(404)

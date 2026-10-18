@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentResult } from '@morphkit/runtime/compiler'
+import type { AgentResult } from '@pleatkit/runtime/compiler'
 import { PROMPT_VERSION } from '../src/prompt.js'
 import { createAgentApp, usageEvents } from '../src/server.js'
 import { CARD, GOOD_CARD, request, scripted } from './helpers.js'
@@ -18,7 +18,7 @@ function fakeStore(flags: Record<string, unknown> = {}) {
     const body = init?.body ? JSON.parse(String(init.body)) : null
     calls.push({ path: url.pathname, body, headers: new Headers(init?.headers) })
     const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'content-type': 'application/json' } })
-    if (url.pathname === '/v1/flags') return json({ flags: { 'morphkit.enabled': true, 'edits.enabled': true, ...flags } })
+    if (url.pathname === '/v1/flags') return json({ flags: { 'pleatkit.enabled': true, 'edits.enabled': true, ...flags } })
     if (url.pathname === '/v1/quota') return json({ ok: true, tokens: {} })
     if (url.pathname === '/v1/plan') return json({ plan: null, limits: {} })
     if (url.pathname === '/v1/requests') return json({ id: `req_${++ids}` }, 201)
@@ -37,7 +37,8 @@ const run = (app: ReturnType<typeof createAgentApp>, body: unknown, headers: Rec
 
 describe('agent server foundations', () => {
   it('F6: the kill switch and edits.enabled refuse runs without calling the model', async () => {
-    for (const flags of [{ 'morphkit.enabled': false }, { 'edits.enabled': false }]) {
+    // `morphkit.enabled`: the pre-rename key of the kill switch, honoured for one release (DECISIONS 68)
+    for (const flags of [{ 'pleatkit.enabled': false }, { 'morphkit.enabled': false }, { 'edits.enabled': false }]) {
       const provider = scripted({ name: 'phone', turns })
       const store = fakeStore(flags)
       const app = createAgentApp({ provider, storeUrl: 'http://store.test', fetch: store.fetchFn, log: () => undefined })

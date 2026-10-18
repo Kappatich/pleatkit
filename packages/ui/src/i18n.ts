@@ -1,4 +1,4 @@
-import type { Locale } from '@morphkit/runtime'
+import type { Locale } from '@pleatkit/runtime'
 
 /**
  * Strings of the chat drawer and of the admin dashboard (DECISIONS item 20): a plain dictionary per language,
@@ -64,7 +64,7 @@ const en = {
   'toast.resetOriginal': 'Back to original',
   'toast.nothing': '{label}: nothing to do',
   // admin dashboard
-  'admin.title': 'morphkit admin',
+  'admin.title': 'pleatkit admin',
   'admin.back': 'Back to the app',
   'admin.stat.edits': 'Edits this week',
   'admin.stat.total': 'Requests this week',
@@ -200,7 +200,7 @@ const ru: Record<UiKey, string> = {
   'toast.resetNew': 'Новая версия',
   'toast.resetOriginal': 'Исходная версия',
   'toast.nothing': '{label}: нечего делать',
-  'admin.title': 'админка morphkit',
+  'admin.title': 'админка pleatkit',
   'admin.back': 'Назад в приложение',
   'admin.stat.edits': 'Правок за неделю',
   'admin.stat.total': 'Запросов за неделю',

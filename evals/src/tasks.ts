@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { trustedInput, type TrustedInput } from '@morphkit/agent'
-import type { AgentImage, AgentRunRequest, AgentVerdict, FileMap, MorphkitManifest } from '@morphkit/runtime/compiler'
+import { trustedInput, type TrustedInput } from '@pleatkit/agent'
+import type { AgentImage, AgentRunRequest, AgentVerdict, FileMap, PleatkitManifest } from '@pleatkit/runtime/compiler'
 import type { EvalTask, FileRefMap } from './types.js'
 
 export const EVALS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -13,7 +13,7 @@ export const RESULTS_DIR = path.join(EVALS_DIR, 'results')
 export const BASELINE_FILE = path.join(EVALS_DIR, 'baseline.json')
 export const REPORT_FILE = path.join(EVALS_DIR, 'report', 'index.html')
 export const DEMO_DIR = path.join(REPO_ROOT, 'apps', 'demo-crm')
-export const DEMO_MANIFEST = path.join(DEMO_DIR, 'dist', 'morphkit.manifest.json')
+export const DEMO_MANIFEST = path.join(DEMO_DIR, 'dist', 'pleatkit.manifest.json')
 /** Scripted fixtures that play the agent for offline recordings: the demo's e2e fixtures and the eval-only ones. */
 export const FIXTURE_DIRS = [path.join(DEMO_DIR, 'e2e', 'fixtures', 'agent'), path.join(EVALS_DIR, 'fixtures', 'scripted')]
 
@@ -71,12 +71,12 @@ export function loadTasks(dir = TASKS_DIR, only?: string[]): EvalTask[] {
   return only?.length ? tasks.filter((t) => only.some((o) => t.id === o || t.id.startsWith(o))) : tasks
 }
 
-export function loadManifest(file = DEMO_MANIFEST): MorphkitManifest {
+export function loadManifest(file = DEMO_MANIFEST): PleatkitManifest {
   if (!fs.existsSync(file)) throw new Error(`${path.relative(REPO_ROOT, file)} is missing: run "pnpm build" first (the eval tasks run against the demo's build manifest).`)
-  return JSON.parse(fs.readFileSync(file, 'utf8')) as MorphkitManifest
+  return JSON.parse(fs.readFileSync(file, 'utf8')) as PleatkitManifest
 }
 
-export const baseFiles = (m: MorphkitManifest): FileMap => Object.fromEntries(m.dynamic.map((f) => [f.path, f.source]))
+export const baseFiles = (m: PleatkitManifest): FileMap => Object.fromEntries(m.dynamic.map((f) => [f.path, f.source]))
 
 const imageType = (p: string): AgentImage['mediaType'] => (/\.jpe?g$/i.test(p) ? 'image/jpeg' : /\.webp$/i.test(p) ? 'image/webp' : /\.gif$/i.test(p) ? 'image/gif' : 'image/png')
 
@@ -92,7 +92,7 @@ export interface PreparedTask {
  * The request the agent server would build for this task: everything the server trusts comes from the demo's
  * build manifest (`trustedInput`), exactly as `POST /agent/v1/run` does it.
  */
-export function prepareTask(task: EvalTask, manifest: MorphkitManifest): PreparedTask {
+export function prepareTask(task: EvalTask, manifest: PleatkitManifest): PreparedTask {
   const appId = `eval-${task.id}`
   const base = baseFiles(manifest)
   const start = { ...base, ...readRefs(task.startFiles ?? {}) }

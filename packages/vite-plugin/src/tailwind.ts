@@ -89,7 +89,7 @@ export function tailwindInput(root: string, entry: string): string {
   ].join('\n')
 }
 
-/** Source of `virtual:morphkit/tailwind`: the compiler, the input CSS and the stylesheets it imports. */
+/** Source of `virtual:pleatkit/tailwind`: the compiler, the input CSS and the stylesheets it imports. */
 export function generateTailwindModule(root: string, entry: string): string {
   const req = createRequire(path.join(root, 'package.json'))
   const stylesheets: Record<string, string> = {}
@@ -97,7 +97,7 @@ export function generateTailwindModule(root: string, entry: string): string {
   const input = tailwindInput(root, entry)
   return [
     `export { compile } from 'tailwindcss'`,
-    `import manifest from 'virtual:morphkit/manifest'`,
+    `import manifest from 'virtual:pleatkit/manifest'`,
     `export const input = ${JSON.stringify(input)}`,
     `export const stylesheets = ${JSON.stringify(stylesheets)}`,
     // Readonly sources (shadcn components) are compiled with the edit so cascade order matches Tailwind's.

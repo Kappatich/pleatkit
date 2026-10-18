@@ -143,7 +143,7 @@ describe('runAgent with the scripted provider', () => {
   it('fails politely when no fixture matches', async () => {
     const r = await runAgent(request('something nobody scripted'), scripted())
     expect(r.verdict).toBe('failed')
-    expect(r.summary).toContain('MORPHKIT_API_KEY')
+    expect(r.summary).toContain('PLEATKIT_API_KEY')
   })
 
   it('does not report unchanged files and keeps base content for the others', async () => {

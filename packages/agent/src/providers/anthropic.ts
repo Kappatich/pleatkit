@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { TokenUsage } from '@morphkit/runtime/compiler'
+import type { TokenUsage } from '@pleatkit/runtime/compiler'
 import { CLASSIFIER_INSTRUCTIONS, INTENT_LABELS } from '../prompt.js'
 import { perCallMaxTokens } from './budget.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
@@ -16,14 +16,14 @@ export interface AnthropicProviderOptions {
   effort?: Effort
   /**
    * Server-side refusal fallback (`fallbacks: "default"`): a request a safety classifier declines is retried
-   * on Anthropic's recommended fallback model inside the same call. On by default; MORPHKIT_FALLBACKS=off disables it.
+   * on Anthropic's recommended fallback model inside the same call. On by default; PLEATKIT_FALLBACKS=off disables it.
    */
   fallbacks?: boolean
   /** For tests: a fetch that never reaches the network. */
   fetch?: typeof fetch
   /**
    * Stream each call (`messages.stream` + `finalMessage()`) with `eager_input_streaming` on the tools, so a large
-   * write_file arrives as it is generated (brainstorm 04 §5). Off by default; MORPHKIT_STREAM=1. Tool inputs are
+   * write_file arrives as it is generated (brainstorm 04 §5). Off by default; PLEATKIT_STREAM=1. Tool inputs are
    * then not validated by the API: the tool runner checks every field itself.
    */
   stream?: boolean

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>morphkit eval report</title>
+<title>pleatkit eval report</title>
 <style>
 :root{color-scheme:light}
 body{margin:0;background:#fff;color:#111;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -19,13 +19,13 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 .wrap{overflow-x:auto}
 </style></head>
 <body><main>
-<h1>morphkit eval report</h1>
-<p class="meta">replay run of 14 task(s) · started 2026-10-18T08:04:03.146Z · report 2026-10-18T08:04:29.833Z · browser grader ran · tsc grader ran</p>
-<div class="tiles"><div class="tile"><div class="k">Pass rate</div><div class="v">92.9 %</div><div class="s">13 of 14 tasks</div></div><div class="tile"><div class="k">Baseline</div><div class="v">92.9 %</div><div class="s">pinned 2026-10-18 07:55, prompt 2026-10-18.4b</div></div><div class="tile"><div class="k">Cost</div><div class="v">$0.00</div><div class="s">unpriced models: scripted-classifier, scripted; cap none</div></div><div class="tile"><div class="k">Tokens</div><div class="v">0</div><div class="s">in 0 · cache read 0 · cache write 0 · out 0</div></div><div class="tile"><div class="k">Cache hit rate</div><div class="v">—</div><div class="s">hypothesis H1: ≥ 80 %</div></div><div class="tile"><div class="k">Model calls</div><div class="v">median 2</div><div class="s">24 in total; H3: median ≤ 3</div></div><div class="tile"><div class="k">First try</div><div class="v">88.9 %</div><div class="s">of 9 runs that wrote files; H2: ≥ 70 %</div></div><div class="tile"><div class="k">Prompt</div><div class="v">2026-10-18.4c1</div><div class="s">prefix ≈ 3,984 tokens (baseline 3,670, +314)</div></div></div>
-<p class="note">Transcripts were recorded with prompt 2026-10-18.4b; the current prompt is 2026-10-18.4c1. A replay repeats the recorded answers, so it measures the harness, the tools and the graders, not the new prompt: re-record with a model (stage 5) to measure a prompt change.</p>
+<h1>pleatkit eval report</h1>
+<p class="meta">replay run of 14 task(s) · started 2026-10-18T08:21:11.306Z · report 2026-10-18T08:21:37.957Z · browser grader ran · tsc grader ran</p>
+<div class="tiles"><div class="tile"><div class="k">Pass rate</div><div class="v">92.9 %</div><div class="s">13 of 14 tasks</div></div><div class="tile"><div class="k">Baseline</div><div class="v">92.9 %</div><div class="s">pinned 2026-10-18 07:55, prompt 2026-10-18.4b</div></div><div class="tile"><div class="k">Cost</div><div class="v">$0.00</div><div class="s">unpriced models: scripted-classifier, scripted; cap none</div></div><div class="tile"><div class="k">Tokens</div><div class="v">0</div><div class="s">in 0 · cache read 0 · cache write 0 · out 0</div></div><div class="tile"><div class="k">Cache hit rate</div><div class="v">—</div><div class="s">hypothesis H1: ≥ 80 %</div></div><div class="tile"><div class="k">Model calls</div><div class="v">median 2</div><div class="s">24 in total; H3: median ≤ 3</div></div><div class="tile"><div class="k">First try</div><div class="v">88.9 %</div><div class="s">of 9 runs that wrote files; H2: ≥ 70 %</div></div><div class="tile"><div class="k">Prompt</div><div class="v">2026-10-18.4c1.pleatkit</div><div class="s">prefix ≈ 3,984 tokens (baseline 3,670, +314)</div></div></div>
+<p class="note">Transcripts were recorded with prompt 2026-10-18.4b; the current prompt is 2026-10-18.4c1.pleatkit. A replay repeats the recorded answers, so it measures the harness, the tools and the graders, not the new prompt: re-record with a model (stage 5) to measure a prompt change.</p>
 <p class="note">Cost is $0 because the answers come from models without a price (scripted-classifier, scripted): scripted or replayed runs. The accounting is the same path a live run uses.</p>
 <h2>Against the baseline</h2>
-<p>Pass rate 92.9 % → 92.9 %; prompt 2026-10-18.4b → 2026-10-18.4c1; cost $0.00 → $0.00. Regressed: none. Fixed: none. New tasks: none.</p>
+<p>Pass rate 92.9 % → 92.9 %; prompt 2026-10-18.4b → 2026-10-18.4c1.pleatkit; cost $0.00 → $0.00. Regressed: none. Fixed: none. New tasks: none.</p>
 <h2>Graders</h2>
 <div class="wrap"><table><thead><tr><th>Grader</th><th class="n">Pass rate</th><th class="n">Passed</th><th class="n">Not applicable</th></tr></thead><tbody><tr><td>verdict</td><td class="n">100 %</td><td class="n">14 / 14</td><td class="n">0</td></tr><tr><td>change</td><td class="n">100 %</td><td class="n">14 / 14</td><td class="n">0</td></tr><tr><td>check</td><td class="n">100 %</td><td class="n">9 / 9</td><td class="n">5</td></tr><tr><td>typecheck</td><td class="n">100 %</td><td class="n">9 / 9</td><td class="n">5</td></tr><tr><td>invariants</td><td class="n">88.9 %</td><td class="n">8 / 9</td><td class="n">5</td></tr><tr><td>predicates</td><td class="n">100 %</td><td class="n">11 / 11</td><td class="n">3</td></tr><tr><td>budget</td><td class="n">100 %</td><td class="n">14 / 14</td><td class="n">0</td></tr><tr><td>browser</td><td class="n">88.9 %</td><td class="n">8 / 9</td><td class="n">5</td></tr></tbody></table></div>
 <h2>Tasks</h2>
@@ -35,8 +35,8 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 <td class="st ok">PASS</td>
 <td><b>crm-01-card-fields</b><br><span class="dim">Phone, city and source in the customer card; overdue date in red</span></td>
 <td>ok</td>
-<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (9 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 5 check(s) and 3 panels in the rendered app">✓</td>
-<td class="n">3</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">45</td>
+<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (10 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 5 check(s) and 3 panels in the rendered app">✓</td>
+<td class="n">3</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">47</td>
 <td class="dim">pass</td>
 </tr>
 <tr class="">
@@ -59,7 +59,7 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 <td class="st bad">FAIL</td>
 <td><b>crm-04-deals-total-row</b><br><span class="dim">Total row in the deals table</span></td>
 <td>ok</td>
-<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (7 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g bad" title="invariants: src/dynamic/deals-table.tsx lost &quot;data-testid=\&quot;deals-table\&quot;&quot;">✗</td><td class="g skip" title="predicates: no predicates">–</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g bad" title="browser: no crash banner: Expected: 0, Received: 1; panel deals-table renders: Expected: visible; deals-table › deals-total exists: Expected: visible; deals-table › deals-total contains: Expected substring: &quot;$57,500&quot;">✗</td>
+<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (5 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g bad" title="invariants: src/dynamic/deals-table.tsx lost &quot;data-testid=\&quot;deals-table\&quot;&quot;">✗</td><td class="g skip" title="predicates: no predicates">–</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g bad" title="browser: no crash banner: Expected: 0, Received: 1; panel deals-table renders: Expected: visible; deals-table › deals-total exists: Expected: visible; deals-table › deals-total contains: Expected substring: &quot;$57,500&quot;">✗</td>
 <td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">8</td>
 <td class="dim">still failing</td>
 </tr><tr class="why"><td></td><td colspan="16"><div><b>invariants</b>: src/dynamic/deals-table.tsx lost &quot;data-testid=\&quot;deals-table\&quot;&quot;</div><div><b>browser</b>: no crash banner: Expected: 0, Received: 1; panel deals-table renders: Expected: visible; deals-table › deals-total exists: Expected: visible; deals-table › deals-total contains: Expected substring: &quot;$57,500&quot;</div></td></tr>
@@ -75,15 +75,15 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 <td class="st ok">PASS</td>
 <td><b>crm-06-clarify-answered</b><br><span class="dim">Overdue date stands out after the answer</span></td>
 <td>ok</td>
-<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (6 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 1 check(s) and 3 panels in the rendered app">✓</td>
-<td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">8</td>
+<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (7 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 1 check(s) and 3 panels in the rendered app">✓</td>
+<td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">7</td>
 <td class="dim">pass</td>
 </tr>
 <tr class="">
 <td class="st ok">PASS</td>
 <td><b>crm-07-screenshot-target</b><br><span class="dim">Fields like on my screenshot, panel pointed</span></td>
 <td>ok</td>
-<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (5 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: images-received, target-dom-received, plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 3 check(s) and 3 panels in the rendered app">✓</td>
+<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (6 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: images-received, target-dom-received, plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 3 check(s) and 3 panels in the rendered app">✓</td>
 <td class="n">3</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">6</td>
 <td class="dim">pass</td>
 </tr>
@@ -92,7 +92,7 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 <td><b>crm-08-stale-carry-over</b><br><span class="dim">Carry the card changes over to the new release</span></td>
 <td>ok</td>
 <td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (6 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g skip" title="predicates: no predicates">–</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 4 check(s) and 3 panels in the rendered app">✓</td>
-<td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">8</td>
+<td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">9</td>
 <td class="dim">pass</td>
 </tr>
 <tr class="">
@@ -108,7 +108,7 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 <td><b>crm-10-partial-phone-history</b><br><span class="dim">Phone in the card, phone history on the server</span></td>
 <td>partial</td>
 <td class="g ok" title="verdict: partial">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (10 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: backend-note, plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 1 check(s) and 3 panels in the rendered app">✓</td>
-<td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">8</td>
+<td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">7</td>
 <td class="dim">pass</td>
 </tr>
 <tr class="">
@@ -131,7 +131,7 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 <td class="st ok">PASS</td>
 <td><b>crm-13-ru-dashboard-average</b><br><span class="dim">Average deal tile, requested in Russian</span></td>
 <td>ok</td>
-<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (5 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: labels-in-panel-language, summary-in-russian">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 2 check(s) and 3 panels in the rendered app">✓</td>
+<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (6 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: labels-in-panel-language, summary-in-russian">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 2 check(s) and 3 panels in the rendered app">✓</td>
 <td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">6</td>
 <td class="dim">pass</td>
 </tr>
@@ -139,7 +139,7 @@ tr.why td{border-bottom:1px solid #e5e5e5;background:#fafafa;font-size:12px;colo
 <td class="st ok">PASS</td>
 <td><b>crm-14-edit-file-label</b><br><span class="dim">Rename one label in the card</span></td>
 <td>ok</td>
-<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (6 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 1 check(s) and 3 panels in the rendered app">✓</td>
+<td class="g ok" title="verdict: ok">✓</td><td class="g ok" title="change: 1 file(s) changed">✓</td><td class="g ok" title="check: compiles, static rules pass (5 ms)">✓</td><td class="g ok" title="typecheck: no type errors">✓</td><td class="g ok" title="invariants: all text invariants hold">✓</td><td class="g ok" title="predicates: plain-summary">✓</td><td class="g ok" title="budget: $0.00 of $0.50">✓</td><td class="g ok" title="browser: 1 check(s) and 3 panels in the rendered app">✓</td>
 <td class="n">2</td><td class="n">0 / 0</td><td class="n">$0.00</td><td class="n">6</td>
 <td class="dim">pass</td>
 </tr>

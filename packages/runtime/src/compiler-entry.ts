@@ -1,6 +1,6 @@
-// `@morphkit/runtime/compiler`: the React-free part of the runtime, safe to import in Node.
+// `@pleatkit/runtime/compiler`: the React-free part of the runtime, safe to import in Node.
 // The agent server uses it to check code with exactly the same virtual-fs and externals as the browser.
-export { Compiler, toCompileErrors, virtualFsPlugin, entrySource, isScript, sourceUrlComment, registryExpression, COMPILER_VERSION, MORPHKIT_FRAME } from './compiler.js'
+export { Compiler, toCompileErrors, virtualFsPlugin, entrySource, isScript, sourceUrlComment, registryExpression, COMPILER_VERSION, PLEATKIT_FRAME } from './compiler.js'
 export { bundleKey, contextHash, type BundleKeyInput } from './server-bundles.js'
 export { ESBUILD_VERSION, BUNDLE_FORMAT } from './constants.js'
 export type { CompilerMetrics, CompilerOptions, EsbuildApi, CompileContext } from './compiler.js'
@@ -20,3 +20,5 @@ export { HeadConflictError, StoreUnavailableError, withTimeout } from './errors.
 export { sha256Bytes, sha384Bytes, digest, hasWebCrypto } from './sha.js'
 export { APPLY_VERDICTS } from './protocol.js'
 export type { CompileOptions } from './compiler.js'
+/** @deprecated Renamed to `PLEATKIT_FRAME` (DECISIONS 68); removed in the next minor version. */
+export { PLEATKIT_FRAME as MORPHKIT_FRAME } from './compiler.js'

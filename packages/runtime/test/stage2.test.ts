@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { compile } from 'tailwindcss'
 import { describe, expect, it, vi } from 'vitest'
 import { CssCompiler, extractCandidates } from '../src/css.js'
-import { CommitRejectedError, MorphkitEngine } from '../src/engine.js'
+import { CommitRejectedError, PleatkitEngine } from '../src/engine.js'
 import { MemoryStore } from '../src/store/memory.js'
 import type { CssConfig, FileMap, SnapshotStore, TailwindModule } from '../src/types.js'
 import { BASE, makeConfig, nodeCompiler, nodeLoader } from './helpers.js'
@@ -41,7 +41,7 @@ function tailwindConfig(): CssConfig & { loads: () => number } {
 function engineFor(store: SnapshotStore, opts: { css?: CssConfig; base?: FileMap; userId?: string } = {}) {
   const compiler = nodeCompiler()
   const config = makeConfig(opts.css ? { css: opts.css } : {}, opts.base)
-  return new MorphkitEngine({ store, userId: opts.userId ?? 'alice', config, compiler, loader: nodeLoader })
+  return new PleatkitEngine({ store, userId: opts.userId ?? 'alice', config, compiler, loader: nodeLoader })
 }
 
 describe('extractCandidates', () => {

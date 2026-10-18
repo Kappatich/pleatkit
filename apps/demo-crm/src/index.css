@@ -2,7 +2,7 @@
 @source "./";
 
 /*
- * Classes that runtime edits introduce are compiled in the browser at commit (morphkit `css: 'tailwind'`),
+ * Classes that runtime edits introduce are compiled in the browser at commit (pleatkit `css: 'tailwind'`),
  * so no safelist is needed here. With `css: 'palette'` you would pre-generate one instead, e.g.
  * @source inline("{hover:,}{text,bg,border}-{red,green,blue}-{50,{100..900..100},950}");
  */
@@ -39,4 +39,4 @@ body {
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
-/* /admin is morphkit's own surface, design v3: src/core/admin.css. The CRM itself keeps the customer's neutral look. */
+/* /admin is pleatkit's own surface, design v3: src/core/admin.css. The CRM itself keeps the customer's neutral look. */

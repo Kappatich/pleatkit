@@ -8,10 +8,10 @@ type Db = BetterSQLite3Database<typeof schema>
 /**
  * F6. Flags the runtime and the agent server read. Defaults below; an app, an org or a single user can override
  * any of them (user over org over app). Unknown keys are passed through for the app's own use.
- * - `morphkit.enabled`: the kill switch. `false`: everyone sees the original version, no chat, no agent runs.
+ * - `pleatkit.enabled`: the kill switch. `false`: everyone sees the original version, no chat, no agent runs.
  * - `edits.enabled`: `false` keeps users' versions but takes no new edits (the agent refuses, the chat says so).
  */
-export const DEFAULT_FLAGS: Record<string, unknown> = { 'morphkit.enabled': true, 'edits.enabled': true }
+export const DEFAULT_FLAGS: Record<string, unknown> = { 'pleatkit.enabled': true, 'edits.enabled': true }
 
 export type FlagScope = 'app' | 'org' | 'user'
 export const FLAG_SCOPES: FlagScope[] = ['app', 'org', 'user']

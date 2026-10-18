@@ -12,23 +12,23 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from 'react'
-import { MORPHKIT_FRAME } from './compiler.js'
-import { MorphkitEngine, type CompilerLike, type EngineOptions, type EngineState } from './engine.js'
+import { PLEATKIT_FRAME } from './compiler.js'
+import { PleatkitEngine, type CompilerLike, type EngineOptions, type EngineState } from './engine.js'
 import { IsolatedFrame } from './isolated.js'
 import type { BundleLoader } from './loader.js'
 import { capturePanel, restorePanel, type PanelState } from './preserve.js'
-import type { CompileMode, MorphkitConfig, SnapshotStore } from './types.js'
+import type { CompileMode, PleatkitConfig, SnapshotStore } from './types.js'
 
 interface ContextValue {
-  engine: MorphkitEngine
+  engine: PleatkitEngine
   autoRollbackMs: number
 }
 
-const MorphkitContext = createContext<ContextValue | null>(null)
+const PleatkitContext = createContext<ContextValue | null>(null)
 
-export interface MorphkitProviderProps {
-  /** `import * as config from 'virtual:morphkit'` */
-  config: MorphkitConfig
+export interface PleatkitProviderProps {
+  /** `import * as config from 'virtual:pleatkit'` */
+  config: PleatkitConfig
   store: SnapshotStore
   userId: string
   /** Auto-rollback delay after a dynamic component crashes. Default 10 000 ms. */
@@ -41,7 +41,7 @@ export interface MorphkitProviderProps {
   compile?: CompileMode
   /** Agent server URL for server compiles. Default `/agent`. */
   agentUrl?: string
-  /** Same-origin URL of signed bundles. Default `/morphkit/b`. */
+  /** Same-origin URL of signed bundles. Default `/pleatkit/b`. */
   bundleUrl?: string
   /** Overrides the plugin's `publicKey` (only bundles signed by it run). */
   publicKey?: string | null
@@ -56,7 +56,7 @@ export interface MorphkitProviderProps {
   children?: ReactNode
 }
 
-export function MorphkitProvider({
+export function PleatkitProvider({
   config,
   store,
   userId,
@@ -73,7 +73,7 @@ export function MorphkitProvider({
   locale = 'en',
   safeModeBanner = true,
   children,
-}: MorphkitProviderProps) {
+}: PleatkitProviderProps) {
   // the latest token functions, without rebuilding the engine when the host passes new closures
   const auth = useRef({ token, onAuthExpired })
   auth.current = { token, onAuthExpired }
@@ -82,7 +82,7 @@ export function MorphkitProvider({
   // constructor has no side effects (StrictMode may build two); listeners are attached in an effect.
   const engine = useMemo(
     () =>
-      new MorphkitEngine({
+      new PleatkitEngine({
       config,
       store,
       userId,
@@ -107,33 +107,33 @@ export function MorphkitProvider({
 
   const value = useMemo(() => ({ engine, autoRollbackMs }), [engine, autoRollbackMs])
   return (
-    <MorphkitContext.Provider value={value}>
+    <PleatkitContext.Provider value={value}>
       {safeModeBanner && <SafeModeBanner locale={locale} />}
       {children}
-    </MorphkitContext.Provider>
+    </PleatkitContext.Provider>
   )
 }
 
 function useCtx(): ContextValue {
-  const ctx = useContext(MorphkitContext)
-  if (!ctx) throw new Error('useMorphkit must be used inside <MorphkitProvider>')
+  const ctx = useContext(PleatkitContext)
+  if (!ctx) throw new Error('usePleatkit must be used inside <PleatkitProvider>')
   return ctx
 }
 
 /** The engine API: draft.*, undo, redo, reset, history, metrics. */
-export function useMorphkit(): MorphkitEngine {
+export function usePleatkit(): PleatkitEngine {
   return useCtx().engine
 }
 
-export function useMorphkitState(): EngineState {
-  const engine = useMorphkit()
+export function usePleatkitState(): EngineState {
+  const engine = usePleatkit()
   return useSyncExternalStore(engine.subscribe, engine.getState, engine.getState)
 }
 
 /** `engine.tags()` that follow the live version (V1 B7), e.g. `useEffect(() => Sentry.setTags(tags), [tags])`. */
-export function useMorphkitTags(): Record<string, string> {
-  const engine = useMorphkit()
-  useMorphkitState() // re-render when the live version changes
+export function usePleatkitTags(): Record<string, string> {
+  const engine = usePleatkit()
+  usePleatkitState() // re-render when the live version changes
   return engine.tags()
 }
 
@@ -153,8 +153,8 @@ export interface DynamicProps {
 
 export function Dynamic({ id, props, loading = null, isolated = false }: DynamicProps) {
   const { autoRollbackMs } = useCtx()
-  const engine = useMorphkit()
-  const state = useMorphkitState()
+  const engine = usePleatkit()
+  const state = usePleatkitState()
   const container = useRef<HTMLDivElement>(null)
   const saved = useRef<PanelState | null>(null)
 
@@ -178,7 +178,7 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
   }, [panelVersion])
 
   // Until the user's head is known, show the placeholder rather than flash the original version.
-  if (state.status === 'loading') return <div data-morphkit-id={id} data-morphkit-loading="">{loading}</div>
+  if (state.status === 'loading') return <div data-pleatkit-id={id} data-pleatkit-loading="">{loading}</div>
 
   const headId = state.head?.parentId && !state.usingFallback ? state.head.id : null
   const stale = state.stalePanels.includes(id) ? '' : undefined
@@ -188,7 +188,7 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
   const runIsolated = isolated || (Boolean(engine.config.isolateEdits) && headId !== null && Boolean(engine.isolatedHostUrl()))
   if (runIsolated) {
     return (
-      <div data-morphkit-id={id} data-morphkit-isolated="" data-morphkit-stale={stale} data-morphkit-modified={modified} style={{ display: 'contents' }}>
+      <div data-pleatkit-id={id} data-pleatkit-isolated="" data-pleatkit-stale={stale} data-pleatkit-modified={modified} style={{ display: 'contents' }}>
         <IsolatedFrame id={id} props={props ?? {}} headId={headId} autoRollbackMs={autoRollbackMs} />
       </div>
     )
@@ -196,7 +196,7 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
 
   const C = state.modules[id]?.default as ComponentType<Record<string, unknown>> | undefined
   return (
-    <div ref={container} data-morphkit-id={id} data-morphkit-stale={stale} data-morphkit-modified={modified} style={{ display: 'contents' }}>
+    <div ref={container} data-pleatkit-id={id} data-pleatkit-stale={stale} data-pleatkit-modified={modified} style={{ display: 'contents' }}>
       <PanelBoundary key={panelVersion} id={id} headId={headId} autoRollbackMs={autoRollbackMs} engine={engine}>
         {C ? <C {...props} /> : <MissingComponent id={id} />}
       </PanelBoundary>
@@ -210,12 +210,12 @@ function MissingComponent({ id }: { id: string }): ReactNode {
 
 /**
  * V1 B3: was this error thrown by an edit's code? Only then may the boundary roll the edit back. Frames of an
- * edit come from its bundle (`morphkit://…`, `/morphkit/b/…`, or a `blob:` module); an error with none of them
+ * edit come from its bundle (`pleatkit://…`, `/pleatkit/b/…`, or a `blob:` module); an error with none of them
  * (bad data from the API, a host hook) is not the edit's fault.
  */
 export function isEditFault(error: unknown): boolean {
   const stack = error instanceof Error ? (error.stack ?? '') : ''
-  return MORPHKIT_FRAME.test(stack) || /\bblob:/.test(stack)
+  return PLEATKIT_FRAME.test(stack) || /\bblob:/.test(stack)
 }
 
 export interface BoundaryProps {
@@ -223,7 +223,7 @@ export interface BoundaryProps {
   /** Snapshot to roll back from; null when showing the original version. */
   headId: string | null
   autoRollbackMs: number
-  engine: MorphkitEngine
+  engine: PleatkitEngine
   children: ReactNode
 }
 
@@ -235,7 +235,7 @@ class PanelBoundary extends Component<BoundaryProps, { error: Error | null }> {
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[morphkit] dynamic component "${this.props.id}" crashed`, error, info.componentStack)
+    console.error(`[pleatkit] dynamic component "${this.props.id}" crashed`, error, info.componentStack)
   }
 
   override render() {
@@ -281,7 +281,7 @@ export function CrashBanner({
 
   if (fault === 'app') {
     return (
-      <div role="alert" data-testid="morphkit-crash" data-morphkit-crash={id} data-morphkit-fault="app" style={bannerStyle}>
+      <div role="alert" data-testid="pleatkit-crash" data-pleatkit-crash={id} data-pleatkit-fault="app" style={bannerStyle}>
         <strong>The “{id}” panel hit an error that is not caused by your edit.</strong>
         <div style={{ margin: '6px 0', fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{error.message}</div>
         {onRetry && (
@@ -293,7 +293,7 @@ export function CrashBanner({
     )
   }
   return (
-    <div role="alert" data-testid="morphkit-crash" data-morphkit-crash={id} data-morphkit-fault="edit" style={bannerStyle}>
+    <div role="alert" data-testid="pleatkit-crash" data-pleatkit-crash={id} data-pleatkit-fault="edit" style={bannerStyle}>
       <strong>The last edit broke the “{id}” panel.</strong>
       <div style={{ margin: '6px 0', fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{error.message}</div>
       {headId ? (
@@ -332,22 +332,22 @@ const SAFE_TEXT = {
 
 /** V1 B2: shown while the original version stands in for the user's own one. */
 export function SafeModeBanner({ locale = 'en' }: { locale?: 'en' | 'ru' }) {
-  const engine = useMorphkit()
-  const state = useMorphkitState()
+  const engine = usePleatkit()
+  const state = usePleatkitState()
   if (!state.safeMode) return null
   const t = SAFE_TEXT[locale] ?? SAFE_TEXT.en
   return (
     <div
       role="status"
-      data-testid="morphkit-safe-mode"
+      data-testid="pleatkit-safe-mode"
       data-reason={state.safeMode.reason}
       style={{ ...bannerStyle, borderColor: '#fcd34d', background: '#fffbeb', color: '#78350f', borderRadius: 0, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}
     >
       <span>{t[state.safeMode.reason]}</span>
-      <button type="button" style={buttonStyle} data-testid="morphkit-safe-retry" onClick={() => void engine.leaveSafeMode()}>
+      <button type="button" style={buttonStyle} data-testid="pleatkit-safe-retry" onClick={() => void engine.leaveSafeMode()}>
         {t.retry}
       </button>
-      <button type="button" style={buttonStyle} data-testid="morphkit-safe-reset" onClick={() => void engine.reset()}>
+      <button type="button" style={buttonStyle} data-testid="pleatkit-safe-reset" onClick={() => void engine.reset()}>
         {t.reset}
       </button>
     </div>

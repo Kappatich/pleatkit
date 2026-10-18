@@ -5,6 +5,9 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import concurrently from 'concurrently'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
+
+pleatkitEnv(process.env)
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(path.join(root, 'package.json'))
@@ -17,28 +20,28 @@ const ports = {
   store: process.env.STORE_PORT ?? '8790',
 }
 const shared = { DATA_PORT: ports.data, AGENT_PORT: ports.agent, STORE_PORT: ports.store }
-const storeDb = process.env.MORPHKIT_STORE_DB ?? path.join(root, '.morphkit', 'store.db')
+const storeDb = process.env.PLEATKIT_STORE_DB ?? path.join(root, '.pleatkit', 'store.db')
 
 const { result, commands } = concurrently(
   [
     { name: 'data', command: 'tsx server/index.ts', env: shared, prefixColor: 'blue' },
     {
       name: 'agent',
-      command: `node "${bin('@morphkit/agent')}"`,
+      command: `node "${bin('@pleatkit/agent')}"`,
       env: {
         ...shared,
-        MORPHKIT_AGENT_PORT: ports.agent,
-        MORPHKIT_STORE_URL: `http://localhost:${ports.store}`,
-        MORPHKIT_FIXTURES: process.env.MORPHKIT_FIXTURES ?? path.join(root, 'e2e', 'fixtures', 'agent'),
+        PLEATKIT_AGENT_PORT: ports.agent,
+        PLEATKIT_STORE_URL: `http://localhost:${ports.store}`,
+        PLEATKIT_FIXTURES: process.env.PLEATKIT_FIXTURES ?? path.join(root, 'e2e', 'fixtures', 'agent'),
         // the dev server serves the manifest; the agent re-reads it (code review 06 item 8)
-        MORPHKIT_MANIFEST: process.env.MORPHKIT_MANIFEST ?? `http://localhost:${ports.web}/morphkit.manifest.json`,
+        PLEATKIT_MANIFEST: process.env.PLEATKIT_MANIFEST ?? `http://localhost:${ports.web}/pleatkit.manifest.json`,
       },
       prefixColor: 'magenta',
     },
     {
       name: 'store',
-      command: `node "${bin('@morphkit/store-server')}"`,
-      env: { ...shared, MORPHKIT_STORE_PORT: ports.store, MORPHKIT_STORE_DB: storeDb },
+      command: `node "${bin('@pleatkit/store-server')}"`,
+      env: { ...shared, PLEATKIT_STORE_PORT: ports.store, PLEATKIT_STORE_DB: storeDb },
       prefixColor: 'yellow',
     },
     { name: 'web', command: `vite --port ${ports.web} --strictPort`, env: shared, prefixColor: 'green' },

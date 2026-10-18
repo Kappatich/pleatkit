@@ -12,7 +12,7 @@ const OUT = path.join(EVALS_DIR, '.out', 'browser')
 export function demoBuildProblem(): string | null {
   const assets = path.join(DEMO_DIR, 'dist', 'assets')
   if (!fs.existsSync(assets)) return 'apps/demo-crm/dist is missing: run "pnpm build" first'
-  const hasHook = fs.readdirSync(assets).some((f) => f.endsWith('.js') && fs.readFileSync(path.join(assets, f), 'utf8').includes('__morphkitEval'))
+  const hasHook = fs.readdirSync(assets).some((f) => f.endsWith('.js') && fs.readFileSync(path.join(assets, f), 'utf8').includes('__pleatkitEval'))
   return hasHook ? null : 'apps/demo-crm/dist predates the eval hook (?eval=1): run "pnpm build" first'
 }
 

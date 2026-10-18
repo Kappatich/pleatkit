@@ -1,5 +1,5 @@
 {
-  "name": "@morphkit/demo-crm",
+  "name": "@pleatkit/demo-crm",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -12,18 +12,18 @@
     "e2e": "vite build && playwright test"
   },
   "dependencies": {
-    "@morphkit/runtime": "workspace:*",
+    "@pleatkit/runtime": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.3.1",
-    "@morphkit/ui": "workspace:*",
+    "@pleatkit/ui": "workspace:*",
     "diff": "^8.0.2"
   },
   "devDependencies": {
     "@hono/node-server": "^1.19.5",
-    "@morphkit/vite-plugin": "workspace:*",
+    "@pleatkit/vite-plugin": "workspace:*",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/vite": "^4.1.14",
     "@types/node": "^22.18.0",
@@ -35,8 +35,8 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.20.6",
     "vite": "^6.4.1",
-    "@morphkit/agent": "workspace:*",
-    "@morphkit/store-server": "workspace:*",
+    "@pleatkit/agent": "workspace:*",
+    "@pleatkit/store-server": "workspace:*",
     "tree-kill": "^1.2.2"
   }
 }

@@ -1,7 +1,7 @@
 // What the agent may see of the panel the user points at (brainstorm 05 #3, PII). By default only the structure
 // leaves the page: tags, classes, test ids, roles, and for each text its length, never its value. With
 // `sendDomText: true` the visible text goes too, with e-mail addresses and long numbers masked. A subtree marked
-// `data-morphkit-private` is never sent, in either mode. Form values are never sent.
+// `data-pleatkit-private` is never sent, in either mode. Form values are never sent.
 
 import { MAX_TARGET_DOM_CHARS } from './protocol.js'
 
@@ -22,8 +22,8 @@ export interface DomContextOptions {
   max?: number
 }
 
-export const PRIVATE_ATTR = 'data-morphkit-private'
-const STRUCTURE_ATTRS = /^(class|data-testid|data-morphkit-id|role|type|colspan|rowspan|disabled|checked|hidden)$/
+export const PRIVATE_ATTR = 'data-pleatkit-private'
+const STRUCTURE_ATTRS = /^(class|data-testid|data-pleatkit-id|role|type|colspan|rowspan|disabled|checked|hidden)$/
 const TEXT_ATTRS = /^(aria-label|aria-[\w-]+|title|alt|placeholder)$/
 const DROP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'LINK', 'META'])
 const MAX_TEXT = 160
@@ -85,11 +85,11 @@ export function serializeDom(host: DomLike, options: DomContextOptions = {}): st
 
 /**
  * Sanitized markup of the panel the user pointed at, as data for the agent (never instructions). Structure only
- * unless `includeText` (the app's `sendDomText`); `data-morphkit-private` subtrees and form values never.
+ * unless `includeText` (the app's `sendDomText`); `data-pleatkit-private` subtrees and form values never.
  */
 export function panelDomSnapshot(id: string, options: DomContextOptions & { root?: ParentNode } = {}): string | null {
   const root = options.root ?? (typeof document !== 'undefined' ? document : null)
   if (!root) return null
-  const host = root.querySelector(`[data-morphkit-id="${CSS.escape(id)}"]`)
+  const host = root.querySelector(`[data-pleatkit-id="${CSS.escape(id)}"]`)
   return host ? serializeDom(host as unknown as DomLike, options) : null
 }

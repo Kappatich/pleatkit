@@ -1,22 +1,24 @@
 // Run TASKS stage 2 item 6: scenario 1 through the real Anthropic provider, without a browser.
 // Prints progress, timings, token usage and the estimated cost, and writes docs/metrics-anthropic.json.
 //
-//   PowerShell:  $env:MORPHKIT_API_KEY = '<key>'; pnpm agent:live
-//   bash:        MORPHKIT_API_KEY=<key> pnpm agent:live
+//   PowerShell:  $env:PLEATKIT_API_KEY = '<key>'; pnpm agent:live
+//   bash:        PLEATKIT_API_KEY=<key> pnpm agent:live
 //
-// Optional: MORPHKIT_MODEL, MORPHKIT_CLASSIFIER_MODEL, MORPHKIT_EFFORT, MORPHKIT_BASE_URL, MORPHKIT_FALLBACKS=off.
+// Optional: PLEATKIT_MODEL, PLEATKIT_CLASSIFIER_MODEL, PLEATKIT_EFFORT, PLEATKIT_BASE_URL, PLEATKIT_FALLBACKS=off.
 // A custom request: pnpm agent:live "Show deals sorted by amount"
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const key = process.env.MORPHKIT_API_KEY ?? process.env.POLYMORPH_API_KEY ?? process.env.ANTHROPIC_API_KEY
+const { pleatkitEnv } = await import(new URL('../packages/runtime/dist/env.js', import.meta.url).href)
+pleatkitEnv(process.env)
+const key = process.env.PLEATKIT_API_KEY ?? process.env.POLYMORPH_API_KEY ?? process.env.ANTHROPIC_API_KEY
 if (!key) {
-  console.error('Set MORPHKIT_API_KEY (or ANTHROPIC_API_KEY) first. Nothing was sent.')
+  console.error('Set PLEATKIT_API_KEY (or ANTHROPIC_API_KEY) first. Nothing was sent.')
   process.exit(2)
 }
-const manifestPath = path.join(root, 'apps', 'demo-crm', 'dist', 'morphkit.manifest.json')
+const manifestPath = path.join(root, 'apps', 'demo-crm', 'dist', 'pleatkit.manifest.json')
 if (!fs.existsSync(manifestPath)) {
   console.error('Build first: pnpm build')
   process.exit(2)
@@ -34,7 +36,7 @@ const request = {
   context: { dynamicRoots: manifest.dynamicRoots, externals: manifest.externals, externalPatterns: manifest.externalPatterns, alias: manifest.alias },
   components: manifest.dynamic.filter((f) => /\.(tsx|ts)$/.test(f.path)).map((f) => f.path),
 }
-const { provider } = configFromEnv({ ...process.env, MORPHKIT_PROVIDER: 'anthropic', MORPHKIT_API_KEY: key })
+const { provider } = configFromEnv({ ...process.env, PLEATKIT_PROVIDER: 'anthropic', PLEATKIT_API_KEY: key })
 console.log(`provider ${provider.name}, model ${provider.model}, classifier ${provider.classifierModel}`)
 console.log(`request: ${text}\n`)
 const t0 = Date.now()

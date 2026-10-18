@@ -1,14 +1,14 @@
 {
-  "name": "@morphkit/react18-smoke",
+  "name": "@pleatkit/react18-smoke",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "V1 B6: @morphkit/runtime renders with React 18 (peer range ^18 || ^19)",
+  "description": "V1 B6: @pleatkit/runtime renders with React 18 (peer range ^18 || ^19)",
   "scripts": {
     "test": "vitest run"
   },
   "dependencies": {
-    "@morphkit/runtime": "workspace:*",
+    "@pleatkit/runtime": "workspace:*",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

@@ -12,13 +12,13 @@ interface Manifest {
  * not today's.
  */
 async function seedStaleHead(page: Page, options: { cardUnchanged?: boolean } = {}): Promise<void> {
-  const manifest = (await (await page.request.get('/morphkit.manifest.json')).json()) as Manifest
+  const manifest = (await (await page.request.get('/pleatkit.manifest.json')).json()) as Manifest
   const oldBase = Object.fromEntries(manifest.dynamic.map((f) => [f.path, f.source]))
   oldBase['src/dynamic/deals-table.tsx'] += '\n// previous release\n'
   if (!options.cardUnchanged) oldBase[CARD] += '\n// previous release\n'
-  const headers = { 'x-morphkit-user': 'alice', 'x-morphkit-app': appFor(page) }
+  const headers = { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': appFor(page) }
   const put = async (id: string, parentId: string | null, files: Record<string, string>, message: string) => {
-    const res = await page.request.put(`/morphkit-store/snapshots/${id}`, {
+    const res = await page.request.put(`/pleatkit-store/snapshots/${id}`, {
       headers,
       data: { id, parentId, userId: 'alice', files, message, author: parentId ? 'agent' : 'base', createdAt: new Date().toISOString(), status: 'applied', baseHash: 'previous-release' },
     })
@@ -26,7 +26,7 @@ async function seedStaleHead(page: Page, options: { cardUnchanged?: boolean } = 
   }
   await put('01OLDBASE00000000000000000', null, oldBase, 'Original version')
   await put('01OLDEDIT00000000000000000', '01OLDBASE00000000000000000', { ...oldBase, [CARD]: fixture('customer-card.scenario1.tsx') }, 'Add phone, city, source')
-  expect((await page.request.post('/morphkit-store/snapshots/01OLDEDIT00000000000000000/head', { headers })).status()).toBe(204)
+  expect((await page.request.post('/pleatkit-store/snapshots/01OLDEDIT00000000000000000/head', { headers })).status()).toBe(204)
 }
 
 test('B5: a release that changed only other files carries the edits over by itself, no banner', async ({ page }) => {
@@ -49,8 +49,8 @@ test('stale snapshot after a release: banner, and the agent carries the edits ov
   await expect(banner).toBeVisible()
   await expect(banner).toContainText('The app was updated')
   // only the panel both sides changed is marked (V1 B5)
-  await expect(page.locator('[data-morphkit-id="customer-card"]')).toHaveAttribute('data-morphkit-stale', '')
-  await expect(page.locator('[data-morphkit-id="deals-table"]')).not.toHaveAttribute('data-morphkit-stale', '')
+  await expect(page.locator('[data-pleatkit-id="customer-card"]')).toHaveAttribute('data-pleatkit-stale', '')
+  await expect(page.locator('[data-pleatkit-id="deals-table"]')).not.toHaveAttribute('data-pleatkit-stale', '')
   // her version still renders meanwhile
   await expect(page.getByTestId('customer-card').getByTestId('phone')).toHaveText('+1 555 0102')
   await shot(page, '11-stale-banner.png')
@@ -78,9 +78,9 @@ test('stale snapshot: "Reset my changes" starts from the new version', async ({ 
 
 test('isolated panel: the dashboard renders in a sandboxed iframe and still follows commits', async ({ page }) => {
   await openCrm(page, { query: '&isolated=1' })
-  const iframe = page.getByTestId('morphkit-isolated-dashboard-panels')
+  const iframe = page.getByTestId('pleatkit-isolated-dashboard-panels')
   await expect(iframe).toHaveAttribute('sandbox', 'allow-scripts')
-  const frame = page.frameLocator('[data-testid="morphkit-isolated-dashboard-panels"]')
+  const frame = page.frameLocator('[data-testid="pleatkit-isolated-dashboard-panels"]')
   await expect(frame.getByTestId('dashboard-panels')).toContainText('Open pipeline')
   await expect(frame.getByTestId('dashboard-panels')).toContainText('$97,500')
   // opaque origin: the page cannot reach into the frame, and the frame cannot reach the page

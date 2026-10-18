@@ -1,4 +1,4 @@
-import type { AgentImage, RequestClass, TokenUsage } from '@morphkit/runtime/compiler'
+import type { AgentImage, RequestClass, TokenUsage } from '@pleatkit/runtime/compiler'
 
 /** JSON schema of a tool's input. Every tool is strict: all properties required, no extra ones. */
 export interface ToolSpec {

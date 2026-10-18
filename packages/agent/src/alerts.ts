@@ -1,6 +1,7 @@
-import type { AgentResult } from '@morphkit/runtime/compiler'
+import type { AgentResult } from '@pleatkit/runtime/compiler'
 import type { Identity } from './auth.js'
 import type { StoreClient } from './store-client.js'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /**
  * Real-time alerts and automatic freezes (brainstorm 05 #5, 12 B7): nobody watches the dashboard on a Sunday
@@ -38,7 +39,7 @@ export class WebhookSink implements AlertSink {
     const res = await this.fetchFn(this.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: `[morphkit ${alert.severity}] ${alert.title}`, alert }),
+      body: JSON.stringify({ text: `[pleatkit ${alert.severity}] ${alert.title}`, alert }),
       signal: AbortSignal.timeout(5_000),
     })
     if (!res.ok) throw new Error(`alert webhook answered ${res.status}`)
@@ -61,7 +62,7 @@ export class EmailSink implements AlertSink {
     const res = await this.fetchFn(this.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...(this.token ? { authorization: `Bearer ${this.token}` } : {}) },
-      body: JSON.stringify({ to: this.to, subject: `[morphkit ${alert.severity}] ${alert.title}`, text }),
+      body: JSON.stringify({ to: this.to, subject: `[pleatkit ${alert.severity}] ${alert.title}`, text }),
       signal: AbortSignal.timeout(5_000),
     })
     if (!res.ok) throw new Error(`alert e-mail API answered ${res.status}`)
@@ -121,7 +122,7 @@ export class Alerts {
     const full = { ...alert, at: new Date(this.now()).toISOString() }
     await Promise.all(
       this.o.sinks.map((s) =>
-        s.send(full).catch((e: Error) => this.log(`[morphkit-agent] could not send the ${alert.kind} alert: ${e.message}`)),
+        s.send(full).catch((e: Error) => this.log(`[pleatkit-agent] could not send the ${alert.kind} alert: ${e.message}`)),
       ),
     )
   }
@@ -203,12 +204,12 @@ export class Alerts {
       stored = await this.o.store
         .setUserFlag(who, 'edits.enabled', false)
         .then(() => true)
-        .catch((e: Error) => (this.log(`[morphkit-agent] could not freeze ${who.userId} in store-server: ${e.message}`), false))
+        .catch((e: Error) => (this.log(`[pleatkit-agent] could not freeze ${who.userId} in store-server: ${e.message}`), false))
     }
     // with a store the flag is the freeze (an admin lifts it there); without one this process remembers it
     if (!stored) this.frozen.add(k)
     this.freezing.delete(k)
-    this.log(`[morphkit-agent] ${who.appId}/${who.userId}: frozen (${reason})`)
+    this.log(`[pleatkit-agent] ${who.appId}/${who.userId}: frozen (${reason})`)
     await this.emit({
       kind: 'freeze',
       severity: 'critical',
@@ -221,21 +222,22 @@ export class Alerts {
   }
 }
 
-/** MORPHKIT_ALERT_WEBHOOK, MORPHKIT_ALERT_EMAIL_URL + _TO (+ _TOKEN), MORPHKIT_FREEZE ('off' or JSON policy). */
+/** PLEATKIT_ALERT_WEBHOOK, PLEATKIT_ALERT_EMAIL_URL + _TO (+ _TOKEN), PLEATKIT_FREEZE ('off' or JSON policy). */
 export function alertsFromEnv(env: Record<string, string | undefined>): Pick<AlertsOptions, 'sinks' | 'freeze'> {
+  pleatkitEnv(env)
   const sinks: AlertSink[] = []
-  if (env.MORPHKIT_ALERT_WEBHOOK) sinks.push(new WebhookSink(env.MORPHKIT_ALERT_WEBHOOK))
-  if (env.MORPHKIT_ALERT_EMAIL_URL) {
-    if (!env.MORPHKIT_ALERT_EMAIL_TO) throw new Error('MORPHKIT_ALERT_EMAIL_URL needs MORPHKIT_ALERT_EMAIL_TO')
-    sinks.push(new EmailSink(env.MORPHKIT_ALERT_EMAIL_URL, env.MORPHKIT_ALERT_EMAIL_TO, env.MORPHKIT_ALERT_EMAIL_TOKEN ?? null))
+  if (env.PLEATKIT_ALERT_WEBHOOK) sinks.push(new WebhookSink(env.PLEATKIT_ALERT_WEBHOOK))
+  if (env.PLEATKIT_ALERT_EMAIL_URL) {
+    if (!env.PLEATKIT_ALERT_EMAIL_TO) throw new Error('PLEATKIT_ALERT_EMAIL_URL needs PLEATKIT_ALERT_EMAIL_TO')
+    sinks.push(new EmailSink(env.PLEATKIT_ALERT_EMAIL_URL, env.PLEATKIT_ALERT_EMAIL_TO, env.PLEATKIT_ALERT_EMAIL_TOKEN ?? null))
   }
   let freeze: AlertsOptions['freeze']
-  if (env.MORPHKIT_FREEZE === 'off') freeze = false
-  else if (env.MORPHKIT_FREEZE) {
+  if (env.PLEATKIT_FREEZE === 'off') freeze = false
+  else if (env.PLEATKIT_FREEZE) {
     try {
-      freeze = JSON.parse(env.MORPHKIT_FREEZE) as Partial<FreezePolicy>
+      freeze = JSON.parse(env.PLEATKIT_FREEZE) as Partial<FreezePolicy>
     } catch {
-      throw new Error('MORPHKIT_FREEZE must be "off" or JSON like {"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}')
+      throw new Error('PLEATKIT_FREEZE must be "off" or JSON like {"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}')
     }
   }
   return { sinks, ...(freeze !== undefined ? { freeze } : {}) }

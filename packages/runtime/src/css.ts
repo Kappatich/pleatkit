@@ -60,11 +60,11 @@ export class CssCompiler {
       base: '/',
       loadStylesheet: async (id, base) => {
         const content = tw.stylesheets[id]
-        if (content === undefined) throw new Error(`morphkit: stylesheet "${id}" is not available to the runtime Tailwind compiler`)
+        if (content === undefined) throw new Error(`pleatkit: stylesheet "${id}" is not available to the runtime Tailwind compiler`)
         return { path: id, base, content }
       },
       loadModule: async (id) => {
-        throw new Error(`morphkit: Tailwind plugins/configs are not supported at runtime ("${id}")`)
+        throw new Error(`pleatkit: Tailwind plugins/configs are not supported at runtime ("${id}")`)
       },
     })
   }

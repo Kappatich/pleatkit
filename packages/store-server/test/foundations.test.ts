@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HttpStore, type Snapshot } from '@morphkit/runtime'
+import { HttpStore, type Snapshot } from '@pleatkit/runtime'
 import { createStoreApp, mintUserToken, openStore } from '../src/index.js'
 import { sweepAlive24h, verifyAuditChain } from '../src/ledger.js'
 
@@ -13,9 +13,9 @@ function setup(options: Parameters<typeof createStoreApp>[1] = {}) {
     app.request(`http://store.test${path}`, { ...init, headers: { 'content-type': 'application/json', ...headers } })
   const fetchVia = (input: string | URL | Request, init?: RequestInit) => app.request(input instanceof Request ? input : String(input), init)
   const user = (userId: string, appId = 'crm') => new HttpStore({ baseUrl: 'http://store.test', userId, appId, fetch: fetchVia as typeof fetch })
-  const as = (userId: string) => ({ 'x-morphkit-user': userId, 'x-morphkit-app': 'crm' })
-  const admin = { 'x-morphkit-admin': '1', 'x-morphkit-app': 'crm' }
-  const agent = (userId: string) => ({ 'x-morphkit-agent': '1', 'x-morphkit-user': userId, 'x-morphkit-app': 'crm' })
+  const as = (userId: string) => ({ 'x-pleatkit-user': userId, 'x-pleatkit-app': 'crm' })
+  const admin = { 'x-pleatkit-admin': '1', 'x-pleatkit-app': 'crm' }
+  const agent = (userId: string) => ({ 'x-pleatkit-agent': '1', 'x-pleatkit-user': userId, 'x-pleatkit-app': 'crm' })
   const raw = (store.db as unknown as { $client: { prepare(sql: string): { all(...a: unknown[]): unknown[]; run(...a: unknown[]): unknown } ; exec(sql: string): void } }).$client
   return { app, call, user, as, admin, agent, db: store.db, raw }
 }
@@ -57,7 +57,7 @@ describe('F1/F2/F4: tenant, placement and versions on every record', () => {
     expect(await s.get(v.id)).toEqual({ ...v, createdAt: expect.any(String) })
     const row = t.raw.prepare('SELECT org_id, region, environment, schema_version FROM snapshots WHERE id = ?').all(v.id)[0]
     expect(row).toEqual({ org_id: 'acme', region: 'eu-1', environment: 'production', schema_version: 2 })
-    const req = await t.call('/v1/requests', { authorization: `Bearer ${APP_KEY}`, 'x-morphkit-user': 'alice', 'x-morphkit-org': 'acme' }, { method: 'POST', body: JSON.stringify({ userId: 'alice', text: 'x', log: [], promptVersion: '2026-10-18.4a' }) })
+    const req = await t.call('/v1/requests', { authorization: `Bearer ${APP_KEY}`, 'x-pleatkit-user': 'alice', 'x-pleatkit-org': 'acme' }, { method: 'POST', body: JSON.stringify({ userId: 'alice', text: 'x', log: [], promptVersion: '2026-10-18.4a' }) })
     const { id } = (await req.json()) as { id: string }
     expect(t.raw.prepare('SELECT org_id, region, environment, prompt_version FROM requests WHERE id = ?').all(id)[0]).toEqual({
       org_id: 'acme',
@@ -128,14 +128,14 @@ describe('F6: flags and the kill switch', () => {
   it('defaults < app < org < user; the runtime reads them through HttpStore', async () => {
     const t = setup()
     const put = (b: unknown) => t.call('/v1/admin/flags', t.admin, { method: 'PUT', body: JSON.stringify(b) })
-    expect(await t.user('alice').flags()).toEqual({ 'morphkit.enabled': true, 'edits.enabled': true })
+    expect(await t.user('alice').flags()).toEqual({ 'pleatkit.enabled': true, 'edits.enabled': true })
     await put({ scope: 'app', key: 'edits.enabled', value: false })
     await put({ scope: 'user', scopeId: 'bob', key: 'edits.enabled', value: true })
-    await put({ scope: 'org', scopeId: 'acme', key: 'morphkit.enabled', value: false })
+    await put({ scope: 'org', scopeId: 'acme', key: 'pleatkit.enabled', value: false })
     expect((await t.user('alice').flags())['edits.enabled']).toBe(false)
     expect((await t.user('bob').flags())['edits.enabled']).toBe(true)
     const orgAlice = (await (await t.call('/v1/flags?userId=alice&orgId=acme', t.agent('alice'))).json()) as { flags: Record<string, unknown> }
-    expect(orgAlice.flags['morphkit.enabled']).toBe(false)
+    expect(orgAlice.flags['pleatkit.enabled']).toBe(false)
     expect((await put({ scope: 'user', key: 'x', value: 1 })).status).toBe(400)
     await put({ scope: 'app', key: 'edits.enabled', value: null })
     expect((await t.user('alice').flags())['edits.enabled']).toBe(true)
@@ -188,7 +188,7 @@ describe('migrations', () => {
     const os = await import('node:os')
     const path = await import('node:path')
     const Database = (await import('better-sqlite3')).default
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'morphkit-store-'))
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pleatkit-store-'))
     const file = path.join(dir, 'old.db')
     const old = new Database(file)
     old.exec(`CREATE TABLE snapshots (id TEXT PRIMARY KEY, app_id TEXT NOT NULL, user_id TEXT NOT NULL, parent_id TEXT, files TEXT NOT NULL,

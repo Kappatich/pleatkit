@@ -1,7 +1,7 @@
-import * as config from 'virtual:morphkit'
-import { HttpStore, LocalStore, type SnapshotStore } from '@morphkit/runtime'
+import * as config from 'virtual:pleatkit'
+import { HttpStore, LocalStore, type SnapshotStore } from '@pleatkit/runtime'
 
-export const morphkitConfig = config
+export const pleatkitConfig = config
 export const USERS = ['alice', 'bob'] as const
 export type UserId = (typeof USERS)[number]
 
@@ -10,16 +10,16 @@ const params = new URLSearchParams(location.search)
 export const APP_ID = params.get('app') ?? 'demo-crm'
 /** `?store=local` keeps everything in this browser (IndexedDB); default is store-server (needed for /admin). */
 export const STORE_KIND: 'http' | 'local' = params.get('store') === 'local' ? 'local' : 'http'
-export const STORE_URL = '/morphkit-store'
+export const STORE_URL = '/pleatkit-store'
 export const AGENT_URL = '/agent'
 /** Signed server bundles, proxied to store-server's /v1/b (V1 B1). */
-export const BUNDLE_URL = '/morphkit/b'
+export const BUNDLE_URL = '/pleatkit/b'
 /** `?compile=browser`: esbuild-wasm in the page instead of the agent server (the plugin's default is `server`). */
 export const COMPILE: 'browser' | 'server' | null = params.get('compile') === 'browser' ? 'browser' : params.get('compile') === 'server' ? 'server' : null
 
 /**
  * `?auth=token`: the production path (V1 A1). The demo's backend mints a 15-minute user token
- * (`/api/morphkit-token`), and store-server and the agent server verify it. Without it the demo uses the
+ * (`/api/pleatkit-token`), and store-server and the agent server verify it. Without it the demo uses the
  * development headers, which store-server accepts only outside production.
  */
 export const AUTH: 'token' | 'headers' = params.get('auth') === 'token' ? 'token' : 'headers'
@@ -27,8 +27,8 @@ export const AUTH: 'token' | 'headers' = params.get('auth') === 'token' ? 'token
 const tokens = new Map<string, Promise<{ token: string; publicKey: string | null; at: number }>>()
 
 async function fetchToken(user: string, role: 'user' | 'admin') {
-  const res = await fetch(`/api/morphkit-token?user=${encodeURIComponent(user)}&role=${role}&app=${encodeURIComponent(APP_ID)}`)
-  if (!res.ok) throw new Error(`could not get a morphkit token: ${res.status}`)
+  const res = await fetch(`/api/pleatkit-token?user=${encodeURIComponent(user)}&role=${role}&app=${encodeURIComponent(APP_ID)}`)
+  if (!res.ok) throw new Error(`could not get a pleatkit token: ${res.status}`)
   return { ...((await res.json()) as { token: string; publicKey: string | null }), at: Date.now() }
 }
 
@@ -42,14 +42,14 @@ export async function tokenFor(user: string, role: 'user' | 'admin' = 'user', fo
 
 /**
  * The key bundles must be signed with, in `?auth=token` mode. A real app bakes it into the build
- * (`morphkit({ publicKey })`); the demo gets it from its backend so other demo modes keep working unsigned.
+ * (`pleatkit({ publicKey })`); the demo gets it from its backend so other demo modes keep working unsigned.
  */
 export async function demoPublicKey(): Promise<string | null> {
   if (AUTH !== 'token') return null
   return (await (tokens.get('user:alice') ?? fetchToken('alice', 'user'))).publicKey
 }
 
-const local = new LocalStore('morphkit-demo-crm')
+const local = new LocalStore('pleatkit-demo-crm')
 const http = new Map<string, HttpStore>()
 
 /** One store per user: a user token in `?auth=token` mode, otherwise the development header. */

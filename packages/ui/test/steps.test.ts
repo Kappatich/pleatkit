@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentProgress } from '@morphkit/runtime'
+import type { AgentProgress } from '@pleatkit/runtime'
 import { translator, UI_MESSAGES } from '../src/i18n.js'
 import { addStep, MAX_VISIBLE_STEPS, visibleSteps, type Step } from '../src/steps.js'
 

@@ -172,16 +172,16 @@ const CSS = `
 
 let installed = false
 
-export function useMorphkitUiStyles(): void {
+export function usePleatkitUiStyles(): void {
   useInsertionEffect(() => {
     if (installed || typeof document === 'undefined') return
     installed = true
     const el = document.createElement('style')
-    el.setAttribute('data-morphkit-ui', '')
+    el.setAttribute('data-pleatkit-ui', '')
     el.textContent = CSS
     document.head.appendChild(el)
   }, [])
 }
 
-/** The same CSS, for a shadow root (MorphkitUiRoot) where document-level styles do not reach. */
-export const MORPHKIT_UI_CSS = CSS
+/** The same CSS, for a shadow root (PleatkitUiRoot) where document-level styles do not reach. */
+export const PLEATKIT_UI_CSS = CSS

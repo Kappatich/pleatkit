@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Records the 60-second demo headless and converts it to docs/demo.mp4 (H.264, 1280x800).
 // Also refreshes site/demo.mp4 and site/poster.jpg.
-// 1. builds the demo, 2. runs e2e/demo-video.spec.ts with MORPHKIT_VIDEO=1 (Playwright recordVideo, scripted
+// 1. builds the demo, 2. runs e2e/demo-video.spec.ts with PLEATKIT_VIDEO=1 (Playwright recordVideo, scripted
 // provider paced for reading), 3. ffmpeg webm -> mp4, 4. prints ffprobe's duration and size.
 // Nothing is opened or played on screen. Requires ffmpeg and ffprobe on PATH.
 import { spawnSync } from 'node:child_process'
@@ -26,7 +26,7 @@ function run(cmd, args, options = {}) {
 
 if (!process.argv.includes('--skip-record')) {
   run('pnpm', ['exec', 'vite', 'build'], { cwd: app })
-  run('pnpm', ['exec', 'playwright', 'test', 'demo-video'], { cwd: app, env: { ...process.env, MORPHKIT_VIDEO: '1' } })
+  run('pnpm', ['exec', 'playwright', 'test', 'demo-video'], { cwd: app, env: { ...process.env, PLEATKIT_VIDEO: '1' } })
 }
 if (!fs.existsSync(webm)) {
   console.error(`no recording at ${webm}`)

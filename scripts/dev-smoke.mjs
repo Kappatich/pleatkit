@@ -12,7 +12,7 @@ const web = `http://localhost:${ports.WEB_PORT}`
 
 const child = spawn(process.execPath, [path.join(root, 'apps', 'demo-crm', 'scripts', 'dev.mjs')], {
   cwd: path.join(root, 'apps', 'demo-crm'),
-  env: { ...process.env, ...ports, MORPHKIT_STORE_DB: ':memory:', MORPHKIT_PROVIDER: 'scripted', PATH: `${path.join(root, 'apps', 'demo-crm', 'node_modules', '.bin')}${path.delimiter}${process.env.PATH}` },
+  env: { ...process.env, ...ports, PLEATKIT_STORE_DB: ':memory:', PLEATKIT_PROVIDER: 'scripted', PATH: `${path.join(root, 'apps', 'demo-crm', 'node_modules', '.bin')}${path.delimiter}${process.env.PATH}` },
   stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
 })
 let output = ''
@@ -73,10 +73,10 @@ try {
   await waitFor(`${web}/`)
   await waitFor(`${web}/api/health`)
   const agent = await (await waitFor(`${web}/agent/health`)).json()
-  await waitFor(`${web}/morphkit-store/health`)
+  await waitFor(`${web}/pleatkit-store/health`)
   console.log(`[dev-smoke] all four servers up through the Vite proxy in ${Date.now() - started} ms (agent provider: ${agent.provider})`)
 
-  const manifest = await (await fetch(`${web}/morphkit.manifest.json`)).json()
+  const manifest = await (await fetch(`${web}/pleatkit.manifest.json`)).json()
   const files = Object.fromEntries(manifest.dynamic.map((f) => [f.path, f.source]))
   const res = await fetch(`${web}/agent/run`, {
     method: 'POST',

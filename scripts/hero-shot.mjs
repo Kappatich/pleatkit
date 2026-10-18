@@ -10,7 +10,7 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
 page.on('pageerror', (e) => console.log('pageerror', e.message));
 /* global window */ // runs in the page
-await page.addInitScript(() => { window.__morphkitNoAutoplay = true; });
+await page.addInitScript(() => { window.__pleatkitNoAutoplay = true; });
 await page.goto(pathToFileURL(path.join(site, 'index.html')).href, { waitUntil: 'load' });
 await page.waitForTimeout(800);
 await page.screenshot({ path: path.join(out, 'hero-01-before.png'), clip: { x: 0, y: 0, width: 1280, height: 860 } });

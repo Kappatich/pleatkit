@@ -1,5 +1,5 @@
 /*
- * /admin is morphkit's own surface, design v3 "Swiss grid + timetable" (docs/DESIGN.md, DECISIONS 56, 61-62).
+ * /admin is pleatkit's own surface, design v3 "Swiss grid + timetable" (docs/DESIGN.md, DECISIONS 56, 61-62).
  * The tokens repeat the names of the drawer's (packages/ui/src/styles.ts) but are defined here: the demo does not
  * import the ui package's stylesheet. White paper, one red for what waits on the admin, rules instead of cards,
  * zero radius, tabular figures; uppercase only for column labels.

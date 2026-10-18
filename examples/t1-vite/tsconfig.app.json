@@ -14,7 +14,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client", "@morphkit/vite-plugin/client"],
+    "types": ["vite/client", "@pleatkit/vite-plugin/client"],
     "paths": { "@/*": ["./src/*"] },
 
     /* Linting */

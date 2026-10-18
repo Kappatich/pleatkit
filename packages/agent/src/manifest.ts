@@ -1,5 +1,6 @@
 import fs from 'node:fs'
-import { validateZoneGlob, type AgentRunRequest, type CompileContextWire, type FileMap, type MorphkitManifest } from '@morphkit/runtime/compiler'
+import { validateZoneGlob, type AgentRunRequest, type CompileContextWire, type FileMap, type PleatkitManifest } from '@pleatkit/runtime/compiler'
+import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /**
  * Where the agent server gets the app's manifest (code review 06 item 8): the context of the static rules
@@ -9,41 +10,42 @@ import { validateZoneGlob, type AgentRunRequest, type CompileContextWire, type F
  *
  * - a manifest object (tests, embedding),
  * - a function of the app id,
- * - `MORPHKIT_MANIFEST`: a path to `dist/morphkit.manifest.json` or an http(s) URL of it (re-read when it changes),
- *   `MORPHKIT_MANIFESTS`: `{ "<appId>": "<path or URL>" }` for several apps.
+ * - `PLEATKIT_MANIFEST`: a path to `dist/pleatkit.manifest.json` or an http(s) URL of it (re-read when it changes),
+ *   `PLEATKIT_MANIFESTS`: `{ "<appId>": "<path or URL>" }` for several apps.
  */
-export type ManifestSource = MorphkitManifest | ((appId: string) => MorphkitManifest | null | Promise<MorphkitManifest | null>)
+export type ManifestSource = PleatkitManifest | ((appId: string) => PleatkitManifest | null | Promise<PleatkitManifest | null>)
 
-const cache = new Map<string, { at: number; mtime: number; manifest: MorphkitManifest }>()
+const cache = new Map<string, { at: number; mtime: number; manifest: PleatkitManifest }>()
 
 /** Load a manifest from a file (re-read when its mtime changes) or a URL (cached 5 s). */
-export async function loadManifest(location: string, fetchFn: typeof fetch = (...a) => globalThis.fetch(...a)): Promise<MorphkitManifest> {
+export async function loadManifest(location: string, fetchFn: typeof fetch = (...a) => globalThis.fetch(...a)): Promise<PleatkitManifest> {
   const hit = cache.get(location)
   if (/^https?:\/\//.test(location)) {
     if (hit && Date.now() - hit.at < 5_000) return hit.manifest
     const res = await fetchFn(location, { signal: AbortSignal.timeout(5_000) })
     if (!res.ok) throw new Error(`could not load the app manifest from ${location}: ${res.status}`)
-    const manifest = (await res.json()) as MorphkitManifest
+    const manifest = (await res.json()) as PleatkitManifest
     cache.set(location, { at: Date.now(), mtime: 0, manifest })
     return manifest
   }
   const mtime = fs.statSync(location).mtimeMs
   if (hit && hit.mtime === mtime) return hit.manifest
-  const manifest = JSON.parse(fs.readFileSync(location, 'utf8')) as MorphkitManifest
-  if (manifest.version !== 1 || !Array.isArray(manifest.dynamicRoots)) throw new Error(`${location} is not a morphkit manifest`)
+  const manifest = JSON.parse(fs.readFileSync(location, 'utf8')) as PleatkitManifest
+  if (manifest.version !== 1 || !Array.isArray(manifest.dynamicRoots)) throw new Error(`${location} is not a pleatkit manifest`)
   cache.set(location, { at: Date.now(), mtime, manifest })
   return manifest
 }
 
-/** `MORPHKIT_MANIFEST` / `MORPHKIT_MANIFESTS` → a ManifestSource, or null when neither is set. */
+/** `PLEATKIT_MANIFEST` / `PLEATKIT_MANIFESTS` → a ManifestSource, or null when neither is set. */
 export function manifestSourceFromEnv(env: Record<string, string | undefined>): ManifestSource | null {
-  const one = env.MORPHKIT_MANIFEST
+  pleatkitEnv(env)
+  const one = env.PLEATKIT_MANIFEST
   let many: Record<string, string> | null = null
-  if (env.MORPHKIT_MANIFESTS) {
+  if (env.PLEATKIT_MANIFESTS) {
     try {
-      many = JSON.parse(env.MORPHKIT_MANIFESTS) as Record<string, string>
+      many = JSON.parse(env.PLEATKIT_MANIFESTS) as Record<string, string>
     } catch {
-      throw new Error('MORPHKIT_MANIFESTS must be JSON: {"<appId>": "<path or URL of morphkit.manifest.json>"}')
+      throw new Error('PLEATKIT_MANIFESTS must be JSON: {"<appId>": "<path or URL of pleatkit.manifest.json>"}')
     }
   }
   if (!one && !many) return null
@@ -53,13 +55,13 @@ export function manifestSourceFromEnv(env: Record<string, string | undefined>): 
   }
 }
 
-export async function resolveManifest(source: ManifestSource | null | undefined, appId: string): Promise<MorphkitManifest | null> {
+export async function resolveManifest(source: ManifestSource | null | undefined, appId: string): Promise<PleatkitManifest | null> {
   if (!source) return null
   return typeof source === 'function' ? await source(appId) : source
 }
 
 /** The compile context the server trusts, from its manifest. */
-export function contextFromManifest(m: MorphkitManifest, namespace: string): CompileContextWire {
+export function contextFromManifest(m: PleatkitManifest, namespace: string): CompileContextWire {
   return {
     alias: m.alias,
     externals: m.externals,
@@ -71,7 +73,7 @@ export function contextFromManifest(m: MorphkitManifest, namespace: string): Com
 }
 
 /** Panels of the release: dynamic files whose original source has a default export. */
-export function manifestPanels(m: MorphkitManifest): string[] {
+export function manifestPanels(m: PleatkitManifest): string[] {
   return m.dynamic.filter((f) => /\.(tsx|ts|jsx|js)$/.test(f.path) && /export\s+default\b|as\s+default\b/.test(f.source)).map((f) => f.path)
 }
 
@@ -85,7 +87,7 @@ export interface TrustedInput {
   protected: string[]
   base: FileMap
   /** The manifest, when the server has one (digests for the prompt). */
-  manifest: MorphkitManifest | null
+  manifest: PleatkitManifest | null
 }
 
 /**
@@ -105,7 +107,7 @@ export function validateClientContext(ctx: CompileContextWire): void {
 }
 
 /** What the run or compile may trust: the server manifest's view when there is one, else the checked body. */
-export function trustedInput(manifest: MorphkitManifest | null, appId: string, body: Pick<AgentRunRequest, 'context' | 'readonly' | 'coreTypes' | 'components'>): TrustedInput {
+export function trustedInput(manifest: PleatkitManifest | null, appId: string, body: Pick<AgentRunRequest, 'context' | 'readonly' | 'coreTypes' | 'components'>): TrustedInput {
   if (manifest) {
     const panels = manifestPanels(manifest)
     const components = [...new Set([...panels, ...body.components.filter((c) => manifest.dynamicRoots.some((r) => c.startsWith(r)))])].sort()

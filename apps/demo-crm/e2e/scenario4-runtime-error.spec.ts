@@ -10,7 +10,7 @@ test('scenario 4: a render-time throw shows the error boundary and rolls back au
   // compiles and evaluates fine, so the commit itself succeeds
   await expect(page.getByTestId('mk-status')).toContainText('Committed')
 
-  const crash = page.getByTestId('morphkit-crash')
+  const crash = page.getByTestId('pleatkit-crash')
   await expect(crash).toBeVisible()
   await expect(crash).toContainText('Deals table exploded while rendering')
   await expect(crash).toContainText('Rolling back automatically')
@@ -33,7 +33,7 @@ test('scenario 4b: "Roll back" in the crash banner reverts immediately', async (
   await openApp(page)
   await editFile(page, DEALS, fixture('deals-table.throws.tsx'))
   await page.getByTestId('mk-commit').click()
-  const crash = page.getByTestId('morphkit-crash')
+  const crash = page.getByTestId('pleatkit-crash')
   await expect(crash).toBeVisible()
   await crash.getByRole('button', { name: 'Roll back' }).click()
   await expect(crash).toBeHidden({ timeout: 2_000 })

@@ -8,7 +8,7 @@ const SECURE_APP = 'e2e-secure'
 test('A1: with user tokens the chat edit works end to end, and the development headers are refused for that app', async ({ page, request }) => {
   const calls: { url: string; auth: string | null }[] = []
   page.on('request', (r) => {
-    if (r.url().includes('/morphkit-store/') || r.url().includes('/agent/')) calls.push({ url: r.url(), auth: r.headers()['authorization'] ?? null })
+    if (r.url().includes('/pleatkit-store/') || r.url().includes('/agent/')) calls.push({ url: r.url(), auth: r.headers()['authorization'] ?? null })
   })
   await page.goto(`/?user=alice&app=${SECURE_APP}&auth=token`)
   await page.getByRole('button', { name: /Globex/ }).click()
@@ -27,17 +27,17 @@ test('A1: with user tokens the chat edit works end to end, and the development h
 
   // A3: in this mode the page runs only bundles signed by the app key; a bundle altered on the way is refused
   // and the original version is shown instead
-  const signature = (await (await request.get((await page.locator('script[data-morphkit-bundle]').first().getAttribute('src'))!.replace(/\.js$/, '.json'))).json()) as { sig?: string }
+  const signature = (await (await request.get((await page.locator('script[data-pleatkit-bundle]').first().getAttribute('src'))!.replace(/\.js$/, '.json'))).json()) as { sig?: string }
   expect(signature.sig).toBeTruthy()
-  await page.route('**/morphkit/b/**/*.css', (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '.x{background:url(https://evil.test/leak)}' }))
+  await page.route('**/pleatkit/b/**/*.css', (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '.x{background:url(https://evil.test/leak)}' }))
   await page.reload()
   await page.getByRole('button', { name: /Globex/ }).click()
   await expect(page.getByTestId('customer-card')).toBeVisible()
   await expect(page.getByTestId('customer-card').getByTestId('phone')).toHaveCount(0)
-  await page.unroute('**/morphkit/b/**/*.css')
+  await page.unroute('**/pleatkit/b/**/*.css')
 
   // anyone sending the development headers for this app is refused
-  const forged = await request.get('/morphkit-store/v1/heads/alice', { headers: { 'x-morphkit-user': 'alice', 'x-morphkit-app': SECURE_APP } })
+  const forged = await request.get('/pleatkit-store/v1/heads/alice', { headers: { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': SECURE_APP } })
   expect(forged.status()).toBe(401)
   const forgedAgent = await request.post('/agent/v1/run', { data: { userId: 'alice', appId: SECURE_APP, request: 'x', files: {}, context: { dynamicRoots: [], externals: [], externalPatterns: [], alias: {} } } })
   expect(forgedAgent.status()).toBe(401)
@@ -65,7 +65,7 @@ test('A4: an off-topic request gets one fixed reply and changes nothing', async 
 test('A4: over the daily edit limit of the plan (per-app data), the next request is refused politely', async ({ page, request }) => {
   await openCrm(page)
   const app = appFor(page)
-  const plan = await request.put('/morphkit-store/v1/admin/plan', { headers: { 'x-morphkit-admin': '1', 'x-morphkit-app': app }, data: { plan: 'trial', limits: { userDailyEdits: 1 } } })
+  const plan = await request.put('/pleatkit-store/v1/admin/plan', { headers: { 'x-pleatkit-admin': '1', 'x-pleatkit-app': app }, data: { plan: 'trial', limits: { userDailyEdits: 1 } } })
   expect(plan.ok()).toBe(true)
   const first = await ask(page, SCENARIO_1)
   await expect(first.turn).toHaveAttribute('data-status', 'applied')

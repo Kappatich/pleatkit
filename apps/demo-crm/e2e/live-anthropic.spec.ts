@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test'
 import { ask, openCrm, recordMetrics } from './chat-helpers'
 import { shot } from './helpers'
 
-// Opt-in: MORPHKIT_LIVE=1 and a key in MORPHKIT_API_KEY (or ANTHROPIC_API_KEY). Spends real tokens.
-test.skip(process.env.MORPHKIT_LIVE !== '1', 'live Anthropic run: set MORPHKIT_LIVE=1 and MORPHKIT_API_KEY')
+// Opt-in: PLEATKIT_LIVE=1 and a key in PLEATKIT_API_KEY (or ANTHROPIC_API_KEY). Spends real tokens.
+test.skip(process.env.PLEATKIT_LIVE !== '1', 'live Anthropic run: set PLEATKIT_LIVE=1 and PLEATKIT_API_KEY')
 
 test('live: scenario 1 on claude-sonnet-5-5 through the chat, request to re-render', async ({ page }) => {
   await openCrm(page)
