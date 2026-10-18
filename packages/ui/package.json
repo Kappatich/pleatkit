@@ -1,8 +1,12 @@
 {
   "name": "@pleatkit/ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Chat drawer, element picker, history and toasts for pleatkit",
   "license": "MIT",
+  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/ui#readme",
+  "bugs": {
+    "url": "https://github.com/Kappatich/pleatkit/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Kappatich/pleatkit.git",
@@ -19,11 +23,13 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
