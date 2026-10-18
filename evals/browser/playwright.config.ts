@@ -42,6 +42,8 @@ export default defineConfig({
       },
       url: `http://localhost:${AGENT_PORT}/agent/health`,
       reuseExistingServer: false,
+      // the agent's compile log lines go into the grader's output (crm-07, DECISIONS 70.8)
+      stdout: 'pipe',
     },
     {
       command: 'node ../../packages/store-server/dist/cli.js',

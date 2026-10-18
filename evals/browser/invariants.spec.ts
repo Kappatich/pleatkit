@@ -51,6 +51,14 @@ for (const c of cases) {
     const problems: string[] = []
     const pageErrors: string[] = []
     page.on('pageerror', (e) => pageErrors.push(e.message))
+    // crm-07 (DECISIONS 70.8): every bundle and compile request with its status and timing, written next to the
+    // result and quoted in it when the commit fails, so a load failure says which file failed and how
+    const t0 = Date.now()
+    const net: string[] = []
+    const watched = (url: string) => /\/pleatkit\/b\/|\/agent\/v1\/compile/.test(url)
+    page.on('response', (r) => void (watched(r.url()) && net.push(`${Date.now() - t0}ms ${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`)))
+    page.on('requestfailed', (r) => void (watched(r.url()) && net.push(`${Date.now() - t0}ms FAILED ${r.method()} ${new URL(r.url()).pathname}: ${r.failure()?.errorText ?? ''}`)))
+    page.on('console', (m) => void (m.type() === 'error' && net.push(`${Date.now() - t0}ms console: ${m.text().slice(0, 200)}`)))
     const app = `eval-${c.taskId}-${Date.now().toString(36)}`
     await page.goto(`/?user=alice&app=${app}&eval=1`)
     await page.waitForFunction(() => {
@@ -77,7 +85,7 @@ for (const c of cases) {
         },
         { files: c.files, deleted: c.deleted },
       )
-      if (!committed.ok) problems.push(`commit rejected: ${committed.error?.slice(0, 300)}`)
+      if (!committed.ok) problems.push(`commit rejected: ${committed.error?.slice(0, 300)} [network: ${net.join(' | ').slice(0, 600)}]`)
       // let React paint the swapped modules, and a render-time throw reach the error boundary
       await page.waitForTimeout(400)
     }
@@ -94,6 +102,7 @@ for (const c of cases) {
     if (outDir) {
       fs.mkdirSync(outDir, { recursive: true })
       fs.writeFileSync(path.join(outDir, `${c.taskId}.json`), JSON.stringify(result))
+      fs.writeFileSync(path.join(outDir, `${c.taskId}.net.log`), net.join('\n') + '\n')
     }
   })
 }
