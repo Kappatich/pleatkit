@@ -8,7 +8,7 @@ import { buildManifest, type PleatkitManifest, type PleatkitOptions } from '@ple
 export type Status = 'ok' | 'warn' | 'fail'
 
 export interface Finding {
-  id: 'config' | 'react' | 'panels' | 'externals' | 'csp' | 'secrets' | 'secure-context' | 'context-budget'
+  id: 'config' | 'react' | 'panels' | 'release' | 'externals' | 'csp' | 'secrets' | 'secure-context' | 'context-budget'
   status: Status
   title: string
   details: string[]
@@ -24,7 +24,15 @@ export interface DoctorOptions {
   pleatkitOptions?: PleatkitOptions
   /** Where the app is served (`--url`): plain http:// on another host than localhost has no WebCrypto. */
   url?: string
+  /** Environment (default process.env): PLEATKIT_API_KEY lets the context check count tokens with the API (free). */
+  env?: Record<string, string | undefined>
+  /** For tests: the agent package (default: `@pleatkit/agent` when installed), or null for none. */
+  agent?: AgentModule | null
 }
+
+type AgentModule = Pick<typeof import('@pleatkit/agent'), 'Workspace' | 'trustedInput' | 'countPromptTokens' | 'sampleRequest' | 'formatErrors'>
+
+const loadAgent = async (): Promise<AgentModule | null> => (await import('@pleatkit/agent').catch(() => null)) as AgentModule | null
 
 export interface LoadedConfig {
   file: string | null
@@ -230,10 +238,13 @@ export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'b
 
 // --- context budget (brainstorm 04 §1, §8 item 12) ---
 
-/** Rough token count of text for budgeting (about 3.5 characters per token for code). */
-export const estimateTokens = (text: string): number => Math.ceil(text.length / 3.5)
-/** Size of the agent's own instructions and tool definitions, tokens (measured on PROMPT_VERSION 2026-10-18.4c1). */
-export const INSTRUCTION_TOKENS = 2_700
+/**
+ * Rough token count of code for budgeting: about 2.2 characters per token (DECISIONS 73.5: counted with the API on
+ * the demo and the two foreign apps, 2.1 to 2.5; the old 3.5 underestimated an app's prefix by 40 %).
+ */
+export const estimateTokens = (text: string): number => Math.ceil(text.length / 2.2)
+/** The agent's own instructions and tool definitions, tokens (counted with the API on PROMPT_VERSION 2026-10-18.5a). */
+export const INSTRUCTION_TOKENS = 3_500
 export const CACHED_TARGET = 20_000
 export const TAIL_TARGET = 6_000
 
@@ -262,6 +273,55 @@ export function checkContextBudget(manifest: PleatkitManifest): Finding {
   return over
     ? { id: 'context-budget', status: 'warn', title: 'the context of one edit is larger than the target', details, fix: 'move large files out of readonly (the agent sees core files as .d.ts only), split big dynamic files into one panel per file, or list fewer externals' }
     : { id: 'context-budget', status: 'ok', title: `context of one edit: ≈${cached.toLocaleString('en')} cached + ${tail.toLocaleString('en')} per request tokens`, details }
+}
+
+/**
+ * DECISIONS 73.5: the same budget counted by the API's token counter (`count_tokens`, free) when PLEATKIT_API_KEY is
+ * set and `@pleatkit/agent` is installed: the exact prompt the agent server builds for this app. Otherwise, or when the
+ * counter is not reachable, the estimate above.
+ */
+export async function measureContextBudget(manifest: PleatkitManifest, env: Record<string, string | undefined>, agent: AgentModule | null): Promise<Finding> {
+  const estimate = checkContextBudget(manifest)
+  const key = env.PLEATKIT_API_KEY
+  if (!key || !agent) {
+    return { ...estimate, details: [...estimate.details, key ? 'estimated: install @pleatkit/agent to count with the API' : 'estimated (about 3 characters per token); with PLEATKIT_API_KEY set, doctor counts with the API token counter (free)'] }
+  }
+  try {
+    const c = await agent.countPromptTokens(manifest, { apiKey: key, ...(env.PLEATKIT_BASE_URL ? { baseURL: env.PLEATKIT_BASE_URL } : {}), ...(env.PLEATKIT_MODEL ? { model: env.PLEATKIT_MODEL } : {}) })
+    const over = c.prefixTokens > CACHED_TARGET || c.tailTokens > TAIL_TARGET
+    const details = [
+      `cached prefix ${c.prefixTokens.toLocaleString('en')} tokens (tools, instructions, digests, readonly sources, core types), counted by the API for ${c.model}, prompt ${c.promptVersion}; target ≤ ${CACHED_TARGET.toLocaleString('en')}`,
+      `tail ${c.tailTokens.toLocaleString('en')} tokens (${manifest.dynamic.length} dynamic files and a short request); target ≤ ${TAIL_TARGET.toLocaleString('en')}`,
+      ...estimate.details.filter((d) => d.startsWith('largest in the prefix')),
+    ]
+    const title = `context of one edit: ${c.prefixTokens.toLocaleString('en')} cached + ${c.tailTokens.toLocaleString('en')} per request tokens (counted)`
+    return over ? { id: 'context-budget', status: 'warn', title: `the context of one edit is larger than the target (${c.prefixTokens.toLocaleString('en')} cached + ${c.tailTokens.toLocaleString('en')} per request tokens, counted)`, details, fix: estimate.fix ?? 'move large files out of readonly' } : { id: 'context-budget', status: 'ok', title, details }
+  } catch (e) {
+    return { ...estimate, details: [...estimate.details, `estimated: the API token counter failed (${(e as Error).message.split('\n')[0]!.slice(0, 160)})`] }
+  }
+}
+
+// --- the release's own panels pass check (stage 5, foreign apps) ---
+
+/**
+ * Every edit is checked with the whole dynamic zone, so a panel of the release that the check refuses (an `<img src>`
+ * taken from data, a computed URL) makes every edit fail ("Something went wrong on our side"). Runs the agent
+ * server's check on the release's files when `@pleatkit/agent` is installed.
+ */
+export async function checkRelease(manifest: PleatkitManifest, agent: AgentModule | null): Promise<Finding> {
+  if (!agent) return { id: 'release', status: 'warn', title: 'the panels were not checked: @pleatkit/agent is not installed', details: [], fix: 'pnpm add -D @pleatkit/agent (install.md step 2), then run doctor again' }
+  const req = agent.sampleRequest(manifest)
+  const trusted = agent.trustedInput(manifest, 'doctor', req)
+  const ws = new agent.Workspace({ ...req, protected: trusted.protected, base: trusted.base })
+  const r = await ws.check()
+  if (r.ok) return { id: 'release', status: 'ok', title: `the release's ${manifest.dynamic.length} dynamic file${manifest.dynamic.length === 1 ? ' passes' : 's pass'} the agent's check (compile and static rules)`, details: [] }
+  return {
+    id: 'release',
+    status: 'fail',
+    title: `the release's own panels do not pass the agent's check: every edit would be refused`,
+    details: agent.formatErrors(r.errors).split('\n').slice(0, 8),
+    fix: 'change these lines in the dynamic files (an image or link URL from data: build it from a relative path written in the code, e.g. src={`/images/${row.file}`}; see troubleshooting.md "Every edit fails")',
+  }
 }
 
 // --- secure context (code review 06 item 4) ---
@@ -364,8 +424,10 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
       if (manifest.dynamic.length === 0) {
         findings.push({ id: 'panels', status: 'fail', title: `the dynamic zone (${config.options.zones.dynamic.join(', ')}) has no files`, details: [], fix: 'move the panels users may change into src/dynamic/<id>.tsx' })
       } else findings.push(checkPanels(root, manifest))
+      const agent = options.agent === undefined ? await loadAgent() : options.agent
+      if (manifest.dynamic.length) findings.push(await checkRelease(manifest, agent).catch((e: Error) => ({ id: 'release' as const, status: 'warn' as const, title: `the panels could not be checked: ${e.message.split('\n')[0]}`, details: [] })))
       findings.push(checkExternals(root, manifest))
-      findings.push(checkContextBudget(manifest))
+      findings.push(await measureContextBudget(manifest, options.env ?? process.env, agent))
     }
   }
   findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server'))
