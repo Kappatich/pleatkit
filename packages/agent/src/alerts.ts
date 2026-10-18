@@ -1,7 +1,6 @@
 import type { AgentResult } from '@pleatkit/runtime/compiler'
 import type { Identity } from './auth.js'
 import type { StoreClient } from './store-client.js'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /**
  * Real-time alerts and automatic freezes (brainstorm 05 #5, 12 B7): nobody watches the dashboard on a Sunday
@@ -228,7 +227,6 @@ export class Alerts {
 
 /** PLEATKIT_ALERT_WEBHOOK, PLEATKIT_ALERT_EMAIL_URL + _TO (+ _TOKEN), PLEATKIT_FREEZE ('off' or JSON policy). */
 export function alertsFromEnv(env: Record<string, string | undefined>): Pick<AlertsOptions, 'sinks' | 'freeze'> {
-  pleatkitEnv(env)
   const sinks: AlertSink[] = []
   if (env.PLEATKIT_ALERT_WEBHOOK) sinks.push(new WebhookSink(env.PLEATKIT_ALERT_WEBHOOK))
   if (env.PLEATKIT_ALERT_EMAIL_URL) {

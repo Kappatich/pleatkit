@@ -21,5 +21,3 @@ export { HeadConflictError, StoreUnavailableError, withTimeout } from './errors.
 export { sha256Bytes, sha384Bytes, digest, hasWebCrypto } from './sha.js'
 export { APPLY_VERDICTS } from './protocol.js'
 export type { CompileOptions } from './compiler.js'
-/** @deprecated Renamed to `PLEATKIT_FRAME` (DECISIONS 68); removed in the next minor version. */
-export { PLEATKIT_FRAME as MORPHKIT_FRAME } from './compiler.js'

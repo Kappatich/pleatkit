@@ -17,7 +17,7 @@ export { track, telemetryStatus, sanitizeProps, TELEMETRY_ENDPOINT, type Telemet
 
 export const MANIFEST_FILE = 'pleatkit.manifest.json'
 /** Version reported in telemetry events (F8). */
-export const PLUGIN_VERSION = '0.1.0'
+export const PLUGIN_VERSION = '0.2.0'
 /** Dev-server path of the isolated-panel host script (under `base`). */
 export const ISOLATED_DEV_PATH = '@pleatkit/isolated-host.js'
 /** Built file name prefix of the isolated-panel host script (`assets/pleatkit-isolated-host-<hash>.js`). */
@@ -132,25 +132,6 @@ export default function pleatkit(options: PleatkitOptions): PleatkitVitePlugin {
   return createPlugin(options) as unknown as PleatkitVitePlugin
 }
 
-// Pre-rename names (DECISIONS 68), kept for one release and removed in the next minor version.
-/** @deprecated Renamed: `import pleatkit from '@pleatkit/vite-plugin'`. */
-export const morphkit = pleatkit
-/** @deprecated Renamed to `PleatkitVitePlugin`. */
-export type MorphkitVitePlugin = PleatkitVitePlugin
-/** @deprecated Renamed to `PleatkitOptions`. */
-export type MorphkitOptions = PleatkitOptions
-/** @deprecated Renamed to `PleatkitManifest`. */
-export type MorphkitManifest = PleatkitManifest
-/** @deprecated The pre-rename virtual module ids (`virtual:morphkit/...`) resolve to `virtual:pleatkit/...` for one release. */
-export const LEGACY_VIRTUAL_PREFIX = 'virtual:morphkit'
-
-/** `virtual:morphkit/x` → `virtual:pleatkit/x`, or null for any other id. */
-export function legacyVirtualId(id: string): string | null {
-  if (id !== LEGACY_VIRTUAL_PREFIX && !id.startsWith(`${LEGACY_VIRTUAL_PREFIX}/`)) return null
-  const next = 'virtual:pleatkit' + id.slice(LEGACY_VIRTUAL_PREFIX.length)
-  return (MODULES as readonly string[]).includes(next) ? next : null
-}
-
 function createPlugin(options: PleatkitOptions): Plugin {
   const o = resolveOptions(options)
   let config: ResolvedConfig
@@ -160,7 +141,6 @@ function createPlugin(options: PleatkitOptions): Plugin {
   let isolatedCode: Promise<string> | null = null
   const inZones = picomatch([...o.dynamic, ...o.readonly])
   let tracked = false
-  let warnedLegacy = false
 
   const getManifest = (): PleatkitManifest => (manifest ??= buildManifest(root, options))
 
@@ -258,12 +238,6 @@ function createPlugin(options: PleatkitOptions): Plugin {
 
     resolveId(id) {
       if ((MODULES as readonly string[]).includes(id)) return RESOLVED_PREFIX + id
-      const renamed = legacyVirtualId(id)
-      if (renamed) {
-        if (!warnedLegacy) config?.logger.warn(`[pleatkit] "${id}" is deprecated: import "${renamed}" (the old ids are removed in the next release)`)
-        warnedLegacy = true
-        return RESOLVED_PREFIX + renamed
-      }
       return null
     },
 

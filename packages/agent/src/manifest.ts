@@ -1,6 +1,5 @@
 import fs from 'node:fs'
 import { validateZoneGlob, type AgentRunRequest, type CompileContextWire, type FileMap, type PleatkitManifest } from '@pleatkit/runtime/compiler'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /**
  * Where the agent server gets the app's manifest (code review 06 item 8): the context of the static rules
@@ -38,7 +37,6 @@ export async function loadManifest(location: string, fetchFn: typeof fetch = (..
 
 /** `PLEATKIT_MANIFEST` / `PLEATKIT_MANIFESTS` → a ManifestSource, or null when neither is set. */
 export function manifestSourceFromEnv(env: Record<string, string | undefined>): ManifestSource | null {
-  pleatkitEnv(env)
   const one = env.PLEATKIT_MANIFEST
   let many: Record<string, string> | null = null
   if (env.PLEATKIT_MANIFESTS) {

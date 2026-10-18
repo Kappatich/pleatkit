@@ -2,9 +2,7 @@ import path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
-pleatkitEnv(process.env)
 const here = path.dirname(fileURLToPath(import.meta.url))
 const DATA_PORT = '8798'
 const AGENT_PORT = '8799'

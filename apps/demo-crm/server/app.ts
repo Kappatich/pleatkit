@@ -1,11 +1,9 @@
 import { Hono } from 'hono'
 import { mintUserToken, publicKeyFromAppKey } from '@pleatkit/store-server/token'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 import { seed, type Meta } from './data.js'
 
 /** In-memory demo data API. `meta` is a free-form JSON object on every entity. */
 export function createApp() {
-  pleatkitEnv(process.env)
   const db = seed()
   const app = new Hono().basePath('/api')
 

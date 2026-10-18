@@ -7,7 +7,6 @@ import { globSync } from 'tinyglobby'
 import { validateZoneGlob } from '@pleatkit/runtime/compiler'
 import { emitDeclarations } from './declarations.js'
 import { tailwindInput } from './tailwind.js'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 export interface ZonesOptions {
   /** Globs (relative to project root) the agent may edit; compiled at runtime. */
@@ -137,7 +136,7 @@ export function resolveOptions(options: PleatkitOptions) {
     tailwindEntry: options.tailwindEntry ?? 'src/index.css',
     isolated: options.isolated ?? false,
     compile: options.compile ?? 'server',
-    publicKey: options.publicKey ?? pleatkitEnv(process.env).PLEATKIT_PUBLIC_KEY ?? null,
+    publicKey: options.publicKey ?? process.env.PLEATKIT_PUBLIC_KEY ?? null,
     lazyExternals: options.lazyExternals ?? true,
     protected: options.protected ?? [],
     isolateEdits: options.isolateEdits ?? false,

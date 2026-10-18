@@ -1,8 +1,12 @@
 {
   "name": "@pleatkit/vite-plugin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vite plugin for pleatkit: zones, manifest, externals registry and fallback bundle for runtime-editable UI",
   "license": "MIT",
+  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/vite-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/Kappatich/pleatkit/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Kappatich/pleatkit.git",
@@ -23,10 +27,12 @@
   },
   "files": [
     "dist",
-    "client.d.ts"
+    "client.d.ts",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

@@ -4,7 +4,6 @@ import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { globSync } from 'tinyglobby'
 import { buildManifest, type PleatkitManifest, type PleatkitOptions } from '@pleatkit/vite-plugin'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 export type Status = 'ok' | 'warn' | 'fail'
 
@@ -370,7 +369,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
     }
   }
   findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server'))
-  findings.push(checkSecureContext(options.url, config.served, Boolean(config.options?.publicKey ?? pleatkitEnv(process.env).PLEATKIT_PUBLIC_KEY)))
+  findings.push(checkSecureContext(options.url, config.served, Boolean(config.options?.publicKey ?? process.env.PLEATKIT_PUBLIC_KEY)))
   findings.push(checkSecrets(root, dist))
   return findings
 }

@@ -28,6 +28,5 @@ export { DevPanel } from './dev-panel.js'
 export { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGES, MAX_AGENT_IMAGE_BYTES, MAX_TARGET_DOM_CHARS, APPLY_VERDICTS } from './protocol.js'
 export * from './security.js'
 // pre-rename names, one release (DECISIONS 68)
-export * from './deprecated.js'
 export { applyQuotaOps, refill, daily, type QuotaOp, type QuotaOutcome, type BucketSpec, type BucketState } from './quota.js'
 export { panelDomSnapshot, serializeDom, maskPii, PRIVATE_ATTR, type DomLike, type DomContextOptions } from './dom-context.js'

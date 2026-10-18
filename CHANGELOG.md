@@ -2,7 +2,65 @@
 
 All notable changes to the pleatkit packages. Versions follow semver; while they are `0.x`, a minor version may
 break, and every break is marked **Breaking** with its migration step. Policy: README, "Changelog and breaking
-changes". Nothing is published to npm yet; the entries below are the state of `main`.
+changes". Nothing is published to npm yet. 0.2.0 is the first public release; it contains everything below, the
+"Unreleased" sections included (they are the stages that led to it).
+
+## 0.2.0 (prepared 2026-10-18, not published yet)
+
+### Added
+- **The store is open source.** `@pleatkit/store-server` is MIT and published (DECISIONS 70.1): snapshots, heads,
+  bundles, the request log, quotas and per-app limits, usage events, the audit chain, roles and "view as", flags and
+  the kill switch, the report, releases and carry-over runs, code search, export, erasure. Self-host: the open
+  store. Cloud: the same core plus the private `@pleatkit/store-cloud`, which plugs in through `StoreExtension`
+  (`createStoreApp(db, { extensions })`: tables, routes, jobs, hooks); `runMaintenance` runs the core's and the
+  extensions' hourly jobs; the `pleatkit-store` binary loads `PLEATKIT_STORE_EXTENSIONS` (`none` for the open core
+  only; unset: `@pleatkit/store-cloud` when installed).
+- **Erasure** (DECISIONS 70.2): `DELETE /v1/admin/users/:id` and `DELETE /v1/admin/apps/:id`, admin only, with a
+  confirm token for the counts shown (409 `confirm-required` without it); one transaction deletes the subject's
+  snapshots, heads, requests, usage events, bundles, run records, idempotent replies, quota buckets, flags,
+  carry-over rows, wish-map references and the extensions' rows; an audit tombstone (`erase.user` / `erase.app`,
+  counts, a random id, no personal data) stays. `pleatkit erase --user <id> --app <id> | --app <id> [--confirm]`.
+  `docs/security/retention.md` and the DPA template's erasure clause (section 10).
+- **Wish map limits** (DECISIONS 70.3): one clustering call reads at most 500 requests (the newest) and costs at
+  most $0.50 by the estimate before the call; what does not fit the budget is grouped without the model.
+  `PLEATKIT_WISHES_MAX_ITEMS`, `PLEATKIT_WISHES_BUDGET_USD`, `pleatkit digest --wishes-max-items
+  --wishes-budget-usd`; `GET /v1/admin/wish-items?limit=` (default 500, at most 2000) also returns `total`.
+  `ModelProvider.clusterModel` (optional) names the model the estimate prices.
+- `scripts/release-check.mjs`: build, tests, the version matrix, package metadata and a dry-run publish.
+- A README and the MIT `LICENSE` in every public package.
+
+### Changed
+- **Breaking (support role):** `x-pleatkit-act-as` writes are for `admin` only (DECISIONS 70.5); a `support` token
+  gets 403 `support-read-only` on every write while acting as a user (reads unchanged), and the refused attempt is
+  audited. Migration: support asks an admin, or the user restores the version in the drawer.
+- **Carry-over cap per user** (DECISIONS 70.4): without `--per-user-usd`, `pleatkit carry-over` caps each migration
+  at the `perEditUsd` of the app's plan in store-server (else `PLEATKIT_PLAN` / `PLEATKIT_LIMITS`, else `free`); the
+  command prints the cap and where it came from.
+- **Breaking (store, cloud-only data):** the learning layer moved to `@pleatkit/store-cloud`: `request_facts`,
+  `app_salts`, `PUT /v1/admin/learning`, the `learning` field of `/v1/admin/settings` and `PLEATKIT_LEARNING`. The
+  open store has none of them (they were `off` by default); the flag now lives in `learning_settings` and is copied
+  from the old `app_settings.learning` column once. `applyRetention` no longer deletes facts (`applyFactsRetention`
+  in the cloud package). `sweepAlive24h` takes an `onAlive` callback instead of writing facts.
+- `GET /v1/admin/wish-items` filters in SQL (it used to read 2000 rows and filter them), newest first.
+- Package builds empty `dist` first, so a removed module never ships from an old build.
+
+### Fixed
+- **A compiled bundle is in the store before "compiled" is answered** (DECISIONS 70.8): the agent server cached a
+  bundle before store-server had it, so a second compile of the same key answered at once and the browser could ask
+  for a bundle the store did not have yet; a failed store write stayed cached and was never retried. Compiles of one
+  key now wait for one store write, and a failed write is not cached.
+- The weekly digest and the wish map read the store's range up to and including the current millisecond (`to` is
+  exclusive), so a request logged in the same millisecond is counted.
+
+### Removed
+- **Breaking:** the compatibility names of the rename (DECISIONS 69), kept for one release only: the `Morphkit*`
+  aliases (`MorphkitEngine`, `MorphkitProvider`, `useMorphkit*`, `MorphkitUiRoot`, `MORPHKIT_FRAME`, the
+  `Morphkit*` types; the named `morphkit` export of the Vite plugin), the `morphkit` and `morphkit-agent` binaries,
+  `virtual:morphkit/*`, the `x-morphkit-*` request headers, the `MORPHKIT_*` environment fallback and
+  `@pleatkit/runtime/env` (`pleatkitEnv`), the `morphkit.enabled` kill-switch key, `?morphkit=safe`, the
+  `morphkit:boot:*` migration, the one-time copy of IndexedDB `morphkit*` and the `~/.morphkit` telemetry id.
+  Nothing was published under the old name; migration: the recipe under "Renamed" below. The three aliases in
+  `@pleatkit/ui` (`MorphkitChat`, `MorphkitChatProps`, `useMorphkitUiStyles`) go with `docs/release/ui-0.2.patch`.
 
 ## Unreleased (stage 4c block 2, 2026-10-18)
 

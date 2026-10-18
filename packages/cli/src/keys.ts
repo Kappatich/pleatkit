@@ -1,5 +1,4 @@
 import { isAppKey, newAppKey, publicKeyFromAppKey, toBase64Url } from '@pleatkit/runtime/security'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /** `pleatkit keys new | public` (V1 A1, A3). */
 export async function keys(sub: string | undefined, env: Record<string, string | undefined>): Promise<{ ok: boolean; lines: string[] }> {
@@ -18,7 +17,7 @@ export async function keys(sub: string | undefined, env: Record<string, string |
     }
   }
   if (sub === 'public') {
-    const key = pleatkitEnv(env).PLEATKIT_APP_KEY
+    const key = env.PLEATKIT_APP_KEY
     if (!isAppKey(key)) return { ok: false, lines: ['Set PLEATKIT_APP_KEY (mk_live_…) in the environment first.'] }
     return { ok: true, lines: [await publicKeyFromAppKey(key)] }
   }
