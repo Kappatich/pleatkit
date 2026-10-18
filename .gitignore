@@ -12,3 +12,6 @@ coverage/
 .DS_Store
 .morphkit/
 docs/.video/
+# eval harness: per-run results and Playwright output (the report and the baseline are committed)
+evals/results/
+evals/.out/

@@ -1,0 +1,20 @@
+{
+  "id": "crm-02-deal-discount",
+  "app": "demo-crm",
+  "title": "Discount recalculated on the server goes to the administrator",
+  "scenario": "Scenario 2: needs the server",
+  "request": "Add a discount field to deals and recalculate the amount on the server",
+  "expected": {
+    "verdict": "needs-backend",
+    "change": false
+  },
+  "invariants": {
+    "predicates": [
+      "plain-summary"
+    ]
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "scenario-2-deal-discount"
+  }
+}

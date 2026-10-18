@@ -84,6 +84,9 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
       resolveModuleNameLiterals: (literals, containingFile) =>
         literals.map((lit) => {
           const spec = lit.text
+          // inside a package's own .d.ts (react/jsx-runtime.d.ts imports "./"), resolve on disk: resolving it
+          // against the virtual files lost the JSX namespace, so every JSX element became `any` and `key` an error
+          if (root && !virtual.has(containingFile)) return ts.resolveModuleName(spec, containingFile, { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)
           const virtualHost: ts.ModuleResolutionHost = { fileExists: (f) => exists(f), readFile: (f) => virtual.get(f) }
           const local = ts.resolveModuleName(spec, containingFile, compilerOptions, virtualHost)
           if (local.resolvedModule) return local

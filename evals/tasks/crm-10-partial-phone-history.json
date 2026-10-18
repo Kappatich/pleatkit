@@ -1,0 +1,57 @@
+{
+  "id": "crm-10-partial-phone-history",
+  "app": "demo-crm",
+  "title": "Phone in the card, phone history on the server",
+  "scenario": "Verdict partial: the screen part is done, the rest goes to the administrator",
+  "request": "Show the customer's phone in the card and keep a phone history on the server for every change",
+  "expected": {
+    "verdict": "partial",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/customer-card.tsx",
+        "mustContain": [
+          "data-testid=\"customer-card\"",
+          "data-testid=\"due-date\"",
+          "export default function CustomerCard",
+          "{ customer }: { customer: Customer }",
+          "data-testid=\"phone\""
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/deals-table.tsx",
+      "src/dynamic/dashboard-panels.tsx"
+    ],
+    "predicates": [
+      "backend-note",
+      "plain-summary"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "phone",
+          "within": "customer-card",
+          "text": "+1 555 0102"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/customer-card.tsx": "evals/references/customer-card.phone.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "eval-partial-phone-history"
+  }
+}

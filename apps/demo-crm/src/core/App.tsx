@@ -66,6 +66,7 @@ function Crm() {
       {...(AUTH === 'token' ? { token: (o?: { refresh?: boolean }) => tokenFor(user, 'user', o?.refresh), onAuthExpired: () => tokenFor(user, 'user', true) } : {})}
     >
       <RefreshOnFocus />
+      {EVAL_HOOK ? <EvalHook /> : null}
       {/* Leave room for the fixed dev panel so it does not cover the panels being edited. */}
       <div className="min-h-screen" style={dev ? { paddingRight: 580 } : undefined}>
         <header className="border-b border-border bg-card">
@@ -105,6 +106,24 @@ function Crm() {
       )}
     </MorphkitProvider>
   )
+}
+
+/**
+ * `?eval=1`: the eval harness's browser grader (evals/browser) commits an agent result through this engine, the
+ * same `draft.commit('agent')` the chat runs after an answer, then checks the rendered panels.
+ */
+const EVAL_HOOK = new URLSearchParams(location.search).get('eval') === '1'
+
+function EvalHook() {
+  const engine = useMorphkit()
+  useEffect(() => {
+    const w = window as unknown as { __morphkitEval?: unknown }
+    w.__morphkitEval = engine
+    return () => {
+      delete w.__morphkitEval
+    }
+  }, [engine])
+  return null
 }
 
 /** Pick up changes made elsewhere (an admin rolled this user back) when the tab regains focus. */

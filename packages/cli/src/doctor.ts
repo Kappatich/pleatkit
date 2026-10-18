@@ -232,8 +232,8 @@ export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'b
 
 /** Rough token count of text for budgeting (about 3.5 characters per token for code). */
 export const estimateTokens = (text: string): number => Math.ceil(text.length / 3.5)
-/** Size of the agent's own instructions and tool definitions, tokens (measured on PROMPT_VERSION 2026-10-18.4b). */
-export const INSTRUCTION_TOKENS = 2_400
+/** Size of the agent's own instructions and tool definitions, tokens (measured on PROMPT_VERSION 2026-10-18.4c1). */
+export const INSTRUCTION_TOKENS = 2_700
 export const CACHED_TARGET = 20_000
 export const TAIL_TARGET = 6_000
 

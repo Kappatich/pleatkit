@@ -1,0 +1,73 @@
+{
+  "id": "crm-07-screenshot-target",
+  "app": "demo-crm",
+  "title": "Fields like on my screenshot, panel pointed",
+  "scenario": "Stage 3b: a screenshot and a pointed panel",
+  "request": "add phone, city and source like on my screenshot",
+  "target": "customer-card",
+  "targetDom": "<div data-testid=\"customer-card\"><div><h3>[text:18]</h3><span>[text:6]</span></div><p>[text:19]</p><dl><dt>[text:12]</dt><dd data-testid=\"due-date\">[text:11]</dd></dl></div>",
+  "images": [
+    "evals/tasks/assets/card-sketch.png"
+  ],
+  "expected": {
+    "verdict": "ok",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/customer-card.tsx",
+        "mustContain": [
+          "data-testid=\"customer-card\"",
+          "data-testid=\"due-date\"",
+          "export default function CustomerCard",
+          "{ customer }: { customer: Customer }",
+          "data-testid=\"phone\""
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/deals-table.tsx",
+      "src/dynamic/dashboard-panels.tsx"
+    ],
+    "predicates": [
+      "images-received",
+      "target-dom-received",
+      "plain-summary"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "phone",
+          "within": "customer-card",
+          "text": "+1 555 0102"
+        },
+        {
+          "testid": "city",
+          "within": "customer-card",
+          "text": "Springfield"
+        },
+        {
+          "testid": "source",
+          "within": "customer-card",
+          "text": "Referral"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/customer-card.tsx": "apps/demo-crm/e2e/fixtures/customer-card.scenario1.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "scenario-1-customer-card-fields"
+  }
+}

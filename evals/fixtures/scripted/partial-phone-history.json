@@ -1,0 +1,26 @@
+{
+  "name": "eval-partial-phone-history",
+  "description": "Eval: the screen part (show the phone) is done; keeping a history of phone changes needs the server.",
+  "match": ["phone history|историю телефон"],
+  "classify": { "label": "ui", "reason": "Showing the phone is a display change; the history needs the server.", "intentLabel": "fields-add", "gist": "show phone in card and keep change history" },
+  "turns": [
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/customer-card.tsx" }, "contentFile": "../../references/customer-card.phone.tsx", "expect": "ok" }
+      ]
+    },
+    {
+      "calls": [
+        {
+          "tool": "finish",
+          "input": {
+            "verdict": "partial",
+            "summary": "The card now shows the customer's phone. Keeping a history of phone changes needs a change on the server, so that part went to the administrator.",
+            "backend_note": "Store every change of a customer's phone with the time and the user who made it, and return the history with the customer."
+          },
+          "expect": "ok"
+        }
+      ]
+    }
+  ]
+}

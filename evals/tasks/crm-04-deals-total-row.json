@@ -1,0 +1,54 @@
+{
+  "id": "crm-04-deals-total-row",
+  "app": "demo-crm",
+  "title": "Total row in the deals table",
+  "scenario": "Scenario 4: compiles, throws while rendering (the recorded agent is wrong on purpose)",
+  "request": "Add a total row to the deals table",
+  "expected": {
+    "verdict": "ok",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/deals-table.tsx",
+        "mustContain": [
+          "data-testid=\"deals-table\"",
+          "export default function DealsTable"
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/customer-card.tsx",
+      "src/dynamic/dashboard-panels.tsx"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "deals-total",
+          "within": "deals-table",
+          "contains": "$57,500"
+        },
+        {
+          "testid": "deals-table",
+          "contains": "Annual licence"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/deals-table.tsx": "evals/references/deals-table.total.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "scenario-4-runtime-crash"
+  }
+}

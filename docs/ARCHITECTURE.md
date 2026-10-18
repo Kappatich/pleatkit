@@ -35,6 +35,7 @@ morphkit/
   apps/
     demo-crm/             Vite + React + TS + Tailwind + shadcn
     admin/                дашборд администратора (можно внутри demo-crm как /admin)
+  evals/                  эвал-харнесс агента (@morphkit/evals, private): задачи, оценщики, транскрипты, baseline, отчёт
   docs/
     ARCHITECTURE.md       этот файл
     TASKS.md              разбивка на этапы
@@ -195,6 +196,7 @@ engine.history() / tags() / moduleStats() / refresh()
 
 - Vitest: VirtualFS, hash снимка, цепочка undo/redo, запрет записи вне dynamic, парсинг ошибок esbuild.
 - Playwright headless (`--headless`, никаких окон): четыре сценария выше со `scripted` провайдером; проверка, что у `bob` карточка не изменилась после правки `alice`.
+- Эвал-харнесс (`evals/`, `docs/evals.md`): задачи `evals/tasks/*.json` гоняются через тот же `runAgent` в процессе, с доверенным входом из манифеста сборки демо, как у `POST /agent/v1/run`; оценщики: вердикт, изменение, общий `check`, `tsc` (корень с `node_modules` приложения), текстовые инварианты, предикаты, бюджет и Playwright (результат коммитится в собранное демо через `draft.commit('agent')` под `?eval=1`, проверяются testid и отсутствие баннера падения). `pnpm eval:sanity` (эталоны проходят, нулевой агент проваливает задачи с изменением), `eval:replay` (транскрипты `ReplayProvider`), `eval:pin`, `eval:report`. Изменение промпта или модели идёт с этим отчётом (решения 43, 63).
 - Метрики, которые печатает e2e: время от запроса до перерисовки, размер и время инициализации esbuild-wasm.
 - Готово, когда: `pnpm install && pnpm build && pnpm test && pnpm e2e` проходят на чистой машине; `pnpm dev` поднимает demo-crm + agent + store-server одной командой; README объясняет установку в чужой Vite-проект за 5 шагов.
 

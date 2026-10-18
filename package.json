@@ -19,7 +19,12 @@
     "e2e:live": "pnpm --filter @morphkit/demo-crm e2e live-anthropic",
     "demo:video": "pnpm build:packages && node scripts/record-demo.mjs",
     "site:check": "node scripts/site-check.mjs",
-    "morphkit-doctor": "node packages/cli/dist/cli.js doctor --root apps/demo-crm"
+    "morphkit-doctor": "node packages/cli/dist/cli.js doctor --root apps/demo-crm",
+    "eval:record": "pnpm --filter @morphkit/evals record",
+    "eval:replay": "pnpm --filter @morphkit/evals replay",
+    "eval:sanity": "pnpm --filter @morphkit/evals sanity",
+    "eval:pin": "pnpm --filter @morphkit/evals pin",
+    "eval:report": "pnpm --filter @morphkit/evals report"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

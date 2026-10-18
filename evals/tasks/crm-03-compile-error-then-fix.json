@@ -1,0 +1,57 @@
+{
+  "id": "crm-03-compile-error-then-fix",
+  "app": "demo-crm",
+  "title": "Larger name and a coloured status pill",
+  "scenario": "Scenario 3: the first version does not compile, the agent fixes it",
+  "request": "Make the customer name larger and show the status as a coloured pill",
+  "expected": {
+    "verdict": "ok",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/customer-card.tsx",
+        "mustContain": [
+          "data-testid=\"customer-card\"",
+          "data-testid=\"due-date\"",
+          "export default function CustomerCard",
+          "{ customer }: { customer: Customer }",
+          "data-testid=\"status-pill\""
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/deals-table.tsx",
+      "src/dynamic/dashboard-panels.tsx"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "status-pill",
+          "within": "customer-card",
+          "text": "active"
+        },
+        {
+          "testid": "due-date",
+          "within": "customer-card"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/customer-card.tsx": "apps/demo-crm/e2e/fixtures/customer-card.scenario3.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "scenario-3-compile-error-then-fix"
+  }
+}

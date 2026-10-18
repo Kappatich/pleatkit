@@ -1,0 +1,14 @@
+{
+  "name": "eval-not-editable-header",
+  "description": "Eval: the app header is core code, not a panel in the dynamic zone.",
+  "match": ["header|шапк"],
+  "classify": { "label": "ui", "reason": "A wording change on the screen.", "intentLabel": "out-of-zone", "gist": "rename the app title in the header" },
+  "turns": [
+    { "calls": [{ "tool": "list_files", "input": {}, "expect": "ok" }] },
+    {
+      "calls": [
+        { "tool": "finish", "input": { "verdict": "not-editable", "summary": "The title at the top of the page is not one of the parts you can change here, so I left it as it is." }, "expect": "ok" }
+      ]
+    }
+  ]
+}

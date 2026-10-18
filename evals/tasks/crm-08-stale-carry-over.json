@@ -1,0 +1,76 @@
+{
+  "id": "crm-08-stale-carry-over",
+  "app": "demo-crm",
+  "title": "Carry the card changes over to the new release",
+  "scenario": "V1 B5: a stale snapshot carried over to a new release",
+  "request": "Carry my customizations over to the new version of the app",
+  "migration": {
+    "oldBaseSuffix": "\n// previous release\n",
+    "edited": {
+      "src/dynamic/customer-card.tsx": "apps/demo-crm/e2e/fixtures/customer-card.scenario1.tsx"
+    }
+  },
+  "expected": {
+    "verdict": "ok",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/customer-card.tsx",
+        "mustContain": [
+          "data-testid=\"customer-card\"",
+          "data-testid=\"due-date\"",
+          "export default function CustomerCard",
+          "{ customer }: { customer: Customer }",
+          "data-testid=\"phone\""
+        ],
+        "mustNotContain": [
+          "// previous release"
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/deals-table.tsx",
+      "src/dynamic/dashboard-panels.tsx"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "phone",
+          "within": "customer-card",
+          "text": "+1 555 0102"
+        },
+        {
+          "testid": "city",
+          "within": "customer-card",
+          "text": "Springfield"
+        },
+        {
+          "testid": "source",
+          "within": "customer-card",
+          "text": "Referral"
+        },
+        {
+          "testid": "deals-table",
+          "contains": "Annual licence"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/customer-card.tsx": "apps/demo-crm/e2e/fixtures/customer-card.scenario1.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "migrate-after-release"
+  }
+}
