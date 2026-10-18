@@ -17,8 +17,9 @@ export function createApp() {
     const secret = process.env.PLEATKIT_JWT_SECRET
     if (!secret) return c.json({ error: 'no PLEATKIT_JWT_SECRET: the demo uses development headers' }, 404)
     const userId = c.req.query('user') ?? 'alice'
-    const role = c.req.query('role') === 'admin' ? 'admin' : 'user'
-    const token = await mintUserToken({ secret, userId: role === 'admin' ? `admin:${userId}` : userId, appId: c.req.query('app') ?? 'demo-crm', role, ttlSeconds: 900 })
+    const asked = c.req.query('role')
+    const role = asked === 'admin' || asked === 'support' ? asked : 'user'
+    const token = await mintUserToken({ secret, userId: role === 'user' ? userId : `${role}:${userId}`, appId: c.req.query('app') ?? 'demo-crm', role, ttlSeconds: 900 })
     const appKey = process.env.PLEATKIT_APP_KEY
     return c.json({ token, publicKey: appKey ? await publicKeyFromAppKey(appKey) : null })
   })

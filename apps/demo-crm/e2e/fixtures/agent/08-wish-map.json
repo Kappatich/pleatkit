@@ -1,0 +1,13 @@
+{
+  "name": "wish-map",
+  "description": "C9: themes of the wish-list map for the demo data. The scripted classifier puts each request the panels could not serve into the first theme whose pattern matches; no request ever matches this fixture itself.",
+  "match": [],
+  "turns": [],
+  "wishes": [
+    { "panel": "deals-table", "title": "Discounts that change the deal amount", "kind": "needs-backend", "match": ["discount", "скидк"] },
+    { "panel": "deals-table", "title": "Export deals to a spreadsheet", "kind": "needs-backend", "match": ["export", "csv", "excel", "выгруз"] },
+    { "panel": "customer-card", "title": "Reminders about overdue payments", "kind": "needs-backend", "match": ["remind", "e-?mail", "напомин"] },
+    { "panel": "header", "title": "Rename and restyle the app header", "kind": "out-of-zone", "match": ["header", "title", "logo", "шапк"] },
+    { "panel": "customer-list", "title": "Change the customer list on the left", "kind": "out-of-zone", "match": ["sidebar", "customer list", "список клиентов"] }
+  ]
+}

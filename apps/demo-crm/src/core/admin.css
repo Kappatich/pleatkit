@@ -144,3 +144,83 @@ button.adm-chip { cursor: pointer; transition: background .12s, color .12s, bord
   .adm-detailrow > td { padding-left: 0; }
   .adm-detail { padding-right: 0; }
 }
+
+/* stage 4c block 2: section links under the top bar; the current one carries the red rule of the timetable's current row */
+.adm-nav { max-width: 1056px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 4px 24px; border-bottom: 1px solid var(--mk-rule); }
+.adm-nav a { padding: 11px 0 9px; margin-bottom: -1px; font-size: 13.5px; color: var(--mk-ink-2); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .12s, border-color .12s; }
+.adm-nav a:hover { color: var(--mk-ink); border-bottom-color: var(--mk-rule-2); }
+.adm-nav a[aria-current="page"] { color: var(--mk-ink); font-weight: 700; border-bottom-color: var(--mk-red); }
+.adm-nav .adm-num { margin-left: 6px; font-size: 12px; color: var(--mk-red-ink); }
+
+/* plain timetable rows (not clickable) and the column widths of the screens */
+.adm-line { border-bottom: 1px solid var(--mk-rule); }
+.adm-line td { padding: 11px 12px 11px 0; vertical-align: baseline; }
+.adm-group td { border-top: 1px solid var(--mk-ink); }
+tbody .adm-group:first-child td { border-top: 0; }
+.adm-w-60 { width: 60px; } .adm-w-70 { width: 70px; } .adm-w-92 { width: 92px; } .adm-w-120 { width: 120px; }
+.adm-w-140 { width: 140px; } .adm-w-150 { width: 150px; } .adm-w-160 { width: 160px; } .adm-w-196 { width: 196px; }
+.adm-panel { font: 700 12.5px var(--mk-mono); color: var(--mk-ink); overflow-wrap: anywhere; }
+.adm-big { text-align: right; font: 700 20px/1 var(--mk-mono); font-variant-numeric: tabular-nums; color: var(--mk-ink); }
+.adm-quote { display: block; margin-top: 3px; font-size: 13px; color: var(--mk-ink-2); max-width: 72ch; }
+.adm-dim { color: var(--mk-ink-3); font-size: 12.5px; }
+.adm-of { color: var(--mk-ink-3); font-weight: 400; }
+.adm-summary-cell { font-size: 13px; color: var(--mk-ink-2); }
+.adm-foot { margin: 14px 0 0; font-size: 12.5px; color: var(--mk-ink-3); max-width: 90ch; }
+.adm-after { margin-top: 16px; }
+.adm-h2 { margin: 0 0 10px; font: 700 15px var(--mk-sans); letter-spacing: -.005em; color: var(--mk-ink); }
+.adm-inline { margin: 0 4px 0 0; }
+.adm-redword { color: var(--mk-red-ink); }
+.adm-okmark { color: var(--mk-ok); font-weight: 700; }
+.adm-as { font: 500 11px var(--mk-mono); color: var(--mk-paper); background: var(--mk-ink); padding: 1px 4px; }
+.adm-today td { font-weight: 700; }
+.adm-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+
+/* forms: hairline ink boxes, mono input, zero radius */
+.adm-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.adm-input, .adm-select { height: 34px; border: 1px solid var(--mk-ink); background: var(--mk-paper); color: var(--mk-ink); font: 13px var(--mk-mono); padding: 6px 10px; }
+.adm-input { width: 360px; max-width: 100%; }
+.adm-input-s { width: 160px; }
+.adm-input-n { width: 96px; text-align: right; height: 30px; padding: 4px 8px; }
+.adm-input::placeholder { color: var(--mk-ink-3); }
+.adm-input:focus-visible, .adm-select:focus-visible { outline: 2px solid var(--mk-ink); outline-offset: 1px; }
+.adm-seg { display: inline-flex; border: 1px solid var(--mk-ink); height: 34px; }
+.adm-seg button { border: 0; background: transparent; color: var(--mk-ink); font: 500 13px var(--mk-sans); padding: 0 12px; cursor: pointer; }
+.adm-seg button + button { border-left: 1px solid var(--mk-ink); }
+.adm-seg button[aria-pressed="true"] { background: var(--mk-ink); color: var(--mk-paper); }
+.adm-btn:disabled { border-color: var(--mk-rule-2); color: var(--mk-ink-3); background: transparent; cursor: default; }
+a.adm-btn { text-decoration: none; display: inline-block; }
+.adm-link { border: 0; background: none; padding: 0; color: var(--mk-ink-2); font: 13px var(--mk-sans); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--mk-rule-2); cursor: pointer; }
+.adm-link:hover { color: var(--mk-ink); text-decoration-color: var(--mk-ink); }
+.adm-chips.adm-wrap { flex-wrap: wrap; }
+.adm-chip-ink { cursor: pointer; font-family: var(--mk-mono); font-size: 11.5px; }
+.adm-chip-ink[aria-pressed="true"] { background: var(--mk-ink); border-color: var(--mk-ink); color: var(--mk-paper); }
+.adm-stats .adm-form { flex: 1 1 auto; }
+
+/* code search: the location in mono grey, the line of code, the needle marked */
+.adm-match + .adm-match { margin-top: 6px; }
+.adm-loc { display: block; font: 500 11.5px var(--mk-mono); color: var(--mk-ink-3); }
+.adm-code { display: block; font: 12.5px/1.5 var(--mk-mono); color: var(--mk-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+mark.adm-hit { background: var(--mk-red-wash); color: var(--mk-red-ink); font-weight: 700; padding: 0 1px; }
+.adm-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding: 12px 0; border-top: 2px solid var(--mk-red); border-bottom: 1px solid var(--mk-rule); font-size: 13.5px; }
+.adm-confirm > span { flex: 1 1 320px; }
+.adm-pl { padding-left: 20px !important; }
+.adm-chipcode { font: 12px var(--mk-mono); }
+
+/* a small timetable inside an opened row (the users of a release run) */
+.adm-items { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--mk-paper); }
+.adm-items th { text-align: left; font: 500 11px var(--mk-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--mk-ink-3); padding: 7px 12px 7px 0; border-bottom: 1px solid var(--mk-ink); }
+.adm-items th:first-child, .adm-items td:first-child { padding-left: 10px; }
+.adm-items th.adm-r { text-align: right; }
+.adm-items td { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--mk-rule); vertical-align: baseline; color: var(--mk-ink); }
+.adm-items td.adm-mono { font-size: 12px; color: var(--mk-ink-2); font-variant-numeric: tabular-nums; }
+.adm-items tr.adm-bad td { color: var(--mk-bad); }
+
+/* wide timetables scroll inside their own box on a phone; the page itself never scrolls sideways */
+@media (max-width: 760px) {
+  .adm-scroll { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+  .adm-scroll > .adm-table { min-width: 720px; }
+  .adm-split .adm-scroll > .adm-table { min-width: 440px; }
+  .adm-nav { gap: 2px 16px; }
+  .adm-split { grid-template-columns: 1fr; gap: 32px; }
+  .adm-input { width: 100%; }
+}
