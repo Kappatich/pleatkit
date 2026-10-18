@@ -23,6 +23,8 @@ export interface AgentConfig {
   manifest: ManifestSource | null
   /** PLEATKIT_TYPECHECK=1: type errors against the app's `.d.ts` refuse an edit (05 #4). */
   typecheck: TypecheckFn | null
+  /** PLEATKIT_CLASSIFIER: parallel (default) or sequential (DECISIONS 73.3). */
+  classifierMode: 'parallel' | 'sequential'
   /** PLEATKIT_ALERT_* and PLEATKIT_FREEZE (05 #5). */
   alerts: Pick<AlertsOptions, 'sinks' | 'freeze'>
   /** DECISIONS 70.3: PLEATKIT_WISHES_MAX_ITEMS (default 500) and PLEATKIT_WISHES_BUDGET_USD (default 0.50). */
@@ -55,6 +57,8 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * PLEATKIT_LIMITS      JSON overrides of plan limits, e.g. {"userDailyUsd": 2, "perEditUsd": 0.2}
  * PLEATKIT_TYPECHECK=1  type-check edits against the manifest's readonly sources and .d.ts; PLEATKIT_TYPECHECK_ROOT
  *                      is the app folder whose node_modules give package types (react)
+ * PLEATKIT_CLASSIFIER  parallel (default): the classifier and the main model start together, the main call is cancelled
+ *                      when the classifier answers alone; sequential: the main model waits for the classifier
  * PLEATKIT_ALERT_WEBHOOK  URL that gets a JSON POST for every alert (Slack-compatible `text`)
  * PLEATKIT_ALERT_EMAIL_URL, PLEATKIT_ALERT_EMAIL_TO, PLEATKIT_ALERT_EMAIL_TOKEN  e-mail through an HTTP e-mail API
  * PLEATKIT_FREEZE      off, or JSON {"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}
@@ -82,6 +86,7 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
     auth,
     manifest,
     typecheck: typecheckFromEnv(env),
+    classifierMode: env.PLEATKIT_CLASSIFIER === 'sequential' ? 'sequential' : 'parallel',
     alerts: alertsFromEnv(env),
     wishes: wishLimitsFromEnv(env),
     plan: { ...(env.PLEATKIT_PLAN ? { name: env.PLEATKIT_PLAN } : {}), ...(planLimits ? { limits: planLimits } : {}) },

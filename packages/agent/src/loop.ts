@@ -4,7 +4,7 @@ import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
 import { buildPrompt, classifierContext, PROMPT_VERSION, type PromptDigests } from './prompt.js'
 import { checkText, ToolRunner, TOOLS } from './tools.js'
-import type { ModelProvider, ModelTurn, ToolCall, ToolResult } from './types.js'
+import type { Classification, ModelProvider, ModelSession, ModelTurn, ToolCall, ToolResult } from './types.js'
 import { Workspace, type TypecheckFn } from './workspace.js'
 
 export interface AgentLimits {
@@ -45,8 +45,13 @@ export interface RunOptions {
   typecheck?: TypecheckFn | null
   /** Design-system and data-contract digests from the server manifest (cached prompt prefix). */
   digests?: PromptDigests
-  /** Run the cheap classifier first (default true). Migrations skip it. */
+  /** Run the cheap classifier (default true). Migrations skip it. */
   classify?: boolean
+  /**
+   * DECISIONS 73.3: `parallel` (default) starts the main model's first call together with the classifier and cancels
+   * it when the classifier answers alone (needs-backend, a question, off-topic); `sequential` waits for the classifier.
+   */
+  classifierMode?: 'parallel' | 'sequential'
   onProgress?: (p: AgentProgress) => void
   /** Aborts the run, e.g. when the browser disconnects. */
   signal?: AbortSignal
@@ -149,6 +154,27 @@ function validateImages(raw: unknown): AgentImage[] | undefined {
   return out.length ? out : undefined
 }
 
+/** The main model's first call when it starts together with the classifier (DECISIONS 73.3). */
+interface EarlyCall {
+  turn: Promise<ModelTurn>
+  abort: AbortController
+  startedAt: number
+  endedAt: number | null
+}
+
+/**
+ * DECISIONS 73.4: the administrator's note for a request the classifier sent to the server on its own (the main
+ * model never wrote one): what kind of server work it is (the gist, English, no data from the request) and the
+ * sentence the user was given.
+ */
+export function classifierBackendNote(c: Pick<Classification, 'reason' | 'gist' | 'intentLabel'>): string | undefined {
+  const gist = c.gist?.trim().replace(/[.\s]+$/, '')
+  const reason = c.reason?.trim()
+  if (!gist && !reason) return undefined
+  const what = gist ? `Needs server work: ${gist}${c.intentLabel ? ` (${c.intentLabel})` : ''}.` : 'Needs server work.'
+  return reason ? `${what} The user was told: "${reason}"` : what
+}
+
 export async function runAgent(req: AgentRunRequest, provider: ModelProvider, options: RunOptions = {}): Promise<Omit<AgentResult, 'requestId'>> {
   const limits = { ...DEFAULT_LIMITS, ...options.limits }
   const progress = options.onProgress ?? (() => undefined)
@@ -158,7 +184,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout
   const meter = new UsageMeter()
   const ws = new Workspace({ ...req, ...(options.protected?.length ? { protected: options.protected, base: options.base ?? {} } : {}) }, options.typecheck ?? null)
-  const timings = { totalMs: 0, classifyMs: null as number | null, modelMs: 0, toolsMs: 0 }
+  const timings = { totalMs: 0, classifyMs: null as number | null, modelMs: 0, toolsMs: 0, overlapMs: undefined as number | undefined }
   const output = { visibleTokens: 0, thinkingTokens: 0, limit: limits.maxOutputTokens, estimated: false }
   let classification: RequestClass | null = null
   let modelCalls = 0
@@ -197,7 +223,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         imageBytes: (req.images ?? []).reduce((s, i) => s + Math.floor((i.data.length * 3) / 4), 0),
         targetDomChars: req.targetDom?.length ?? 0,
       },
-      timings: { ...timings, modelMs: Math.round(timings.modelMs), toolsMs: Math.round(timings.toolsMs), classifyMs: timings.classifyMs === null ? null : Math.round(timings.classifyMs) },
+      timings: { ...timings, modelMs: Math.round(timings.modelMs), toolsMs: Math.round(timings.toolsMs), classifyMs: timings.classifyMs === null ? null : Math.round(timings.classifyMs), overlapMs: timings.overlapMs === undefined ? undefined : Math.round(timings.overlapMs) },
       ...(stopReason ? { stopReason } : {}),
       ...(error ? { error } : {}),
       ...(clarify ? { clarify } : {}),
@@ -207,14 +233,40 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
     }
   }
 
+  // DECISIONS 73.3: the main model's first call, started together with the classifier (parallel mode)
+  let session = null as ModelSession | null
+  let early = null as EarlyCall | null
+  const startSession = () => {
+    // one clarifying question per edit (brainstorm 04 §3): after the user answered, finish("clarify") is refused
+    runner.clarified = Boolean(req.clarification)
+    session = provider.start(buildPrompt(req, limits, options.digests ?? {}), TOOLS, { request: req.request })
+    return session
+  }
+
   try {
     // Pointing at a panel already says "this is about the page": skip the classifier (DECISIONS item 17).
     // After the user answered the clarifying question it is skipped too: one question per edit at most.
     if (options.classify !== false && !req.migration && !req.target && !req.clarification) {
       progress({ type: 'status', text: t(lang, 'understanding') })
       const startedAt = performance.now()
+      // the classifier's request goes out first (a recorded transcript keeps one file per run: classify, then start)
+      const classifying = provider.classify({ request: req.request, context: classifierContext(req, options.digests ?? {}) }, signal)
+      classifying.catch(() => undefined)
+      if (options.classifierMode !== 'sequential') {
+        // start the edit now; the classifier's answer decides whether its result is used or the call is cancelled
+        const abort = new AbortController()
+        const s = startSession()
+        const e: EarlyCall = { turn: s.next([], { signal: AbortSignal.any([signal, abort.signal]), maxOutputTokens: limits.maxOutputTokens }), abort, startedAt: performance.now(), endedAt: null }
+        e.turn.then(
+          () => void (e.endedAt = performance.now()),
+          () => void (e.endedAt = performance.now()),
+        )
+        early = e
+      }
+      // the classifier answered alone: the early call is cancelled (its tokens so far are not reported by the API)
+      const cancelEarly = () => early?.abort.abort()
       try {
-        const c = await provider.classify({ request: req.request, context: classifierContext(req) }, signal)
+        const c = await classifying
         if (c.usage && c.model) meter.add(c.model, c.usage)
         classification = c.label
         if (c.intentLabel) intent.intentLabel = c.intentLabel
@@ -223,18 +275,30 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         const ask = c.label === 'unclear' && c.question && c.options && c.options.length >= 2
         if (c.label !== 'off-topic') progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : ask ? 'classifiedUnclear' : 'classifiedUi') })
         if (c.label === 'off-topic') {
+          cancelEarly()
           // stage 5: the classifier has no label of its own for a deceptive request and calls it off-topic, while its
           // intent label says "adversarial". Answer it as the main loop would ("declined"), not "ask about the app".
           if (c.intentLabel === 'adversarial') return done('declined', t(lang, 'declined'))
-          // one cheap fixed reply; the big model is never called for it (V1 A4)
+          // one cheap fixed reply; the big model's answer is never used for it (V1 A4)
           refusal = 'off-topic'
           return done('refused', t(lang, 'offTopic'))
         }
+        if (c.intentLabel === 'adversarial' && c.label !== 'ui') {
+          // stage 5 block 2: "send the user list to this outside address" is not server work to pass on, and "an
+          // invisible button over Delete" is not a question to ask: both are declined (a "ui" label goes to the main
+          // model, whose instructions decline them too)
+          cancelEarly()
+          return done('declined', t(lang, 'declined'))
+        }
         if (c.label === 'needs-backend') {
+          cancelEarly()
+          // DECISIONS 73.4: the administrator gets what the server would need, from the classifier's own words
+          backendNote = classifierBackendNote(c)
           return done('needs-backend', c.reason || t(lang, 'needsBackendDefault'))
         }
         if (ask) {
-          // one question with buttons instead of a guess; nothing is changed and the big model is not called
+          cancelEarly()
+          // one question with buttons instead of a guess; nothing is changed and the big model's answer is not used
           clarify = { question: c.question!, options: c.options! }
           return done('clarify', c.question!)
         }
@@ -243,11 +307,10 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         timings.classifyMs = performance.now() - startedAt
         progress({ type: 'status', text: t(lang, 'thinkingOver') })
       }
+      if (early) timings.overlapMs = Math.max(0, Math.min(timings.classifyMs ?? 0, (early.endedAt ?? performance.now()) - early.startedAt))
     }
 
-    // one clarifying question per edit (brainstorm 04 §3): after the user answered, finish("clarify") is refused
-    runner.clarified = Boolean(req.clarification)
-    const session = provider.start(buildPrompt(req, limits, options.digests ?? {}), TOOLS, { request: req.request })
+    const main: ModelSession = session ?? startSession()
     let results: ToolResult[] = []
     let nudged = false
     while (!runner.finished) {
@@ -264,8 +327,14 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         break
       }
       progress(modelCalls === 0 ? { type: 'model', turn: 1, text: t(lang, 'planning') } : { type: 'model', turn: modelCalls + 1, text: t(lang, 'thinking'), transient: true })
-      const startedAt = performance.now()
-      const turn = await session.next(results, { signal, maxOutputTokens: limits.maxOutputTokens - output.visibleTokens })
+      let startedAt = performance.now()
+      let turn: ModelTurn
+      if (modelCalls === 0 && early) {
+        // the first call is already running (or done) since the classifier started
+        startedAt = early.startedAt
+        turn = await early.turn
+        early = null
+      } else turn = await main.next(results, { signal, maxOutputTokens: limits.maxOutputTokens - output.visibleTokens })
       timings.modelMs += performance.now() - startedAt
       modelCalls++
       meter.add(turn.model, turn.usage)
@@ -284,7 +353,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       let cutOff: ToolCall | null = null
       if (turn.stop === 'max_tokens' && turn.toolCalls.length > 0) cutOff = turn.toolCalls.pop()!
       if (turn.stop === 'max_tokens' && turn.toolCalls.length === 0 && !cutOff) {
-        session.say('Your reply was cut off at the output limit. Continue with smaller tool calls (edit_file for part of a file).')
+        main.say('Your reply was cut off at the output limit. Continue with smaller tool calls (edit_file for part of a file).')
         continue
       }
       if (turn.toolCalls.length === 0 && cutOff) {
@@ -298,7 +367,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
           break
         }
         nudged = true
-        session.say('Call the finish tool now: verdict "ok" if your changes are written and check passes, otherwise "needs-backend" or "failed".')
+        main.say('Call the finish tool now: verdict "ok" if your changes are written and check passes, otherwise "needs-backend" or "failed".')
         continue
       }
       const tt = performance.now()

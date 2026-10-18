@@ -1,0 +1,64 @@
+import Anthropic from '@anthropic-ai/sdk'
+import type { AgentRunRequest, PleatkitManifest } from '@pleatkit/runtime/compiler'
+import { trustedInput } from './manifest.js'
+import { buildPrompt, PROMPT_VERSION } from './prompt.js'
+import { DEFAULT_MODEL } from './providers/anthropic.js'
+import { TOOLS } from './tools.js'
+
+/**
+ * DECISIONS 73.5: the size of an app's prompt, counted by the API's token counter (`count_tokens`, free) instead of
+ * estimated. The cached prefix is what every edit of this app re-reads (tools, instructions, digests, readonly
+ * sources, core types); the tail is one request's own part (the dynamic files and a short request).
+ */
+export interface PromptTokenCount {
+  /** Tokens of the cached prefix: the tools and the system blocks. */
+  prefixTokens: number
+  /** Tokens of the user message of a short request over the release's dynamic files. */
+  tailTokens: number
+  model: string
+  promptVersion: string
+}
+
+export interface CountTokensOptions {
+  apiKey: string
+  baseURL?: string
+  model?: string
+  /** For tests: a fetch that never reaches the network. */
+  fetch?: typeof fetch
+}
+
+/** The request the agent server would build for a short request on the release's files (as `trustedInput` does). */
+export function sampleRequest(manifest: PleatkitManifest, request = 'Make the title bold.'): AgentRunRequest {
+  const body: AgentRunRequest = {
+    userId: 'doctor',
+    appId: 'doctor',
+    request,
+    files: Object.fromEntries(manifest.dynamic.map((f) => [f.path, f.source])),
+    readonly: {},
+    coreTypes: {},
+    context: { alias: manifest.alias, externals: manifest.externals, externalPatterns: manifest.externalPatterns, dynamicRoots: manifest.dynamicRoots },
+    components: [],
+  }
+  const trusted = trustedInput(manifest, 'doctor', body)
+  return { ...body, context: trusted.context, readonly: trusted.readonly, coreTypes: trusted.coreTypes, components: trusted.components }
+}
+
+export async function countPromptTokens(manifest: PleatkitManifest, o: CountTokensOptions): Promise<PromptTokenCount> {
+  const client = new Anthropic({ apiKey: o.apiKey, ...(o.baseURL ? { baseURL: o.baseURL } : {}), ...(o.fetch ? { fetch: o.fetch } : {}), maxRetries: 1 })
+  const model = o.model ?? DEFAULT_MODEL
+  const digests = { ...(manifest.designSystem ? { designSystem: manifest.designSystem } : {}), ...(manifest.dataContracts ? { dataContracts: manifest.dataContracts } : {}) }
+  const parts = buildPrompt(sampleRequest(manifest), undefined, digests)
+  const messages = [{ role: 'user' as const, content: parts.user }]
+  // the same shape as AnthropicProvider sends: tools, then the two system blocks, then the request
+  const full = await client.beta.messages.countTokens({
+    model,
+    system: [
+      { type: 'text', text: parts.instructions },
+      { type: 'text', text: parts.cached, cache_control: { type: 'ephemeral' } },
+    ],
+    tools: TOOLS.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema as Anthropic.Beta.BetaTool.InputSchema })),
+    messages,
+  })
+  const tail = await client.beta.messages.countTokens({ model, messages })
+  return { prefixTokens: full.input_tokens - tail.input_tokens, tailTokens: tail.input_tokens, model, promptVersion: PROMPT_VERSION }
+}

@@ -51,6 +51,8 @@ export interface AgentServerOptions {
   bodyLimitBytes?: number
   /** Type check edits against the app's `.d.ts` (brainstorm 05 #4); see `createTypechecker`. */
   typecheck?: TypecheckFn | null
+  /** DECISIONS 73.3: PLEATKIT_CLASSIFIER=sequential waits for the classifier before the main model (default: parallel). */
+  classifierMode?: 'parallel' | 'sequential'
   /** Alerts and automatic freezes (brainstorm 05 #5). Default: freezes on, no sinks (log only). */
   alerts?: Pick<AlertsOptions, 'sinks' | 'freeze'> | Alerts | false
 }
@@ -296,7 +298,7 @@ export function createAgentApp(options: AgentServerOptions) {
         } else {
           plan = quota?.plan ?? null
           const limits = { ...options.limits, ...(plan ? { maxCostUsd: Math.min(plan.perEditUsd, options.limits?.maxCostUsd ?? Infinity) } : {}) }
-          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null,
+          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null, ...(options.classifierMode ? { classifierMode: options.classifierMode } : {}),
             digests: { ...(trusted.manifest?.designSystem ? { designSystem: trusted.manifest.designSystem } : {}), ...(trusted.manifest?.dataContracts ? { dataContracts: trusted.manifest.dataContracts } : {}) } })
         }
         const cost = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)

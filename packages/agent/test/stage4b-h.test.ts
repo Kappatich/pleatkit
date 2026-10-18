@@ -55,6 +55,46 @@ export default function CustomerCard({ customer }: { customer: { id: string; nam
     const bad = await withRoot({ ...input.files, [CARD]: list('tone="loud"') }, input)
     expect(bad.map((e) => e.text).join(' ')).toMatch(/tone/)
   })
+
+  it('stage 5: an edit is refused only for type errors it introduced, not for those the release already has', async () => {
+    // a release panel with an error under the checker's settings (a foreign app's stricter tsconfig, its own libs)
+    const flawed = `export default function CustomerCard({ customer }: { customer: { id: string } }) {
+  const n: number = 'not a number'
+  return <div data-testid="customer-card">{customer.id}{n}</div>
+}
+`
+    const base = { ...request('x').files, [CARD]: flawed }
+    const input = { ...request('x'), files: base, base }
+    // the release as is, and an edit that keeps the old flaw: nothing to report
+    expect(await typecheck(base, input)).toEqual([])
+    const kept = flawed.replace('{customer.id}', '<b>{customer.id}</b>')
+    expect(await typecheck({ ...base, [CARD]: kept }, input)).toEqual([])
+    // a new error is still reported, the old one is not
+    const worse = kept.replace('{customer.id}', '{customer.nme}')
+    const errors = await typecheck({ ...base, [CARD]: worse }, input)
+    expect(errors.map((e) => e.text).join(' ')).toMatch(/nme/)
+    expect(errors.map((e) => e.text).join(' ')).not.toMatch(/not a number|assignable to type 'number'/)
+    // without the release's files every error counts, as before
+    expect((await typecheck({ ...base, [CARD]: worse }, { ...input, base: undefined })).length).toBe(2)
+  })
+
+  it("stage 5: the app's ambient declarations among the core types apply to the panels", async () => {
+    const ambient = `import '@/readonly/meta'
+declare module '@/readonly/meta' {
+  interface Meta { label?: string }
+}
+`
+    const meta = 'export interface Meta { id: string }\n'
+    const card = `import type { Meta } from '@/readonly/meta'
+export default function CustomerCard({ customer }: { customer: Meta }) {
+  return <div data-testid="customer-card">{customer.label ?? customer.id}</div>
+}
+`
+    const input = { ...request('x'), readonly: { 'src/readonly/meta.ts': meta } }
+    const files = { ...input.files, [CARD]: card }
+    expect((await typecheck(files, input)).map((e) => e.text).join(' ')).toMatch(/label/)
+    expect(await typecheck(files, { ...input, coreTypes: { 'src/meta-augment.d.ts': ambient } })).toEqual([])
+  })
 })
 
 describe('brainstorm 05 #5: alerts and freezing one user', () => {

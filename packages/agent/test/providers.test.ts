@@ -56,7 +56,8 @@ describe('AnthropicProvider (wire format, fake fetch)', () => {
       }),
     ])
     const provider = new AnthropicProvider({ apiKey: 'test-key', baseURL: 'http://anthropic.test', fetch })
-    const r = await runAgent(request('show the phone'), provider)
+    // the wire format in order: classifier, then the main model (the parallel start is tested in parallel-classifier.test.ts)
+    const r = await runAgent(request('show the phone'), provider, { classifierMode: 'sequential' })
 
     expect(r.verdict).toBe('ok')
     expect(r.files[CARD]).toBe(GOOD_CARD)
@@ -118,7 +119,7 @@ describe('OpenAICompatibleProvider (fake fetch)', () => {
       choice({ role: 'assistant', content: null, tool_calls: [{ id: 'c2', type: 'function', function: { name: 'finish', arguments: '{"verdict":"ok","summary":"Done."}' } }] }, 'tool_calls'),
     ])
     const provider = new OpenAICompatibleProvider({ apiKey: 'k', baseURL: 'http://openai.test/v1', model: 'gpt-test', fetch })
-    const r = await runAgent(request('phone'), provider)
+    const r = await runAgent(request('phone'), provider, { classifierMode: 'sequential' })
     expect(r.verdict).toBe('ok')
     expect(calls[1]!.url).toBe('http://openai.test/v1/chat/completions')
     expect(calls[1]!.headers.get('authorization')).toBe('Bearer k')
