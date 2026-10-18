@@ -19,15 +19,15 @@ const OVERLAY = `(() => {
     const style = document.createElement('style')
     style.textContent = \`
       #demo-caption { position: fixed; left: 24px; bottom: 24px; z-index: 2147483600; max-width: 760px; padding: 12px 18px;
-        border-radius: 12px; background: rgba(15,23,42,.92); color: #fff; font: 600 20px/1.35 ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-        box-shadow: 0 10px 30px rgba(15,23,42,.35); transition: opacity .25s; }
-      #demo-caption small { display: block; font-weight: 400; font-size: 15px; color: #cbd5e1; margin-top: 2px; }
+        border-radius: 0; border-left: 4px solid #e30613; background: #111; color: #fff; font: 600 20px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif;
+        letter-spacing: -.01em; transition: opacity .25s; }
+      #demo-caption small { display: block; font-weight: 400; font-size: 15px; color: #c4c4c4; margin-top: 2px; }
       #demo-caption:empty { opacity: 0; }
       #demo-pointer { position: fixed; z-index: 2147483601; width: 22px; height: 22px; margin: -4px 0 0 -4px; pointer-events: none;
-        border-radius: 50%; background: rgba(139,92,246,.35); border: 2px solid #7c3aed; transition: transform .12s; }
-      #demo-pointer.down { transform: scale(.7); background: rgba(139,92,246,.7); }
+        border-radius: 50%; background: rgba(227,6,19,.25); border: 2px solid #e30613; transition: transform .12s; }
+      #demo-pointer.down { transform: scale(.7); background: rgba(227,6,19,.6); }
       #demo-badge { position: fixed; left: 24px; bottom: 112px; z-index: 2147483600; padding: 3px 10px;
-        border-radius: 999px; background: #fef3c7; color: #92400e; font: 500 12px/1.4 ui-sans-serif, system-ui, sans-serif; pointer-events: none; }\`
+        border-radius: 0; background: #fff; border: 1px solid #111; color: #4a4a4a; font: 500 11.5px/1.4 "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: .04em; pointer-events: none; }\`
     document.head.appendChild(style)
     const caption = document.createElement('div')
     caption.id = 'demo-caption'
@@ -101,12 +101,12 @@ test('demo video (60 s): request, change, undo, backend request, admin, per-user
   await glideClick(page, page.getByTestId('mk-chat-send'))
   const turn = page.getByTestId('mk-chat-turn').first()
   await expect(turn).toHaveAttribute('data-status', 'applied', { timeout: 30_000 })
-  await caption(page, 'Committed: compiled in her browser, swapped in without a reload', 'Phone, city and source appear; the overdue date turns red.')
+  await caption(page, 'Applied: compiled, swapped in without a reload', 'Phone, city and source appear; the overdue date turns red. One status line while it runs.')
   await page.mouse.move(560, 430, { steps: 20 })
   await pause(page, 4200)
 
   // Beat 2: undo
-  await caption(page, 'Every edit is a snapshot. Undo is one click.')
+  await caption(page, 'Every edit is a version. Undo is one click.', 'The history reads like a timetable.')
   await glideClick(page, page.getByTestId('mk-chat-undo'))
   await expect(card.getByTestId('phone')).toHaveCount(0)
   await pause(page, 2600)
