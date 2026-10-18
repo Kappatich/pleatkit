@@ -4,7 +4,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const file = path.join(root, '.env')
@@ -21,6 +21,9 @@ if (fs.existsSync(file)) {
     if (!(key in process.env) && value) env[key] = value
   }
 }
+// every Node child honours the proxy variables (see env-proxy.mjs)
+const preload = `--import=${pathToFileURL(path.join(root, 'scripts', 'env-proxy.mjs')).href}`
+env.NODE_OPTIONS = [env.NODE_OPTIONS, preload].filter(Boolean).join(' ')
 const [cmd, ...args] = process.argv.slice(2)
 if (!cmd) { console.error('usage: node scripts/with-env.mjs <command> [args...]'); process.exit(2) }
 const child = spawn(cmd, args, { stdio: 'inherit', env, shell: process.platform === 'win32' })

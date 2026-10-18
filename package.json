@@ -31,6 +31,7 @@
     "eslint": "^9.39.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.0"
+    "typescript-eslint": "^8.46.0",
+    "undici": "^7.30.1"
   }
 }
