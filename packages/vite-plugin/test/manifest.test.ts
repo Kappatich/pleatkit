@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -88,7 +90,7 @@ export function Button({ variant }: ButtonProps) { return null }
 export const Card = (p: { title: string }) => null
 function internal() {}`
     expect(designSystemDigest([{ path: 'src/components/ui/button.tsx', source: button }])).toBe(
-      "src/components/ui/button: Button(variant?: 'default' | 'destructive', size?: 'sm' | 'lg'); Card",
+      "src/components/ui/button: Button(variant?: 'default' | 'destructive', size?: 'sm' | 'lg'); Card(title: string)",
     )
     const api = `export interface Customer { id: string; name: string }
 export const api = { listCustomers(): Promise<Customer[]> { return fetch('/api').then((r) => r.json()) }, rename: (id: string, name: string): Promise<void> => Promise.resolve() }`
@@ -96,5 +98,46 @@ export const api = { listCustomers(): Promise<Customer[]> { return fetch('/api')
     expect(digest).toContain('interface Customer { id: string; name: string }')
     expect(digest).toContain('api: { listCustomers(): Promise<Customer[]>; rename(id: string, name: string): Promise<void> }')
     expect(digest).not.toContain('fetch(')
+  })
+
+  it('shows component variants: cva() tables, local unions, export lists and default exports (DECISIONS 73.7)', async () => {
+    const { designSystemDigest } = await import('../src/manifest.js')
+    // shadcn (new style): props as an intersection, exported at the bottom
+    const shadcn = `import { cva, type VariantProps } from 'class-variance-authority'
+const badgeVariants = cva('inline-flex', { variants: { variant: { default: 'a', secondary: 'b', 'outline': 'c' } }, defaultVariants: { variant: 'default' } })
+function Badge({ className, variant, asChild = false, ...props }: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) { return null }
+export { Badge, badgeVariants }`
+    // shadcn (old style): an interface extending the DOM attributes and the variants
+    const old = `import type { HTMLAttributes } from 'react'
+export const buttonVariants = cva('x', { variants: { variant: { default: '', ghost: '' }, size: { sm: '', lg: '' } } })
+export interface ButtonProps extends HTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {}
+export function Button({ variant, size }: ButtonProps) { return null }`
+    // TailAdmin: React.FC with an interface whose members name local unions, default export
+    const tail = `type BadgeColor = "primary" | "success" | "error"; // the colours
+interface BadgeProps {
+  color?: BadgeColor; // colour
+  size?: "sm" | "md";
+  children: React.ReactNode;
+}
+const Badge: React.FC<BadgeProps> = ({ color = "primary", children }) => null
+export default Badge`
+    const digest = designSystemDigest([
+      { path: 'src/components/ui/badge.tsx', source: shadcn },
+      { path: 'src/components/ui/button.tsx', source: old },
+      { path: 'src/components/ui/badge/Badge.tsx', source: tail },
+    ]).split('\n')
+    expect(digest[0]).toBe(`src/components/ui/badge: Badge(variant?: "default" | "secondary" | "outline", asChild?: boolean, …React.ComponentProps<'span'>)`)
+    expect(digest[1]).toBe('src/components/ui/button: Button(variant?: "default" | "ghost", size?: "sm" | "lg", …HTMLAttributes<HTMLButtonElement>)')
+    expect(digest[2]).toBe('src/components/ui/badge/Badge: Badge(color?: "primary" | "success" | "error", size?: "sm" | "md", children: React.ReactNode)')
+  })
+
+  it('carries the app\'s ambient declarations (module augmentations) as core types', async () => {
+    const { ambientDeclarations } = await import('../src/manifest.js')
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pk-ambient-'))
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'src', 'table.d.ts'), "import '@tanstack/react-table'\ndeclare module '@tanstack/react-table' {\n  interface ColumnMeta<TData, TValue> { className?: string }\n}\n")
+    fs.writeFileSync(path.join(dir, 'src', 'vite-env.d.ts'), '/// <reference types="vite/client" />\n')
+    expect(ambientDeclarations(dir).map((f) => f.path)).toEqual(['src/table.d.ts'])
+    fs.rmSync(dir, { recursive: true, force: true })
   })
 })
