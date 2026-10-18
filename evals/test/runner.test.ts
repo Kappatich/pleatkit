@@ -4,8 +4,8 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ReplayProvider, ScriptedProvider, type TranscriptLine } from '@pleatkit/agent'
 import { budgetFromEnv, BudgetExceededError, EvalBudget, gradeBudget } from '../src/budget.js'
-import { oracleProvider, recordingFile } from '../src/providers.js'
-import { graderRates, passRate, runSuite, type BrowserCase } from '../src/runner.js'
+import { oracleProvider, recordingFile, replayProvider, trialsIn } from '../src/providers.js'
+import { graderRates, passRate, runSuite, taskPasses, type BrowserCase } from '../src/runner.js'
 import { sanityProblems } from '../src/sanity.js'
 import type { EvalTask } from '../src/types.js'
 import { CARD, changeTask, MANIFEST, noChangeTask, PHONE_CARD } from './helpers.js'
@@ -112,5 +112,59 @@ describe('budget: PLEATKIT_EVAL_BUDGET_USD and the per-task cap', () => {
     expect(global.budget.spentUsd).toBeCloseTo(0.4)
     expect(global.aborted?.notRun).toEqual(['b', 'c'])
     expect(global.aborted?.reason).toMatch(/Eval budget exhausted: \$0\.40 spent of PLEATKIT_EVAL_BUDGET_USD=\$0\.30\. Stopped before task b/)
+  })
+})
+
+describe('trials and named sets (stage 5)', () => {
+  it('records each trial as <task>.t<n>.jsonl and replays every trial of a set', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mk-evals-set-'))
+    const scripted = () =>
+      new ScriptedProvider([
+        { name: 'phone', match: ['.'], dir: '.', patterns: [/./], classify: { label: 'ui' }, turns: [{ calls: [{ tool: 'write_file', input: { path: CARD, content: PHONE_CARD } }] }, { calls: [{ tool: 'finish', input: { verdict: 'ok', summary: 'The card shows the phone.' } }] }] },
+      ])
+    const seen: string[] = []
+    const browser = async (cases: BrowserCase[]) => {
+      seen.push(...cases.map((c) => c.taskId))
+      return Object.fromEntries(cases.map((c) => [c.taskId, { grader: 'browser' as const, pass: true, reason: 'stub' }]))
+    }
+    const rec = await runSuite({ kind: 'record', agent: 'scripted', tasks: [changeTask()], manifest: MANIFEST, providerFor: () => scripted(), trials: 3, set: 'x', recordDir: dir, browser })
+    expect(rec.runs.map((r) => [r.trial, r.recording?.file, r.pass])).toEqual([
+      [1, 't-phone.t1.jsonl', true],
+      [2, 't-phone.t2.jsonl', true],
+      [3, 't-phone.t3.jsonl', true],
+    ])
+    expect(seen).toEqual(['t-phone.t1', 't-phone.t2', 't-phone.t3'])
+    expect(rec.set).toBe('x')
+    expect(trialsIn('t-phone', dir)).toEqual([1, 2, 3])
+    expect(trialsIn('t-phone', path.join(dir, 'none'))).toEqual([])
+    const replay = await runSuite({
+      kind: 'replay',
+      agent: 'replay',
+      tasks: [changeTask()],
+      manifest: MANIFEST,
+      set: 'x',
+      trials: (t) => trialsIn(t.id, dir).length,
+      providerFor: (t, n) => replayProvider(t, dir, n),
+      recordingOf: (t, n) => recordingFile(t.id, dir, n),
+    })
+    expect(replay.runs.map((r) => [r.taskId, r.trial, r.verdict, r.recording?.file])).toEqual([
+      ['t-phone', 1, 'ok', 't-phone.t1.jsonl'],
+      ['t-phone', 2, 'ok', 't-phone.t2.jsonl'],
+      ['t-phone', 3, 'ok', 't-phone.t3.jsonl'],
+    ])
+    expect(taskPasses(replay)).toEqual({ 't-phone': { passes: 3, trials: 3 } })
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('the classifier can be switched off: the main loop answers a needs-backend request itself', async () => {
+    let classified = 0
+    const provider = new ScriptedProvider([{ name: 'nb', match: ['.'], dir: '.', patterns: [/./], classify: { label: 'needs-backend', reason: 'server' }, turns: [{ calls: [{ tool: 'finish', input: { verdict: 'needs-backend', summary: 'This needs the server.', backend_note: 'add it' } }] }] }])
+    const counting = { ...provider, name: provider.name, model: provider.model, classify: (...a: Parameters<typeof provider.classify>) => (classified++, provider.classify(...a)), start: provider.start.bind(provider) }
+    const on = await runSuite({ kind: 'replay', agent: 'scripted', tasks: [noChangeTask()], manifest: MANIFEST, providerFor: () => counting })
+    const off = await runSuite({ kind: 'replay', agent: 'scripted', tasks: [noChangeTask()], manifest: MANIFEST, providerFor: () => counting, classify: false })
+    expect(classified).toBe(1)
+    expect(on.runs[0]).toMatchObject({ verdict: 'needs-backend', modelCalls: 0 })
+    expect(off.runs[0]).toMatchObject({ verdict: 'needs-backend', modelCalls: 1 })
+    expect(off.classifier).toBe(false)
   })
 })

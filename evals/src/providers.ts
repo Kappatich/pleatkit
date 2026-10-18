@@ -46,11 +46,25 @@ export function oracleProvider(task: EvalTask, o: { write: boolean }): ModelProv
   }
 }
 
-export const recordingFile = (taskId: string, dir = RECORDINGS_DIR): string => path.join(dir, `${taskId}.jsonl`)
+/** `<dir>/<task>.jsonl` (the scripted set), or `<dir>/<task>.t<trial>.jsonl` (a named set, several trials). */
+export const recordingFile = (taskId: string, dir = RECORDINGS_DIR, trial?: number): string => path.join(dir, trial === undefined ? `${taskId}.jsonl` : `${taskId}.t${trial}.jsonl`)
+
+/** Trials of a task a named set holds (`<task>.t1.jsonl`, `<task>.t2.jsonl`, …), in order; empty if none. */
+export function trialsIn(taskId: string, dir: string): number[] {
+  if (!fs.existsSync(dir)) return []
+  const prefix = `${taskId}.t`
+  return fs
+    .readdirSync(dir)
+    .flatMap((f) => {
+      const n = f.startsWith(prefix) && f.endsWith('.jsonl') ? f.slice(prefix.length, -'.jsonl'.length) : ''
+      return /^\d+$/.test(n) ? [Number(n)] : []
+    })
+    .sort((a, b) => a - b)
+}
 
 /** The task's recorded transcript, replayed without a model. */
-export function replayProvider(task: EvalTask, dir = RECORDINGS_DIR): ReplayProvider {
-  const file = recordingFile(task.id, dir)
+export function replayProvider(task: EvalTask, dir = RECORDINGS_DIR, trial?: number): ReplayProvider {
+  const file = recordingFile(task.id, dir, trial)
   if (!fs.existsSync(file)) throw new Error(`No recording for task ${task.id} (${path.basename(file)}): run "pnpm eval:record" to produce it.`)
   return new ReplayProvider(file)
 }

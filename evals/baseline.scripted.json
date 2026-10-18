@@ -1,0 +1,113 @@
+{
+  "pinnedAt": "2026-10-18T16:57:56.359Z",
+  "promptVersion": "2026-10-18.5a",
+  "prompt": {
+    "version": "2026-10-18.5a",
+    "prefixChars": 15739,
+    "prefixTokens": 4497
+  },
+  "passRate": 0.9285714285714286,
+  "tasks": {
+    "crm-01-card-fields": {
+      "pass": true,
+      "verdict": "ok",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 3
+    },
+    "crm-02-deal-discount": {
+      "pass": true,
+      "verdict": "needs-backend",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 0
+    },
+    "crm-03-compile-error-then-fix": {
+      "pass": true,
+      "verdict": "ok",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 3
+    },
+    "crm-04-deals-total-row": {
+      "pass": false,
+      "verdict": "ok",
+      "failed": [
+        "invariants",
+        "browser"
+      ],
+      "costUsd": 0,
+      "modelCalls": 2
+    },
+    "crm-05-clarify-stand-out": {
+      "pass": true,
+      "verdict": "clarify",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 0
+    },
+    "crm-06-clarify-answered": {
+      "pass": true,
+      "verdict": "ok",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 2
+    },
+    "crm-07-screenshot-target": {
+      "pass": true,
+      "verdict": "ok",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 3
+    },
+    "crm-08-stale-carry-over": {
+      "pass": true,
+      "verdict": "ok",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 2
+    },
+    "crm-09-off-topic": {
+      "pass": true,
+      "verdict": "refused",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 0
+    },
+    "crm-10-partial-phone-history": {
+      "pass": true,
+      "verdict": "partial",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 2
+    },
+    "crm-11-not-editable-header": {
+      "pass": true,
+      "verdict": "not-editable",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 2
+    },
+    "crm-12-declined-fake-login": {
+      "pass": true,
+      "verdict": "declined",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 1
+    },
+    "crm-13-ru-dashboard-average": {
+      "pass": true,
+      "verdict": "ok",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 2
+    },
+    "crm-14-edit-file-label": {
+      "pass": true,
+      "verdict": "ok",
+      "failed": [],
+      "costUsd": 0,
+      "modelCalls": 2
+    }
+  }
+}

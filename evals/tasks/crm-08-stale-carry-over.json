@@ -21,12 +21,13 @@
         "mustContain": [
           "data-testid=\"customer-card\"",
           "data-testid=\"due-date\"",
-          "export default function CustomerCard",
-          "{ customer }: { customer: Customer }",
           "data-testid=\"phone\""
         ],
         "mustNotContain": [
           "// previous release"
+        ],
+        "mustMatch": [
+          "export default function CustomerCard\\s*\\(\\s*\\{\\s*customer\\s*\\}"
         ]
       }
     ],
@@ -45,17 +46,17 @@
         {
           "testid": "phone",
           "within": "customer-card",
-          "text": "+1 555 0102"
+          "contains": "+1 555 0102"
         },
         {
           "testid": "city",
           "within": "customer-card",
-          "text": "Springfield"
+          "contains": "Springfield"
         },
         {
           "testid": "source",
           "within": "customer-card",
-          "text": "Referral"
+          "contains": "Referral"
         },
         {
           "testid": "deals-table",

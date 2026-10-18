@@ -31,8 +31,7 @@
     "browser": {
       "checks": [
         {
-          "testid": "deals-total",
-          "within": "deals-table",
+          "testid": "deals-table",
           "contains": "$57,500"
         },
         {

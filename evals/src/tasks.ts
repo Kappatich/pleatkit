@@ -10,7 +10,14 @@ export const REPO_ROOT = path.resolve(EVALS_DIR, '..')
 export const TASKS_DIR = path.join(EVALS_DIR, 'tasks')
 export const RECORDINGS_DIR = path.join(EVALS_DIR, 'recordings')
 export const RESULTS_DIR = path.join(EVALS_DIR, 'results')
+/** The baseline of the live series (DECISIONS 67.1: pinned on the first live run). */
 export const BASELINE_FILE = path.join(EVALS_DIR, 'baseline.json')
+/** The baseline of the scripted transcripts (`evals/recordings/*.jsonl`): what plain `pnpm eval:replay` checks. */
+export const SCRIPTED_BASELINE_FILE = path.join(EVALS_DIR, 'baseline.scripted.json')
+/** A named set of transcripts: `evals/recordings/<set>/`; no set is the scripted transcripts. */
+export const setDir = (set?: string): string => (set ? path.join(RECORDINGS_DIR, set) : RECORDINGS_DIR)
+/** The baseline a set is compared with: `live` → baseline.json, none → baseline.scripted.json, other → baseline.<set>.json. */
+export const baselineFileOf = (set?: string): string => (!set ? SCRIPTED_BASELINE_FILE : set === 'live' ? BASELINE_FILE : path.join(EVALS_DIR, `baseline.${set}.json`))
 export const REPORT_FILE = path.join(EVALS_DIR, 'report', 'index.html')
 export const DEMO_DIR = path.join(REPO_ROOT, 'apps', 'demo-crm')
 export const DEMO_MANIFEST = path.join(DEMO_DIR, 'dist', 'pleatkit.manifest.json')
@@ -43,7 +50,11 @@ export function validateTask(t: Partial<EvalTask>, file = '(task)'): string[] {
   ]
   for (const [name, map] of refs) for (const [k, v] of Object.entries(map ?? {})) if (!fs.existsSync(repoPath(v))) at(`${name}["${k}"]: ${v} does not exist`)
   for (const img of t.images ?? []) if (!fs.existsSync(repoPath(img))) at(`images: ${img} does not exist`)
-  for (const re of [...(t.invariants?.forbidden ?? []), ...(t.invariants?.files ?? []).flatMap((f) => [...(f.mustMatch ?? []), ...(f.mustNotMatch ?? [])])]) {
+  for (const [i, c] of (t.invariants?.browser?.checks ?? []).entries()) {
+    if (!c.testid && c.byText === undefined && !c.within) at(`invariants.browser.checks[${i}] needs testid, byText or within`)
+  }
+  const classRes = (t.invariants?.browser?.checks ?? []).flatMap((c) => (c.classMatches ? [c.classMatches] : []))
+  for (const re of [...(t.invariants?.forbidden ?? []), ...(t.invariants?.files ?? []).flatMap((f) => [...(f.mustMatch ?? []), ...(f.mustNotMatch ?? [])]), ...classRes]) {
     try {
       new RegExp(re, 'm')
     } catch {

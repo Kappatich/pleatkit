@@ -66,6 +66,8 @@ export default defineConfig({
       isolated: true,
       // edits compile on the agent server and load signed from /pleatkit/b (the default; ?compile=browser in the demo)
       compile: 'server',
+      // the components and the panel conventions (data fields keep data-testid = field name) for the agent's prompt
+      designSystem: { components: ['@/components/ui/*'], docs: 'docs/design-system.md' },
     }),
   ],
   resolve: { alias: { '@': path.join(root, 'src') } },
