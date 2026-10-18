@@ -1,4 +1,7 @@
 import type { AgentResult, AgentVerdict, UsageByModel } from '@pleatkit/runtime/compiler'
+import type { AppId } from './apps.js'
+
+export type { AppId } from './apps.js'
 
 /** Dynamic path → repo-relative path of the file with its content (`apps/demo-crm/e2e/fixtures/…`). */
 export type FileRefMap = Record<string, string>
@@ -23,25 +26,48 @@ export interface BrowserCheck {
   testid?: string
   /** The element whose whole text is this, any case (inside `within`, or inside `testid` when both are given). */
   byText?: string
+  /** The elements whose text matches this regular expression (any case). */
+  textMatches?: string
+  /** A CSS selector inside the scope (`thead th`, `.recharts-line`): structure the user sees, never a test id. */
+  selector?: string
+  /** An ARIA role inside the scope (`button`), with `name` a regular expression on its accessible name. */
+  role?: string
+  name?: string
   /** `data-testid` of the panel to look in (default: the whole page). */
   within?: string
+  /** `<Dynamic id>` of the panel to look in (a foreign app's panels have no test ids of their own). */
+  panel?: string
   /** Exact number of matching elements (0: must not exist). Default: at least one, the first is checked. */
   count?: number
   /** Exact text of the first match. */
   text?: string
   /** Substring of the text of the first match. */
   contains?: string
+  /** Text the first match must not contain. */
+  notContains?: string
+  /** Regular expression the first match's whole text must match (any case): order of rows, a computed value. */
+  matches?: string
   /** Substring of the first match's class attribute. */
   class?: string
   /** Regular expression a class attribute of the first match or of an element inside it must match (`text-(red|destructive)`). */
   classMatches?: string
+  /** `around`: `classMatches` may also be on an ancestor up to the panel (a struck-through row). Default: the element and inside it. */
+  classScope?: 'self' | 'around'
+  /** A computed style of the first match and a regular expression its value must match (`font-weight`, `^[6-9]00`). */
+  css?: { prop: string; matches: string }
+  /** The first match is at most this tall, CSS pixels (a compact layout). */
+  maxHeight?: number
   /** An attribute of the first match and its exact value. */
   attr?: { name: string; value: string }
+  /** Click the first match after its checks; later checks see the result (a filter button, a tab). */
+  click?: boolean
 }
 
 export interface BrowserInvariants {
-  /** Customer selected in the list before the checks (a substring of the button's name). Default "Globex". */
+  /** Demo app: customer selected in the list before the checks (a substring of the button's name). Default "Globex". */
   customer?: string
+  /** Route the checks run on (`/users`); default: the route of the task's target panel, else the app's start page. */
+  path?: string
   checks: BrowserCheck[]
 }
 
@@ -51,6 +77,8 @@ export interface TaskInvariants {
   forbidden?: string[]
   /** Dynamic files the agent must not change. */
   unchanged?: string[]
+  /** Regular expressions each of which some dynamic file of the result must match (the agent picks the file). */
+  anyMustMatch?: string[]
   /** Names of custom predicates (`src/predicates.ts`). */
   predicates?: string[]
   browser?: BrowserInvariants
@@ -59,8 +87,8 @@ export interface TaskInvariants {
 /** One eval task (`evals/tasks/*.json`). */
 export interface EvalTask {
   id: string
-  /** App the task runs against; only `demo-crm` for now. */
-  app: 'demo-crm'
+  /** App the task runs against (`evals/src/apps.ts`). */
+  app: AppId
   title: string
   /** Which demo scenario it covers (free text, shown in the report). */
   scenario?: string
@@ -118,6 +146,8 @@ export interface Tokens {
 
 export interface TaskRun {
   taskId: string
+  /** The task's app (absent in results written before the foreign apps: the demo). */
+  app?: AppId
   /** 1, 2, … when a task runs several times (`--trials`, or several transcripts of a set). */
   trial?: number
   title: string
@@ -125,6 +155,8 @@ export interface TaskRun {
   expectedVerdict: AgentVerdict
   verdict: AgentVerdict | null
   summary: string
+  /** The administrator's note of a partial or needs-backend answer. */
+  backendNote?: string
   changedFiles: string[]
   modelCalls: number
   /** null: no files were written; true: no failed check or finish on the way. */
@@ -138,6 +170,8 @@ export interface TaskRun {
   /** Usage by model as the agent reports it (classifier and main loop), for `cacheHitRate()`. */
   usage?: UsageByModel[]
   ms: number
+  /** The agent's own timings (classifier, model, tools, and the parallel overlap, DECISIONS 73.3). */
+  timings?: AgentResult['timings']
   stopReason?: AgentResult['stopReason']
   graders: GraderResult[]
   pass: boolean
@@ -151,8 +185,10 @@ export interface PromptInfo {
   version: string
   /** Characters of the cached prefix (instructions + digests + readonly sources + core types) for the demo app. */
   prefixChars: number
-  /** ≈ tokens at 3.5 characters per token. */
+  /** ≈ tokens: instructions at 2.9, the app's code at 2.2 characters per token, plus ≈ 900 for the tool definitions. */
   prefixTokens: number
+  /** The same per app when the run spans several apps. */
+  byApp?: Partial<Record<AppId, { prefixChars: number; prefixTokens: number }>>
 }
 
 export interface SuiteResult {
@@ -170,6 +206,8 @@ export interface SuiteResult {
   /** The main model of a live run, and whether the classifier ran first (`--no-classifier`). */
   model?: string
   classifier?: boolean
+  /** The classifier waited for (absent: parallel, the default since DECISIONS 73.3). */
+  classifierMode?: 'sequential'
   runs: TaskRun[]
 }
 

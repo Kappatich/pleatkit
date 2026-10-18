@@ -24,7 +24,8 @@
     "eval:replay": "pnpm --filter @pleatkit/evals replay",
     "eval:sanity": "pnpm --filter @pleatkit/evals sanity",
     "eval:pin": "pnpm --filter @pleatkit/evals pin",
-    "eval:report": "pnpm --filter @pleatkit/evals report"
+    "eval:report": "pnpm --filter @pleatkit/evals report",
+    "eval:classify": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals classify"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

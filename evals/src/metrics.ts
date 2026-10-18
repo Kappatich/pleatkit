@@ -45,6 +45,11 @@ export interface SeriesMetrics {
   /** Cost of every request, and of the requests that changed files (an edit). */
   costPerRequest: { median: number; max: number; total: number }
   costPerEdit: { median: number; max: number; runs: number }
+  /** Wall time of the runs that changed files (an edit), and of the runs the classifier answered alone. */
+  editLatencyMs: { median: number; p95: number; runs: number }
+  classifierOnlyMs: { median: number; runs: number }
+  /** DECISIONS 73.3: time the main model ran while the classifier decided (parallel start), over the runs that had it. */
+  overlapMs: { median: number; runs: number }
   /** `cacheHitRate()` of the agent over the usage rows of every run (classifier included). */
   cacheHitRate: number | null
   /** The same over the runs that reached the main model, main-loop rows only (the classifier has no cached prefix). */
@@ -86,6 +91,9 @@ export function seriesMetrics(s: Pick<SuiteResult, 'runs'>): SeriesMetrics {
     modelCalls: { median: median(main.map((r) => r.modelCalls)), total: s.runs.reduce((t, r) => t + r.modelCalls, 0), runs: main.length },
     latencyMs: { median: median(ms), p90: percentile(ms, 90), max: ms.length ? Math.max(...ms) : 0 },
     costPerRequest: { median: median(costs), max: costs.length ? Math.max(...costs) : 0, total: costs.reduce((a, b) => a + b, 0) },
+    editLatencyMs: { median: median(edits.map((r) => r.ms)), p95: percentile(edits.map((r) => r.ms), 95), runs: edits.length },
+    classifierOnlyMs: { median: median(s.runs.filter((r) => r.modelCalls === 0 && r.timings?.classifyMs != null).map((r) => r.ms)), runs: s.runs.filter((r) => r.modelCalls === 0 && r.timings?.classifyMs != null).length },
+    overlapMs: { median: median(s.runs.flatMap((r) => (r.timings?.overlapMs ? [r.timings.overlapMs] : []))), runs: s.runs.filter((r) => r.timings?.overlapMs).length },
     costPerEdit: { median: median(edits.map((r) => r.costUsd)), max: edits.length ? Math.max(...edits.map((r) => r.costUsd)) : 0, runs: edits.length },
     cacheHitRate: cacheHitRate(s.runs.flatMap(rowsOf)),
     mainCacheHitRate: cacheHitRate(mainRows),

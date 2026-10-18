@@ -15,7 +15,9 @@ pnpm eval:replay -- --set live   # every trial of the live series (evals/recordi
 pnpm eval:report    # evals/report/index.html from the last replay (and sanity) results
 pnpm eval:pin       # the last replay becomes the baseline of its set (with its PROMPT_VERSION)
 pnpm eval:record    # re-record evals/recordings from the scripted fixtures (after changing a task or a fixture)
-# options: -- --only crm-01,crm-04   -- --set <name>   -- --no-browser   -- --no-typecheck   -- --no-classifier
+# options: -- --only crm-01,crm-04   -- --tasks demo|apps|all   -- --set <name>   -- --no-browser   -- --no-typecheck
+#          -- --no-classifier   -- --sequential-classifier
+pnpm eval:classify -- --tasks apps --against apps   # the classifier alone on every task (Haiku, ≈ $0.008), next to a set's labels
 ```
 
 Two sets of transcripts, two baselines:
@@ -70,18 +72,18 @@ transcripts in `evals/test/runner.test.ts`.
 
 ## Adding a task
 
-1. Write `evals/tasks/<id>.json` (ids: lower-case, digits, dashes). Fields:
+1. Write `evals/tasks/<id>.json` (the demo) or `evals/tasks/apps/<id>.json` (the foreign apps; ids: lower-case, digits, dashes). Fields:
 
    | Field | |
    |---|---|
-   | `id`, `app` (`demo-crm`), `title`, `scenario` | names; `scenario` says what it covers |
+   | `id`, `app` (`demo-crm`, `shadcn-admin`, `tailadmin`: `evals/src/apps.ts`), `title`, `scenario` | names; `scenario` says what it covers |
    | `request`, `locale` | the user's text; `ru` for a Russian-speaking user |
    | `target`, `targetDom`, `images` | pointed panel, its DOM snapshot, screenshots (repo-relative paths) |
    | `clarification` | `{ question, answer }`: the user already answered the one question |
    | `startFiles` | `{ dynamic path: repo path }` when the user does not start from the release's files |
    | `migration` | `{ oldBaseSuffix, edited }`: a stale head carried over to the current release |
    | `expected` | `{ verdict, change }` |
-   | `invariants` | `files`, `forbidden`, `unchanged`, `predicates`, `browser: { customer, checks: [{ testid, within, count, text, contains, class, attr }] }` |
+   | `invariants` | `files`, `forbidden`, `unchanged`, `anyMustMatch` (some file of the result matches), `predicates`, `browser: { customer, path, checks: [...] }` (below) |
    | `reference` | `{ files: { dynamic path: repo path } }`: required when `expected.change` is true |
    | `budgetUsd` | the task's dollar cap |
    | `record` | `{ fixture }`: the scripted fixture (by `name`) that plays the agent for the offline recording |
@@ -100,7 +102,10 @@ A new kind of check is one function in `evals/src/predicates.ts` and its name in
 
 - **Tiles:** pass rate (and the baseline's), cost, tokens (input, cache read and write, output), cache hit rate (H1),
   median model calls (H3), first try (H2: no failed check or finish among runs that wrote files), the prompt version
-  and the size of the cached prefix (≈ tokens at 3.5 characters each), with its change against the baseline.
+  and the size of the cached prefix (estimated: instructions at 2.9, the app's code at 2.2 characters per token, ≈ 900
+  for the tools; `pleatkit doctor` with `PLEATKIT_API_KEY` counts it exactly), with its change against the baseline;
+  edit latency (median, p95, the classifier-only answers and the parallel start's overlap); with several apps, a
+  table by app.
 - **Notes:** a run stopped by money, regressions, transcripts recorded with another prompt version (a replay repeats
   recorded answers: it tests the harness, tools and graders, not a new prompt; re-record with a model to measure one),
   unpriced models.
@@ -133,3 +138,50 @@ and tiles for the latency (median, p90), cost per edit (median, max over runs th
 `cacheHitRate()` over every call and over the main model's calls. A task's baseline entry sums its trials
 (`passes` of `trials`); a replay regresses when a smaller share of a task's trials passes. `pnpm eval:pin -- --set <name>`
 refuses transcripts recorded with another `PROMPT_VERSION`.
+
+## Stage 5, block 2: the foreign apps (`--tasks apps`)
+
+Two open-source admin templates with pleatkit installed by the customer docs live in `evals/apps`
+([`evals/apps/README.md`](../evals/apps/README.md)): shadcn-admin (pnpm) and TailAdmin (npm), both Vite 8. Their 35
+tasks are `evals/tasks/apps/*.json` (`sa-*`, `ta-*`): fields to add, reorder or remove, colours, filters the user
+clicks, sorting, a chart from a list, compact layouts, i18n labels, server work, a partial request, ambiguous requests
+that need a question, a part of the screen outside the zone, and three adversarial requests. Each change task has a
+reference under `evals/references/apps/<app>/` (written by `evals/references/apps/make-references.mjs` from the
+apps' current panels, so a changed panel fails loudly there).
+
+```bash
+cd evals/apps/shadcn-admin && pnpm install --ignore-workspace && pnpm build && cd ../tailadmin && npm ci && npm run build
+pnpm eval:sanity -- --tasks apps                        # 35 references pass; the null agent fails the 26 change tasks
+pnpm eval:replay -- --set apps                          # the Sonnet series (35 × 2) vs evals/baseline.apps.json
+PLEATKIT_EVAL_BUDGET_USD=6 pnpm eval:record -- --live --tasks apps --trials 2      # writes the set `apps`
+```
+
+What differs from the demo:
+
+- **Manifests and tsc per app.** Each task runs against its own app's `dist/pleatkit.manifest.json`; the tsc grader
+  resolves packages from that app's `node_modules` (a set `PLEATKIT_TYPECHECK_ROOT` still wins for every app).
+- **Browser grader per app.** One Playwright run per app (`EVAL_APP`): the agent server with the app's manifest, an
+  in-memory store-server and `vite preview` of the app's build, on the grader's own ports. The app is opened on the
+  route of the task's panel (`invariants.browser.path`, else the panel's route in `evals/src/apps.ts`) with
+  `?app=<run>&eval=1`; the panels of that route must render after the commit.
+- **Checks without test ids.** The foreign apps document no test ids, so their checks never use `testid` (a unit test
+  enforces it). A check scopes to a panel by its `<Dynamic id>` (`panel`) and finds elements by what the user sees:
+  `selector` (CSS structure: `thead th`, `.recharts-line`), `role` + `name` (a button), `byText` / `textMatches`, then
+  checks `count`, `contains` / `notContains`, `matches` (the whole text against a regular expression: the order of rows),
+  `classMatches` with `classScope: "around"` (also on ancestors: a struck-through row), `css` (a computed style:
+  `font-weight`), `maxHeight` (a compact layout) and `click` (later checks see the result: a filter button).
+- **`anyMustMatch`** (text invariant): some dynamic file of the result matches, wherever the agent put the change.
+- **`chart-colors-green`** (predicate): the first colour of a chart's `colors: [...]` option is a green.
+
+`pnpm eval:classify -- --tasks apps --against <set>` runs only the classifier (Haiku) on every task it would see, with
+today's prompt and the app's data contract, and prints the label next to the one the set recorded: a classifier change
+measured for under a cent before any edit runs (`evals/results/classify-<set>.json`).
+
+Sets of this block: `apps-5b` (Sonnet 5.5, prompt 5b: the series as asked), `apps-5c` (prompt 5c), `apps` (prompt
+5d, pinned as `evals/baseline.apps.json`), `apps-haiku` (Haiku 5.5 as the editor, 35 × 1), `live-haiku` (Haiku 5.5 as
+the editor on the demo, 14 × 3), `live-5d` and `live-5d-sequential` (Sonnet on the demo with the parallel and the
+sequential classifier: the A/B), `probe-5b`, `probe-5d`, `apps-5d-probe` (small re-runs after a prompt change). The numbers:
+[`evals/REPORT-2026-10-18-foreign.md`](../evals/REPORT-2026-10-18-foreign.md).
+
+The classifier and the main model start together by default (DECISIONS 73.3); `--sequential-classifier` waits for the
+classifier as before, for comparisons. A run's `timings.overlapMs` is the time the parallel start saved.
