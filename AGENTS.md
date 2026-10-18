@@ -20,7 +20,7 @@ another app, read [`docs/for-agents/AGENTS.md`](docs/for-agents/AGENTS.md) inste
 | `packages/store-server` | snapshots, heads, request log, quotas, audit, facts | private (pleatkit-cloud) |
 | `packages/vite-plugin` | zones, manifest, digests, externals | MIT |
 | `packages/ui` | chat drawer | the architect owns the look; ask before touching |
-| `packages/cli` | doctor, ping, keys, export, check-snapshots | MIT |
+| `packages/cli` | doctor, ping, keys, export, check-snapshots, report, digest, carry-over | MIT |
 | `apps/demo-crm` | the demo app and all e2e tests | Playwright, headless only |
 | `examples/t1-vite` | the install docs, followed into a fresh Vite app | `pnpm build && pnpm smoke` |
 | `site/` | the landing page | the architect owns it |
@@ -54,4 +54,5 @@ No model key is needed: the agent runs the `scripted` provider (recorded answers
 - Wire protocol browser ↔ agent: `packages/runtime/src/protocol.ts`.
 - The one `check`: `packages/runtime/src/compiler.ts` (`Compiler.compile`) + `check.ts` (rules).
 - Server trust: the agent takes context, readonly sources and types from `PLEATKIT_MANIFEST` (`packages/agent/src/manifest.ts`).
-- Incidents: `docs/ops/incident.md`. Production setup: `docs/for-agents/production.md`.
+- Incidents: `docs/ops/incident.md`. Production setup: `docs/for-agents/production.md`. Support: `docs/support-playbook.md`.
+- Roles and impersonation: `packages/store-server/src/auth.ts`; /admin screens: `apps/demo-crm/src/core/Admin*.tsx`.

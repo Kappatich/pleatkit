@@ -4,6 +4,34 @@ All notable changes to the pleatkit packages. Versions follow semver; while they
 break, and every break is marked **Breaking** with its migration step. Policy: README, "Changelog and breaking
 changes". Nothing is published to npm yet; the entries below are the state of `main`.
 
+## Unreleased (stage 4c block 2, 2026-10-18)
+
+### Added
+- **Roles** `support` and `admin` in user tokens (`mintUserToken({ role })`). `support` reads everything under
+  `/v1/admin` except the export and changes nothing there. **Impersonation**: `x-pleatkit-act-as: <user>` with a
+  support or admin token (`new HttpStore({ userId, viewer, token })`) reads and writes that user's version; every
+  such call is written to the audit chain with both ids (`impersonate.read|write`). `docs/support-playbook.md`.
+- **Pilot report** `GET /v1/report?from&to`: CSV per day and organization (requests by verdict, applied, undone,
+  rolled back, live after 24 h, carry-overs, cost, users, orgs) and a total; `&format=json`.
+- **Wish map**: `POST /agent/v1/wishes` and the weekly digest group the requests the panels could not serve into
+  themes per panel with one classifier call (`ModelProvider.cluster`, optional; scripted fixtures take `wishes`),
+  stored in store-server (`GET|PUT /v1/admin/wishes`, `GET /v1/admin/wish-items`).
+- **Code search** `GET /v1/admin/snapshots?grep=` and **rollback by selection** `POST /v1/admin/snapshots/rollback
+  { grep, confirm }` (each matching live version goes to the user's nearest earlier version without the text).
+- **Bulk carry-over** after a release: `pleatkit carry-over --release <hash> --budget-usd <n>` (no model where the
+  release did not touch the user's files, the agent where it did, never past the budget, resumable, `--dry-run`,
+  `--retry`, `--rollback`); store-server keeps runs (`/v1/admin/releases`). `manifestReleaseHash` in
+  `@pleatkit/runtime/compiler`.
+- `pleatkit digest --week` (markdown; `--send` through `PLEATKIT_ALERT_WEBHOOK` / `PLEATKIT_ALERT_EMAIL_*`),
+  `pleatkit report` (a bug report with secrets redacted). Alert kind `digest`.
+- `providerFromEnv` in `@pleatkit/agent`. `SECURITY.md`, `SUPPORTED.md`, `docs/ROADMAP.md`, issue templates,
+  `docs/security/*` and `docs/pilot/*` (drafts for counsel).
+
+### Changed
+- **Breaking (docs and the example, not the API):** the install guide and `examples/t1-vite` use `HttpStore` with
+  store-server by default (`pnpm store`, a `/pleatkit-store` proxy, `/pleatkit/b` pointed at store-server).
+  `LocalStore` stays for a quick look. Existing installs keep working as they are.
+
 ## Unreleased (rename to pleatkit, 2026-10-18)
 
 ### Renamed

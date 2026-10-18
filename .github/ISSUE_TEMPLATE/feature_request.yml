@@ -1,0 +1,36 @@
+name: Feature request
+description: Something pleatkit should do. Check docs/ROADMAP.md first; a vote on an existing issue counts.
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: Who hits it (your users, your admins, your developers) and what they do today instead.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+  - type: dropdown
+    id: stack
+    attributes:
+      label: Your stack
+      description: Next.js, webpack, React Native and MUI are on the roadmap (docs/ROADMAP.md, SUPPORTED.md).
+      multiple: true
+      options:
+        - Vite + React
+        - Next.js
+        - webpack / other bundler
+        - React Native / Expo
+        - Tailwind + shadcn
+        - MUI / Emotion
+        - Other
+  - type: checkboxes
+    id: roadmap
+    attributes:
+      label: Roadmap
+      options:
+        - label: I checked docs/ROADMAP.md and the open issues
+          required: true

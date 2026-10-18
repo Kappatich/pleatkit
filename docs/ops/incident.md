@@ -27,7 +27,7 @@ Alerts go to `PLEATKIT_ALERT_WEBHOOK` (JSON POST, Slack-compatible `text`) and/o
 
 ## Playbooks
 
-**A rule bypass (data could leave the browser).** Kill switch for the app. Find every snapshot with the pattern (export, grep the files), roll those heads back. Add the bypass to the static-check corpus (`packages/runtime/test/check.test.ts`) and fix the rule; the CSP (`img-src 'self'; form-action 'self'; connect-src 'self'`) should have blocked the request, so check the customer's CSP too. Lift the kill switch only after the fix is deployed to the agent server.
+**A rule bypass (data could leave the browser).** Kill switch for the app. Find every live version with the pattern: /admin → Code search (`GET /v1/admin/snapshots?grep=<text>`, `&scope=all` for every version), then **Roll back N live versions** (`POST /v1/admin/snapshots/rollback {"grep": "<text>", "confirm": N}`): each user goes to their nearest earlier version without it, the rest of their edits stay. Add the bypass to the static-check corpus (`packages/runtime/test/check.test.ts`) and fix the rule; the CSP (`img-src 'self'; form-action 'self'; connect-src 'self'`) should have blocked the request, so check the customer's CSP too. Lift the kill switch only after the fix is deployed to the agent server.
 
 **A bot with valid tokens burning the budget.** The freeze stops one user at a time; if many users are involved (stolen tokens, a script), lower the app's plan (`PUT /v1/admin/plan`), ask the customer to rotate their JWT secret (`PLEATKIT_JWT_SECRET`), which invalidates every token within 15 minutes.
 
@@ -35,7 +35,7 @@ Alerts go to `PLEATKIT_ALERT_WEBHOOK` (JSON POST, Slack-compatible `text`) and/o
 
 **Agent server down or the model provider failing.** The chat answers "something went wrong"; nobody loses a version. Check the provider status page; switch `PLEATKIT_PROVIDER` or `PLEATKIT_MODEL` only with an eval report (DECISIONS 43).
 
-**A release broke personal versions.** Before the next release run `pleatkit check-snapshots --store <url> --app <id> --manifest dist/pleatkit.manifest.json --typecheck`. After the fact: the runtime marks those panels stale and users can reset or ask the agent to carry them over; roll the release back if many users are affected.
+**A release broke personal versions.** Before the next release run `pleatkit check-snapshots --store <url> --app <id> --manifest dist/pleatkit.manifest.json --typecheck`. After it: `pleatkit carry-over --release <hash> --budget-usd <n>` carries every user over (no model where the release did not touch their files, the agent where it did, never past the budget; run it again to continue). If the release itself is rolled back, `pleatkit carry-over --release <hash> --rollback` (or /admin → Releases → Roll back release) puts every user back on their version from before the run.
 
 **Vulnerability report.** Acknowledge within 24 hours, do not discuss publicly, reproduce with a test, fix, release, credit the reporter if they agree.
 
