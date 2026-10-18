@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in pleatkit does not work as documented.
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Security problems: do not file them here, use **Report a vulnerability** (SECURITY.md).
+        A person reads and answers every issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw. The request you typed in the drawer and the verdict it got help most.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The smallest app or panel that shows it. A fork of `examples/t1-vite` is ideal.
+      placeholder: |
+        1. ...
+        2. ...
+  - type: textarea
+    id: report
+    attributes:
+      label: pleatkit report
+      description: |
+        Run `pnpm exec pleatkit report` in the app folder and paste `pleatkit-report.md` here. It has doctor's findings,
+        versions and your Vite config with keys, tokens and secrets redacted. Read it before you paste it.
+      render: markdown
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where
+      options:
+        - Install / doctor / Vite plugin
+        - The drawer (chat, undo, history)
+        - Edits (the agent, the static rules, compile)
+        - store-server / admin dashboard
+        - CLI (export, check-snapshots, carry-over, digest)
+        - Docs
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: Model provider
+      options:
+        - scripted (no key)
+        - Anthropic
+        - OpenAI-compatible
+        - Not related to the model

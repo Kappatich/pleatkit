@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability (private)
+    url: https://github.com/Kappatich/pleatkit/security/advisories/new
+    about: Security problems go here, never in a public issue. See SECURITY.md.
+  - name: Install guide and troubleshooting
+    url: https://github.com/Kappatich/pleatkit/blob/main/docs/for-agents/troubleshooting.md
+    about: Most setup problems have a fix there; `pnpm exec pleatkit doctor` names it.
+  - name: What runs where (support matrix)
+    url: https://github.com/Kappatich/pleatkit/blob/main/SUPPORTED.md
+    about: React, Vite, Node and browser versions we support.

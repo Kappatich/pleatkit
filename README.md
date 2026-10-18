@@ -116,10 +116,11 @@ Give entities a free-form `meta` field if you can: many "add a field" requests t
 
 ```tsx
 import * as config from 'virtual:pleatkit'
-import { LocalStore, PleatkitProvider } from '@pleatkit/runtime'
+import { HttpStore, PleatkitProvider } from '@pleatkit/runtime'
 import { PleatkitChat } from '@pleatkit/ui'
 
-const store = new LocalStore()   // or new HttpStore({ baseUrl: '/pleatkit-store', userId, appId })
+// the users' versions in store-server; new LocalStore() keeps them in this browser for a quick look
+const store = new HttpStore({ baseUrl: '/pleatkit-store', userId: currentUser.id, appId: 'my-app' })
 
 <PleatkitProvider config={config} store={store} userId={currentUser.id}>
   <App />
@@ -331,6 +332,19 @@ host never starts, the panel shows an error after 15 s.
   the audit chain, flags, settings and plan (`GET /v1/admin/export`).
 - **Plans as data (F14).** Limits live in the default plan table of the agent server and per app in store-server
   (`PUT /v1/admin/plan`); see "Quotas" above.
+- **Roles and "view as a user" (C8).** User tokens carry `role: 'user' | 'support' | 'admin'`. Support reads /admin
+  and acts as one user at a time (`x-pleatkit-act-as`, `HttpStore({ viewer })`); every such call is in the audit
+  chain with both ids. [docs/support-playbook.md](docs/support-playbook.md).
+- **Pilot report and wish map (C9).** `GET /v1/report?from&to` (CSV per day and organization); the wish map groups
+  the requests the panels could not serve into themes per panel with one classifier call (/admin → Wishes).
+- **After a release (C10).** `pleatkit carry-over --release <hash> --budget-usd <n>` carries every user's edits to
+  the new build within a budget, resumable; `--rollback` puts them back. /admin → Releases.
+- **Code search (C11).** /admin → Code search (`GET /v1/admin/snapshots?grep=`) and rollback of every matching live
+  version with a confirm count.
+- **Weekly digest (C5).** `pleatkit digest --week [--send]`: markdown with the week's numbers, what waits on the
+  admin, the audit chain and the wish map, through the alert webhook or e-mail API.
+- **Bug reports.** `pleatkit report` writes `pleatkit-report.md` (doctor, versions, redacted config). Security
+  reports: [SECURITY.md](SECURITY.md). Support matrix: [SUPPORTED.md](SUPPORTED.md). Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ### Telemetry (F8)
 
