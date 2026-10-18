@@ -22,7 +22,7 @@ Your backend mints user tokens with `mintUserToken` from `@pleatkit/store-server
 
 **Self-host and cloud.** This package is the whole store you self-host. The managed pleatkit cloud runs the same
 core plus a private package of cloud-only modules (the learning layer, later billing and region routing) that plugs
-in through `StoreExtension` (`createStoreApp(db, { extensions })`); the binary loads it only when it is installed
-(`PLEATKIT_STORE_EXTENSIONS=none` turns that off).
+in through `StoreExtension` (`createStoreApp(db, { extensions })`); the binary loads it only when the deployment's
+`package.json` depends on it (`PLEATKIT_STORE_EXTENSIONS=none` turns that off).
 
 MIT. Changes: [CHANGELOG.md](https://github.com/Kappatich/pleatkit/blob/main/CHANGELOG.md).

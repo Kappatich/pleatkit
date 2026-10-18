@@ -14,7 +14,7 @@ changes". Nothing is published to npm yet. 0.2.0 is the first public release; it
   store. Cloud: the same core plus the private `@pleatkit/store-cloud`, which plugs in through `StoreExtension`
   (`createStoreApp(db, { extensions })`: tables, routes, jobs, hooks); `runMaintenance` runs the core's and the
   extensions' hourly jobs; the `pleatkit-store` binary loads `PLEATKIT_STORE_EXTENSIONS` (`none` for the open core
-  only; unset: `@pleatkit/store-cloud` when installed).
+  only; unset: `@pleatkit/store-cloud` when the deployment's `package.json` depends on it).
 - **Erasure** (DECISIONS 70.2): `DELETE /v1/admin/users/:id` and `DELETE /v1/admin/apps/:id`, admin only, with a
   confirm token for the counts shown (409 `confirm-required` without it); one transaction deletes the subject's
   snapshots, heads, requests, usage events, bundles, run records, idempotent replies, quota buckets, flags,

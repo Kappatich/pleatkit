@@ -12,7 +12,7 @@ import { DEFAULT_RETENTION, runMaintenance, type RetentionPolicy } from './reten
 // PLEATKIT_DEMO_HEADERS=0 turns the demo headers off in development too
 // PLEATKIT_STORE_BODY_LIMIT: largest request body in bytes (default 4 MiB; larger bodies get 413)
 // PLEATKIT_RETENTION: JSON {"textDays": 90, "logDays": 30}, applied hourly (the cloud module reads "factsDays" too)
-// PLEATKIT_STORE_EXTENSIONS: none | <module>[,<module>]; unset: @pleatkit/store-cloud when installed (DECISIONS 70.1)
+// PLEATKIT_STORE_EXTENSIONS: none | <module>[,<module>]; unset: @pleatkit/store-cloud when this deployment's package.json depends on it (DECISIONS 70.1)
 // PLEATKIT_REGION (default local) and PLEATKIT_ENVIRONMENT (default production with NODE_ENV=production, else development): recorded on every row (F2)
 let auth
 try {
