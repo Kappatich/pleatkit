@@ -6,8 +6,9 @@ import type { TypecheckFn, WorkspaceInput } from './workspace.js'
 
 /**
  * Type check of the dynamic zone against the app's types (brainstorm 05 #4): esbuild strips types, so an edit
- * that calls `api.listDeals(1)` where the client takes a string compiles and fails at run time. With
- * `typecheck: true` (PLEATKIT_TYPECHECK=1) the agent's `check` also runs TypeScript over the dynamic files with
+ * that calls `api.listDeals(1)` where the client takes a string compiles and fails at run time (or reads a variable
+ * before its declaration, stage 5: Haiku's ta-09). With a typechecker (by default when the app's packages are found,
+ * `typecheckFromEnv`) the agent's `check` also runs TypeScript over the dynamic files with
  * the readonly sources and the core `.d.ts` from the manifest. Only errors in dynamic files are reported, and with
  * the release's files (`input.base`) only those the release does not already have (stage 5: a foreign app's own
  * panels may not pass this checker's settings). The app's ambient declarations among the core types are roots.
@@ -40,7 +41,7 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
   // stage 5 (foreign apps): the release's own panels can carry type errors under this checker's settings (a
   // stricter app tsconfig, an app's own lib choices); an edit is refused only for errors it introduced
   const baseErrors = new Map<string, Set<string>>()
-  const diagnose = async (files: FileMap, input: WorkspaceInput, limit: number): Promise<CompileError[]> => {
+  const diagnose = async (files: FileMap, input: WorkspaceInput, limit: number, only?: string[]): Promise<CompileError[]> => {
     const virtual = new Map<string, string>()
     const add = (map: FileMap) => {
       for (const [p, s] of Object.entries(map)) virtual.set('/' + p, s)
@@ -104,15 +105,11 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
           return local
         }),
     }
-    const dynamic = Object.keys(files).filter((p) => /\.(tsx|ts|jsx|js)$/.test(p) && input.context.dynamicRoots.some((r) => p.startsWith(r)))
+    const dynamic = only ?? dynamicScripts(files, input)
     // the app's ambient declarations (`declare module '@tanstack/react-table' { … }`, `*.svg?react`) are not
     // imported by anything: they apply only as roots of the program
     const ambient = Object.keys(input.coreTypes).filter((p) => p.endsWith('.d.ts') && /^\s*declare\s+(module|global)\b/m.test(input.coreTypes[p]!))
-    const program = ts.createProgram(
-      [...dynamic, ...ambient].map((p) => '/' + p),
-      compilerOptions,
-      host,
-    )
+    const program = ts.createProgram([...dynamic, ...ambient].map((p) => '/' + p), compilerOptions, host)
     const out: CompileError[] = []
     for (const p of dynamic) {
       const sf = program.getSourceFile('/' + p)
@@ -127,9 +124,14 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
     return out
   }
   return async (files: FileMap, input: WorkspaceInput): Promise<CompileError[]> => {
-    const errors = await diagnose(files, input, 200)
     const base = input.base
-    if (!errors.length || !base || !Object.keys(base).length) return errors.slice(0, 20)
+    const hasBase = Boolean(base && Object.keys(base).length)
+    // 74.2: with the release known, only the files the edit changed and the dynamic files importing them are checked
+    // (a full check of shadcn-admin's seven panels took 2.5 s per check; the changed ones are what can break)
+    const only = hasBase ? affectedFiles(files, base!, input) : undefined
+    if (only && only.length === 0) return []
+    const errors = await diagnose(files, input, 200, only)
+    if (!errors.length || !base || !hasBase) return errors.slice(0, 20)
     const key = JSON.stringify(Object.keys(base).sort().map((p) => [p, base[p]!.length, hashText(base[p]!)]))
     let known = baseErrors.get(key)
     if (!known) {
@@ -141,6 +143,32 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
   }
 }
 
+const dynamicScripts = (files: FileMap, input: WorkspaceInput): string[] =>
+  Object.keys(files).filter((p) => /\.(tsx|ts|jsx|js)$/.test(p) && input.context.dynamicRoots.some((r) => p.startsWith(r)))
+
+/** Dynamic scripts that differ from the release, and the dynamic scripts that import one of them (relative imports). */
+export function affectedFiles(files: FileMap, base: FileMap, input: WorkspaceInput): string[] {
+  const scripts = dynamicScripts(files, input)
+  const changed = new Set(scripts.filter((p) => files[p] !== base[p]))
+  if (changed.size === 0) return []
+  const resolves = (from: string, spec: string): string | null => {
+    const target = path.posix.join(path.posix.dirname(from), spec)
+    return ['', '.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts'].map((e) => target + e).find((c) => c in files) ?? null
+  }
+  const out = new Set(changed)
+  for (const p of scripts) {
+    if (out.has(p)) continue
+    for (const m of files[p]!.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)) {
+      const hit = resolves(p, m[1]!)
+      if (hit && changed.has(hit)) {
+        out.add(p)
+        break
+      }
+    }
+  }
+  return [...out].sort()
+}
+
 /** A cheap 32-bit hash for the cache key of a release's files (not security relevant). */
 function hashText(s: string): number {
   let h = 0
@@ -148,10 +176,61 @@ function hashText(s: string): number {
   return h
 }
 
-/** PLEATKIT_TYPECHECK=1 (+ PLEATKIT_TYPECHECK_ROOT) → a typechecker, else null. */
+/**
+ * The app folder of a manifest file (`<app>/dist/pleatkit.manifest.json` → `<app>`): the nearest folder at most two
+ * levels up that has `package.json` and `node_modules`. Null for a URL or when none is found (the cloud has the
+ * manifest but not the app's packages).
+ */
+export function appRootOf(manifestLocation: string | undefined): string | null {
+  if (!manifestLocation || /^https?:\/\//.test(manifestLocation)) return null
+  let dir = path.dirname(path.resolve(manifestLocation))
+  for (let i = 0; i < 3; i++) {
+    if (fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'node_modules'))) return dir
+    const up = path.dirname(dir)
+    if (up === dir) break
+    dir = up
+  }
+  return null
+}
+
+/**
+ * DECISIONS 63.4 and 74.2: the agent loop type-checks edits by default when the app's types are available.
+ *
+ * - `PLEATKIT_TYPECHECK=0` (or `off`, `false`): off.
+ * - `PLEATKIT_TYPECHECK=1` (or `true`): on; packages resolve from `PLEATKIT_TYPECHECK_ROOT` or the app folder next
+ *   to the manifest, else they are `any` (only the app's own contracts are checked).
+ * - unset (`auto`): on when an app folder with `node_modules` is found (`PLEATKIT_TYPECHECK_ROOT`, or next to
+ *   `PLEATKIT_MANIFEST` / each manifest of `PLEATKIT_MANIFESTS`), else off. The cloud has no app packages: off there.
+ *
+ * With several manifests each app is checked against its own folder (by the compile context's namespace, the app id).
+ */
 export function typecheckFromEnv(env: Record<string, string | undefined>): TypecheckFn | null {
-  if (env.PLEATKIT_TYPECHECK !== '1' && env.PLEATKIT_TYPECHECK !== 'true') return null
-  const root = env.PLEATKIT_TYPECHECK_ROOT ?? null
-  if (root && !fs.existsSync(root)) throw new Error(`PLEATKIT_TYPECHECK_ROOT ${root} does not exist`)
-  return createTypechecker({ root })
+  const mode = (env.PLEATKIT_TYPECHECK ?? 'auto').trim().toLowerCase()
+  if (mode === '0' || mode === 'off' || mode === 'false') return null
+  const forced = mode === '1' || mode === 'true' || mode === 'on'
+  const explicit = env.PLEATKIT_TYPECHECK_ROOT
+  if (explicit) {
+    if (!fs.existsSync(explicit)) throw new Error(`PLEATKIT_TYPECHECK_ROOT ${explicit} does not exist`)
+    return createTypechecker({ root: explicit })
+  }
+  const defaultRoot = appRootOf(env.PLEATKIT_MANIFEST)
+  const roots = new Map<string, string>()
+  if (env.PLEATKIT_MANIFESTS) {
+    try {
+      for (const [appId, where] of Object.entries(JSON.parse(env.PLEATKIT_MANIFESTS) as Record<string, string>)) {
+        const root = appRootOf(where)
+        if (root) roots.set(appId, root)
+      }
+    } catch {
+      // manifestSourceFromEnv reports the bad JSON
+    }
+  }
+  if (!forced && !defaultRoot && roots.size === 0) return null
+  const fallback = defaultRoot || forced ? createTypechecker({ root: defaultRoot }) : null
+  if (roots.size === 0) return fallback
+  const perApp = new Map([...roots].map(([appId, root]) => [appId, createTypechecker({ root })]))
+  return async (files, input) => {
+    const fn = perApp.get(input.context.namespace ?? '') ?? fallback
+    return fn ? fn(files, input) : []
+  }
 }

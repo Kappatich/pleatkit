@@ -181,8 +181,12 @@ test('4a screens: flags, events, audit chain, plan and usage; C8: view as a user
   await expect(page.getByTestId('admin-audit-row').filter({ hasText: 'impersonate.read' }).first()).toBeVisible()
   await shot(page, '21-admin-audit.png')
 
+  // stage 5 block 3: a run the model provider's rate limit stopped shows in today's row of the usage table
+  const ev = await page.request.post('/pleatkit-store/v1/events', { headers: { 'content-type': 'application/json', 'x-pleatkit-agent': '1', 'x-pleatkit-user': 'alice', 'x-pleatkit-app': app }, data: { events: [{ type: 'edit.rate_limited', value: 1, unit: 'edit', userId: 'alice', dedupeKey: `edit.rate_limited:${app}` }] } })
+  expect(ev.ok()).toBe(true)
   await page.goto(`/admin?view=plan&app=${app}`)
   await expect(page.getByTestId('admin-plan-today')).toContainText('Plan: free (default)')
+  await expect(page.getByTestId('admin-plan-rate-limited').first()).toHaveText('1')
   await expect(page.getByTestId('admin-plan-today')).toContainText('2 of 300 edits')
   await page.getByTestId('admin-plan-appDailyEdits').fill('500')
   await page.getByTestId('admin-plan-save').click()

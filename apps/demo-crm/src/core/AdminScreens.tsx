@@ -902,8 +902,8 @@ export function PlanScreen({ call, tr, locale }: ScreenProps) {
   const effective = (k: string) => plan?.limits[k] ?? base[k]!
   const today = new Date().toISOString().slice(0, 10)
   const days = useMemo(() => {
-    const by = new Map<string, { requests: number; applied: number; editors: number; cost: number }>()
-    for (let i = 6; i >= 0; i--) by.set(new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10), { requests: 0, applied: 0, editors: 0, cost: 0 })
+    const by = new Map<string, { requests: number; applied: number; editors: number; cost: number; rateLimited: number }>()
+    for (let i = 6; i >= 0; i--) by.set(new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10), { requests: 0, applied: 0, editors: 0, cost: 0, rateLimited: 0 })
     for (const e of events) {
       const d = by.get(e.ts.slice(0, 10))
       if (!d) continue
@@ -911,10 +911,12 @@ export function PlanScreen({ call, tr, locale }: ScreenProps) {
       if (e.type === 'edit.applied') d.applied++
       if (e.type === 'editor.active') d.editors++
       if (e.type === 'cost.usd') d.cost += e.value
+      // stage 5 block 3: runs the model provider's rate limit stopped
+      if (e.type === 'edit.rate_limited') d.rateLimited++
     }
     return [...by.entries()].reverse()
   }, [events])
-  const t = days.find(([d]) => d === today)?.[1] ?? { requests: 0, applied: 0, editors: 0, cost: 0 }
+  const t = days.find(([d]) => d === today)?.[1] ?? { requests: 0, applied: 0, editors: 0, cost: 0, rateLimited: 0 }
   const save = async () => {
     const limits: Record<string, number> = {}
     for (const [k, v] of Object.entries(draft)) if (v.trim() !== '' && Number.isFinite(Number(v))) limits[k] = Number(v)
@@ -990,6 +992,7 @@ export function PlanScreen({ call, tr, locale }: ScreenProps) {
                 <col />
                 <col />
                 <col />
+                <col />
                 <col className="adm-w-92" />
               </colgroup>
               <thead>
@@ -998,6 +1001,7 @@ export function PlanScreen({ call, tr, locale }: ScreenProps) {
                   <th className="adm-r">{tr('adm.p.col.requests')}</th>
                   <th className="adm-r">{tr('adm.p.col.applied')}</th>
                   <th className="adm-r">{tr('adm.p.col.editors')}</th>
+                  <th className="adm-r">{tr('adm.p.col.rateLimited')}</th>
                   <th className="adm-r">{tr('admin.col.cost')}</th>
                 </tr>
               </thead>
@@ -1010,6 +1014,7 @@ export function PlanScreen({ call, tr, locale }: ScreenProps) {
                     <td className="adm-cost">{x.requests}</td>
                     <td className="adm-cost">{x.applied}</td>
                     <td className="adm-cost">{x.editors}</td>
+                    <td className="adm-cost" data-testid="admin-plan-rate-limited">{x.rateLimited}</td>
                     <td className="adm-cost">{usd(x.cost)}</td>
                   </tr>
                 ))}

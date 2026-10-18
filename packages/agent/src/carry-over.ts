@@ -1,6 +1,7 @@
 import { changedPaths, fileHashes, manifestReleaseHash, ulid, type AgentRunRequest, type FileMap, type PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { runAgent } from './loop.js'
 import { contextFromManifest, manifestPanels, trustedInput } from './manifest.js'
+import { digestsFromManifest } from './prompt.js'
 import { resolvePlan } from './quota.js'
 import type { ModelProvider } from './types.js'
 import { Workspace, type TypecheckFn } from './workspace.js'
@@ -236,7 +237,7 @@ export async function carryOverRelease(o: CarryOverOptions): Promise<CarryOverRe
         protected: trusted.protected,
         base: trusted.base,
         typecheck: o.typecheck ?? null,
-        ...(o.manifest.designSystem || o.manifest.dataContracts ? { digests: { ...(o.manifest.designSystem ? { designSystem: o.manifest.designSystem } : {}), ...(o.manifest.dataContracts ? { dataContracts: o.manifest.dataContracts } : {}) } } : {}),
+        digests: digestsFromManifest(o.manifest),
       })
     } catch (e) {
       await record({ userId: h.userId, from: head.id, to: null, state: 'failed', costUsd: 0, error: (e as Error).message.slice(0, 300) })

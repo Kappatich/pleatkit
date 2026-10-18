@@ -122,7 +122,8 @@ describe('progress lines', () => {
       say: () => undefined,
       next: () => Promise.reject(new Error('socket hang up at 10.0.0.1:443')),
     })
-    const r = await runAgent(request('boom'), provider)
+    // a dropped connection is retried (1, 2, 4 s, rate-limit.ts); without retries the failure shows at once
+    const r = await runAgent(request('boom'), provider, { rateLimitRetries: 0 })
     expect(r).toMatchObject({ verdict: 'failed', stopReason: 'error', error: 'socket hang up at 10.0.0.1:443' })
     expect(r.summary).toBe(t('en', 'agentFailed'))
   })

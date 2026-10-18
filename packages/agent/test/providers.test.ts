@@ -129,3 +129,60 @@ describe('OpenAICompatibleProvider (fake fetch)', () => {
     expect(r.usage[0]).toMatchObject({ model: 'gpt-test', costUsd: null })
   })
 })
+
+/** An SSE body that sends `events`, then stays open until the request is aborted (a model still generating). */
+function hangingStream(events: unknown[], signal: AbortSignal | null | undefined): ReadableStream<Uint8Array> {
+  const enc = new TextEncoder()
+  return new ReadableStream({
+    start(controller) {
+      for (const e of events) controller.enqueue(enc.encode(`event: ${(e as { type: string }).type}\ndata: ${JSON.stringify(e)}\n\n`))
+      signal?.addEventListener('abort', () => controller.error(new DOMException('aborted', 'AbortError')))
+    },
+  })
+}
+
+describe('DECISIONS 74.1: the early call streams, so a cancel bills only what was generated', () => {
+  it('streams the early call with the same tools, cancels it when the classifier answers alone, and meters what message_start reported', async () => {
+    const bodies: Record<string, any>[] = []
+    const f = (async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}'))
+      bodies.push(body)
+      if (body.model === 'claude-haiku-5-5') {
+        // the classifier answers after the main call has started streaming
+        await new Promise((r) => setTimeout(r, 80))
+        return new Response(JSON.stringify(message([{ type: 'text', text: JSON.stringify({ label: 'needs-backend', reason: 'Needs the server.', gist: 'store a new field', intent_label: 'backend-field' }) }], 'end_turn', { input_tokens: 300, output_tokens: 40 }, 'claude-haiku-5-5')), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      const start = { type: 'message_start', message: { ...message([], null as unknown as string, { input_tokens: 1200, output_tokens: 2, cache_read_input_tokens: 7000, cache_creation_input_tokens: 0 }), stop_reason: null } }
+      const events = [start, { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }, { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'x'.repeat(70) } }]
+      return new Response(hangingStream(events, init?.signal), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    }) as typeof fetch
+    const provider = new AnthropicProvider({ apiKey: 'k', baseURL: 'http://anthropic.test', fetch: f })
+    const r = await runAgent(request('add a last-login field the server records'), provider)
+
+    expect(r.verdict).toBe('needs-backend')
+    const main = bodies.find((b) => b.model === 'claude-sonnet-5-5')!
+    expect(main.stream).toBe(true)
+    // the tool definitions are the plain ones (no eager input streaming without PLEATKIT_STREAM): same cached prefix
+    expect(main.tools.some((t: { eager_input_streaming?: boolean }) => t.eager_input_streaming)).toBe(false)
+    expect(r.cancelledCall).toMatchObject({ model: 'claude-sonnet-5-5', started: true, usage: { inputTokens: 1200, cacheReadTokens: 7000, outputTokens: 20 } })
+    const sonnet = r.usage.find((u) => u.model === 'claude-sonnet-5-5')!
+    expect(sonnet.costUsd).toBeCloseTo((1200 * 2 + 20 * 10 + 7000 * 0.2) / 1e6, 10)
+    expect(r.modelCalls).toBe(0)
+  })
+
+  it('a cancel before message_start reports started: false and meters nothing', async () => {
+    const f = (async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}'))
+      if (body.model === 'claude-haiku-5-5') {
+        await new Promise((r) => setTimeout(r, 30))
+        return new Response(JSON.stringify(message([{ type: 'text', text: JSON.stringify({ label: 'off-topic', reason: 'Not about the app.' }) }], 'end_turn', { input_tokens: 100, output_tokens: 10 }, 'claude-haiku-5-5')), { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return new Response(hangingStream([], init?.signal), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    }) as typeof fetch
+    const provider = new AnthropicProvider({ apiKey: 'k', baseURL: 'http://anthropic.test', fetch: f })
+    const r = await runAgent(request('write me a poem'), provider)
+    expect(r.verdict).toBe('refused')
+    expect(r.cancelledCall).toMatchObject({ started: false })
+    expect(r.usage.map((u) => u.model)).toEqual(['claude-haiku-5-5'])
+  })
+})

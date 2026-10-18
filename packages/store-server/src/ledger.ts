@@ -7,7 +7,7 @@ import { audit, events, heads, requests, snapshots } from './schema.js'
 type Db = BetterSQLite3Database<typeof schema>
 
 /** Usage events (F3). Names are a public contract: add new ones, never rename. */
-export const EVENT_TYPES = ['edit.requested', 'edit.applied', 'edit.reverted', 'edit.alive24h', 'editor.active', 'tokens.used', 'cost.usd'] as const
+export const EVENT_TYPES = ['edit.requested', 'edit.applied', 'edit.reverted', 'edit.alive24h', 'editor.active', 'tokens.used', 'cost.usd', 'edit.rate_limited'] as const
 export type EventType = (typeof EVENT_TYPES)[number]
 
 export interface UsageEvent {

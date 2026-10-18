@@ -5,6 +5,7 @@ import { agentAuthFromEnv, type AgentAuth } from './auth.js'
 import type { AgentLimits } from './loop.js'
 import { alertsFromEnv, type AlertsOptions } from './alerts.js'
 import { manifestSourceFromEnv, type ManifestSource } from './manifest.js'
+import { DEFAULT_MODEL_CONCURRENCY, DEFAULT_RATE_LIMIT_RETRIES } from './rate-limit.js'
 import { typecheckFromEnv } from './typecheck.js'
 import type { TypecheckFn } from './workspace.js'
 import type { ModelProvider } from './types.js'
@@ -21,14 +22,23 @@ export interface AgentConfig {
   plan: { name?: string; limits?: Record<string, number> }
   /** The app's manifest on the server (code review 06 item 8); required in production. */
   manifest: ManifestSource | null
-  /** PLEATKIT_TYPECHECK=1: type errors against the app's `.d.ts` refuse an edit (05 #4). */
+  /**
+   * The agent loop's type check (05 #4, DECISIONS 74.2): on by default when the app's packages are found next to the
+   * manifest or in PLEATKIT_TYPECHECK_ROOT, PLEATKIT_TYPECHECK=0 turns it off (`typecheckFromEnv`).
+   */
   typecheck: TypecheckFn | null
+  /** Type check of server compiles (commits) too: only with an explicit PLEATKIT_TYPECHECK=1, as before. */
+  commitTypecheck: TypecheckFn | null
   /** PLEATKIT_CLASSIFIER: parallel (default) or sequential (DECISIONS 73.3). */
   classifierMode: 'parallel' | 'sequential'
   /** PLEATKIT_ALERT_* and PLEATKIT_FREEZE (05 #5). */
   alerts: Pick<AlertsOptions, 'sinks' | 'freeze'>
   /** DECISIONS 70.3: PLEATKIT_WISHES_MAX_ITEMS (default 500) and PLEATKIT_WISHES_BUDGET_USD (default 0.50). */
   wishes: WishLimits
+  /** Stage 5 block 3: PLEATKIT_MODEL_CONCURRENCY (default 8) model calls at a time in this process, the rest queue. */
+  modelConcurrency: number
+  /** PLEATKIT_RATE_LIMIT_RETRIES (default 3): retries of a model call refused with 429 / overloaded. */
+  rateLimitRetries: number
 }
 
 type Env = Record<string, string | undefined>
@@ -55,14 +65,17 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * PLEATKIT_APP_ID, PLEATKIT_APP_KEY, PLEATKIT_JWT_SECRET  credentials; required with NODE_ENV=production
  * PLEATKIT_PLAN        plan name (free | team | unlimited) when store-server has no plan for the app
  * PLEATKIT_LIMITS      JSON overrides of plan limits, e.g. {"userDailyUsd": 2, "perEditUsd": 0.2}
- * PLEATKIT_TYPECHECK=1  type-check edits against the manifest's readonly sources and .d.ts; PLEATKIT_TYPECHECK_ROOT
- *                      is the app folder whose node_modules give package types (react)
+ * PLEATKIT_TYPECHECK   unset (auto): the agent loop type-checks edits against the manifest's readonly sources and .d.ts
+ *                      when the app folder (PLEATKIT_TYPECHECK_ROOT, or the folder of the manifest's dist/) has
+ *                      node_modules; 0: off; 1: always, also server compiles (packages are `any` without a root)
  * PLEATKIT_CLASSIFIER  parallel (default): the classifier and the main model start together, the main call is cancelled
  *                      when the classifier answers alone; sequential: the main model waits for the classifier
  * PLEATKIT_ALERT_WEBHOOK  URL that gets a JSON POST for every alert (Slack-compatible `text`)
  * PLEATKIT_ALERT_EMAIL_URL, PLEATKIT_ALERT_EMAIL_TO, PLEATKIT_ALERT_EMAIL_TOKEN  e-mail through an HTTP e-mail API
  * PLEATKIT_FREEZE      off, or JSON {"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}
  * PLEATKIT_WISHES_MAX_ITEMS, PLEATKIT_WISHES_BUDGET_USD  the wish map's one call: at most 500 requests and $0.50 by default
+ * PLEATKIT_MODEL_CONCURRENCY  model calls at a time in this process (default 8; the rest wait in a FIFO queue)
+ * PLEATKIT_RATE_LIMIT_RETRIES  retries of a call refused with 429 / overloaded (default 3; retry-after, else 1, 2, 4 s)
  * PLEATKIT_MANIFEST    path or URL of the app's dist/pleatkit.manifest.json: the static rules, readonly sources and core
  *                      types come from it, not from the browser (required with NODE_ENV=production);
  *                      PLEATKIT_MANIFESTS='{"<appId>": "<path or URL>"}' for several apps
@@ -82,13 +95,18 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
   if (auth.production && !manifest) {
     throw new Error('NODE_ENV=production: refusing to start without PLEATKIT_MANIFEST (the path or URL of the app build\'s pleatkit.manifest.json); the browser must not decide what the static rules allow')
   }
+  const typecheck = typecheckFromEnv(env)
+  const forced = ['1', 'true', 'on'].includes((env.PLEATKIT_TYPECHECK ?? '').trim().toLowerCase())
   return {
     auth,
     manifest,
-    typecheck: typecheckFromEnv(env),
+    typecheck,
+    commitTypecheck: forced ? typecheck : null,
     classifierMode: env.PLEATKIT_CLASSIFIER === 'sequential' ? 'sequential' : 'parallel',
     alerts: alertsFromEnv(env),
     wishes: wishLimitsFromEnv(env),
+    modelConcurrency: Math.max(1, Math.floor(num(env.PLEATKIT_MODEL_CONCURRENCY) ?? DEFAULT_MODEL_CONCURRENCY)),
+    rateLimitRetries: Math.max(0, Math.floor(num(env.PLEATKIT_RATE_LIMIT_RETRIES) ?? DEFAULT_RATE_LIMIT_RETRIES)),
     plan: { ...(env.PLEATKIT_PLAN ? { name: env.PLEATKIT_PLAN } : {}), ...(planLimits ? { limits: planLimits } : {}) },
     provider,
     port: num(env.PLEATKIT_AGENT_PORT) ?? 8789,

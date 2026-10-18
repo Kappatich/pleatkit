@@ -1,7 +1,9 @@
 import * as esbuild from 'esbuild-wasm'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cssRules, decodeMappings, parseProtected, staticCheck, type CheckContext, type TransformFn } from '../src/check.js'
 import { isComponentExport } from '../src/component.js'
+import { guardModule, guardProps, sameOriginUrl, type PageOrigin } from '../src/url-guard.js'
+import { installExternals } from '../src/loader.js'
 import { scopeZoneCss, layeredCss } from '../src/css-scope.js'
 import { isWritablePath, validateZoneGlob } from '../src/paths.js'
 
@@ -50,14 +52,18 @@ describe('static check: the bypass corpus (code review 06 §2 test 4, brainstorm
 
   it.each([
     ['img src absolute', '<img src="https://evil.example/p.png" />', 'no-remote-request'],
-    ['img src computed', '<img src={data.avatar} />', 'no-computed-url'],
     ['iframe src', '<iframe src="https://evil.example" />', 'no-remote-request'],
     ['link href', '<link rel="stylesheet" href="//evil.example/x.css" />', 'no-remote-request'],
     ['form action', '<form action="https://evil.example/collect"><input name="x" /></form>', 'no-remote-request'],
     ['button formAction', '<button formAction="https://evil.example">x</button>', 'no-remote-request'],
     ['javascript: href', '<a href="javascript:alert(1)">x</a>', 'no-computed-url'],
     ['obfuscated javascript: href', '<a href={" jav\\tascript:alert(1)"}>x</a>', 'no-computed-url'],
-    ['a href computed', '<a href={data.url}>x</a>', 'no-computed-url'],
+    ['a href: computed after a fixed absolute start', '<a href={"https://evil.example/" + data.id}>x</a>', 'no-remote-request'],
+    ['a href: computed after a fixed protocol-relative start', '<a href={"//" + data.host}>x</a>', 'no-remote-request'],
+    ['a href: computed after a fixed javascript: start', '<a href={`javascript:${data.code}`}>x</a>', 'no-computed-url'],
+    ['a URL from data on a component (no runtime guard there)', '<Avatar src={data.avatar} />', 'no-computed-url'],
+    ['srcSet from data (a list: not guarded statically)', '<img srcSet={data.set} />', 'no-computed-url'],
+    ['ping from data', '<a href="/x" ping={data.tracker}>x</a>', 'no-computed-url'],
     ['srcDoc', '<iframe srcDoc="<script>1</script>" />', 'no-raw-html'],
     ['script tag', '<script>{"x"}</script>', 'no-raw-html'],
     ['style tag', '<style>{"body{display:none}"}</style>', 'no-raw-html'],
@@ -185,5 +191,121 @@ describe('paths and CSS scoping', () => {
   })
   it('decodes source maps', () => {
     expect(decodeMappings('AAAA;AACA')[1]![0]).toEqual([0, 1, 0])
+  })
+})
+
+describe('DECISIONS 74.3: a URL from data stays on the app (static rule + runtime guard)', () => {
+  const page: PageOrigin = { origin: 'https://app.example', base: 'https://app.example/users/list' }
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('statically: a URL from data on a plain element is left to the runtime guard; assignments, setAttribute and fetch stay refused', async () => {
+    const panel = (jsx: string) => `export default function P({ data }: { data: any }) { return <>${jsx}</> }`
+    expect(await rules(panel('<img src={data.avatar} alt="" />'))).toEqual([])
+    expect(await rules(panel('<img src={`/avatars/${data.avatar}.png`} alt="" />'))).toEqual([])
+    expect(await rules(panel('<a href={data.url}>open</a>'))).toEqual([])
+    expect(await rules(panel('<a href={new URL(data.u, "https://evil.example").href}>x</a>'))).toEqual([])
+    expect(await rules(panel('<a href={location.origin + data.path}>x</a>'))).toEqual([])
+    expect(await rules(panel('<video poster={data.thumb} src={data.clip} />'))).toEqual([])
+    expect(await rules(panel("<a href={'mailto:' + data.email}>mail</a>"))).toEqual([])
+    expect(await rules(panel('<a href={`tel:${data.phone}`}>call</a>'))).toEqual([])
+    expect(await rules(inPanel("const img = document.getElementById('x') as any; img.src = data.url"))).toContain('no-computed-url')
+    expect(await rules(inPanel("document.body.setAttribute('href', data.url)"))).toContain('no-computed-url')
+    expect(await rules(inPanel('fetch(data.url)'))).toContain('no-computed-url')
+  })
+
+  it.each([
+    ['a relative path', '/avatars/01.png', true],
+    ['a relative path without a slash', 'avatars/01.png', true],
+    ['a parent path', '../x', true],
+    ['a query', '?page=2', true],
+    ['a fragment', '#top', true],
+    ['the app itself, absolute', 'https://app.example/x', true],
+    ['protocol-relative //host', '//evil.example/p.png', false],
+    ['/\\host (read as //host)', '/\\evil.example/p.png', false],
+    ['\\\\host', '\\\\evil.example/p.png', false],
+    ['another host', 'https://evil.example/p.png', false],
+    ['javascript:', 'javascript:alert(1)', false],
+    ['JavaScript: in capitals', 'JAVASCRIPT:alert(1)', false],
+    ['javascript: with a tab and leading spaces', '  java\tscript:alert(1)', false],
+    ['javascript: with a leading control character', '\u0001javascript:alert(1)', false],
+    ['data:', 'data:text/html,<script>alert(1)</script>', false],
+    ['data: image', 'data:image/png;base64,AAAA', false],
+    ['blob:', 'blob:https://evil.example/1', false],
+    ['location.origin + "@host" (user info)', 'https://app.example@evil.example/', false],
+    ['location.origin + ".host" (a longer host)', 'https://app.example.evil.example/', false],
+    ['another port', 'https://app.example:8443/x', false],
+    ['another scheme', 'http://app.example/x', false],
+    ['new URL(x, "https://evil").href', new URL('x', 'https://evil.example').href, false],
+  ])('runtime: %s', (_name, value, kept) => {
+    expect(sameOriginUrl(value, page) === undefined).toBe(!kept)
+  })
+
+  it('runtime: encoded schemes are paths of this app, not schemes; mailto:/tel: only on links; an opaque page keeps nothing', () => {
+    for (const v of ['java%73cript:alert(1)', '&#106;avascript:alert(1)', '%6A%61vascript:alert(1)']) {
+      expect(sameOriginUrl(v, page)).toBe(v)
+      expect(new URL(v, page.base).origin).toBe(page.origin)
+    }
+    expect(sameOriginUrl('mailto:ann@example.com', page, { mail: true })).toBe('mailto:ann@example.com')
+    expect(sameOriginUrl('tel:+15551234', page, { mail: true })).toBe('tel:+15551234')
+    expect(sameOriginUrl('mailto:ann@example.com', page)).toBeUndefined()
+    const opaque = { origin: 'null', base: 'about:srcdoc' }
+    expect(sameOriginUrl('/x', opaque)).toBeUndefined()
+    expect(sameOriginUrl('javascript:alert(1)', opaque)).toBeUndefined()
+    expect(sameOriginUrl({ toString: () => '/x' }, page)).toBeUndefined()
+  })
+
+  it('runtime: elements an edit creates lose off-origin URLs, raw HTML and off-origin styles; components are not touched', () => {
+    vi.stubGlobal('location', { origin: page.origin, href: page.base })
+    const seen: unknown[] = []
+    const jsxRuntime = guardModule('react/jsx-runtime', { jsx: (_t: unknown, p: unknown) => seen.push(p), jsxs: (_t: unknown, p: unknown) => seen.push(p), Fragment: 'F' })
+    const jsx = jsxRuntime.jsx as (t: unknown, p: unknown) => void
+    jsx('img', { src: '//evil.example/p.png', alt: '' })
+    jsx('a', { href: '/customers/1', children: 'x' })
+    jsx('a', { href: 'mailto:ann@example.com' })
+    jsx('img', { src: '/a.png', srcSet: '/a.png 1x, https://evil.example/b.png 2x' })
+    jsx('div', { dangerouslySetInnerHTML: { __html: '<img src=x onerror=alert(1)>' }, style: { backgroundImage: 'url(//evil.example/p.png)', color: 'red' } })
+    jsx('iframe', { srcDoc: '<script>1</script>' })
+    const Avatar = () => null
+    jsx(Avatar, { src: '//evil.example/p.png' })
+    expect(seen).toEqual([
+      { alt: '' },
+      { href: '/customers/1', children: 'x' },
+      { href: 'mailto:ann@example.com' },
+      { src: '/a.png' },
+      { style: { color: 'red' } },
+      {},
+      { src: '//evil.example/p.png' },
+    ])
+    expect(jsxRuntime.Fragment).toBe('F')
+    expect(guardProps('img', { src: '/a.png' })).toEqual({ src: '/a.png' })
+  })
+
+  it('runtime: React.createElement / cloneElement (aliased or destructured past the static rules) and react-dom resource hints are guarded too', () => {
+    vi.stubGlobal('location', { origin: page.origin, href: page.base })
+    const created: unknown[] = []
+    const createElement = (_t: unknown, p: unknown) => created.push(p)
+    const cloneElement = (_e: unknown, p: unknown) => created.push(p)
+    const react = guardModule('react', { createElement, cloneElement, default: { createElement, cloneElement, useState: 1 } })
+    ;(react.createElement as typeof createElement)('a', { href: 'javascript:alert(1)' })
+    ;(react.default as { createElement: typeof createElement }).createElement('img', { src: 'https://evil.example/p.gif' })
+    ;(react.cloneElement as typeof cloneElement)({ type: 'img' }, { src: '//evil.example' })
+    expect(created).toEqual([{}, {}, {}])
+    expect((react.default as { useState: number }).useState).toBe(1)
+    const loaded: unknown[] = []
+    const dom = guardModule('react-dom', { preinit: (h: unknown) => loaded.push(h), preload: (h: unknown) => loaded.push(h), createPortal: 'P' })
+    ;(dom.preinit as (h: string) => void)('https://evil.example/x.js')
+    ;(dom.preload as (h: string) => void)('/fonts/a.woff2')
+    expect(loaded).toEqual(['/fonts/a.woff2'])
+    expect(dom.createPortal).toBe('P')
+    expect(guardModule('lucide-react', { X: 1 })).toEqual({ X: 1 })
+  })
+
+  it('runtime: compiled bundles get the guarded modules from the externals registry', () => {
+    vi.stubGlobal('location', { origin: page.origin, href: page.base })
+    const seen: unknown[] = []
+    const registry = installExternals({ 'react/jsx-runtime': { jsx: (_t: unknown, p: unknown) => seen.push(p), jsxs: () => null }, 'lucide-react': { X: 1 } }, 'guard-test')
+    ;(registry.require('react/jsx-runtime') as { jsx: (t: unknown, p: unknown) => void }).jsx('a', { href: 'https://evil.example', children: 'x' })
+    expect(seen).toEqual([{ children: 'x' }])
+    expect((registry.require('lucide-react') as { X: number }).X).toBe(1)
   })
 })

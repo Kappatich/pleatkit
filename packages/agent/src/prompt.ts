@@ -1,4 +1,4 @@
-import type { AgentRunRequest, FileMap } from '@pleatkit/runtime/compiler'
+import type { AgentRunRequest, FileMap, PleatkitManifest } from '@pleatkit/runtime/compiler'
 import type { PromptParts } from './types.js'
 
 const fence = (path: string, source: string) => {
@@ -22,8 +22,17 @@ const files = (map: FileMap) =>
  * 5d: 5c's screen_part flag is gone (it sent "make the dashboard look better" and the demo's discount to the main model);
  * the mixed-request rule says "only when the whole request is server work" with two worked examples; a request that names
  * no concrete change ("make it look better") is "unclear"; a part of the screen outside the panels (the header) is "ui".
+ * 5e (stage 5 block 3, DECISIONS 74.3, 74.4, 74.6): the static-rules sentence allows a URL from data in src/href of a
+ * plain element (the runtime keeps it only on the app's origin) and mailto:/tel: links built from data (Haiku refused
+ * sa-12 under 5d); the bad example names an outside link instead of any URL from data; the readonly context is the
+ * trimmed `.d.ts` of what the panels reach (`<readonly_context>`) and the design-system digest details only the
+ * components the panels reach, when the manifest has an agent context.
+ * 5f (74.5 and the classifier's cache): the classifier gets a third mixed example ("colour unpaid invoices red and block
+ * new orders on the server") and the rule to split a request into its parts (8 new mixed probes: 12/30 → 26/30 right,
+ * the 42 tasks unchanged); its instructions and the app's context move into the system prompt under a cache breakpoint,
+ * the request alone into the user message (classifier input read from the cache: 0 % → 74 % over 12 probes).
  */
-export const PROMPT_VERSION = '2026-10-18.5d'
+export const PROMPT_VERSION = '2026-10-18.5f'
 
 /** Stable instructions: identical for every request of the same app, so they cache well. */
 /** The run's limits as the prompt states them (code review 06 §4: the text used to say "12 calls, 90 s" whatever the config). */
@@ -45,7 +54,7 @@ Zones:
 
 Dynamic code may import only: relative paths to other dynamic files, and these host modules: ${externals}. No other packages. Talk to the server only through the typed client in the readonly zone.
 
-check also enforces static rules, and finish refuses while any is broken: no eval, new Function or string timers; no document.cookie, localStorage, sessionStorage or indexedDB; no dangerouslySetInnerHTML, innerHTML, createElement, <script>, <style> or srcDoc; network and navigation only to relative URLs written in the code (fetch, src/href/action in JSX, url() in styles and classes; "/customers/" + id is fine, a URL taken from data is not); no location changes, window.open, XMLHttpRequest, workers, or computed access on window/document; no import() of URLs or computed specifiers. Elements the app marks as protected must stay and stay visible.
+check also enforces static rules, and finish refuses while any is broken: no eval, new Function or string timers; no document.cookie, localStorage, sessionStorage or indexedDB; no dangerouslySetInnerHTML, innerHTML, createElement, <script>, <style> or srcDoc; network and navigation only within this app: relative URLs written in the code (fetch, src/href/action in JSX, url() in styles and classes; "/customers/" + id is fine), or a URL taken from data in src or href of a plain element (<img src={row.image}>, <a href={row.url}>), which is shown only when it points to this app; never an absolute URL to another site; mailto: and tel: links built from data (\`mailto:\${user.email}\`) are fine; no location changes, window.open, XMLHttpRequest, workers, or computed access on window/document; no import() of URLs or computed specifiers. Elements the app marks as protected must stay and stay visible.
 
 Stack: React 19 function components and hooks, TypeScript (TSX), Tailwind CSS 4 utility classes (any utility, including arbitrary values such as w-[120px] or text-[13px]) and the shadcn-style components from @/components/ui/*. Inline styles are allowed.
 
@@ -70,7 +79,7 @@ Examples of good answers:
 Examples of bad answers:
 - Rewriting a whole panel with write_file to change one label (use edit_file), or dropping an existing data-testid or prop.
 - A label in the request's language on an English panel ("Средняя сделка" next to "Customers"), or a summary with code or file names ("Updated customer-card.tsx").
-- A link or image URL taken from data, a hidden element over a real button, or localStorage to remember a setting; keep state in React or in meta through the readonly client.
+- A link or image to another site written in the code, a URL from data passed to a component's prop or fetch, a hidden element over a real button, or localStorage to remember a setting; keep state in React or in meta through the readonly client.
 
 Work efficiently: you have at most ${limits.maxModelCalls} model calls and ${Math.round(limits.timeoutMs / 1000)} seconds. Several tool calls in one turn run in order, so write_file followed by check in the same turn is fine.`
 }
@@ -79,6 +88,21 @@ Work efficiently: you have at most ${limits.maxModelCalls} model calls and ${Mat
 export interface PromptDigests {
   designSystem?: { digest: string; docs?: string }
   dataContracts?: { digest: string }
+  /**
+   * DECISIONS 74.6: the trimmed readonly context (the `.d.ts` of what the panels reach). When present, the prompt shows
+   * it instead of every readonly source and core type; read_file still reads any of them.
+   */
+  context?: { files: { path: string; source: string }[]; omitted: string[] }
+}
+
+/** The prompt's digests from a server manifest (one place for the server, doctor, carry-over and the evals). */
+export function digestsFromManifest(m: Pick<PleatkitManifest, 'designSystem' | 'dataContracts' | 'agentContext'> | null | undefined): PromptDigests {
+  if (!m) return {}
+  return {
+    ...(m.designSystem ? { designSystem: m.designSystem } : {}),
+    ...(m.dataContracts ? { dataContracts: m.dataContracts } : {}),
+    ...(m.agentContext ? { context: { files: m.agentContext.files, omitted: m.agentContext.omitted } } : {}),
+  }
 }
 
 /** Digests, readonly sources and core types: large, stable, cached together with the instructions. */
@@ -87,7 +111,12 @@ export function cachedContext(req: Pick<AgentRunRequest, 'readonly' | 'coreTypes
   if (digests.designSystem?.digest) parts.push(`<design_system>\nUse these components (from the readonly zone) before writing your own markup:\n${digests.designSystem.digest}\n</design_system>`)
   if (digests.designSystem?.docs) parts.push(`<design_system_notes>\n${digests.designSystem.docs}\n</design_system_notes>`)
   if (digests.dataContracts?.digest) parts.push(`<data_contracts>\nEntities and client methods (signatures only; the sources follow):\n${digests.dataContracts.digest}\n</data_contracts>`)
-  parts.push(`<readonly_sources>\n${files(req.readonly)}\n</readonly_sources>\n\n<core_types>\n${files(req.coreTypes)}\n</core_types>`)
+  if (digests.context) {
+    // 74.6: declarations only, of what the panels reach; the sources are a read_file away
+    const listed = Object.fromEntries(digests.context.files.map((f) => [f.path, f.source]))
+    const omitted = digests.context.omitted.length ? `\nAlso reachable, left out for size (read_file them when needed): ${digests.context.omitted.join(', ')}` : ''
+    parts.push(`<readonly_context>\nDeclarations of the readonly modules and core types the panels use (the sources are readonly; read_file shows any readonly file in full):${omitted}\n${files(listed)}\n</readonly_context>`)
+  } else parts.push(`<readonly_sources>\n${files(req.readonly)}\n</readonly_sources>\n\n<core_types>\n${files(req.coreTypes)}\n</core_types>`)
   return parts.join('\n\n')
 }
 
@@ -161,7 +190,7 @@ export const CLASSIFIER_INSTRUCTIONS = `You triage change requests for a web app
 
 Label the request:
 - "ui": doable in the panels' frontend code, entirely or for its screen part.
-- "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs. Only when the whole request is server work. A request that also asks to show or change something on the screen is "ui", even when its other part needs the server: "show the phone and keep a history of its changes", "show the days left and e-mail the assignee when overdue" (the agent does the screen part now and passes the rest on).
+- "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs. Only when the whole request is server work. A request that also asks to show or change something on the screen is "ui", even when its other part needs the server: "show the phone and keep a history of its changes", "show the days left and e-mail the assignee when overdue", "colour unpaid invoices red and block new orders from those customers on the server" (the agent does the screen part now and passes the rest on). Split such a request into its parts: if any part changes what the screen shows or how it looks, the label is "ui", whatever the other parts need.
 - "off-topic": not a request about this app's interface at all: general questions, writing or translating text, code for other projects, homework, chatting, or anything else that uses this agent as a general assistant. Requests about the app's screens, panels, data shown in them or how they look are never off-topic, also for a part of the screen the panels may not cover (the header, the menu): that is "ui".
 - "unclear": cannot tell, or the request names no concrete change ("make it look better", "improve the dashboard"): acting on it would mean guessing what to change.
 Reason: one short plain-language sentence the user will read, in the language of the request, without code or technical terms.

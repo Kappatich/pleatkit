@@ -97,7 +97,8 @@ export class AnthropicProvider implements ModelProvider {
       apiKey: options.apiKey,
       ...(options.baseURL ? { baseURL: options.baseURL } : {}),
       ...(options.fetch ? { fetch: options.fetch } : {}),
-      maxRetries: 2,
+      // retries are the agent loop's (rate-limit.ts): retry-after, backoff, a deadline and a "busy" step for the user
+      maxRetries: 0,
     })
     this.model = options.model ?? DEFAULT_MODEL
     this.classifierModel = options.classifierModel ?? DEFAULT_CLASSIFIER_MODEL
@@ -112,8 +113,15 @@ export class AnthropicProvider implements ModelProvider {
         model: this.classifierModel,
         max_tokens: 1024,
         output_config: { effort: 'low', format: { type: 'json_schema', schema: CLASSIFY_SCHEMA } },
-        system: CLASSIFIER_INSTRUCTIONS,
-        messages: [{ role: 'user', content: `${input.context}\n\n<request>\n${input.request}\n</request>` }],
+        // stage 5 block 3: the fixed part (instructions + the app's context, the same for every request of a release)
+        // sits in the system prompt under one cache breakpoint; only the request varies. The instructions alone are
+        // above Haiku 5.5's 512-token minimum, so the classifier reads the fixed part from the cache after the first
+        // request of an app
+        system: [
+          { type: 'text', text: CLASSIFIER_INSTRUCTIONS },
+          { type: 'text', text: input.context, cache_control: { type: 'ephemeral' } },
+        ],
+        messages: [{ role: 'user', content: `<request>\n${input.request}\n</request>` }],
       },
       { signal },
     )
@@ -142,10 +150,44 @@ export class AnthropicProvider implements ModelProvider {
         system: WISHES_INSTRUCTIONS,
         messages: [{ role: 'user', content: clusterMessage(input) }],
       },
-      { signal },
+      // the wish map is one call outside the agent loop: the SDK retries it
+      { signal, maxRetries: 2 },
     )
     const text = msg.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
     return { clusters: msg.stop_reason === 'refusal' ? [] : parseClusters(text), usage: usageOf(msg.usage), model: msg.model }
+  }
+
+  /**
+   * One streamed call (`messages.stream` + `finalMessage()`). When it is cancelled, `onCancelled` gets what the stream
+   * had reported: `message_start` carries the input and cache tokens; the output so far is estimated from the text
+   * and tool-input deltas (~3.5 characters per token; thinking streams no text by default, so it is not counted).
+   */
+  private async streamed(params: Anthropic.Beta.MessageCreateParamsNonStreaming, options: TurnOptions): Promise<Anthropic.Beta.BetaMessage> {
+    const sentAt = performance.now()
+    const stream = this.client.beta.messages.stream(params, { signal: options.signal })
+    let start: { usage: WireUsage; model: string; at: number } | null = null
+    let chars = 0
+    if (options.onCancelled) {
+      stream.on('streamEvent', (event) => {
+        if (event.type === 'message_start') start = { usage: event.message.usage, model: event.message.model, at: performance.now() }
+        else if (event.type === 'content_block_delta') {
+          const d = event.delta
+          chars += d.type === 'text_delta' ? d.text.length : d.type === 'input_json_delta' ? d.partial_json.length : d.type === 'thinking_delta' ? d.thinking.length : 0
+        }
+      })
+    }
+    try {
+      return await stream.finalMessage()
+    } catch (e) {
+      if (options.signal.aborted && options.onCancelled) {
+        const now = performance.now()
+        const s = start as { usage: WireUsage; model: string; at: number } | null
+        const usage = s ? usageOf(s.usage) : { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
+        usage.outputTokens = Math.max(usage.outputTokens, Math.ceil(chars / 3.5))
+        options.onCancelled({ model: s?.model ?? this.model, usage, started: s !== null, ms: Math.round(now - sentAt), generatingMs: s ? Math.round(now - s.at) : 0 })
+      }
+      throw e
+    }
   }
 
   start(prompt: PromptParts, tools: ToolSpec[]): ModelSession {
@@ -183,8 +225,10 @@ export class AnthropicProvider implements ModelProvider {
           content: r.content,
           ...(r.ok ? {} : { is_error: true }),
         }))
+        const pending = pendingText
         if (pendingText) content.push({ type: 'text', text: pendingText })
         pendingText = null
+        const length = messages.length
         if (content.length > 0) messages.push({ role: 'user', content })
 
         const params: Anthropic.Beta.MessageCreateParamsNonStreaming = {
@@ -202,9 +246,18 @@ export class AnthropicProvider implements ModelProvider {
             messages,
             ...(this.fallbacks ? { betas: [FALLBACK_BETA], fallbacks: 'default' as const } : {}),
         }
-        const msg = this.stream
-          ? await this.client.beta.messages.stream(params, { signal: options.signal }).finalMessage()
-          : await this.client.beta.messages.create(params, { signal: options.signal })
+        // DECISIONS 74.1: a call the caller may cancel (the early call of the parallel classifier) streams, so a
+        // cancel closes the stream and stops the generation; the tools stay as they are (eager input streaming only
+        // with PLEATKIT_STREAM=1), so the cached prefix is the same for streamed and plain calls
+        let msg: Anthropic.Beta.BetaMessage
+        try {
+          msg = this.stream || options.stream ? await this.streamed(params, options) : await this.client.beta.messages.create(params, { signal: options.signal })
+        } catch (e) {
+          // a failed call leaves the conversation as it was, so the loop can retry it (rate-limit.ts)
+          messages.length = length
+          pendingText = pending
+          throw e
+        }
         // Append the assistant turn unchanged (thinking blocks included): the harness stays append-only.
         messages.push({ role: 'assistant', content: msg.content as unknown as Anthropic.Beta.BetaContentBlockParam[] })
 

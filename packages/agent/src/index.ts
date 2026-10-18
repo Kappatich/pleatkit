@@ -15,7 +15,7 @@ export { Workspace, ZoneError, formatErrors, type CheckResult, type TypecheckFn 
 export { staticCheck, type StaticRule, type StaticContext } from './static-check.js'
 export { TOOLS, ToolRunner, capResult, MAX_TOOL_RESULT_CHARS } from './tools.js'
 export { perCallMaxTokens, THINKING_HEADROOM } from './providers/budget.js'
-export { buildPrompt, instructions, cachedContext, userMessage, classifierContext, CLASSIFIER_INSTRUCTIONS, PROMPT_VERSION } from './prompt.js'
+export { buildPrompt, digestsFromManifest, instructions, cachedContext, userMessage, classifierContext, CLASSIFIER_INSTRUCTIONS, PROMPT_VERSION } from './prompt.js'
 export { costUsd, priceOf, UsageMeter, cacheHitRate } from './pricing.js'
 export { t, MESSAGES, normalizeLocale, type MessageKey } from './i18n.js'
 export type * from './types.js'
@@ -26,3 +26,4 @@ export { buildWishMap, clusterWishes, normalizeClusters, fallbackClusters, parse
 export { countPromptTokens, sampleRequest, type PromptTokenCount, type CountTokensOptions } from './prefix.js'
 export { buildDigest, digestMarkdown, sendDigest, type Digest, type DigestOptions } from './digest.js'
 export { carryOverRelease, rollbackRelease, resolveRelease, MIGRATE_REQUEST, CARRIED_MESSAGE, type CarryOverOptions, type CarryOverResult, type CarryItem, type CarryState } from './carry-over.js'
+export { callModel, classifyFailure, ModelGate, modelGate, RateLimitedError, retryAfterMs, DEFAULT_MODEL_CONCURRENCY, DEFAULT_RATE_LIMIT_RETRIES, type CallOptions, type RetryInfo } from './rate-limit.js'

@@ -191,6 +191,7 @@ const en = {
   'adm.p.col.requests': 'Requests',
   'adm.p.col.applied': 'Applied',
   'adm.p.col.editors': 'Editors',
+  'adm.p.col.rateLimited': 'Rate-limited',
   'adm.p.foot': 'An empty field uses the plan’s value. Usage comes from the events feed.',
 }
 
@@ -380,6 +381,7 @@ const ru: Record<AdminKey, string> = {
   'adm.p.col.requests': 'Запросы',
   'adm.p.col.applied': 'Применено',
   'adm.p.col.editors': 'Редакторы',
+  'adm.p.col.rateLimited': 'Лимит API',
   'adm.p.foot': 'Пустое поле берёт значение тарифа. Расход считается по ленте событий.',
 }
 

@@ -167,8 +167,11 @@ function createPlugin(options: PleatkitOptions): Plugin {
           `export const isolateEdits = ${JSON.stringify(o.isolateEdits)}`,
           `export const sendDomText = ${JSON.stringify(o.sendDomText)}`,
         ].join('\n')
-      case 'virtual:pleatkit/manifest':
-        return `export default ${JSON.stringify(getManifest())}`
+      case 'virtual:pleatkit/manifest': {
+        // the agent's prompt context (74.6) is for the server, not the page
+        const { agentContext: _context, ...client } = getManifest()
+        return `export default ${JSON.stringify(client)}`
+      }
       case 'virtual:pleatkit/externals':
         return generateExternals(getManifest(), root, o.lazyExternals)
       case 'virtual:pleatkit/fallback':
@@ -309,7 +312,16 @@ function createPlugin(options: PleatkitOptions): Plugin {
     },
 
     generateBundle() {
-      this.emitFile({ type: 'asset', fileName: MANIFEST_FILE, source: JSON.stringify(getManifest(), null, 2) })
+      const m = getManifest()
+      this.emitFile({ type: 'asset', fileName: MANIFEST_FILE, source: JSON.stringify(m, null, 2) })
+      // DECISIONS 74.6: what the agent's cached prompt shows of the readonly zone, and what the cap left out
+      const c = m.agentContext
+      if (c) {
+        config.logger.info(
+          `[pleatkit] agent context: ${c.files.length} declaration files, ≈ ${c.estimatedTokens} tokens (cap ${c.capTokens}; all readonly sources and core types ≈ ${c.untrimmedTokens})` +
+            (c.omitted.length ? `; over the cap, left to read_file: ${c.omitted.join(', ')}` : ''),
+        )
+      }
     },
   }
 }

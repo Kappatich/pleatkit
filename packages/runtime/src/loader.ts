@@ -1,5 +1,6 @@
 import { layeredCss } from './css-scope.js'
 import { EXTERNALS_GLOBAL } from './constants.js'
+import { guardModule } from './url-guard.js'
 import type { CompiledBundle, ExternalEntry, ModuleNamespace } from './types.js'
 
 /** One app instance's host modules, as compiled bundles see them (V1 B6). */
@@ -29,12 +30,14 @@ const isLazy = (e: ExternalEntry): e is () => Promise<ModuleNamespace> => typeof
 /**
  * Expose host modules to compiled bundles as `globalThis.__pleatkit.apps[namespace].require(name)`. Entries may
  * be lazy (`() => import('lucide-react')`, V1 B6): they are resolved by `ensure()` right before a bundle that
- * imports them runs, so a big library is loaded only when an edit uses it.
+ * imports them runs, so a big library is loaded only when an edit uses it. `react`, `react/jsx-runtime` and
+ * `react-dom` are handed out guarded (`guardModule`, DECISIONS 74.3).
  */
 export function installExternals(externals: Record<string, ExternalEntry>, namespace = 'default'): AppRegistry {
   const resolved = new Map<string, unknown>()
   const pending = new Map<string, Promise<void>>()
-  const wrap = (ns: ModuleNamespace) => Object.assign(Object.create(null), ns, { __esModule: true })
+  // DECISIONS 74.3: React's element factories reach edits guarded, so a URL from data stays on the app's origin
+  const wrap = (name: string, ns: ModuleNamespace) => Object.assign(Object.create(null), guardModule(name, ns as Record<string, unknown>), { __esModule: true })
   const registry: AppRegistry = {
     require(name) {
       const hit = resolved.get(name)
@@ -43,7 +46,7 @@ export function installExternals(externals: Record<string, ExternalEntry>, names
       if (!entry) throw new Error(`pleatkit: module "${name}" is not provided by the host app (add it to externals)`)
       if (isLazy(entry)) throw new Error(`pleatkit: lazy module "${name}" was not loaded before the edit ran`)
       // Marked as an ES module so esbuild's interop maps `import x from` to the real default export.
-      const mod = wrap(entry)
+      const mod = wrap(name, entry)
       resolved.set(name, mod)
       return mod
     },
@@ -55,7 +58,7 @@ export function installExternals(externals: Record<string, ExternalEntry>, names
           if (!entry || !isLazy(entry) || resolved.has(name)) return undefined
           let p = pending.get(name)
           if (!p) {
-            p = entry().then((ns) => void resolved.set(name, wrap(ns)))
+            p = entry().then((ns) => void resolved.set(name, wrap(name, ns)))
             p.catch(() => pending.delete(name))
             pending.set(name, p)
           }

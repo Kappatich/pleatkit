@@ -255,17 +255,19 @@ export const TAIL_TARGET = 6_000
  */
 export function checkContextBudget(manifest: PleatkitManifest): Finding {
   const sum = (files: { source: string }[]) => files.reduce((s, f) => s + estimateTokens(f.source), 0)
-  const readonly = sum(manifest.readonly)
-  const types = sum(manifest.coreTypes)
+  // DECISIONS 74.6: with an agent context the prompt holds its declarations, not every readonly source and core type
+  const ctx = manifest.agentContext
+  const readonly = ctx ? sum(ctx.files) : sum(manifest.readonly)
+  const types = ctx ? 0 : sum(manifest.coreTypes)
   const digests = estimateTokens((manifest.designSystem?.digest ?? '') + (manifest.designSystem?.docs ?? '') + (manifest.dataContracts?.digest ?? ''))
   const cached = INSTRUCTION_TOKENS + readonly + types + digests
   const tail = sum(manifest.dynamic) + 200
-  const biggest = [...manifest.readonly, ...manifest.coreTypes]
+  const biggest = (ctx ? ctx.files : [...manifest.readonly, ...manifest.coreTypes])
     .map((f) => ({ path: f.path, tokens: estimateTokens(f.source) }))
     .sort((a, b) => b.tokens - a.tokens)
     .slice(0, 3)
   const details = [
-    `cached prefix ≈ ${cached.toLocaleString('en')} tokens (instructions ${INSTRUCTION_TOKENS}, readonly ${readonly}, core types ${types}, digests ${digests}); target ≤ ${CACHED_TARGET.toLocaleString('en')}`,
+    `cached prefix ≈ ${cached.toLocaleString('en')} tokens (instructions ${INSTRUCTION_TOKENS}, ${ctx ? `agent context ${readonly} (${ctx.files.length} declaration files the panels reach${ctx.omitted.length ? `, ${ctx.omitted.length} left out over the cap` : ''})` : `readonly ${readonly}, core types ${types}`}, digests ${digests}); target ≤ ${CACHED_TARGET.toLocaleString('en')}`,
     `tail ≈ ${tail.toLocaleString('en')} tokens (${manifest.dynamic.length} dynamic files and the request); target ≤ ${TAIL_TARGET.toLocaleString('en')}`,
     ...(biggest.length ? [`largest in the prefix: ${biggest.map((b) => `${b.path} (${b.tokens})`).join(', ')}`] : []),
   ]
@@ -290,7 +292,7 @@ export async function measureContextBudget(manifest: PleatkitManifest, env: Reco
     const c = await agent.countPromptTokens(manifest, { apiKey: key, ...(env.PLEATKIT_BASE_URL ? { baseURL: env.PLEATKIT_BASE_URL } : {}), ...(env.PLEATKIT_MODEL ? { model: env.PLEATKIT_MODEL } : {}) })
     const over = c.prefixTokens > CACHED_TARGET || c.tailTokens > TAIL_TARGET
     const details = [
-      `cached prefix ${c.prefixTokens.toLocaleString('en')} tokens (tools, instructions, digests, readonly sources, core types), counted by the API for ${c.model}, prompt ${c.promptVersion}; target ≤ ${CACHED_TARGET.toLocaleString('en')}`,
+      `cached prefix ${c.prefixTokens.toLocaleString('en')} tokens (tools, instructions, digests, ${manifest.agentContext ? 'the agent context' : 'readonly sources, core types'}), counted by the API for ${c.model}, prompt ${c.promptVersion}; target ≤ ${CACHED_TARGET.toLocaleString('en')}`,
       `tail ${c.tailTokens.toLocaleString('en')} tokens (${manifest.dynamic.length} dynamic files and a short request); target ≤ ${TAIL_TARGET.toLocaleString('en')}`,
       ...estimate.details.filter((d) => d.startsWith('largest in the prefix')),
     ]

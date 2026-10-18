@@ -50,6 +50,28 @@ export interface TurnOptions {
   signal: AbortSignal
   /** Visible output tokens still allowed for this edit (thinking is not counted). */
   maxOutputTokens: number
+  /**
+   * DECISIONS 74.1: stream this call even when the provider does not stream by default (the main model's early call,
+   * which the parallel classifier may cancel: a cancelled stream stops generating, so only what was generated is billed).
+   */
+  stream?: boolean
+  /**
+   * A streamed call that was cancelled: what it used before the cancel, as far as the stream told (input and cache
+   * tokens from `message_start`; output estimated from the deltas received, thinking not visible), or `started: false`
+   * when the cancel came before `message_start`.
+   */
+  onCancelled?: (info: CancelledCall) => void
+}
+
+/** What a cancelled streamed call used (DECISIONS 74.1). */
+export interface CancelledCall {
+  model: string
+  usage: TokenUsage
+  /** Did `message_start` arrive before the cancel? Without it the stream reported nothing. */
+  started: boolean
+  /** Milliseconds from the request to the cancel, and from `message_start` to the cancel (0 when not started). */
+  ms: number
+  generatingMs: number
 }
 
 /**

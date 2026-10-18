@@ -156,10 +156,21 @@ export interface AgentResult {
    * the classifier and the main model start together, so this is the time the parallel start saved on an edit.
    */
   timings: { totalMs: number; classifyMs: number | null; modelMs: number; toolsMs: number; overlapMs?: number }
+  /**
+   * DECISIONS 74.1: the main model's early call that the classifier made unnecessary, cancelled while streaming. Its
+   * usage is in `usage` too (input and cache tokens as `message_start` reported them, output estimated from what had
+   * streamed); `started: false` when the cancel came before the stream said anything.
+   */
+  cancelledCall?: { model: string; started: boolean; ms: number; generatingMs: number; usage: TokenUsage }
   /** Request id in store-server, when the agent server logs to one. */
   requestId: string | null
   /** Why the run stopped early (limits), if it did. `cost`: the per-edit dollar limit of the app's plan. */
-  stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'cost' | 'refusal' | 'no-finish' | 'error'
+  stopReason?: 'calls' | 'timeout' | 'output-tokens' | 'cost' | 'refusal' | 'no-finish' | 'error' | 'rate-limited'
+  /**
+   * Stage 5 block 3: the model provider kept refusing with 429 / overloaded after the retries (or a retry would not have
+   * ended before the run's deadline). The verdict is `failed` and nothing was changed.
+   */
+  rateLimited?: boolean
   /** For verdict `refused`. */
   refusal?: AgentRefusal
   /** compile: 'server': the signed bundle of the resulting snapshot, ready under the bundle URL (V1 B1). */
