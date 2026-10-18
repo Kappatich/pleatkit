@@ -161,13 +161,24 @@ const CSS = `
 .mk-pick-label { position: absolute; top: -22px; left: -1.5px; background: var(--mk-red); color: #fff; font: 600 10.5px var(--mk-mono); letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; white-space: nowrap; }
 .mk-pick-hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2147482502; background: var(--mk-ink); color: var(--mk-paper); padding: 6px 12px; font: 500 12.5px var(--mk-sans); pointer-events: none; border-left: 3px solid var(--mk-red); }
 
-@media (max-width: 480px) {
-  .mk-drawer { width: 100vw; }
-  .mk-head { padding: 12px 8px 10px 16px; }
+@media (max-width: 640px) {
+  /* phones: a bottom sheet instead of a side drawer; the page stays reachable above it */
+  .mk-drawer { top: auto; left: 0; right: 0; bottom: 0; width: 100vw; max-width: none; height: min(88dvh, 100%); border-left: 0; border-top: 1px solid var(--mk-ink);
+    animation: mk-sheet .26s var(--mk-ease); box-shadow: 0 -1px 0 var(--mk-rule); }
+  .mk-drawer::before { content: ""; position: absolute; top: 6px; left: 50%; width: 36px; height: 3px; margin-left: -18px; background: var(--mk-rule-2); }
+  .mk-head { padding: 16px 8px 10px 16px; }
+  .mk-title { font-size: 18px; }
   .mk-ico { width: 44px; height: 44px; }
   .mk-send { width: 40px; height: 40px; }
+  .mk-input { font-size: 16px; }
+  .mk-kbd { display: none; }
+  .mk-chips { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; scrollbar-width: none; }
+  .mk-chips::-webkit-scrollbar { display: none; }
+  .mk-chips > * { flex: none; }
   .mk-foot { padding-bottom: max(14px, env(safe-area-inset-bottom, 0px)); }
+  .mk-pick-hint { top: auto; bottom: calc(min(88dvh, 100%) + 8px); }
 }
+@keyframes mk-sheet { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 `
 
 let installed = false
