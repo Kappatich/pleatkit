@@ -268,7 +268,7 @@
     var key = queue.shift();
     setTimeout(function () { if (!manual) apply(key, function () { setTimeout(playNext, reduced ? 300 : 1600); }); }, 0);
   }
-  if (!window.__morphkitNoAutoplay && !reduced && 'IntersectionObserver' in window) {
+  if (!window.__pleatkitNoAutoplay && !reduced && 'IntersectionObserver' in window) {
     var seen = false;
     var io = new IntersectionObserver(function (entries) {
       if (seen) return;

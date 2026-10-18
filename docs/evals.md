@@ -1,11 +1,11 @@
 # Evals
 
-The eval harness (`evals/`, package `@morphkit/evals`) measures the agent on fixed tasks. DECISIONS 43 and 63: no
+The eval harness (`evals/`, package `@pleatkit/evals`) measures the agent on fixed tasks. DECISIONS 43 and 63: no
 prompt or model change without an eval report, and every prompt change bumps `PROMPT_VERSION` in
 `packages/agent/src/prompt.ts`.
 
-Everything below runs offline on recorded answers; no command here needs `MORPHKIT_API_KEY`. Run `pnpm build` first:
-the tasks run against the demo's build manifest (`apps/demo-crm/dist/morphkit.manifest.json`), and the browser grader
+Everything below runs offline on recorded answers; no command here needs `PLEATKIT_API_KEY`. Run `pnpm build` first:
+the tasks run against the demo's build manifest (`apps/demo-crm/dist/pleatkit.manifest.json`), and the browser grader
 uses the demo's production build.
 
 ```bash
@@ -31,7 +31,7 @@ Then the graders run on the result. Each returns pass or fail and a reason; "ski
 | `verdict` | the verdict is the task's `expected.verdict` |
 | `change` | a task with `expected.change` changed files; any other task changed nothing |
 | `check` | the shared `check` (`Compiler.compile`: bundle, static rules, protected elements, default exports) passes on the user's files with the change applied |
-| `typecheck` | `tsc` over the dynamic files with the app's readonly sources and `.d.ts`; packages resolve from `MORPHKIT_TYPECHECK_ROOT`, by default `apps/demo-crm` (DECISIONS 63.4: on when the app's `node_modules` are found); `--no-typecheck` or an empty `MORPHKIT_TYPECHECK_ROOT=` skips it |
+| `typecheck` | `tsc` over the dynamic files with the app's readonly sources and `.d.ts`; packages resolve from `PLEATKIT_TYPECHECK_ROOT`, by default `apps/demo-crm` (DECISIONS 63.4: on when the app's `node_modules` are found); `--no-typecheck` or an empty `PLEATKIT_TYPECHECK_ROOT=` skips it |
 | `invariants` | text checks: `files[].mustContain / mustNotContain / mustMatch / mustNotMatch`, `forbidden` patterns in changed files, `unchanged` files |
 | `predicates` | the named custom checks in `evals/src/predicates.ts` hold |
 | `budget` | the run stayed under its dollar cap and was not stopped for money |
@@ -41,7 +41,7 @@ A task passes when every grader passes.
 
 ## Money
 
-`MORPHKIT_EVAL_BUDGET_USD` caps one run; `budgetUsd` in a task caps that task (default $0.50). Every task's agent loop
+`PLEATKIT_EVAL_BUDGET_USD` caps one run; `budgetUsd` in a task caps that task (default $0.50). Every task's agent loop
 gets the smaller of its cap and what is left of the run's cap as its per-edit dollar limit, so the loop stops between
 model calls once it is reached (one call can overshoot). After the run's cap is spent the runner stops before the next
 task with a message that names the spend, the cap and the tasks not run, and the report shows it. Offline runs cost
@@ -96,6 +96,6 @@ while rendering). The text invariants and the browser grader catch it; `check` a
 
 ## Stage 5
 
-`pnpm eval:record -- --live` records with the configured model (`MORPHKIT_PROVIDER`, `MORPHKIT_MODEL`, …) and refuses
-without `MORPHKIT_API_KEY` and `MORPHKIT_EVAL_BUDGET_USD`. It overwrites `evals/recordings`; the replay then becomes the
+`pnpm eval:record -- --live` records with the configured model (`PLEATKIT_PROVIDER`, `PLEATKIT_MODEL`, …) and refuses
+without `PLEATKIT_API_KEY` and `PLEATKIT_EVAL_BUDGET_USD`. It overwrites `evals/recordings`; the replay then becomes the
 regression test of that live run.

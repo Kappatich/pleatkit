@@ -1,6 +1,6 @@
-# Morphkit: архитектура демо
+# Pleatkit: архитектура демо
 
-Рабочее имя: **morphkit** (npm scope `@morphkit/*`). Либа, которая позволяет агенту внутри веб-приложения переписывать разрешённые части интерфейса в рантайме, с коммитом, откатом и персональными версиями на пользователя.
+Имя: **pleatkit** (npm scope `@pleatkit/*`; до 2026-10-18 morphkit, решение 68). Либа, которая позволяет агенту внутри веб-приложения переписывать разрешённые части интерфейса в рантайме, с коммитом, откатом и персональными версиями на пользователя.
 
 Решения приняты 2026-10-17: архитектура здесь (Fable 5.1), код пишет Opus 5.5 high. Локальные модели не используем. Провайдер модели по умолчанию Anthropic через ключ клиента (BYOK), провайдер сменный.
 
@@ -14,7 +14,7 @@
 2. **Снимок, а не патч.** Состояние динамической зоны пользователя это полный снимок файлов (`Snapshot`). Версии это цепочка снимков. Undo это переход к родительскому снимку. Никаких diff-форматов в MVP.
 3. **Черновик → коммит.** Агент пишет в черновик (`draft`). Приложение не меняется, пока не вызван `commit`. Коммит компилирует весь `dynamic` целиком; если ошибка, коммит отклонён, агент получает текст ошибки. Это пункт 7 спеки.
 4. **Подмена без перезагрузки.** Каждый файл динамической зоны экспортирует React-компоненты. Приложение обращается к ним через `<Dynamic id="customer-card" />`, а не через import. Рантайм держит реестр `id → текущий модуль` и перерисовывает при коммите.
-5. **Ключ модели никогда не в браузере.** Агент работает на сервере клиента (`@morphkit/agent`, Node). Браузер общается с ним по HTTP/SSE.
+5. **Ключ модели никогда не в браузере.** Агент работает на сервере клиента (`@pleatkit/agent`, Node). Браузер общается с ним по HTTP/SSE.
 6. **Хранилище сменное.** Интерфейс `SnapshotStore` с двумя реализациями: `LocalStore` (IndexedDB, для демо и десктопа) и `HttpStore` (наш сервер, Postgres). Выбор в конфиге рантайма.
 7. **Песочница по уровням.** В MVP правки пользователя выполняются в том же окне (угроза только себе). Режим `isolated: true` рендерит динамические компоненты в iframe с `sandbox="allow-scripts"` и CSP. Делаем как флаг, в демо показываем оба.
 
@@ -23,35 +23,37 @@
 ## 2. Монорепо
 
 ```
-morphkit/
+pleatkit/
   package.json            pnpm workspaces, turbo не нужен
   pnpm-workspace.yaml
   packages/
-    vite-plugin/          @morphkit/vite-plugin
-    runtime/              @morphkit/runtime      (браузер)
-    agent/                @morphkit/agent        (Node)
-    ui/                   @morphkit/ui           (чат-шторка, выделение элемента)
-    store-server/         @morphkit/store-server (Node + Postgres или SQLite для демо)
+    vite-plugin/          @pleatkit/vite-plugin
+    runtime/              @pleatkit/runtime      (браузер)
+    agent/                @pleatkit/agent        (Node)
+    ui/                   @pleatkit/ui           (чат-шторка, выделение элемента)
+    store-server/         @pleatkit/store-server (Node + Postgres или SQLite для демо)
   apps/
     demo-crm/             Vite + React + TS + Tailwind + shadcn
     admin/                дашборд администратора (можно внутри demo-crm как /admin)
-  evals/                  эвал-харнесс агента (@morphkit/evals, private): задачи, оценщики, транскрипты, baseline, отчёт
+  evals/                  эвал-харнесс агента (@pleatkit/evals, private): задачи, оценщики, транскрипты, baseline, отчёт
   docs/
     ARCHITECTURE.md       этот файл
     TASKS.md              разбивка на этапы
 ```
 
+Совместимость со старым именем (один релиз, решение 68): переменные окружения читаются через `pleatkitEnv` (`@pleatkit/runtime/env`: заполняет `PLEATKIT_X` из `MORPHKIT_X`, одна строка предупреждения), его вызывают все `*FromEnv` и точки входа процессов; старые идентификаторы экспортируются как `@deprecated`-алиасы (`src/deprecated.ts` в runtime и ui, `morphkit` и `virtual:morphkit/*` в vite-plugin); store-server принимает заголовки `x-morphkit-*`; IndexedDB `morphkit*` копируется в `pleatkit*` один раз, запись safe mode переносится на новый ключ. Классы `.mk-*` и префикс ключей `mk_live_` не менялись.
+
 Стек: TypeScript 5.x, Node 22, pnpm, Vite 6, React 19, Tailwind 4, shadcn/ui, Vitest, Playwright (headless, никаких окон на экране Minte), esbuild-wasm, Hono для серверов, Drizzle + SQLite (better-sqlite3) для демо, Postgres через тот же Drizzle для прода.
 
 ---
 
-## 3. `@morphkit/vite-plugin`
+## 3. `@pleatkit/vite-plugin`
 
 ```ts
 // vite.config.ts у клиента
-import morphkit from '@morphkit/vite-plugin'
+import pleatkit from '@pleatkit/vite-plugin'
 export default defineConfig({
-  plugins: [react(), morphkit({
+  plugins: [react(), pleatkit({
     zones: {
       dynamic:  ['src/dynamic/**'],
       readonly: ['src/readonly/**', 'src/components/ui/**'],
@@ -63,18 +65,18 @@ export default defineConfig({
 ```
 
 Что делает:
-1. На сборке и в dev собирает **манифест** `morphkit.manifest.json`:
+1. На сборке и в dev собирает **манифест** `pleatkit.manifest.json`:
    - `dynamic`: `{ path, source }` для каждого файла (исходник TSX как есть), это **базовый снимок** (`baseSnapshot`), версия 0 для каждого нового пользователя;
    - `readonly`: `{ path, source }` исходники для чтения агентом;
    - `coreTypes`: `.d.ts` для `core`, сгенерированные `tsc --declaration --emitDeclarationOnly` (в демо можно ограничиться `.d.ts` для файлов, которые `dynamic` импортирует);
    - `externals`: список имён, которые рантайм подставит из реестра.
-2. Виртуальный модуль `virtual:morphkit/manifest` импортирует манифест в приложение.
-3. Виртуальный модуль `virtual:morphkit/externals` генерирует реестр: `{ 'react': React, '@/components/ui/button': () => import('...') ... }`. Externals с `*` раскрываются по файловой системе на этапе сборки.
+2. Виртуальный модуль `virtual:pleatkit/manifest` импортирует манифест в приложение.
+3. Виртуальный модуль `virtual:pleatkit/externals` генерирует реестр: `{ 'react': React, '@/components/ui/button': () => import('...') ... }`. Externals с `*` раскрываются по файловой системе на этапе сборки.
 4. Файлы из `dynamic` в основной бандл **тоже попадают** как fallback (чтобы приложение работало до первой правки и чтобы SSR/первая отрисовка не ждали esbuild-wasm). Рантайм на старте использует fallback, если у пользователя нет снимков.
 
 ---
 
-## 4. `@morphkit/runtime` (браузер)
+## 4. `@pleatkit/runtime` (браузер)
 
 Состояние на этап 4b; отклонения от первоначального плана внесены сюда же (DECISIONS 43).
 
@@ -108,19 +110,19 @@ interface SnapshotStore {
 
 ### 4.2. Компиляция и `check`
 
-- Режим по умолчанию `server` (DECISIONS 22): агент компилирует нативным esbuild, подписывает ed25519 и кладёт в store-server; браузер грузит `/morphkit/b/<app>/<key>.js` через `<script integrity>` + `import()`. Режим `browser`: esbuild-wasm в странице, при ошибке wasm сам уходит на `server`.
-- **Один `check` для браузера и сервера** (`Compiler.compile` в `@morphkit/runtime/compiler`, code review 06 п. 12): сборка virtual-fs с externals, затем статические правила, защищённые элементы и правило default export по одному AST (esbuild `transform` снимает TypeScript, acorn + acorn-jsx разбирают, позиции возвращаются по source map). В браузере модуль правил грузится лениво, только в режиме `browser`.
+- Режим по умолчанию `server` (DECISIONS 22): агент компилирует нативным esbuild, подписывает ed25519 и кладёт в store-server; браузер грузит `/pleatkit/b/<app>/<key>.js` через `<script integrity>` + `import()`. Режим `browser`: esbuild-wasm в странице, при ошибке wasm сам уходит на `server`.
+- **Один `check` для браузера и сервера** (`Compiler.compile` в `@pleatkit/runtime/compiler`, code review 06 п. 12): сборка virtual-fs с externals, затем статические правила, защищённые элементы и правило default export по одному AST (esbuild `transform` снимает TypeScript, acorn + acorn-jsx разбирают, позиции возвращаются по source map). В браузере модуль правил грузится лениво, только в режиме `browser`.
 - Ключ бандла: версия компилятора, формат, namespace, CSS-режим, `contextHash` (readonly, externals, alias, корни зон, хеш темы Tailwind) и хеш файлов. `baseHash` снимка считается из тех же частей, поэтому релиз с новым readonly API или темой делает снимки устаревшими, и они переносятся сами (B5).
-- CSS правок: `.css` зоны оборачивается в `@scope ([data-morphkit-id])` при компиляции, весь CSS правок кладётся в `@layer morphkit-edits` (несвязанный CSS хоста всегда сильнее). UI morphkit рендерится в shadow root (`MorphkitUiRoot`), поэтому CSS правки не может его спрятать.
+- CSS правок: `.css` зоны оборачивается в `@scope ([data-pleatkit-id])` при компиляции, весь CSS правок кладётся в `@layer pleatkit-edits` (несвязанный CSS хоста всегда сильнее). UI pleatkit рендерится в shadow root (`PleatkitUiRoot`), поэтому CSS правки не может его спрятать.
 - Без `crypto.subtle` (http не на localhost) хеши считаются на JS; подпись бандлов проверить нельзя, и с `publicKey` правки отклоняются (doctor `secure-context`).
-- Inline source map только в dev-сборке (`virtual:morphkit` `dev`).
+- Inline source map только в dev-сборке (`virtual:pleatkit` `dev`).
 
 ### 4.3. Реестр динамических компонентов
 
 ```tsx
-<MorphkitProvider config={config} store={store} userId={userId} token={...} onAuthExpired={...}>
+<PleatkitProvider config={config} store={store} userId={userId} token={...} onAuthExpired={...}>
   <Dynamic id="customer-card" props={{ customer }} />
-</MorphkitProvider>
+</PleatkitProvider>
 ```
 
 - Движок создаётся в `useMemo` по пользователю и конфигурации; конструктор без побочных эффектов, слушатели подключает `engine.attach()` в эффекте. Смена пользователя не размонтирует дерево хоста.
@@ -132,7 +134,7 @@ interface SnapshotStore {
 ### 4.4. API рантайма
 
 ```ts
-const engine = useMorphkit()
+const engine = usePleatkit()
 engine.draft.start(message) / write(path, source) / read / list / check() / commit(author, { requestId, bundle, expectedHeadId }) / discard()
 engine.undo() / redo() / reset() / rollback(snapshotId)
 engine.revertPlan(snapshotId) / revert(snapshotId)   // откат правки из середины цепочки (05 #13)
@@ -144,25 +146,25 @@ engine.history() / tags() / moduleStats() / refresh()
 
 Браузер остаётся источником правды для файлов, сервер агента stateless по файлам:
 
-1. Чат отправляет `POST /agent/v1/run` с файлами, `expectedHeadId` и (при указании на панель) DOM-снимком панели. По умолчанию в DOM-снимке только структура: теги, классы, test id и длины текстов; текст только при `sendDomText: true` (почта и номера маскируются), поддеревья `data-morphkit-private` и значения полей никогда (05 #3).
-2. Агент берёт контекст правил, readonly и `.d.ts` из своего манифеста (`MORPHKIT_MANIFEST`), а не из тела запроса; работает над копией файлов в памяти; `check` тот же, что в браузере.
+1. Чат отправляет `POST /agent/v1/run` с файлами, `expectedHeadId` и (при указании на панель) DOM-снимком панели. По умолчанию в DOM-снимке только структура: теги, классы, test id и длины текстов; текст только при `sendDomText: true` (почта и номера маскируются), поддеревья `data-pleatkit-private` и значения полей никогда (05 #3).
+2. Агент берёт контекст правил, readonly и `.d.ts` из своего манифеста (`PLEATKIT_MANIFEST`), а не из тела запроса; работает над копией файлов в памяти; `check` тот же, что в браузере.
 3. Результат: `{ files, verdict: ok | partial | needs-backend | not-editable | declined | failed | clarify | refused, expectedHeadId, bundle? }`, прогресс по SSE с комментарием-heartbeat каждые 15 с. Отмена в чате обрывает запрос, сервер прерывает вызов модели.
 4. Браузер коммитит только поверх того же head (`expectedHeadId`, CAS на `setHead`); при конфликте head перечитывается и правка не применяется.
 
 ---
 
-## 5. `@morphkit/agent` (Node)
+## 5. `@pleatkit/agent` (Node)
 
 - Hono: `POST /agent/v1/run` (SSE), `POST /agent/v1/compile`, `GET /agent/v1/b/:app/:file`, `GET /agent/health`. Тело ограничено (16 МБ по умолчанию, 413), токен проверяется до разбора JSON.
 - Провайдеры: `anthropic` (SDK, `claude-sonnet-5-5`, adaptive thinking, effort `medium`; классификатор `claude-haiku-5-5`), `openai-compatible`, `scripted` (фикстуры, без сети). Ключи только из env.
 - Инструменты (строгие схемы): `list_files`, `read_file`, `write_file`, `check`, `finish`. Результаты инструментов не длиннее 24 000 символов, ошибки дедуплицируются, не больше 10.
 - `max_tokens` одного вызова = остаток видимого бюджета правки + 8k на размышление (не больше 16k). Ответ, обрезанный по `max_tokens`, не исполняет последний вызов инструмента: модель получает об этом результат.
 - Лимиты из конфигурации (по умолчанию 12 вызовов, 90 с, 8k видимых токенов, $ на правку по тарифу); текст промпта берёт их оттуда же.
-- В production сервер не стартует без ключа приложения, секрета JWT и `MORPHKIT_MANIFEST`.
+- В production сервер не стартует без ключа приложения, секрета JWT и `PLEATKIT_MANIFEST`.
 
 ---
 
-## 6. `@morphkit/store-server` и дашборд
+## 6. `@pleatkit/store-server` и дашборд
 
 - Hono + Drizzle, SQLite. Таблицы: `snapshots` (PK `(app_id, id)`, insert-only: триггер запрещает UPDATE всего, кроме однократной привязки `request_id`), `heads`, `requests`, `bundle_files` (ключ, владелец, подпись; публичные только подписанные агентом), `events` и `audit` (append-only), `flags`, `idempotency`, `quota_buckets`, `app_plans`, `app_settings`. Старая таблица `bundles` не используется.
 - Эндпоинты под `/v1/`: снимки и головы (`POST /snapshots/:id/head` с `expectedHeadId` это CAS, 409 `head-conflict`), бандлы, запросы, квоты, события, флаги, админ (`/admin/requests` сортирует в SQL и считает `isHead` одним join), аудит, экспорт.
@@ -171,9 +173,9 @@ engine.history() / tags() / moduleStats() / refresh()
 
 ---
 
-## 7. `@morphkit/ui`
+## 7. `@pleatkit/ui`
 
-- `<MorphkitChat />`: шторка справа, поле ввода, стрим прогресса агента («читаю customer-card.tsx», «проверяю сборку»), кнопки «Отменить последнюю правку», «История», «Сбросить к исходному».
+- `<PleatkitChat />`: шторка справа, поле ввода, стрим прогресса агента («читаю customer-card.tsx», «проверяю сборку»), кнопки «Отменить последнюю правку», «История», «Сбросить к исходному».
 - Выделение элемента: кнопка «указать на экране» включает режим, при наведении подсвечивается ближайший `Dynamic`, клик подставляет в запрос `[панель: customer-card]`.
 - Тосты: «Применено», «Отменено», «Передано администратору».
 

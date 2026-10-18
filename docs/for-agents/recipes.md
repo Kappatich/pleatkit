@@ -11,7 +11,7 @@ export type { Session } from '@/core/session'
 ```
 
 ```ts
-morphkit({ zones: { dynamic: ['src/dynamic/**'], readonly: ['src/readonly/**'] }, externals: ['react', 'react/jsx-runtime', '@/readonly/*'] })
+pleatkit({ zones: { dynamic: ['src/dynamic/**'], readonly: ['src/readonly/**'] }, externals: ['react', 'react/jsx-runtime', '@/readonly/*'] })
 ```
 
 ```tsx
@@ -70,7 +70,7 @@ Links inside panels use relative paths (`<Link to="/customers/$id" params={{ id 
 Tell the agent which components exist and how to use them; the plugin turns their declarations into one line per component for the prompt's cached prefix:
 
 ```ts
-morphkit({
+pleatkit({
   zones: { dynamic: ['src/dynamic/**'], readonly: ['src/readonly/**', 'src/components/ui/**'] },
   externals: ['react', 'react/jsx-runtime', '@/components/ui/*', '@/readonly/*'],
   designSystem: {
@@ -87,6 +87,6 @@ src/components/ui/button: Button(variant?: "default" | "destructive" | "outline"
 src/components/ui/card: Card; CardHeader; CardTitle; CardContent
 ```
 
-and `dataContracts.digest`, the exported types and client methods of readonly files named `api`, `types`, `models` or `client` (signatures only). Check what the agent gets: `cat dist/morphkit.manifest.json | jq '.designSystem, .dataContracts'`.
+and `dataContracts.digest`, the exported types and client methods of readonly files named `api`, `types`, `models` or `client` (signatures only). Check what the agent gets: `cat dist/pleatkit.manifest.json | jq '.designSystem, .dataContracts'`.
 
 Listing a whole UI kit in `externals` (`@/components/ui/*`) only adds the files that exist; lazy externals (the default) load a component only when an edit uses it.

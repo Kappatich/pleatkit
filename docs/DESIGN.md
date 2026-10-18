@@ -1,6 +1,6 @@
-# Morphkit: дизайн-система v3 «Swiss grid + timetable»
+# Pleatkit: дизайн-система v3 «Swiss grid + timetable»
 
-Дата: 2026-10-18 (третья версия, выбор Minte по галерее из 100 направлений: e01 Swiss grid poster и d17 Swiss railway timetable). Применяется к лендингу (`site/`), шторке (`@morphkit/ui`, прототип `docs/prototypes/drawer-swiss.html`), админке и документации.
+Дата: 2026-10-18 (третья версия, выбор Minte по галерее из 100 направлений: e01 Swiss grid poster и d17 Swiss railway timetable). Применяется к лендингу (`site/`), шторке (`@pleatkit/ui`, прототип `docs/prototypes/drawer-swiss.html`), админке и документации.
 
 ## 0. История
 v1 «чертёжный стол» (бежевая бумага, serif, оранжевый) отклонён: узнаётся как стиль Anthropic. v2 «cyanotype» (синька, жёлтый маркер) отклонён: та же компоновка в других цветах. v3 меняет структуру, а не краску: плакатная вёрстка и расписание вместо карточек.
