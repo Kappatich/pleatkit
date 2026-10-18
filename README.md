@@ -23,18 +23,21 @@ Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Progress and measurement
 | `@pleatkit/ui` | chat drawer, "point at a panel" picker, history, undo/reset, toasts, stale-version banner | pleatkit (public, MIT) |
 | `@pleatkit/agent` | Node agent server: model loop with zone-checked tools, server-side check, SSE progress, providers `anthropic` / `openai-compatible` / `scripted` | pleatkit (public, MIT) |
 | `@pleatkit/cli` | `pleatkit doctor` (setup checks with fixes), `ping`, `keys new`, `keys public`, `export` | pleatkit (public, MIT) |
-| `@pleatkit/store-server` | snapshots, heads, bundles and the request log per user; admin actions; Hono + Drizzle (SQLite in the demo) | **pleatkit-cloud** (private) |
+| `@pleatkit/store-server` | the open store: snapshots, heads, bundles, the request log, quotas, usage events, the audit chain, roles, flags, releases, code search, export and erasure; Hono + Drizzle + SQLite | pleatkit (public, MIT) |
+| `@pleatkit/store-cloud` | the managed cloud's modules on top of the store (the learning layer; later billing, region routing) | **pleatkit-cloud** (private) |
 | `apps/demo-crm` | demo CRM with two users, three dynamic panels and an `/admin` dashboard | pleatkit (public) |
 
 ### Two repositories
 
-- **pleatkit** (public, MIT): the library everyone can self-host: vite-plugin, runtime, ui, agent and the demo.
-  With `LocalStore` it works with no backend of ours at all (bring your own model key).
-- **pleatkit-cloud** (private): the hosted part: `@pleatkit/store-server` (Postgres through the same Drizzle schema),
-  real authentication, the admin dashboard as a product, multi-tenant app namespaces, billing. `store-server` lives
-  in this monorepo for now (marked `private`, `UNLICENSED`) and depends only on the public `@pleatkit/runtime`
-  (token, signature and quota primitives from `@pleatkit/runtime/security` and `/compiler`), so it can move out
-  as it is; the runtime only knows the HTTP contract through `HttpStore`.
+- **pleatkit** (public, MIT): everything you need to self-host: vite-plugin, runtime, ui, agent, cli, **the store**
+  (`@pleatkit/store-server`) and the demo. Bring your own model key; no backend of ours is involved.
+- **pleatkit-cloud** (private): the managed service = the same open store core plus `@pleatkit/store-cloud`, a
+  private package of modules only the managed cloud needs (the learning layer with its `request_facts`; billing and
+  region routing when they exist). It plugs into the core through `StoreExtension` (routes, tables, jobs, hooks),
+  lives in this monorepo for now (`private`, `UNLICENSED`, never published) and moves to the cloud repository as it is.
+
+**Self-host: the open store. Cloud: the same core plus the cloud package** (DECISIONS 70.1). Nothing in the open
+packages imports the cloud package; the store binary loads it only when it is installed next to it.
 
 ## Run the demo
 
@@ -143,8 +146,7 @@ versions and the admin dashboard; set `PLEATKIT_STORE_URL` on the agent so every
 
 Agent server (`@pleatkit/agent`): keys are read from the environment only, never from the browser or from files.
 
-Every variable is `PLEATKIT_*`. The names from before the rename (`MORPHKIT_*`) are still read for one release when
-the new name is unset, and the process prints one deprecation line naming them (CHANGELOG, "Renamed"). App keys
+Every variable is `PLEATKIT_*` (the pre-rename `MORPHKIT_*` names are no longer read since 0.2, CHANGELOG). App keys
 keep their `mk_live_` prefix: existing keys stay valid.
 
 | Variable | Default | Meaning |
@@ -175,6 +177,9 @@ app) or `PLEATKIT_APPS` (JSON `{ "<appId>": { "appKey": "…", "jwtSecret": "…
 default for apps whose admin has not chosen; each app switches it in `/admin`). With `review`, an agent edit is
 applied for the user at once but marked `pending-review`; it waits at the top of the admin's list until it is
 approved or rolled back with one click. (Holding edits until approval is deliberately not built.)
+`PLEATKIT_RETENTION` (JSON `{"textDays": 90, "logDays": 30}`): request text and tool logs are blanked after that,
+hourly. `PLEATKIT_STORE_EXTENSIONS`: `none` runs the open core only; unset, the binary loads `@pleatkit/store-cloud`
+when it is installed (the managed cloud; it also reads `PLEATKIT_LEARNING` and `factsDays`).
 
 Interface language: `<PleatkitChat locale="ru">` switches the chat, the agent's progress lines and its summaries
 to Russian (`en` by default); the demo takes `?lang=ru`, the dashboard too. Strings live in one dictionary per
@@ -330,15 +335,26 @@ host never starts, the panel shows an error after 15 s.
 - **Export (F9).** `npx pleatkit export --store <url> --app <id> [--user <id>]` (authenticates with
   `PLEATKIT_APP_KEY`) writes one JSON file: snapshots with their files, heads, requests, events, and for an app
   the audit chain, flags, settings and plan (`GET /v1/admin/export`).
+- **Erasure (DECISIONS 70.2).** `npx pleatkit erase --user <id> --app <id>` (or `--app <id>` alone for the whole
+  app) deletes everything the store keeps about the subject: snapshots, heads, requests, usage events, bundles made
+  from the user's files, run records, flags, quota buckets, carry-over rows, wish-map references, the cloud's facts.
+  The first run prints what would go and a confirm token; `--confirm <token>` erases. One audit row stays, a
+  tombstone with the counts and a random id, without personal data. Admin only (`DELETE /v1/admin/users/:id`,
+  `DELETE /v1/admin/apps/:id`). [docs/security/retention.md](docs/security/retention.md).
 - **Plans as data (F14).** Limits live in the default plan table of the agent server and per app in store-server
   (`PUT /v1/admin/plan`); see "Quotas" above.
 - **Roles and "view as a user" (C8).** User tokens carry `role: 'user' | 'support' | 'admin'`. Support reads /admin
-  and acts as one user at a time (`x-pleatkit-act-as`, `HttpStore({ viewer })`); every such call is in the audit
-  chain with both ids. [docs/support-playbook.md](docs/support-playbook.md).
+  and views one user at a time (`x-pleatkit-act-as`, `HttpStore({ viewer })`) without writing (403); only an admin
+  may write as a user. Every such call, refused ones included, is in the audit chain with both ids.
+  [docs/support-playbook.md](docs/support-playbook.md).
 - **Pilot report and wish map (C9).** `GET /v1/report?from&to` (CSV per day and organization); the wish map groups
-  the requests the panels could not serve into themes per panel with one classifier call (/admin → Wishes).
+  the requests the panels could not serve into themes per panel with one classifier call (/admin → Wishes): at
+  most 500 requests (the newest) and $0.50 per call by default (`PLEATKIT_WISHES_MAX_ITEMS`,
+  `PLEATKIT_WISHES_BUDGET_USD`, or `pleatkit digest --wishes-max-items --wishes-budget-usd`); what does not fit the
+  budget is grouped without the model.
 - **After a release (C10).** `pleatkit carry-over --release <hash> --budget-usd <n>` carries every user's edits to
-  the new build within a budget, resumable; `--rollback` puts them back. /admin → Releases.
+  the new build within a budget, resumable; `--rollback` puts them back. One user's migration may cost at most the
+  `perEditUsd` of the app's plan; `--per-user-usd` overrides it. /admin → Releases.
 - **Code search (C11).** /admin → Code search (`GET /v1/admin/snapshots?grep=`) and rollback of every matching live
   version with a confirm count.
 - **Weekly digest (C5).** `pleatkit digest --week [--send]`: markdown with the week's numbers, what waits on the
@@ -361,10 +377,11 @@ sent prints a one-line notice.
 
 - `packages/runtime`, `vite-plugin`, `ui`, `agent`, `cli` and `apps/*`, `examples/*`: MIT, published to npm
   (once publishing is enabled, `docs/RELEASING.md`). They depend on nothing closed.
-- `packages/store-server`: `private`, `UNLICENSED`, never published; it is the seed of pleatkit-cloud and moves
-  to its own repository (`cloud/*`) with the first cloud commit. It depends only on `@pleatkit/runtime` (MIT).
-  The open packages know it only through the HTTP contract (`HttpStore`, the agent's `StoreClient`), so a
-  self-hosted store with the same `/v1` API is a drop-in replacement.
+- `packages/store-server`: MIT and published since 0.2 (DECISIONS 70.1): the store you self-host. The open
+  packages know it only through the HTTP contract (`HttpStore`, the agent's `StoreClient`), so any store with the
+  same `/v1` API is a drop-in replacement.
+- `packages/store-cloud`: `private`, `UNLICENSED`, never published; the managed cloud's modules on top of the store
+  core (`StoreExtension`). It moves to the pleatkit-cloud repository with the first cloud commit.
 
 ### Changelog and breaking changes (F11)
 
