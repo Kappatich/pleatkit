@@ -98,8 +98,9 @@ describe('pleatkit doctor', () => {
 
   it('passes on the demo app (loads its real vite.config)', async () => {
     const demo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../apps/demo-crm')
-    const findings = await doctor({ root: demo })
-    expect(findings.map((f) => f.id)).toEqual(['config', 'react', 'panels', 'externals', 'context-budget', 'csp', 'secure-context', 'secrets'])
+    const findings = await doctor({ root: demo, env: {} })
+    expect(findings.map((f) => f.id)).toEqual(['config', 'react', 'panels', 'release', 'externals', 'context-budget', 'csp', 'secure-context', 'secrets'])
+    expect(findings.find((f) => f.id === 'release')).toMatchObject({ status: 'ok' })
     expect(findings.filter((f) => f.status === 'fail')).toEqual([])
     expect(findings.find((f) => f.id === 'panels')?.details).toContain('<Dynamic id="customer-card">')
   }, 60_000)
@@ -131,5 +132,44 @@ describe('context budget (brainstorm 04 §8 item 12)', () => {
     expect(checkContextBudget(m(7_000, 3_500)).status).toBe('ok')
     expect(checkContextBudget(m(70_000, 3_500))).toMatchObject({ status: 'warn', details: expect.arrayContaining([expect.stringContaining('largest in the prefix: src/readonly/api.ts')]) })
     expect(checkContextBudget(m(7_000, 35_000)).status).toBe('warn')
+  })
+})
+
+describe('stage 5: the release passes check, the budget counted by the API (DECISIONS 73.5)', () => {
+  const manifest = (panel: string) => ({
+    version: 1 as const,
+    dynamicRoots: ['src/dynamic/'],
+    dynamic: [{ path: 'src/dynamic/orders.tsx', source: panel }],
+    readonly: [],
+    coreTypes: [],
+    externals: ['react', 'react/jsx-runtime'],
+    externalPatterns: ['react', 'react/jsx-runtime'],
+    alias: { '@': 'src' },
+  })
+
+  it('fails when a panel of the release itself is refused by the check (every edit would fail)', async () => {
+    const { checkRelease } = await import('../src/doctor.js')
+    const agent = await import('@pleatkit/agent')
+    const fromData = `const rows = [{ image: '/images/a.jpg' }]
+export default function Orders() { return <div>{rows.map((r) => <img key={r.image} src={r.image} />)}</div> }
+`
+    const bad = await checkRelease(manifest(fromData), agent)
+    expect(bad).toMatchObject({ id: 'release', status: 'fail' })
+    expect(bad.details.join(' ')).toMatch(/no-computed-url/)
+    const literal = fromData.replace('src={r.image}', 'src={`/images/${r.image}`}').replace("'/images/a.jpg'", "'a.jpg'")
+    expect(await checkRelease(manifest(literal), agent)).toMatchObject({ id: 'release', status: 'ok' })
+    expect(await checkRelease(manifest(literal), null)).toMatchObject({ id: 'release', status: 'warn' })
+  })
+
+  it('counts the prefix with the API when a key is set, and falls back to the estimate', async () => {
+    const { measureContextBudget } = await import('../src/doctor.js')
+    const agent = await import('@pleatkit/agent')
+    const m = manifest('export default function Orders() { return <div /> }\n')
+    const counted = await measureContextBudget(m, { PLEATKIT_API_KEY: 'k' }, { ...agent, countPromptTokens: async () => ({ prefixTokens: 7_467, tailTokens: 900, model: 'claude-sonnet-5-5', promptVersion: 'x' }) })
+    expect(counted).toMatchObject({ status: 'ok', title: 'context of one edit: 7,467 cached + 900 per request tokens (counted)' })
+    const estimated = await measureContextBudget(m, {}, agent)
+    expect(estimated.details.join(' ')).toMatch(/estimated .*PLEATKIT_API_KEY/)
+    const failing = await measureContextBudget(m, { PLEATKIT_API_KEY: 'k' }, { ...agent, countPromptTokens: async () => { throw new Error('401 invalid x-api-key') } })
+    expect(failing.details.join(' ')).toMatch(/token counter failed \(401 invalid x-api-key\)/)
   })
 })
