@@ -491,7 +491,7 @@ export function PleatkitChat({
                 return (
                   <li key={s.id} className={`${cur ? 'mk-cur' : ''} ${s.status === 'rejected' ? 'mk-rej' : ''}`} aria-current={cur ? 'true' : undefined}>
                     <span className="mk-v">v{i}</span>
-                    <span>{s.author === 'base' ? tr('chat.history.original') : s.message}</span>
+                    <span title={s.id}>{s.author === 'base' ? tr('chat.history.original') : s.message}{s.author !== 'base' && <small className="mk-id" data-testid="mk-history-id">{s.id.slice(-8)}</small>}</span>
                     <span className="mk-t">{cur ? tr('chat.history.now') : new Date(s.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</span>
                     {!cur && s.status !== 'rejected' && (s.author === 'base' ? (
                       <button type="button" className="mk-go" data-testid="mk-chat-reset" disabled={busy} onClick={() => void reset()}>{tr('chat.restore')}</button>
