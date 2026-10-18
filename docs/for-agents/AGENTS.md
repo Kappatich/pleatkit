@@ -1,6 +1,6 @@
 # pleatkit for coding agents
 
-Version: pleatkit 0.1.0, docs dated 2026-10-18. Tested by following them into a fresh `create vite@7 --template react-ts` app: [`examples/t1-vite`](../../examples/t1-vite).
+Version: pleatkit 0.3.0, docs dated 2026-10-18. Tested by following them into a fresh `create vite@7 --template react-ts` app ([`examples/t1-vite`](../../examples/t1-vite)) and into two existing open-source admin templates, shadcn-admin (Vite 8, pnpm, TanStack Router and Table, recharts) and TailAdmin (Vite 8, npm, react-i18next, ApexCharts): [`evals/apps`](../../evals/apps/README.md).
 
 ## What it is
 
@@ -17,7 +17,7 @@ Zones, set by globs in the Vite plugin:
 ## Your task, in order
 
 1. [`install.md`](install.md): steps 1 to 7. Each step is a command, the expected output, and what to do if the output differs. Do them in order; do not skip the checks.
-2. [`verify.md`](verify.md): the acceptance checks. The task is done only when `pleatkit doctor` reports no `[FAIL]` and `pleatkit ping` reports `[ok]` for all three lines.
+2. [`verify.md`](verify.md): the acceptance checks. The task is done only when `pleatkit doctor` reports no `[FAIL]` (including `release`: the existing panels pass the agent's check) and `pleatkit ping` reports `[ok]` for all three lines.
 3. If something fails: [`troubleshooting.md`](troubleshooting.md) (symptom, cause, command).
 4. Panels that use context, TanStack Query, Redux or the router, and the design-system profile: [`recipes.md`](recipes.md).
 5. Real users: [`production.md`](production.md) (keys, user tokens, deploying the agent and the store, CSP, privacy settings, checks before each release).
@@ -41,5 +41,5 @@ Good dynamic panels: views users have opinions about (cards, tables, dashboards,
 - Packages: `@pleatkit/vite-plugin` (dev), `@pleatkit/runtime`, `@pleatkit/ui`, `@pleatkit/agent` (server, bin `pleatkit-agent`), `@pleatkit/cli` (bin `pleatkit`: `doctor`, `ping`, `keys`, `export`).
 - Not on npm yet: install from a local checkout with `link:` (install.md step 1 shows both forms).
 - Agent server: port 8789 by default (`PLEATKIT_AGENT_PORT`); routes `POST /agent/v1/run` (SSE), `POST /agent/v1/compile`, `GET /agent/v1/b/<app>/<key>.js|css|json`, `GET /agent/health` (unversioned `/agent/run` still works). Without `PLEATKIT_API_KEY` it runs the `scripted` provider, which replays recorded answers from `PLEATKIT_FIXTURES` (default `./fixtures`) and politely refuses anything else.
-- Supported: Vite 6 to 8, React 18 or 19, TypeScript 5, Tailwind 4 (optional, `css: 'tailwind'`). Not supported: Next.js, webpack.
+- Supported: Vite 6 to 8, React 18 or 19, TypeScript 5 or 6, Tailwind 4 through `@tailwindcss/vite` or PostCSS (optional, `css: 'tailwind'`), pnpm or npm. Not supported: Next.js, webpack.
 - Full reference: the repository [`README.md`](../../README.md).

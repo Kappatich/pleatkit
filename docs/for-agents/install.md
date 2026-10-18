@@ -2,7 +2,7 @@
 
 Every step: **run** the command, **expect** the output, and if it differs, do what **if not** says. Paths: `<APP>` is the app folder (run commands there unless a step says otherwise), `<PLEATKIT>` is a local checkout of pleatkit. Use forward slashes in paths, also on Windows.
 
-The commands use pnpm; with npm use `npm install` / `npx` instead of `pnpm add` / `pnpm exec`.
+The commands use pnpm; npm works too (step 2 shows its form, and `npx` replaces `pnpm exec`). Tested on a fresh `create vite` app ([`examples/t1-vite`](../../examples/t1-vite), pnpm) and on two existing admin templates ([`evals/apps`](../../evals/apps/README.md): shadcn-admin with pnpm, TailAdmin with npm, both Vite 8).
 
 ## Step 0. Prerequisites
 
@@ -14,7 +14,7 @@ node -v && pnpm -v
 
 Expect: `v22.x` or newer, then `10.x` or newer.
 
-If not: install Node 22 LTS and pnpm 10 (`npm install -g pnpm@10`). The app must use React 19 and Vite 6 or 7: check with `pnpm list react vite` in `<APP>`.
+If not: install Node 22 LTS and pnpm 10 (`npm install -g pnpm@10`). The app must use React 18 or 19 and Vite 6, 7 or 8: check with `pnpm list react vite` (or `npm ls react vite`) in `<APP>`.
 
 ## Step 1. Get the pleatkit packages
 
@@ -41,8 +41,17 @@ In `<APP>`:
 
 ```bash
 pnpm add link:<PLEATKIT>/packages/runtime link:<PLEATKIT>/packages/ui
-pnpm add -D link:<PLEATKIT>/packages/vite-plugin link:<PLEATKIT>/packages/agent link:<PLEATKIT>/packages/cli link:<PLEATKIT>/packages/store-server @types/node@^22
+pnpm add -D link:<PLEATKIT>/packages/vite-plugin link:<PLEATKIT>/packages/agent link:<PLEATKIT>/packages/cli link:<PLEATKIT>/packages/store-server
 ```
+
+With npm (it has no `link:`; a folder path makes the same symlink):
+
+```bash
+npm install <PLEATKIT>/packages/runtime <PLEATKIT>/packages/ui
+npm install -D <PLEATKIT>/packages/vite-plugin <PLEATKIT>/packages/agent <PLEATKIT>/packages/cli <PLEATKIT>/packages/store-server
+```
+
+`vite.config.ts` imports `node:url`: if the app has no `@types/node` yet, add it (`pnpm add -D @types/node@^22`). Keep the app's own version when it has one; do not downgrade it.
 
 If the app uses Tailwind 4 already, nothing more. To let edits use Tailwind classes in an app without it:
 
@@ -50,12 +59,14 @@ If the app uses Tailwind 4 already, nothing more. To let edits use Tailwind clas
 pnpm add -D tailwindcss@^4 @tailwindcss/vite@^4
 ```
 
-Expect: lines like `+ @pleatkit/runtime 0.1.0 <- ../pleatkit/packages/runtime` for all six packages, then `Done`.
+Expect: lines like `+ @pleatkit/runtime 0.3.0 <- ../pleatkit/packages/runtime` for all six packages, then `Done` (npm: `added N packages`, and `node_modules/@pleatkit/*` are links to the checkout).
 
 `@pleatkit/store-server` is the server that keeps every user's version (snapshots, the request log, the admin's levers). It runs as its own process (step 7); the browser talks to it through `HttpStore`.
 
 If not:
 - `ERR_PNPM_...workspace`, or pnpm installs a different project: the app is inside another pnpm workspace. Add `--ignore-workspace` to every `pnpm add` / `pnpm install` in the app.
+- On Windows pnpm writes the specs with backslashes (`link:..\pleatkit\packages\runtime`) in `package.json` and `pnpm-lock.yaml`, whatever you typed: replace them with forward slashes in both files (they work on every OS), then `pnpm install --frozen-lockfile` must pass.
+- npm: `Unsupported URL Type "link:"`: use the folder paths of the npm form above.
 - Once pleatkit is on npm, the same step is `pnpm add @pleatkit/runtime @pleatkit/ui && pnpm add -D @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli @pleatkit/store-server` (the store is open source since 0.2; with the managed cloud you point `HttpStore` at the cloud instead and skip it).
 
 ## Step 3. Configure Vite
@@ -101,7 +112,13 @@ export default defineConfig({
 
 Without store-server (a quick look with `LocalStore`, step 6), point `/pleatkit/b` at the agent instead: `{ target: 'http://localhost:8789', rewrite: (p) => p.replace(/^\/pleatkit\/b/, '/agent/v1/b') }`, and drop `/pleatkit-store`. `compile: 'browser'` in the plugin options compiles in the page with esbuild-wasm instead (no `/pleatkit/b` proxy needed, but the CSP must allow `blob:` and `'wasm-unsafe-eval'`).
 
-Keep the app's existing plugins and options; add only what is missing. With Tailwind, `src/index.css` must start with `@import "tailwindcss";`. If the app has a UI kit the panels should use (for example `src/components/ui/*`), add it to `readonly` and to `externals` (`'@/components/ui/*'`).
+Keep the app's existing plugins and options; add only what is missing. With Tailwind, the entry CSS must have `@import "tailwindcss";` (pass its path as `tailwindEntry` when it is not `src/index.css`, e.g. `src/styles/index.css`). An app that runs Tailwind through PostCSS (`@tailwindcss/postcss`, no `@tailwindcss/vite`) keeps its PostCSS setup; `css: 'tailwind'` works the same.
+
+What the panels import goes into `externals`:
+- the app's UI kit (for example `src/components/ui/*`): add it to `readonly` and to `externals` (`'@/components/ui/*'`). A trailing `*` matches the files directly in that folder only; a kit with one folder per component (`ui/badge/Badge.tsx`) needs each module listed (`'@/components/ui/badge/Badge'`), and a folder with an `index.tsx` is listed as the folder (`'@/components/ui/table'`);
+- the npm packages the panels use besides React: a chart library (`'recharts'`, `'react-apexcharts'`), icons (`'lucide-react'`), a table library (`'@tanstack/react-table'`), i18n (`'react-i18next'`). They load only when a panel or an edit uses them (lazy externals).
+
+Keep the readonly zone to what the panels need: every readonly file is in every edit's prompt (`pleatkit doctor` reports its size, step 5). Files the panels import that are not readonly reach the agent as `.d.ts` only.
 
 Run:
 
@@ -122,7 +139,7 @@ In the tsconfig that covers `src` (`tsconfig.app.json` in a `create vite` app, o
 "paths": { "@/*": ["./src/*"] }
 ```
 
-If `types` already exists, add the two entries to it. Run:
+If `types` already exists, add the two entries to it. If it did not exist, it now limits the global types to these two: when `tsc` then reports globals it no longer knows (`process`, `describe`), add their packages to the list (`"node"`, `"vitest/globals"`). Run:
 
 ```bash
 pnpm exec tsc -b
@@ -135,7 +152,7 @@ If not: `Cannot find module 'virtual:pleatkit'` means the `types` entry is missi
 ## Step 5. Create the zones
 
 1. Pick the panels users may change (see "Decide the zones" in [AGENTS.md](AGENTS.md)). For each one, move the component to `src/dynamic/<id>.tsx` with `export default`. `<id>` is lowercase with dashes, for example `orders-table`.
-2. Move what those panels import from the app (types, API client, formatters) to `src/readonly/` and import it as `@/readonly/<file>`. Dynamic files may import only other dynamic files, `react`, and what is in `externals`.
+2. Move what those panels import from the app (types, API client, formatters) to `src/readonly/` and import it as `@/readonly/<file>`. Dynamic files may import only other dynamic files, `react`, and what is in `externals`. When the code is used all over the app, leave it where it is and add a small readonly module that re-exports what the panel needs (`export { roles, type User } from '@/features/users/data'`): the agent reads that module and sees the rest as `.d.ts`. A panel made of several files (a table and its columns) is one `src/dynamic/<id>.tsx` plus helper files next to it that it imports relatively.
 3. Where the app rendered the panel, render it through `<Dynamic>` and pass its props:
 
 ```tsx
@@ -144,15 +161,21 @@ import { Dynamic } from '@pleatkit/runtime'
 <Dynamic id="orders-table" props={{ orders }} />
 ```
 
+Hooks of the router or of the page (`route.useSearch()`, `useNavigate()`) stay in the page: pass their results as props (`props={{ data, search, navigate }}`), see [recipes.md](recipes.md).
+
+Two things in existing panels that the check refuses or that change the layout:
+- An image or link whose URL comes from data (`<img src={product.image}>`, `<a href={row.url}>`) is refused by the static rules (a URL from data could point anywhere), and so is every later edit of the zone. Keep the file name in the data and write the folder in the code: ``src={`/images/product/${product.image}`}``. `pleatkit doctor` reports such lines (`[FAIL] release`).
+- `<Dynamic>` renders a wrapper with `display: contents`. A parent that spaces its children with margins (`space-y-6`, `space-x-*`, `divide-*`) loses the spacing around it: use `flex flex-col gap-6` (or a grid gap) on the parent instead.
+
 Run:
 
 ```bash
 pnpm exec pleatkit doctor
 ```
 
-Expect: `[ok]   panels: 1 <Dynamic> panel, each with a file and a default export` (with your count) and `[ok]   externals: N externals resolve`.
+Expect: `[ok]   panels: 1 <Dynamic> panel, each with a file and a default export` (with your count), `[ok]   release: the release's N dynamic files pass the agent's check` and `[ok]   externals: N externals resolve`.
 
-If not: the `[FAIL]` line names the id and the file; create the file, add `export default`, or fix the id. An external that does not resolve is either a typo or a file that does not exist under `src/`.
+If not: the `[FAIL]` line names the id and the file; create the file, add `export default`, or fix the id. An external that does not resolve is either a typo or a file that does not exist under `src/`. `[FAIL] release` lists the lines the check refuses (see above and [troubleshooting.md](troubleshooting.md)).
 
 ## Step 6. Wrap the app and add the chat
 
@@ -187,13 +210,13 @@ Run:
 pnpm build
 ```
 
-Expect: the build ends with `✓ built in …`, the list includes `dist/pleatkit.manifest.json` (and `dist/assets/esbuild-….wasm`, used only with `compile: 'browser'` or as a fallback).
+Expect: the build ends with `✓ built in …`, the list includes `dist/pleatkit.manifest.json` (and `dist/assets/esbuild-….wasm`, used only with `compile: 'browser'` or as a fallback). On Vite 8 the build also prints `[INEFFECTIVE_DYNAMIC_IMPORT]` warnings for externals the app imports statically as well: harmless, the module is simply not split into its own chunk.
 
 If not: see [troubleshooting.md](troubleshooting.md) ("Build fails").
 
 ## Step 7. Run store-server and the agent server
 
-Add two scripts to the app's `package.json`: `"store": "pleatkit-store"` and `"agent": "pleatkit-agent"`, and `.pleatkit/` to `.gitignore` (store-server's SQLite file). Then, in two more terminals (both keep running):
+Add two scripts to the app's `package.json`: `"store": "pleatkit-store"` and `"agent": "pleatkit-agent"`, and `.pleatkit/` to `.gitignore` (store-server's SQLite file). Then, in two more terminals (both keep running; with npm: `npm run store`, `npm run agent`):
 
 ```bash
 pnpm store

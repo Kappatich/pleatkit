@@ -13,8 +13,16 @@ Cause: pnpm 10 does not run install scripts by default. esbuild ships its binary
 Run: nothing. `pnpm approve-builds` only if a build later fails with an esbuild binary error.
 
 **package.json has `link:..\\..\\pleatkit\\packages\\runtime` with backslashes (Windows).**
-Cause: pnpm writes the path as typed by the OS. It works locally, but not on other machines.
-Run: edit the specs to forward slashes (`link:../../pleatkit/packages/runtime`).
+Cause: pnpm on Windows writes the path with backslashes, also when you typed forward slashes, in `package.json` and in the `specifier:` lines of `pnpm-lock.yaml`. It works locally, but not on other machines.
+Run: edit both files to forward slashes (`link:../../pleatkit/packages/runtime`), then `pnpm install --frozen-lockfile` (it must pass unchanged).
+
+**npm: `Unsupported URL Type "link:": link:../pleatkit/packages/runtime`.**
+Cause: `link:` is pnpm's protocol; npm has none.
+Run: `npm install <PLEATKIT>/packages/runtime …` with the folder paths ([install.md](install.md) step 2): npm records `file:` and links the folders.
+
+**`pnpm add -D … @types/node@^22` replaced the app's newer `@types/node`.**
+Cause: an older version of install.md added `@types/node@^22` unconditionally.
+Run: `pnpm add -D @types/node@<the app's previous range>`; pleatkit only needs some `@types/node`.
 
 ## Type checking and building
 
@@ -93,6 +101,18 @@ Run: `PLEATKIT_AGENT_PORT=8790 pnpm agent` and change both proxy targets to `htt
 **Chat: `Not done` with "has no recorded answer for this request".**
 Cause: the agent runs without a key (scripted provider) and has no recorded answer for this text.
 Run: start the agent with `PLEATKIT_API_KEY=<key>`, or add a recorded answer to `fixtures/` ([verify.md](verify.md) check 3).
+
+**Every edit fails: the chat says "Something went wrong on our side and nothing was changed", and the request log shows `finish` refused for a line of a file the edit did not touch.**
+Cause: every edit is checked with the whole dynamic zone, and one of the release's own panels breaks a static rule. Typical in an existing app: an image or link whose URL comes from data (`<img src={product.image}>`, rule `no-computed-url`).
+Run: `pnpm exec pleatkit doctor`: `[FAIL] release` lists the lines. Keep the file name in the data and write the folder in the code (``src={`/images/${product.image}`}``), rebuild, run doctor again.
+
+**The spacing between a panel and its neighbours disappeared after moving it into `<Dynamic>`.**
+Cause: `<Dynamic>` wraps the panel in an element with `display: contents`; a parent that spaces its children with margins (`space-y-*`, `space-x-*`, `divide-*`) puts the margin on that wrapper, which has no box.
+Run: give the parent `flex flex-col gap-*` (or a grid gap) instead of `space-y-*`.
+
+**`vite build` (Vite 8) prints `[INEFFECTIVE_DYNAMIC_IMPORT] … is dynamically imported by virtual:pleatkit/externals but also statically imported`.**
+Cause: lazy externals (the default) import each external with `import()`, and the app imports the same modules statically; Rolldown notes that the module stays in its chunk.
+Run: nothing. `lazyExternals: false` silences it, at the cost of loading every external with the app.
 
 **Chat: `Did not compile`.**
 Cause: the edit compiled on the agent server but not in the browser (rare: a difference between native esbuild and esbuild-wasm, or a missing external in the browser).
