@@ -102,8 +102,8 @@
 
   <div class="wrap">
     <div class="dims" aria-label="Measured in the demo app">
-      <div class="dim"><i></i><b>≈100 ms</b><span>compile to paint, after the code arrives</span></div>
-      <div class="dim"><i></i><b>24 ms</b><span>re-check of three edited files</span></div>
+      <div class="dim"><i></i><b>4–5 s</b><span>per edit, request to repaint, Sonnet 5.5 (median; p95 under 8 s)</span></div>
+      <div class="dim"><i></i><b>$0.01–0.03</b><span>per edit on your key, measured on three apps, 149 runs</span></div>
       <div class="dim"><i></i><b>1 user</b><span>per version; nobody else sees the edit</span></div>
       <div class="dim"><i></i><b>0 lines</b><span>of code shown to the end user</span></div>
     </div>
@@ -244,7 +244,7 @@ pnpm add -D @pleatkit/vite-plugin @pleatkit/agent</pre></div></li>
           <a class="btn" href="#pilot">Book a pilot</a>
         </div>
       </div>
-      <p class="note">Token cost: your provider bills you directly. On Sonnet 5.5 with prompt caching we estimate $0.03 to $0.07 per edit. We will publish a measured number.</p>
+      <p class="note">Token cost: your provider bills you directly. Measured on 2026-10-18 across the demo and two open-source admin templates (149 live runs): a median edit costs $0.010 to $0.026 on Sonnet 5.5 with prompt caching, about $0.003 on Haiku 5.5. Requests that are not edits cost well under a cent. Details in evals/REPORT-2026-10-18-foreign.md.</p>
     </div>
   </section>
 
@@ -256,7 +256,7 @@ pnpm add -D @pleatkit/vite-plugin @pleatkit/agent</pre></div></li>
         <details><summary>Where does the model key live?</summary><div><p>In the environment of your agent server and nowhere else. The browser talks to your <code>/agent</code> endpoint and never sees the key. You bring your own key.</p></div></details>
         <details><summary>What CSP do I need?</summary><div><p><code>script-src 'self' blob: 'wasm-unsafe-eval'</code> and <code>worker-src blob:</code>. You don't need <code>'unsafe-inline'</code> for scripts. We test this exact policy in e2e. A CSP without <code>blob:</code> is not supported yet.</p></div></details>
         <details><summary>What if the agent breaks the UI?</summary><div><p>Code that doesn't compile never reaches the user. The agent must pass the check before it can finish, and the browser checks again before committing. If a panel compiles but crashes while rendering, the error stays inside that panel and the panel rolls back by itself after about 10 seconds. Undo and reset are one click.</p></div></details>
-        <details><summary>What does one edit cost, and can it run away?</summary><div><p>A small model sorts each request first, so a backend request costs one cheap call. A full edit is $0.03 to $0.07 on Sonnet 5.5 (estimate, not yet measured). Each edit stops at 12 model calls, 90 seconds or 8,000 visible output tokens. You can change all three limits.</p></div></details>
+        <details><summary>What does one edit cost, and can it run away?</summary><div><p>A small model sorts each request first, so a backend request costs one cheap call. A full edit costs $0.01 to $0.03 on Sonnet 5.5 (measured, see the report in the repository) (estimate, not yet measured). Each edit stops at 12 model calls, 90 seconds or 8,000 visible output tokens. You can change all three limits.</p></div></details>
         <details><summary>Am I locked in?</summary><div><p>The library is MIT. A snapshot is a plain copy of your dynamic files. With the browser store, pleatkit runs with no server of ours. Remove it and your panels go back to being your original files. When you ship a release, users with edits get three choices: keep them, have the agent port them, or reset.</p></div></details>
         <details><summary>Can I self-host?</summary><div><p>Yes for the library and agent server, today. The hosted store and dashboard are the paid Cloud product. A self-hosted store comes with the Enterprise plan.</p></div></details>
         <details><summary>Which models and stacks?</summary><div><p>By default, Claude Sonnet 5.5 writes edits and Haiku 5.5 sorts requests. OpenAI, OpenRouter and any OpenAI-compatible endpoint also work. The stack today is Vite, React and TypeScript. Tailwind 4 classes work in edits, including arbitrary values. Next.js is next.</p></div></details>
