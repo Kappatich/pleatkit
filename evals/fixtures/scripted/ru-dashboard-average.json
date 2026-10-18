@@ -1,0 +1,15 @@
+{
+  "name": "eval-ru-dashboard-average",
+  "description": "Eval (H8): a Russian request on an English panel; the new label follows the panel.",
+  "match": ["средн"],
+  "classify": { "label": "ui", "reason": "Ещё одна плитка на дашборде из существующих данных.", "intentLabel": "aggregate-display", "gist": "add average deal amount tile to dashboard" },
+  "turns": [
+    {
+      "calls": [
+        { "tool": "read_file", "input": { "path": "src/readonly/format.ts" }, "expect": "ok" },
+        { "tool": "write_file", "input": { "path": "src/dynamic/dashboard-panels.tsx" }, "contentFile": "../../references/dashboard-panels.average.tsx", "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "На дашборде появилась плитка со средней суммой сделки." }, "expect": "ok" }] }
+  ]
+}

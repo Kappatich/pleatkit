@@ -1,0 +1,59 @@
+{
+  "id": "crm-06-clarify-answered",
+  "app": "demo-crm",
+  "title": "Overdue date stands out after the answer",
+  "scenario": "Stage 3b: the edit runs with the user's answer, no second question",
+  "request": "Make the important thing in the customer card stand out",
+  "clarification": {
+    "question": "What should stand out in the customer card?",
+    "answer": "The overdue payment date"
+  },
+  "expected": {
+    "verdict": "ok",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/customer-card.tsx",
+        "mustContain": [
+          "data-testid=\"customer-card\"",
+          "data-testid=\"due-date\"",
+          "export default function CustomerCard",
+          "{ customer }: { customer: Customer }"
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/deals-table.tsx",
+      "src/dynamic/dashboard-panels.tsx"
+    ],
+    "predicates": [
+      "plain-summary"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "due-date",
+          "within": "customer-card",
+          "class": "bg-red-600"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/customer-card.tsx": "apps/demo-crm/e2e/fixtures/customer-card.overdue.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "scenario-clarify-stand-out"
+  }
+}

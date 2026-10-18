@@ -1,0 +1,58 @@
+{
+  "id": "crm-14-edit-file-label",
+  "app": "demo-crm",
+  "title": "Rename one label in the card",
+  "scenario": "Brainstorm 04 §2: a small change with edit_file",
+  "request": "In the customer card rename \"Next payment\" to \"Payment due\"",
+  "expected": {
+    "verdict": "ok",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/customer-card.tsx",
+        "mustContain": [
+          "data-testid=\"customer-card\"",
+          "data-testid=\"due-date\"",
+          "export default function CustomerCard",
+          "{ customer }: { customer: Customer }",
+          "Payment due"
+        ],
+        "mustNotContain": [
+          "Next payment"
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/deals-table.tsx",
+      "src/dynamic/dashboard-panels.tsx"
+    ],
+    "predicates": [
+      "plain-summary"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "customer-card",
+          "contains": "Payment due"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/customer-card.tsx": "evals/references/customer-card.payment-due.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "eval-edit-file-label"
+  }
+}

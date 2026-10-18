@@ -1,0 +1,78 @@
+{
+  "id": "crm-01-card-fields",
+  "app": "demo-crm",
+  "title": "Phone, city and source in the customer card; overdue date in red",
+  "scenario": "Scenario 1 (ARCHITECTURE §8): fields from meta and a conditional colour",
+  "request": "In the customer card add phone, city and source; highlight an overdue payment date in red",
+  "expected": {
+    "verdict": "ok",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/customer-card.tsx",
+        "mustContain": [
+          "data-testid=\"customer-card\"",
+          "data-testid=\"due-date\"",
+          "export default function CustomerCard",
+          "{ customer }: { customer: Customer }",
+          "data-testid=\"phone\"",
+          "data-testid=\"city\"",
+          "data-testid=\"source\""
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/deals-table.tsx",
+      "src/dynamic/dashboard-panels.tsx"
+    ],
+    "predicates": [
+      "plain-summary"
+    ],
+    "browser": {
+      "customer": "Globex",
+      "checks": [
+        {
+          "testid": "phone",
+          "within": "customer-card",
+          "text": "+1 555 0102"
+        },
+        {
+          "testid": "city",
+          "within": "customer-card",
+          "text": "Springfield"
+        },
+        {
+          "testid": "source",
+          "within": "customer-card",
+          "text": "Referral"
+        },
+        {
+          "testid": "due-date",
+          "within": "customer-card",
+          "class": "text-red-600"
+        },
+        {
+          "testid": "deals-table",
+          "contains": "Annual licence"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/customer-card.tsx": "apps/demo-crm/e2e/fixtures/customer-card.scenario1.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "scenario-1-customer-card-fields"
+  }
+}

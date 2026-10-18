@@ -1,0 +1,20 @@
+{
+  "id": "crm-05-clarify-stand-out",
+  "app": "demo-crm",
+  "title": "\"Make it stand out\" asks which part",
+  "scenario": "Stage 3b: an ambiguous request gets one question",
+  "request": "Make the important thing in the customer card stand out",
+  "expected": {
+    "verdict": "clarify",
+    "change": false
+  },
+  "invariants": {
+    "predicates": [
+      "clarify-question"
+    ]
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "scenario-clarify-stand-out"
+  }
+}

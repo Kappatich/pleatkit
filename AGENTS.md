@@ -45,7 +45,7 @@ No model key is needed: the agent runs the `scripted` provider (recorded answers
   `packages/runtime/test/check.test.ts`.
 - The static rules, auth, signatures, quotas, schema and the system prompt are CODEOWNERS paths (`.github/CODEOWNERS`):
   keep those diffs small and explain them.
-- A prompt or model change comes with an eval report (`evals/`), and bumps `PROMPT_VERSION`.
+- A prompt or model change comes with an eval report (`pnpm eval:replay && pnpm eval:report`, `docs/evals.md`), and bumps `PROMPT_VERSION`.
 - Headless browsers only; never play sound; stop only processes you started.
 - Write the DEVLOG section of your stage with numbers, deviations and open questions; record cost and model.
 

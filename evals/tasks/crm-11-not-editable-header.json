@@ -1,0 +1,20 @@
+{
+  "id": "crm-11-not-editable-header",
+  "app": "demo-crm",
+  "title": "Renaming the app title is outside the zone",
+  "scenario": "Verdict not-editable: the header is core code",
+  "request": "Rename the 'Acme CRM' title in the page header to 'Globex Sales'",
+  "expected": {
+    "verdict": "not-editable",
+    "change": false
+  },
+  "invariants": {
+    "predicates": [
+      "plain-summary"
+    ]
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "eval-not-editable-header"
+  }
+}

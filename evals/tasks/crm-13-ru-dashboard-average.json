@@ -1,0 +1,59 @@
+{
+  "id": "crm-13-ru-dashboard-average",
+  "app": "demo-crm",
+  "title": "Average deal tile, requested in Russian",
+  "scenario": "Label language (H8): a Russian request on an English panel",
+  "request": "Добавь на дашборд плитку со средней суммой сделки",
+  "locale": "ru",
+  "expected": {
+    "verdict": "ok",
+    "change": true
+  },
+  "invariants": {
+    "files": [
+      {
+        "path": "src/dynamic/dashboard-panels.tsx",
+        "mustContain": [
+          "data-testid=\"dashboard-panels\"",
+          "export default function DashboardPanels"
+        ]
+      }
+    ],
+    "forbidden": [
+      "localStorage|sessionStorage|document\\.cookie|indexedDB",
+      "dangerouslySetInnerHTML|innerHTML",
+      "\\beval\\(|new Function\\(",
+      "https?://"
+    ],
+    "unchanged": [
+      "src/dynamic/customer-card.tsx",
+      "src/dynamic/deals-table.tsx"
+    ],
+    "predicates": [
+      "labels-in-panel-language",
+      "summary-in-russian"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "average-deal",
+          "within": "dashboard-panels",
+          "contains": "$35,300"
+        },
+        {
+          "testid": "dashboard-panels",
+          "contains": "Average deal"
+        }
+      ]
+    }
+  },
+  "reference": {
+    "files": {
+      "src/dynamic/dashboard-panels.tsx": "evals/references/dashboard-panels.average.tsx"
+    }
+  },
+  "budgetUsd": 0.5,
+  "record": {
+    "fixture": "eval-ru-dashboard-average"
+  }
+}

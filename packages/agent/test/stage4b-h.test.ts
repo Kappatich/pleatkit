@@ -36,6 +36,25 @@ export default function CustomerCard({ customer }: { customer: Customer }) {
     expect(text).toMatch(/nam/)
     expect(r.errors.every((e) => e.rule === 'typecheck' && e.file === CARD)).toBe(true)
   })
+
+  it('with the app root, React types resolve fully: key on a component is fine, a wrong prop is not (eval harness find)', async () => {
+    const path = await import('node:path')
+    const root = path.resolve(import.meta.dirname, '../../../apps/demo-crm')
+    const withRoot = createTypechecker({ root })
+    const ui = `import type { HTMLAttributes } from 'react'
+export function Card(props: HTMLAttributes<HTMLDivElement>) { return <div {...props} /> }
+`
+    // without the fix, the JSX namespace of react/jsx-runtime was lost: every element `any`, `key` an error
+    const list = (attr: string) => `import { Card } from '@/readonly/ui'
+export default function CustomerCard({ customer }: { customer: { id: string; name: string } }) {
+  return <div data-testid="customer-card">{[customer].map((c) => <Card key={c.id} ${attr}>{c.name}</Card>)}</div>
+}
+`
+    const input = { ...request('x'), readonly: { 'src/readonly/ui.tsx': ui } }
+    expect(await withRoot({ ...input.files, [CARD]: list('') }, input)).toEqual([])
+    const bad = await withRoot({ ...input.files, [CARD]: list('tone="loud"') }, input)
+    expect(bad.map((e) => e.text).join(' ')).toMatch(/tone/)
+  })
 })
 
 describe('brainstorm 05 #5: alerts and freezing one user', () => {

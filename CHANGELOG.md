@@ -4,6 +4,17 @@ All notable changes to the morphkit packages. Versions follow semver; while they
 break, and every break is marked **Breaking** with its migration step. Policy: README, "Changelog and breaking
 changes". Nothing is published to npm yet; the entries below are the state of `main`.
 
+## Unreleased (Stage 4c block 1, 2026-10-18)
+
+### Fixed
+- **Agent typecheck with an app root** (`MORPHKIT_TYPECHECK=1` + `MORPHKIT_TYPECHECK_ROOT`): relative imports inside
+  packages' own `.d.ts` (`react/jsx-runtime`) now resolve on disk. Before, React's JSX types were lost, every element
+  was `any` and `key` on a component was a type error, so edits to list-rendering panels were refused.
+
+### Changed
+- Agent instructions: three examples and three anti-examples; `PROMPT_VERSION` `2026-10-18.4c1`. Eval report:
+  `evals/report/index.html` (`docs/evals.md`).
+
 ## Unreleased (Stage 4a, 2026-10-18)
 
 ### Added

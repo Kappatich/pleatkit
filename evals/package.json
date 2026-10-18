@@ -1,0 +1,31 @@
+{
+  "name": "@morphkit/evals",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Eval harness for the morphkit agent: tasks, graders, replay, baseline and report (brainstorm 04 §8 items 3, 9, 11)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "record": "tsx src/cli.ts record",
+    "replay": "tsx src/cli.ts replay",
+    "sanity": "tsx src/cli.ts sanity",
+    "pin": "tsx src/cli.ts pin",
+    "report": "tsx src/cli.ts report"
+  },
+  "dependencies": {
+    "@morphkit/agent": "workspace:*",
+    "@morphkit/runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^22.18.0",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

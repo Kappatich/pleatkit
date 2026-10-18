@@ -116,6 +116,31 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
 
+  evals:
+    dependencies:
+      '@morphkit/agent':
+        specifier: workspace:*
+        version: link:../packages/agent
+      '@morphkit/runtime':
+        specifier: workspace:*
+        version: link:../packages/runtime
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.56.1
+        version: 1.64.1
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.5
+      tsx:
+        specifier: ^4.20.6
+        version: 4.23.15
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
+
   packages/agent:
     dependencies:
       '@anthropic-ai/sdk':

@@ -1,0 +1,14 @@
+{
+  "name": "eval-edit-file-label",
+  "description": "Eval: a one-word change made with edit_file (str_replace) instead of rewriting the panel.",
+  "match": ["payment due"],
+  "classify": { "label": "ui", "reason": "A label change in the customer card.", "intentLabel": "i18n-labels", "gist": "rename next payment label in customer card" },
+  "turns": [
+    {
+      "calls": [
+        { "tool": "edit_file", "input": { "path": "src/dynamic/customer-card.tsx", "old_str": "<dt className=\"text-muted-foreground\">Next payment</dt>", "new_str": "<dt className=\"text-muted-foreground\">Payment due</dt>" }, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "The label in the customer card now reads \"Payment due\"." }, "expect": "ok" }] }
+  ]
+}
