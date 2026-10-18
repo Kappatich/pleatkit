@@ -225,44 +225,6 @@ export const appSettings = sqliteTable('app_settings', {
   /** off | review */
   moderation: text('moderation').notNull(),
   updatedAt: text('updated_at').notNull(),
-  /** DECISIONS 44: off | aggregate | contribute; null means the server's default. */
-  learning: text('learning'),
-})
-
-/** L1 of the data flywheel (DECISIONS 44): a fingerprint per request, no text, no code, keyed ids. */
-export const requestFacts = sqliteTable(
-  'request_facts',
-  {
-    requestId: text('request_id').primaryKey(),
-    appId: text('app_id').notNull(),
-    orgId: text('org_id').notNull(),
-    userKey: text('user_key').notNull(),
-    panelKey: text('panel_key'),
-    intentLabel: text('intent_label'),
-    verdict: text('verdict').notNull(),
-    firstTry: integer('first_try', { mode: 'boolean' }),
-    turns: integer('turns').notNull(),
-    toolCalls: integer('tool_calls').notNull(),
-    costUsd: real('cost_usd').notNull(),
-    latencyMs: integer('latency_ms'),
-    promptVersion: text('prompt_version'),
-    model: text('model'),
-    provider: text('provider'),
-    compilerVersion: text('compiler_version'),
-    staticRuleHits: text('static_rule_hits', { mode: 'json' }).$type<string[]>().notNull(),
-    /** alive24h | reverted:user | reverted:admin | errorboundary | stale */
-    outcome: text('outcome'),
-    learning: text('learning').notNull(),
-    createdAtMs: integer('created_at_ms').notNull(),
-  },
-  (t) => [index('facts_by_app').on(t.appId, t.createdAtMs)],
-)
-
-/** Per-app secret salt for the HMAC keys of L1 (never exported, never sent). */
-export const appSalts = sqliteTable('app_salts', {
-  appId: text('app_id').primaryKey(),
-  salt: text('salt').notNull(),
-  createdAt: text('created_at').notNull(),
 })
 
 /** DECISIONS 42: agent runs by Idempotency-Key, shared by every agent server instance. */
@@ -363,7 +325,6 @@ export const ADDED_COLUMNS: { table: string; column: string; type: string }[] = 
   { table: 'requests', column: 'intent_label', type: 'TEXT' },
   { table: 'requests', column: 'gist', type: 'TEXT' },
   { table: 'requests', column: 'retained_at', type: 'TEXT' },
-  { table: 'app_settings', column: 'learning', type: 'TEXT' },
 ]
 
 // Plain DDL so the demo needs no migration tool; keep in sync with the tables above.
@@ -388,16 +349,8 @@ CREATE TABLE IF NOT EXISTS requests (
 );
 CREATE INDEX IF NOT EXISTS requests_by_app ON requests (app_id, created_at_ms);
 CREATE TABLE IF NOT EXISTS app_settings (
-  app_id TEXT PRIMARY KEY, moderation TEXT NOT NULL, updated_at TEXT NOT NULL, learning TEXT
+  app_id TEXT PRIMARY KEY, moderation TEXT NOT NULL, updated_at TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS request_facts (
-  request_id TEXT PRIMARY KEY, app_id TEXT NOT NULL, org_id TEXT NOT NULL, user_key TEXT NOT NULL, panel_key TEXT, intent_label TEXT,
-  verdict TEXT NOT NULL, first_try INTEGER, turns INTEGER NOT NULL, tool_calls INTEGER NOT NULL, cost_usd REAL NOT NULL, latency_ms INTEGER,
-  prompt_version TEXT, model TEXT, provider TEXT, compiler_version TEXT, static_rule_hits TEXT NOT NULL, outcome TEXT, learning TEXT NOT NULL,
-  created_at_ms INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS facts_by_app ON request_facts (app_id, created_at_ms);
-CREATE TABLE IF NOT EXISTS app_salts (app_id TEXT PRIMARY KEY, salt TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS agent_runs (
   app_id TEXT NOT NULL, user_id TEXT NOT NULL, key TEXT NOT NULL, state TEXT NOT NULL, result TEXT, created_at_ms INTEGER NOT NULL,
   PRIMARY KEY (app_id, user_id, key)
@@ -416,14 +369,12 @@ CREATE INDEX IF NOT EXISTS events_by_app ON events (app_id, ts_ms);
 CREATE INDEX IF NOT EXISTS events_by_type ON events (app_id, type, ts_ms);
 CREATE UNIQUE INDEX IF NOT EXISTS events_dedupe ON events (app_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 CREATE TRIGGER IF NOT EXISTS events_append_only_u BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
-CREATE TRIGGER IF NOT EXISTS events_append_only_d BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
 CREATE TABLE IF NOT EXISTS audit (
   seq INTEGER PRIMARY KEY AUTOINCREMENT, app_id TEXT NOT NULL, org_id TEXT NOT NULL, ts TEXT NOT NULL, actor TEXT NOT NULL,
   action TEXT NOT NULL, object_type TEXT NOT NULL, object_id TEXT, details TEXT, prev_hash TEXT NOT NULL, hash TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS audit_by_app ON audit (app_id, seq);
 CREATE TRIGGER IF NOT EXISTS audit_append_only_u BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT, 'audit is append-only'); END;
-CREATE TRIGGER IF NOT EXISTS audit_append_only_d BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, 'audit is append-only'); END;
 CREATE TABLE IF NOT EXISTS flags (
   app_id TEXT NOT NULL, scope TEXT NOT NULL, scope_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT, updated_at TEXT NOT NULL,
   PRIMARY KEY (app_id, scope, scope_id, key)
@@ -454,6 +405,23 @@ CREATE TABLE IF NOT EXISTS wish_maps (
   provider TEXT, model TEXT, items INTEGER NOT NULL, clusters TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS wish_maps_by_app ON wish_maps (app_id, seq);
+`
+
+/**
+ * DECISIONS 70.2: the only DELETEs `events` and `audit` accept are an erasure's. The erasure writes a marker row
+ * into `erasing` and removes it in the same transaction, so outside an erasure both tables stay append-only:
+ * events of the erased app's users go; the audit chain goes only when the whole app is erased (`scope = 'app'`),
+ * and a user's erasure leaves it intact (its tombstone is appended to it). Dropped and recreated on every start,
+ * so databases from before 0.2 get the new conditions.
+ */
+export const ERASURE_TRIGGERS = `
+CREATE TABLE IF NOT EXISTS erasing (app_id TEXT NOT NULL, scope TEXT NOT NULL);
+DROP TRIGGER IF EXISTS events_append_only_d;
+CREATE TRIGGER events_append_only_d BEFORE DELETE ON events WHEN NOT EXISTS (SELECT 1 FROM erasing WHERE app_id = OLD.app_id)
+BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
+DROP TRIGGER IF EXISTS audit_append_only_d;
+CREATE TRIGGER audit_append_only_d BEFORE DELETE ON audit WHEN NOT EXISTS (SELECT 1 FROM erasing WHERE app_id = OLD.app_id AND scope = 'app')
+BEGIN SELECT RAISE(ABORT, 'audit is append-only'); END;
 `
 
 /** Run after DDL and ADDED_COLUMNS: snapshots are insert-only (the agent request may be linked once). */

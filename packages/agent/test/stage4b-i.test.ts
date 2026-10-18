@@ -118,14 +118,15 @@ describe('brainstorm 04 §8 items 2 and 11: recorded transcripts replay without 
   })
 })
 
-describe('DECISIONS 42 and 44: runs by Idempotency-Key in store-server; L1 facts, HMAC keys, retention', async () => {
+describe('DECISIONS 42 and 44: runs by Idempotency-Key in store-server; L1 facts (the cloud module), HMAC keys, retention', async () => {
   const { createStoreApp, openStore } = await import('../../store-server/src/app.js')
-  const { applyRetention } = await import('../../store-server/src/facts.js')
+  const { applyRetention } = await import('../../store-server/src/retention.js')
+  const { learningExtension, applyFactsRetention, cloudSchema } = await import('../../store-cloud/src/index.js')
   const { createAgentApp } = await import('../src/server.js')
   const { schema } = await import('../../store-server/src/index.js')
   const setup = () => {
     const opened = openStore()
-    const store = createStoreApp(opened.db, { learning: 'aggregate' })
+    const store = createStoreApp(opened.db, { extensions: [learningExtension({ learning: 'aggregate' })] })
     const fetchVia = ((input: string | URL | Request, init?: RequestInit) => store.request(String(input), init)) as typeof fetch
     return { ...opened, store, fetchVia }
   }
@@ -153,23 +154,24 @@ describe('DECISIONS 42 and 44: runs by Idempotency-Key in store-server; L1 facts
     const t = setup()
     const app = createAgentApp({ provider: provider(), log: () => undefined, storeUrl: 'http://store.test', fetch: t.fetchVia })
     const { requestId } = await run(app, 'k-2')
-    const fact = t.db.select().from(schema.requestFacts).all()[0]!
+    const fact = t.db.select().from(cloudSchema.requestFacts).all()[0]!
     expect(fact).toMatchObject({ requestId, intentLabel: 'fields-add', verdict: 'ok', learning: 'aggregate', staticRuleHits: [] })
     expect(fact.userKey).not.toContain('alice')
     expect(JSON.stringify(fact)).not.toMatch(/alice|customer-card|phone/)
     const req = t.db.select().from(schema.requests).all()[0]!
     expect(req).toMatchObject({ intentLabel: 'fields-add', gist: 'add phone to card #' })
     const later = Date.now() + 600 * 86_400_000
-    expect(applyRetention(t.db, later)).toMatchObject({ text: 1, logs: 1, facts: 1 })
+    expect(applyRetention(t.db, later)).toMatchObject({ text: 1, logs: 1 })
+    expect(applyFactsRetention(t.db, later)).toEqual({ facts: 1 })
     expect(t.db.select().from(schema.requests).all()[0]).toMatchObject({ text: '', target: null, gist: null, log: [] })
   })
 
-  it('learning off (the self-host default) writes no facts', async () => {
+  it('learning off (the default, and the only mode of the open core) writes no facts', async () => {
     const opened = openStore()
-    const store = createStoreApp(opened.db)
+    const store = createStoreApp(opened.db, { extensions: [learningExtension()] })
     const fetchVia = ((input: string | URL | Request, init?: RequestInit) => store.request(String(input), init)) as typeof fetch
     await run(createAgentApp({ provider: provider(), log: () => undefined, storeUrl: 'http://store.test', fetch: fetchVia }), 'k-3')
-    expect(opened.db.select().from(schema.requestFacts).all()).toHaveLength(0)
+    expect(opened.db.select().from(cloudSchema.requestFacts).all()).toHaveLength(0)
   })
 })
 

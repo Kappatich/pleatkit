@@ -1,5 +1,4 @@
 import { isAppKey, safeEqual, TokenError, verifyUserToken, type UserRole } from '@pleatkit/runtime/security'
-import { pleatkitEnv } from '@pleatkit/runtime/env'
 
 /** Secrets of one app: the server-to-server app key and the secret the customer's backend signs user tokens with. */
 export interface AppCredentials {
@@ -68,9 +67,7 @@ const bearer = (h: Headers): string | null => {
  *   for /admin routes.
  * - demo headers, only when enabled and not in production.
  */
-export async function resolveCaller(raw: Headers, auth: AuthOptions): Promise<Caller> {
-  // `x-morphkit-*`: the pre-rename header names, accepted for one release (DECISIONS 68); the new name wins
-  const h: Headers = (name) => raw(name) ?? (name.startsWith('x-pleatkit-') ? raw(`x-morphkit-${name.slice('x-pleatkit-'.length)}`) : undefined)
+export async function resolveCaller(h: Headers, auth: AuthOptions): Promise<Caller> {
   const headerApp = h('x-pleatkit-app') || null
   const token = bearer(h)
   const apps = auth.apps ?? {}
@@ -156,7 +153,6 @@ type Env = Record<string, string | undefined>
  * Throws on malformed values, so a typo never silently falls back to demo mode.
  */
 export function credentialsFromEnv(env: Env): Record<string, AppCredentials> {
-  pleatkitEnv(env)
   const apps: Record<string, AppCredentials> = {}
   if (env.PLEATKIT_APPS) {
     let parsed: unknown
@@ -182,7 +178,6 @@ export function credentialsFromEnv(env: Env): Record<string, AppCredentials> {
  * it serves has an app key and a user-JWT secret (V1 A1): demo headers would let anyone write any user's code.
  */
 export function authFromEnv(env: Env): AuthOptions {
-  pleatkitEnv(env)
   const production = env.NODE_ENV === 'production'
   const apps = credentialsFromEnv(env)
   if (production && Object.keys(apps).length === 0) {

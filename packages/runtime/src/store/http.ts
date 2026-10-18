@@ -22,10 +22,10 @@ export interface HttpStoreOptions {
   /** Per-request timeout, ms (code review 06 item 1). Default 5000 for reads, 15000 for writes. */
   timeoutMs?: number
   /**
-   * Impersonation (C8, `docs/support-playbook.md`): this store reads and writes the version of `userId` on behalf
-   * of a support person or an admin. With a token, the token's subject is that person and its role must be
-   * `support` or `admin`; without one (development) this id is sent as the viewer. Every call is written to the
-   * audit chain with both ids. Sent as `x-pleatkit-act-as: <userId>`.
+   * Impersonation (C8, `docs/support-playbook.md`): this store reads the version of `userId` on behalf of a
+   * support person or an admin (writes only for an admin: support gets 403, DECISIONS 70.5). With a token, the
+   * token's subject is that person and its role must be `support` or `admin`; without one (development) this id is
+   * sent as the viewer. Every call is written to the audit chain with both ids. Sent as `x-pleatkit-act-as: <userId>`.
    */
   viewer?: string
   /** Extra headers. */

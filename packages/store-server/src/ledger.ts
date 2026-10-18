@@ -114,7 +114,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * Emit `edit.alive24h` for applied edits older than 24 h that are still part of their user's current version
  * (the head is the edit's snapshot or a descendant of it). Idempotent: one event per request.
  */
-export function sweepAlive24h(db: Db, place: { region: string; environment: string }, now = Date.now()): number {
+export function sweepAlive24h(db: Db, place: { region: string; environment: string }, now = Date.now(), onAlive?: (requestId: string) => void): number {
   const candidates = db
     .select()
     .from(requests)
@@ -145,8 +145,8 @@ export function sweepAlive24h(db: Db, place: { region: string; environment: stri
     })
     if (ok) {
       emitted++
-      // the outcome label of the L1 fact (DECISIONS 44); no-op when the app does not learn
-      db.update(schema.requestFacts).set({ outcome: 'alive24h' }).where(eq(schema.requestFacts.requestId, r.id)).run()
+      // the outcome label for extensions (the cloud's L1 facts, DECISIONS 44)
+      onAlive?.(r.id)
     }
   }
   return emitted

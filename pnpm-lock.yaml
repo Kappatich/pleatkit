@@ -54,6 +54,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.5
         version: 1.19.17(hono@4.13.13)
+      '@playwright/test':
+        specifier: ^1.56.1
+        version: 1.64.1
       '@pleatkit/agent':
         specifier: workspace:*
         version: link:../../packages/agent
@@ -63,9 +66,6 @@ importers:
       '@pleatkit/vite-plugin':
         specifier: workspace:*
         version: link:../../packages/vite-plugin
-      '@playwright/test':
-        specifier: ^1.56.1
-        version: 1.64.1
       '@tailwindcss/vite':
         specifier: ^4.1.14
         version: 4.3.3(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15))
@@ -236,6 +236,31 @@ importers:
       tailwindcss:
         specifier: ^4.1.14
         version: 4.3.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
+
+  packages/store-cloud:
+    dependencies:
+      '@pleatkit/store-server':
+        specifier: workspace:*
+        version: link:../store-server
+      drizzle-orm:
+        specifier: ^0.45.0
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.11.1)
+      hono:
+        specifier: ^4.10.0
+        version: 4.13.13
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.5
+      better-sqlite3:
+        specifier: ^12.4.1
+        version: 12.11.1
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)

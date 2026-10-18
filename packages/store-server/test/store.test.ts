@@ -196,7 +196,7 @@ describe('moderation: review (DECISIONS 15)', () => {
 
     app = createStoreApp(openStore().db, { moderation: 'review' })
     expect(await storeFor('alice').moderation()).toBe('review')
-    expect(await (await admin('/admin/settings')).json()).toEqual({ moderation: 'review', default: 'review', learning: 'off' })
+    expect(await (await admin('/admin/settings')).json()).toEqual({ moderation: 'review', default: 'review' })
   })
 })
 

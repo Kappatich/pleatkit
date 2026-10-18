@@ -20,7 +20,10 @@
 /packages/runtime/src/compiler-entry.ts   @Kappatich
 # schema, migrations, everything that writes L1/L2 data and telemetry
 /packages/store-server/src/schema.ts      @Kappatich
-/packages/store-server/src/facts.ts       @Kappatich
+/packages/store-server/src/erase.ts       @Kappatich
+/packages/store-server/src/extension.ts   @Kappatich
+/packages/store-cloud/src/schema.ts       @Kappatich
+/packages/store-cloud/src/learning.ts     @Kappatich
 /packages/vite-plugin/src/telemetry.ts    @Kappatich
 # the system prompt (only with an eval report) and CI
 /packages/agent/src/prompt.ts             @Kappatich

@@ -1,9 +1,17 @@
 {
   "name": "@pleatkit/store-server",
-  "version": "0.1.0",
-  "description": "pleatkit cloud store: per-user snapshots, heads, compiled bundles and the agent request log, with admin actions (Hono + Drizzle, SQLite for the demo)",
-  "license": "UNLICENSED",
-  "private": true,
+  "version": "0.2.0",
+  "description": "The open pleatkit store (MIT): per-user snapshots and heads, signed bundles, the agent request log, quotas, usage events, the audit chain, roles, flags and the kill switch, releases, code search, erasure (Hono + Drizzle + SQLite)",
+  "license": "MIT",
+  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/store-server#readme",
+  "bugs": {
+    "url": "https://github.com/Kappatich/pleatkit/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kappatich/pleatkit.git",
+    "directory": "packages/store-server"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,10 +30,12 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "start": "node dist/cli.js"
@@ -44,5 +54,9 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }
