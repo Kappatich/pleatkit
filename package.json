@@ -25,7 +25,8 @@
     "eval:sanity": "pnpm --filter @pleatkit/evals sanity",
     "eval:pin": "pnpm --filter @pleatkit/evals pin",
     "eval:report": "pnpm --filter @pleatkit/evals report",
-    "eval:classify": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals classify"
+    "eval:classify": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals classify",
+    "eval:cancel": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals cancel"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
