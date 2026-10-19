@@ -44,7 +44,7 @@ const CSS = `
 .mk-ver { grid-column: 1; grid-row: 2; margin-top: 6px; }
 .mk-ver button { font: 500 12.5px var(--mk-sans); color: var(--mk-ink-2); background: transparent; border: 0; padding: 0; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
 .mk-ver button:hover { color: var(--mk-ink); }
-.mk-ver button .mk-n { font: 700 12.5px var(--mk-mono); color: var(--mk-red-ink); }
+.mk-ver button .mk-n { width: 8px; height: 8px; background: var(--mk-red); display: inline-block; }
 .mk-ver button[disabled] { cursor: default; color: var(--mk-ink-2); }
 .mk-ver .mk-caret { transition: transform .16s var(--mk-ease); display: inline-block; }
 .mk-ver button[aria-expanded="true"] .mk-caret { transform: rotate(180deg); }

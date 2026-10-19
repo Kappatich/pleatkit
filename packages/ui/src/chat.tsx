@@ -478,8 +478,8 @@ export function PleatkitChat({
             <div className="mk-ver">
               {head?.parentId || state.stale ? (
                 <button type="button" data-testid="mk-chat-history" aria-expanded={showHistory} onClick={() => setShowHistory((v) => !v)}>
-                  <span className="mk-n" data-testid="mk-chat-changes">{changes || '·'}</span>
-                  <span>{tr('chat.version.changes', { n: changes })}</span>
+                  <span className="mk-n" data-testid="mk-chat-changes" data-n={changes} aria-hidden="true" />
+                  <span>{changes === 1 ? tr('chat.version.change') : tr('chat.version.changes', { n: changes })}</span>
                   <span className="mk-caret">▾</span>
                 </button>
               ) : (
