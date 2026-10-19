@@ -1,0 +1,149 @@
+{
+  "at": "2026-10-19T09:22:12.040Z",
+  "model": "claude-haiku-5-5",
+  "threshold": 4,
+  "summary": "references ≥ 4: 9/10; ugly edits ≤ 2: 5/5; 0.00024 $ per judgement",
+  "costUsd": 0.0036657500000000006,
+  "rows": [
+    {
+      "id": "ref-crm-01",
+      "task": "crm-01-card-fields",
+      "kind": "reference",
+      "score": 4,
+      "reason": "The panel gains phone, city and source rows in the same label/value style and the overdue date is shown in red with an OVERDUE badge, with nothing broken; the red and extra badge are slightly more than a plain highlight, and the new rows' testids cannot be verified from the screenshot.",
+      "ok": true,
+      "costUsd": 0.00020016999999999998
+    },
+    {
+      "id": "ref-crm-13",
+      "task": "crm-13-ru-dashboard-average",
+      "kind": "reference",
+      "score": 5,
+      "reason": "The new Average deal tile matches the existing tile styling, typography and spacing, shows a computed money value with a sub-label, and the other tiles remain intact and unchanged apart from reflowing to four columns.",
+      "ok": true,
+      "costUsd": 0.00019177000000000002
+    },
+    {
+      "id": "ref-sa-03",
+      "task": "sa-03-users-role-colors",
+      "kind": "reference",
+      "score": 4,
+      "reason": "The role column now shows purple admin, amber manager and grey cashier badges that match the app's existing status badge style, with nothing broken; the only nit is that the column widths shifted slightly, a minor unrelated change.",
+      "ok": true,
+      "costUsd": 0.00039307000000000003
+    },
+    {
+      "id": "ref-sa-08",
+      "task": "sa-08-revenue-line-chart",
+      "kind": "reference",
+      "score": 4,
+      "reason": "The chart is now a smooth line with dot markers matching the same data, axes and dark ink colour, so it fulfils the request cleanly, though the Y-axis labels and x-axis appear to have shifted slightly and the curve uses a smoothing style with a slightly lighter ink tone.",
+      "ok": true,
+      "costUsd": 0.00025927000000000003
+    },
+    {
+      "id": "ref-sa-11",
+      "task": "sa-11-stats-compact",
+      "kind": "reference",
+      "score": 4,
+      "reason": "The cards are visibly shorter with reduced padding and the layout stays intact, but the main value text is a bit smaller and the title and value fonts look slightly off the original scale, so it is a close, acceptable compaction.",
+      "ok": true,
+      "costUsd": 0.00023217000000000002
+    },
+    {
+      "id": "ref-sa-18",
+      "task": "sa-18-ru-bold-headers",
+      "kind": "reference",
+      "score": 3,
+      "reason": "The column headers look only marginally bolder than before, so the requested bold weight is barely visible, though the layout and the rest of the table are untouched.",
+      "ok": false,
+      "costUsd": 0.00037867000000000006
+    },
+    {
+      "id": "ref-ta-01",
+      "task": "ta-01-orders-number-column",
+      "kind": "reference",
+      "score": 4,
+      "reason": "The order-number column (#1 to #5) was added with matching header and cell typography, but the table columns were compressed so the product images look slightly smaller and the Price and Status columns sit tighter, a minor layout shift a designer might nudge.",
+      "ok": true,
+      "costUsd": 0.00021267
+    },
+    {
+      "id": "ref-ta-04",
+      "task": "ta-04-orders-canceled-struck",
+      "kind": "reference",
+      "score": 5,
+      "reason": "The canceled iPad Pro row is struck through across its product name, variants, category and price while the Canceled badge stays intact, matching the request with native styling and nothing else changed.",
+      "ok": true,
+      "costUsd": 0.00020267
+    },
+    {
+      "id": "ref-ta-05",
+      "task": "ta-05-metrics-compact",
+      "kind": "reference",
+      "score": 4,
+      "reason": "The two cards were made visibly smaller with padding, icon tile and number sizes scaled down while keeping the same badge and icon styling, so the request is met with no breakage, though the number and label appear slightly tighter than native proportions.",
+      "ok": true,
+      "costUsd": 0.00015427
+    },
+    {
+      "id": "ref-ta-07",
+      "task": "ta-07-sales-bars-green",
+      "kind": "reference",
+      "score": 5,
+      "reason": "The Monthly Sales bars are now green as requested, with a green that fits the app's palette and everything else in the panel left intact.",
+      "ok": true,
+      "costUsd": 0.00015077000000000002
+    },
+    {
+      "id": "ugly-crm-01",
+      "task": "crm-01-card-fields",
+      "kind": "ugly",
+      "score": 1,
+      "reason": "The added phone, city and source fields and the overdue date are rendered in a garish magenta block with huge yellow monospace and serif type that clashes with the panel, and the original meta layout was replaced and the Next payment label restyled.",
+      "ok": true,
+      "costUsd": 0.00021867000000000002,
+      "why": "the new fields in a magenta block, 36–48 px italic serif and mono, lime and yellow text"
+    },
+    {
+      "id": "ugly-sa-03",
+      "task": "sa-03-users-role-colors",
+      "kind": "ugly",
+      "score": 1,
+      "reason": "The role cells became garish, oversized neon blocks with heavy black borders and all-caps text that clash with the panel, overflow into the phone column, and drop the role icons and the subtle styling used elsewhere, so the edit is not shippable even though the roles are coloured.",
+      "ok": true,
+      "costUsd": 0.00048357000000000006,
+      "why": "neon role blocks, 36 px, pulled over the neighbouring column"
+    },
+    {
+      "id": "ugly-ta-04",
+      "task": "ta-04-orders-canceled-struck",
+      "kind": "ugly",
+      "score": 1,
+      "reason": "The after panel has garish pink and solid red fills, lost its header, Filter and See all buttons and card padding, and the canceled row's strikethrough is applied to the whole row rather than only the canceled order text, so the edit is broken and off-system.",
+      "ok": true,
+      "costUsd": 0.00020317,
+      "why": "struck through, but the photos, header and buttons are gone and every row is red"
+    },
+    {
+      "id": "ugly-sa-11",
+      "task": "sa-11-stats-compact",
+      "kind": "ugly",
+      "score": 1,
+      "reason": "The after screenshot shows only a single truncated 'Active Now' card clipped at the top and bottom with the other three cards gone and the value cut off, so the panel is broken rather than made more compact.",
+      "ok": true,
+      "costUsd": 0.00022467000000000003,
+      "why": "the four cards stacked on top of each other, text cut off"
+    },
+    {
+      "id": "ugly-ta-07",
+      "task": "ta-07-sales-bars-green",
+      "kind": "ugly",
+      "score": 1,
+      "reason": "The after panel is visually broken: the bars vanished, the chart axis collapsed into overlapping labels, and the whole panel was restyled with a garish yellow and red border and magenta italic title instead of just turning the bars green.",
+      "ok": true,
+      "costUsd": 0.00016016999999999998,
+      "why": "green bars on a yellow panel with a dashed red border, a 40 px serif title, a squashed chart"
+    }
+  ]
+}

@@ -9,6 +9,10 @@ import { recordingFile, replayProvider, scriptedProvider, trialsIn } from './pro
 import { renderReport, type SanityResult } from './report.js'
 import { passRate, runKey, runSuite } from './runner.js'
 import { runSanity } from './sanity.js'
+import { calibrateJudge } from './judge-calibration.js'
+import { chainRecording, loadChains, runChains, type ChainRun } from './chains.js'
+import { ReplayProvider } from '@pleatkit/agent'
+import { createJudge, type Judge } from './judge.js'
 import { typecheckRootOf, type AppId } from './apps.js'
 import { BASELINE_FILE, baselineFileOf, loadManifests, loadSuites, REPO_ROOT, REPORT_FILE, RESULTS_DIR, SCRIPTED_BASELINE_FILE, setDir, SUITES, type Suite } from './tasks.js'
 import type { Baseline, EvalTask, SuiteResult, TaskRun } from './types.js'
@@ -23,7 +27,7 @@ import type { Baseline, EvalTask, SuiteResult, TaskRun } from './types.js'
  * pnpm eval:sanity   reference solutions pass every grader; the null agent fails every task that needs a change
  * pnpm eval:pin      pin the last replay results as evals/baseline.json
  * pnpm eval:report   write evals/report/index.html from the last replay (and sanity) results
- * Options: --tasks demo|apps|all (default demo; a replay of a named set takes every task it has transcripts for),
+ * Options: --tasks demo|apps|awkward|redteam|all (default demo; a replay of a named set takes every task it has transcripts for),
  * --only <id,id>, --set <name>, --no-browser (skip Playwright), --no-typecheck (skip tsc); report: --from
  * record|replay, --baseline scripted|live|<file>, --out <file>.
  */
@@ -43,8 +47,10 @@ const resultFile = (name: string) => path.join(RESULTS_DIR, `${name}.json`)
 /** `--tasks demo|apps|all`: the task suites (the demo's 14, the foreign apps' 35). */
 const tasksArg = value('tasks') ?? 'demo'
 const suites: Suite[] = tasksArg === 'all' ? ['demo', 'apps'] : (tasksArg.split(',') as Suite[])
+/** The live set a record writes by default: `live` for the demo, else the suite's own name (`apps`, `awkward`, `redteam`). */
+const defaultSet = suites.length === 1 && suites[0] !== 'demo' ? suites[0]! : 'live'
 /** `--set <name>`: a named set of transcripts under evals/recordings/<name>/ (a live record defaults to `live`, or `apps` for the apps suite). */
-const set = value('set') ?? (command === 'record' && flag('live') ? (tasksArg === 'apps' ? 'apps' : 'live') : undefined)
+const set = value('set') ?? (command === 'record' && flag('live') ? defaultSet : undefined)
 const resultName = (kind: string) => (set ? `${kind}-${set}` : kind)
 /** The sanity results of a suite: `sanity` (demo), `sanity-apps`, `sanity-all`. */
 const sanityName = tasksArg === 'demo' ? 'sanity' : `sanity-${tasksArg}`
@@ -80,6 +86,15 @@ function loopTypecheckFor(app: AppId) {
   return typecheckFor(app)
 }
 const browser = () => (flag('no-browser') || process.env.PLEATKIT_EVAL_BROWSER === '0' ? null : playwrightGrader({ log }))
+/**
+ * DECISIONS 75 Р3: `--judge` (and `pnpm eval:judge`) scores every edit's before/after screenshots with a small model.
+ * It calls the API, so it needs PLEATKIT_API_KEY and PLEATKIT_EVAL_BUDGET_USD like a live record.
+ */
+function judgeFromEnv(): Judge | null | 'refused' {
+  if (!flag('judge') && command !== 'judge') return null
+  if (!process.env.PLEATKIT_API_KEY || budgetFromEnv() === null) return 'refused'
+  return createJudge({ apiKey: process.env.PLEATKIT_API_KEY, ...(process.env.PLEATKIT_BASE_URL ? { baseURL: process.env.PLEATKIT_BASE_URL } : {}), ...(process.env.PLEATKIT_JUDGE_MODEL ? { model: process.env.PLEATKIT_JUDGE_MODEL } : {}), ...(process.env.PLEATKIT_JUDGE_EFFORT ? { effort: process.env.PLEATKIT_JUDGE_EFFORT as 'low' | 'medium' | 'high' } : {}) })
+}
 
 function summary(s: SuiteResult): string {
   const failed = s.runs.filter((r) => !r.pass)
@@ -98,17 +113,23 @@ async function main(): Promise<number> {
     return 2
   }
   for (const su of suites) if (!(su in SUITES)) {
-    console.error(`--tasks must be demo, apps or all, got "${tasksArg}"`)
+    console.error(`--tasks must be ${Object.keys(SUITES).join(', ')} (comma-separated) or all, got "${tasksArg}"`)
     return 2
   }
   // a replay of a named set runs every task it holds transcripts for, whatever its suite
-  const loadFrom: Suite[] = command === 'replay' && set && !value('tasks') ? ['demo', 'apps'] : suites
-  const tasks = command === 'pin' || command === 'report' ? [] : loadSuites(loadFrom, only)
-  if (command === 'replay' && set) for (let i = tasks.length - 1; i >= 0; i--) if (!trialsIn(tasks[i]!.id, setDir(set)).length) tasks.splice(i, 1)
+  const replaying = command === 'replay' || command === 'judge'
+  const loadFrom: Suite[] = replaying && set && !value('tasks') ? (Object.keys(SUITES) as Suite[]) : suites
+  const tasks = command === 'pin' || command === 'report' || flag('calibrate') ? [] : loadSuites(loadFrom, only)
+  if (replaying && set) for (let i = tasks.length - 1; i >= 0; i--) if (!trialsIn(tasks[i]!.id, setDir(set)).length) tasks.splice(i, 1)
   const manifests = command === 'pin' || command === 'report' ? {} : loadManifests(tasks)
   const budget = new EvalBudget(budgetFromEnv())
   const dir = setDir(set)
   const classify = !flag('no-classifier')
+  const judge = judgeFromEnv()
+  if (judge === 'refused') {
+    console.error('The judge calls the API: run it as pnpm eval:judge (or eval:record -- --live --judge) with PLEATKIT_API_KEY and PLEATKIT_EVAL_BUDGET_USD set.')
+    return 2
+  }
   const classifierMode = flag('sequential-classifier') ? ('sequential' as const) : undefined
 
   switch (command) {
@@ -143,6 +164,7 @@ async function main(): Promise<number> {
         loopTypecheckFor: loopTypecheckFor,
         // a live run is graded in the browser right away: its timings are the real ones, a replay's are not
         browser: live ? browser() : null,
+        judge: live ? judge : null,
         recordDir: dir,
         log,
       })
@@ -155,7 +177,14 @@ async function main(): Promise<number> {
       log(`wrote ${s.runs.filter((r) => r.recording).length} transcript(s) to ${rel(dir)}; spent $${s.budget.spentUsd.toFixed(4)}`)
       return broken.length || s.aborted ? 1 : 0
     }
+    // `eval:judge -- --set <name>` is a replay of the set with the judge; `--calibrate` checks the judge itself
+    case 'judge':
     case 'replay': {
+      if (command === 'judge' && flag('calibrate')) {
+        const r = await calibrateJudge({ judge: judge!, browser: playwrightGrader({ log }), budget, log, ...(only ? { only } : {}) })
+        log(`judge calibration: ${r.summary}; $${r.costUsd.toFixed(4)}`)
+        return r.ok ? 0 : 1
+      }
       const inSet = set ? tasks.filter((t) => trialsIn(t.id, dir).length) : tasks
       if (set && !inSet.length) {
         console.error(`No transcripts in ${rel(dir)}${only ? ` for ${only.join(', ')}` : ''}.`)
@@ -180,6 +209,8 @@ async function main(): Promise<number> {
         typecheckFor,
         loopTypecheckFor: loopTypecheckFor,
         browser: browser(),
+        judge,
+        ...(command === 'judge' ? { chargeReplay: false } : {}),
         log,
       })
       save(resultName('replay'), s)
@@ -243,8 +274,42 @@ async function main(): Promise<number> {
       log(`wrote ${rel(out)} (${s.runs.length} runs, ${Math.round(passRate(s) * 100)} % pass; baseline ${rel(baseFile)})`)
       return 0
     }
+    case 'chains': {
+      // DECISIONS 75 Р3: edit chains. --live records into evals/recordings/<set> (default `chains`); else a replay
+      const chains = loadChains(only)
+      if (!chains.length) {
+        console.error('No chains in evals/chains.')
+        return 1
+      }
+      const live = flag('live')
+      if (live && (!process.env.PLEATKIT_API_KEY || budget.capUsd === null)) {
+        console.error('eval:chains --live spends money: set PLEATKIT_API_KEY and PLEATKIT_EVAL_BUDGET_USD.')
+        return 2
+      }
+      const cset = set ?? 'chains'
+      const cdir = setDir(cset)
+      const provider = live ? configFromEnv(process.env).provider : null
+      const runs: ChainRun[] = await runChains({
+        chains,
+        manifests: loadManifests(chains),
+        providerFor: (c, part) => provider ?? new ReplayProvider(chainRecording(cdir, c.id, part)),
+        ...(live ? { recordDir: cdir } : {}),
+        budget,
+        typecheckFor,
+        loopTypecheckFor,
+        browser: browser(),
+        log,
+      })
+      const result = { kind: live ? 'record' : 'replay', set: cset, promptVersion: PROMPT_VERSION, at: new Date().toISOString(), spentUsd: budget.spentUsd, runs }
+      save(`chains-${cset}`, result)
+      if (live) fs.writeFileSync(path.join(cdir, 'record.json'), JSON.stringify(result, null, 2) + '\n')
+      const steps = runs.flatMap((r) => r.steps)
+      log(`chains (set ${cset}): ${runs.filter((r) => r.pass).length} of ${runs.length} chains pass; steps ${steps.filter((s) => s.pass).length}/${steps.length}; reverts ${runs.filter((r) => r.revert.pass).length}/${runs.length} (${runs.map((r) => r.revert.how).join(', ')}); $${budget.spentUsd.toFixed(4)}`)
+      for (const r of runs.filter((x) => !x.pass)) log(`  FAIL ${r.chainId}: ${[...r.steps.filter((s) => !s.pass).map((s) => `step ${s.step} ${s.graders.filter((g) => !g.pass).map((g) => g.grader).join('/')}${s.regressions.length ? ' regression' : ''}`), ...r.revert.problems, ...[r.browser.final, r.browser.reverted].filter((g) => g && !g.pass).map((g) => `browser: ${g!.reason.slice(0, 200)}`)].join(' | ')}`)
+      return runs.every((r) => r.pass) ? 0 : 1
+    }
     default:
-      console.error('usage: tsx src/cli.ts record|replay|sanity|pin|report [--only id,id] [--set name] [--trials n] [--no-classifier] [--no-browser] [--no-typecheck] [--live] [--from record|replay] [--baseline scripted|live|file] [--out file]')
+      console.error('usage: tsx src/cli.ts record|replay|sanity|pin|report|judge|chains [--only id,id] [--set name] [--trials n] [--no-classifier] [--no-browser] [--no-typecheck] [--live] [--from record|replay] [--baseline scripted|live|file] [--out file]')
       return 2
   }
 }

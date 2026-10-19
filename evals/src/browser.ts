@@ -34,10 +34,11 @@ export function playwrightGrader(o: { log?: (line: string) => void } = {}): Brow
   }
 }
 
-async function gradeApp(app: AppId, cases: BrowserCase[], o: { log?: (line: string) => void }): Promise<Record<string, GraderResult>> {
+async function gradeApp(app: AppId, cases: BrowserCase[], o: { log?: (line: string) => void }, attempt = 1): Promise<Record<string, GraderResult>> {
   const problem = buildProblem(app)
   if (problem) throw new Error(problem)
-  const results = path.join(OUT, 'results')
+  // one folder per app: the judge reads every app's screenshots after all of them ran
+  const results = path.join(OUT, 'results', app)
   fs.rmSync(results, { recursive: true, force: true })
   fs.mkdirSync(results, { recursive: true })
   const casesFile = path.join(OUT, 'cases.json')
@@ -61,6 +62,12 @@ async function gradeApp(app: AppId, cases: BrowserCase[], o: { log?: (line: stri
     child.on('error', reject)
     child.on('close', (c) => resolve(c ?? 1))
   })
+  // a server that did not start (a package's dist rebuilt at that moment) leaves no result at all: try once more
+  if (code !== 0 && attempt === 1 && cases.every((c) => !fs.existsSync(path.join(results, `${c.taskId}.json`)))) {
+    o.log?.(`  [browser] no result from Playwright (exit ${code}); retrying ${app} once`)
+    await new Promise((r) => setTimeout(r, 5_000))
+    return gradeApp(app, cases, o, 2)
+  }
   const out: Record<string, GraderResult> = {}
   for (const c of cases) {
     const file = path.join(results, `${c.taskId}.json`)

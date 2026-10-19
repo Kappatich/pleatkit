@@ -55,6 +55,15 @@ export const PREDICATES: Record<string, { description: string; check: Predicate 
     description: 'The big model was never called (off-topic is answered by the classifier alone, hypothesis H6).',
     check: ({ result }) => (result.modelCalls === 0 ? null : `the main loop made ${result.modelCalls} model call(s)`),
   },
+  'backend-quote': {
+    description: 'A partial or needs-backend answer quotes, verbatim, the part of the request that needs the server (block 4).',
+    check: ({ task, result }) => {
+      const q = result.backendQuote?.trim()
+      if (!q) return 'no backendQuote'
+      const norm = (x: string) => x.replace(/\s+/g, ' ').trim()
+      return norm(task.request).includes(norm(q)) ? null : `backendQuote "${q.slice(0, 60)}" is not part of the request`
+    },
+  },
   'backend-note': {
     description: 'A partial or needs-backend answer tells the administrator what the server would need.',
     check: ({ result }) => (result.backendNote?.trim() ? null : 'no backend_note for the administrator'),

@@ -7,6 +7,7 @@ import { APPS, routeOf, type AppId } from './apps.js'
 import { BudgetExceededError, EvalBudget, gradeBudget } from './budget.js'
 import { gradeRun, type RunResult } from './graders.js'
 import { recordingFile } from './providers.js'
+import { designSystemOf, judgeGrader, readShot, type Judge } from './judge.js'
 import { DEFAULT_TASK_BUDGET_USD, prepareTask, type PreparedTask } from './tasks.js'
 import type { AgentKind, BrowserInvariants, EvalTask, GraderResult, PromptInfo, SuiteResult, TaskRun, Tokens } from './types.js'
 
@@ -21,6 +22,8 @@ export interface BrowserCase {
   files: Record<string, string>
   deleted: string[]
   invariants: BrowserInvariants
+  /** Screenshot the panel before and after the commit for the judge (null: the whole page). */
+  shot?: { panel: string | null }
 }
 
 /** Grades the browser invariants of several runs at once (one demo app, one headless browser). */
@@ -56,6 +59,10 @@ export interface SuiteOptions {
   loopTypecheckFor?: (app: AppId) => TypecheckFn | null
   /** Playwright grader; null skips it. */
   browser?: BrowserGrader | null
+  /** The visual-quality judge (DECISIONS 75 Р3): scores the browser grader's before/after screenshots of every edit. */
+  judge?: Judge | null
+  /** false: a replay does not charge its recorded cost to the run's cap (the judge's own spend still does). */
+  chargeReplay?: boolean
   /** Record every run into `<dir>/<taskId>.jsonl`, or `<taskId>.t<trial>.jsonl` in a named set (RecordingProvider). */
   recordDir?: string
   /** Transcript each run replays, for the report (replay runs). */
@@ -170,7 +177,8 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
     }
     results.set(key, result)
     const costUsd = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
-    budget.charge(costUsd)
+    // `eval:judge -- --set`: the replayed transcripts' money was spent when they were recorded; only the judge counts
+    if (!(o.agent === 'replay' && o.chargeReplay === false)) budget.charge(costUsd)
     const graders = [...(await gradeRun(p, result, typecheckOf(task.app))), gradeBudget(costUsd, cap, result.stopReason, limit)]
     runs.push({
       taskId: task.id,
@@ -182,6 +190,7 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
       verdict: result.verdict,
       summary: result.summary,
       ...(result.backendNote ? { backendNote: result.backendNote } : {}),
+      ...(result.backendQuote ? { backendQuote: result.backendQuote } : {}),
       changedFiles: Object.keys(result.files),
       modelCalls: result.modelCalls,
       firstTry: firstTry(result),
@@ -209,7 +218,9 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
     if (!inv) return []
     const route = inv.path ?? routeOf(task.app, task.target ?? inv.checks.find((c) => c.panel)?.panel)
     const app = task.app !== 'demo-crm' ? { app: task.app, path: route, panels: APPS[task.app].panels[route] ?? [] } : {}
-    return [{ taskId: keyOf(r), ...app, files: res.files, deleted: res.deleted, invariants: inv }]
+    const changed = Object.keys(res.files).length + res.deleted.length > 0
+    const shot = o.judge && changed ? { shot: { panel: shotPanel(task, Object.keys(res.files)) } } : {}
+    return [{ taskId: keyOf(r), ...app, files: res.files, deleted: res.deleted, invariants: inv, ...shot }]
   })
   let browserResults: Record<string, GraderResult> = {}
   const browserRan = Boolean(o.browser && cases.length)
@@ -227,8 +238,35 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
             : { grader: 'browser', pass: true, skipped: true, reason: 'browser grader switched off (--no-browser)' }
           : { grader: 'browser', pass: true, skipped: true, reason: 'no browser invariants' }),
     )
-    r.pass = r.graders.every((g) => g.pass)
   }
+  let judgeCostUsd = 0
+  if (o.judge) {
+    for (const r of runs) {
+      const shots = browserResults[keyOf(r)]?.shots
+      const task = o.tasks.find((t) => t.id === r.taskId)!
+      if (!r.changedFiles.length) {
+        r.graders.push(judgeGrader(null, 'nothing changed'))
+        continue
+      }
+      const before = shots ? readShot(shots.before) : null
+      const after = shots ? readShot(shots.after) : null
+      if (!before || !after) {
+        r.graders.push(judgeGrader(null, 'no screenshots (the browser grader did not run for this task)'))
+        continue
+      }
+      try {
+        const j = await o.judge({ request: task.request, designSystem: designSystemOf(manifestOf(task)), before, after, ...(shots && browserResults[keyOf(r)]?.visual?.length ? { preCheck: browserResults[keyOf(r)]!.visual } : {}) })
+        budget.charge(j.costUsd)
+        judgeCostUsd += j.costUsd
+        r.judge = j
+        r.graders.push(judgeGrader(j))
+        log(`judge ${keyOf(r)}: ${j.score}/5 ${j.reason}`)
+      } catch (e) {
+        r.graders.push(judgeGrader(null, `the judge failed: ${(e as Error).message.slice(0, 200)}`))
+      }
+    }
+  }
+  for (const r of runs) r.pass = r.graders.every((g) => g.pass || g.advisory)
 
   return {
     kind: o.kind,
@@ -236,6 +274,7 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
     finishedAt: new Date().toISOString(),
     prompt: suitePromptInfo(o.tasks, manifestOf, prepared),
     budget: { capUsd: budget.capUsd, spentUsd: budget.spentUsd },
+    ...(o.judge ? { judgeCostUsd } : {}),
     ...(aborted ? { aborted } : {}),
     browser: browserRan ? 'ran' : 'skipped',
     typecheck: typecheck ? 'ran' : 'skipped',
@@ -245,6 +284,27 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
     ...(o.classifierMode === 'sequential' ? { classifierMode: 'sequential' as const } : {}),
     runs,
   }
+}
+
+/**
+ * The panel the judge looks at: the whole page when the edit changed two panels, else the one the user pointed at,
+ * else the panel of the browser checks, else a changed file that is a panel of the task's app, else the whole page.
+ */
+export function shotPanel(task: EvalTask, changed: string[]): string | null {
+  // an edit that changed two panels (two asks in one) is judged on the whole page, or the judge misses one of them
+  const all = Object.values(APPS[task.app].panels).flat()
+  const touched = new Set(changed.map((f) => f.replace(/^.*\//, '').replace(/\.\w+$/, '')).filter((id) => all.includes(id)))
+  if (touched.size >= 2) return null
+  if (task.target) return task.target
+  const checks = task.invariants?.browser?.checks ?? []
+  const fromChecks = checks.find((c) => c.panel)?.panel ?? checks.find((c) => c.within)?.within
+  if (fromChecks) return fromChecks
+  const panels = Object.values(APPS[task.app].panels).flat()
+  for (const f of changed) {
+    const id = f.replace(/^.*\//, '').replace(/\.\w+$/, '')
+    if (panels.includes(id)) return id
+  }
+  return null
 }
 
 /** promptInfo of the first task's app; with several apps, each app's prefix too. */

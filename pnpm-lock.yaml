@@ -121,6 +121,9 @@ importers:
 
   evals:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.135.0
+        version: 0.135.0
       '@pleatkit/agent':
         specifier: workspace:*
         version: link:../packages/agent

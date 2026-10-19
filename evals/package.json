@@ -15,9 +15,12 @@
     "report": "tsx src/cli.ts report",
     "classify": "tsx src/classifier-probe.ts",
     "summarize": "tsx src/summarize.ts",
-    "cancel": "tsx src/cancel-probe.ts"
+    "cancel": "tsx src/cancel-probe.ts",
+    "judge": "tsx src/cli.ts judge",
+    "chains": "tsx src/cli.ts chains"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@pleatkit/agent": "workspace:*",
     "@pleatkit/runtime": "workspace:*"
   },

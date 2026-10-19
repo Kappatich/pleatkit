@@ -1,0 +1,105 @@
+{
+  "id": "ch-01-demo-card",
+  "app": "demo-crm",
+  "title": "Demo: four edits to the customer card, the second one taken back (same file: the agent reverts)",
+  "steps": [
+    {
+      "request": "Show the customer's phone in the card.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "anyMustMatch": [
+          "[.'\"`]phone\\b"
+        ],
+        "browser": {
+          "checks": [
+            {
+              "testid": "phone",
+              "within": "customer-card",
+              "contains": "+1 555 0102"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": "Under the phone, also show the city.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "anyMustMatch": [
+          "[.'\"`]city\\b"
+        ],
+        "browser": {
+          "checks": [
+            {
+              "testid": "city",
+              "within": "customer-card",
+              "contains": "Springfield"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": "Highlight an overdue payment date in red.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "anyMustMatch": [
+          "red|destructive|rose"
+        ],
+        "browser": {
+          "checks": [
+            {
+              "testid": "due-date",
+              "within": "customer-card",
+              "classMatches": "(text|bg|border|ring)-(red|rose|destructive)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": "Rename \"Next payment\" to \"Payment due\".",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "anyMustMatch": [
+          "Payment due"
+        ],
+        "browser": {
+          "checks": [
+            {
+              "testid": "customer-card",
+              "contains": "Payment due"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "revert": {
+    "step": 2,
+    "anyMustNotMatch": [
+      "[.'\"`]city\\b"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "city",
+          "within": "customer-card",
+          "count": 0
+        }
+      ]
+    }
+  }
+}
