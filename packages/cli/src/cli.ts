@@ -7,7 +7,9 @@ import { exportData } from './export.js'
 import { checkSnapshotsCommand } from './check-snapshots.js'
 import { carryOverCommand, digestCommand } from './ops.js'
 import { eraseCommand } from './erase.js'
+import { labelsExport } from './labels.js'
 import { bugReport } from './report.js'
+import { formatPlan, parsePanels, suggest, writePlan } from './suggest.js'
 import fs from 'node:fs'
 import { track } from '@pleatkit/vite-plugin'
 
@@ -16,6 +18,7 @@ const VERSION = '0.3.0'
 const event = (name: string, props: Record<string, string | number | boolean> = {}) => track(name, props, { source: { package: '@pleatkit/cli', version: VERSION } })
 
 const HELP = `Usage:
+  pleatkit init --suggest [--root <dir>] [--panels <file>[:<id>][,<file>[:<id>]…]] [--json] [--write]
   pleatkit doctor [--root <dir>] [--dist <dir>] [--url <app url>] [--json]
   pleatkit ping [--url http://localhost:5173]
   pleatkit keys new | public
@@ -28,6 +31,14 @@ const HELP = `Usage:
                       [--per-user-usd <n>] [--dry-run] [--retry] [--typecheck] [--rollback]
   pleatkit erase --user <id> --app <id> --store <url> [--confirm <token>]
   pleatkit erase --app <id> --store <url> [--confirm <token>]
+  pleatkit labels export --store <url> --app <id> [--eval-app <id>] [--out <file>] [--all]
+
+init --suggest reads the app's import graph (it never runs the app) and proposes the zones: the panels (with
+--panels, the files you name; otherwise a heuristic ranks the components the pages render), the helper files that
+move with each panel, the props each <Dynamic> needs (router hooks of the panel become props), the readonly
+re-export modules with exactly the symbols the panels use, the externals in the form the plugin expects, the css
+mode, the plugin block for vite.config and the manifest it would produce. --json prints the plan as JSON;
+--write creates the readonly re-export modules (new files only) and lists what it left to do.
 
 doctor checks the pleatkit setup of a Vite + React app and prints what to fix:
   config     the pleatkit plugin in vite.config and its zones
@@ -72,6 +83,11 @@ heads, requests, usage events, bundles, run records, flags, carry-over rows, the
 prints what would go and a confirm token; run it again with --confirm <token> to erase. An audit tombstone
 without personal data stays. Admin only (PLEATKIT_APP_KEY, or --key).
 
+labels export writes the requests people labelled on the /admin Labels screen where they disagreed with the
+classifier (--all: every label) as probes for \`pnpm eval:classify -- --probes <file>\`, by default to
+evals/probes/human-disagreements.json. Each probe runs against an eval app (demo-crm, shadcn-admin, tailadmin):
+the store's app id when it is one of them, otherwise name it with --eval-app. Authenticates like export.
+
 Exit code 1 when a check fails.`
 
 async function main(argv: string[]): Promise<number> {
@@ -79,6 +95,25 @@ async function main(argv: string[]): Promise<number> {
   if (!command || command === '--help' || command === '-h' || command === 'help') {
     console.log(HELP)
     return command ? 0 : 1
+  }
+  if (command === 'init') {
+    const i = rest.indexOf('--panels')
+    if (!rest.includes('--suggest') || (i >= 0 && !rest[i + 1])) {
+      console.error('Usage: pleatkit init --suggest [--root <dir>] [--panels <file>[:<id>][,…]] [--json] [--write]')
+      return 1
+    }
+    const r = rest.indexOf('--root')
+    const root = path.resolve(r >= 0 ? rest[r + 1]! : process.cwd())
+    const plan = suggest({ root, ...(i >= 0 ? { panels: parsePanels(rest[i + 1]!) } : {}) })
+    if (rest.includes('--json')) console.log(JSON.stringify(plan, null, 2))
+    else console.log(formatPlan(plan))
+    if (rest.includes('--write')) {
+      const w = writePlan(plan)
+      const log = rest.includes('--json') ? console.error : console.log
+      log(['', '--write:', ...w.created.map((c) => `  created ${c}`), ...w.skipped.map((c) => `  skipped ${c}`), 'Not done (edits of existing files are yours to make):', ...w.notDone.map((n) => `  - ${n}`)].join('\n'))
+    }
+    await event('init.suggest', { panels: plan.panels.length, mode: plan.mode, write: rest.includes('--write') })
+    return 0
   }
   if (command === 'ping') {
     const i = rest.indexOf('--url')
@@ -213,6 +248,21 @@ async function main(argv: string[]): Promise<number> {
     const r = await eraseCommand({ store, app, ...(user ? { user } : {}), ...(key ? { key } : {}), ...(confirm ? { confirm } : {}) })
     console.log(r.lines.join('\n'))
     if (r.ok && r.erased) await event('erase.run', { scope: user ? 'user' : 'app' })
+    return r.ok ? 0 : 1
+  }
+  if (command === 'labels') {
+    const store = opt('--store') ?? process.env.PLEATKIT_STORE_URL
+    const app = opt('--app') ?? process.env.PLEATKIT_APP_ID
+    if (rest[0] !== 'export' || !store || !app) {
+      console.error('Usage: pleatkit labels export --store <url> --app <id> [--eval-app <id>] [--out evals/probes/human-disagreements.json] [--all]')
+      return 1
+    }
+    const key = opt('--key') ?? process.env.PLEATKIT_APP_KEY
+    const evalApp = opt('--eval-app')
+    const out = opt('--out')
+    const r = await labelsExport({ store, app, all: rest.includes('--all'), ...(evalApp ? { evalApp } : {}), ...(key ? { key } : {}), ...(out ? { out } : {}) })
+    console[r.ok ? 'log' : 'error'](r.lines.join('\n'))
+    if (r.ok) await event('labels.export', { all: rest.includes('--all'), probes: r.probes?.length ?? 0 })
     return r.ok ? 0 : 1
   }
   if (command !== 'doctor') {

@@ -80,3 +80,14 @@ describe('stage 5 block 4: utilities the page already styles are not emitted aga
     expect(pageStyledClasses(undefined).size).toBe(0)
   })
 })
+
+describe('stage 5 block 5: the zone own CSS stays unlayered (found by a blind install)', () => {
+  it('@scope ([data-pleatkit-id]) blocks are outside the edits layer, utilities inside it', () => {
+    const css = '@scope ([data-pleatkit-id]) {\n._stats_1 { margin-bottom: 24px }\n}\n@layer utilities { .p-2 { padding: 8px } }'
+    const out = layeredCss(css)
+    expect(out.indexOf('@scope ([data-pleatkit-id])')).toBeLessThan(out.indexOf('@layer pleatkit-edits'))
+    expect(out).toContain('@layer pleatkit-edits {\n@layer utilities')
+    const onlyOwn = layeredCss('@scope ([data-pleatkit-id]) {\n.a { color: red }\n}')
+    expect(onlyOwn).not.toContain('@layer pleatkit-edits')
+  })
+})

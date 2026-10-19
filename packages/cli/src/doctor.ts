@@ -8,7 +8,7 @@ import { buildManifest, type PleatkitManifest, type PleatkitOptions } from '@ple
 export type Status = 'ok' | 'warn' | 'fail'
 
 export interface Finding {
-  id: 'config' | 'react' | 'panels' | 'release' | 'externals' | 'csp' | 'secrets' | 'secure-context' | 'context-budget'
+  id: 'config' | 'react' | 'panels' | 'release' | 'externals' | 'csp' | 'secrets' | 'secure-context' | 'context-budget' | 'zone-size'
   status: Status
   title: string
   details: string[]
@@ -170,9 +170,14 @@ export function checkExternals(root: string, manifest: PleatkitManifest): Findin
       missing.push(`${spec} (package not installed)`)
     }
   }
-  return missing.length
-    ? { id: 'externals', status: 'fail', title: `${missing.length} external${missing.length > 1 ? 's do' : ' does'} not resolve`, details: missing, fix: 'install the package or fix the path, or remove it from `externals` in the pleatkit plugin options' }
-    : { id: 'externals', status: 'ok', title: `${manifest.externals.length} externals resolve`, details: [] }
+  // stage 5 block 5 (found by a blind install): the configured list (`externalPatterns`, with `/*` entries) and the
+  // modules it expands to (`externals`) are counted apart, and a `/*` entry that matches no module is reported
+  const patterns = manifest.externalPatterns ?? manifest.externals
+  const empty = patterns.filter((p) => p.endsWith('/*') && !manifest.externals.some((e) => e.startsWith(p.slice(0, -1))))
+  const counted = `${patterns.length} entr${patterns.length === 1 ? 'y' : 'ies'} (${manifest.externals.length} module${manifest.externals.length === 1 ? '' : 's'})`
+  if (missing.length) return { id: 'externals', status: 'fail', title: `${missing.length} external${missing.length > 1 ? 's do' : ' does'} not resolve`, details: missing, fix: 'install the package or fix the path, or remove it from `externals` in the pleatkit plugin options' }
+  if (empty.length) return { id: 'externals', status: 'warn', title: `${empty.length} externals entr${empty.length === 1 ? 'y matches' : 'ies match'} no module: ${empty.join(', ')}`, details: [`${counted} resolve`], fix: `create the folder's modules (for example src/readonly/<name>.ts), or remove the entry` }
+  return { id: 'externals', status: 'ok', title: `${counted} resolve`, details: [] }
 }
 
 // --- CSP ---
@@ -303,6 +308,43 @@ export function checkContextBudget(manifest: PleatkitManifest): Finding {
   return over
     ? { id: 'context-budget', status: 'warn', title: 'the context of one edit is larger than the target', details, fix: 'move large files out of readonly (the agent sees core files as .d.ts only), split big dynamic files into one panel per file, or list fewer externals' }
     : { id: 'context-budget', status: 'ok', title: `context of one edit: ≈${cached.toLocaleString('en')} cached + ${tail.toLocaleString('en')} per request tokens`, details }
+}
+
+// --- zone size (stage 5 block 5, brainstorm 17 §3) ---
+
+/**
+ * The cost of an edit against the size of the dynamic zone, measured on shadcn-admin (sets zone-1, zone-3, zone-7:
+ * 5 edits each, Sonnet 5.5, prompt 5i, the prefix read from the cache): every edit sends every dynamic file, so a
+ * one-call edit costs about `ZONE_BASE_USD` plus `ZONE_USD_PER_LINE` for each line of the zone (medians $0.0103 at
+ * 30–110 lines, $0.0143 at 170, $0.0300 at 813). Over `ZONE_LINES_TARGET` lines the zone's code costs more than the
+ * rest of the edit and a one-call edit passes $0.02; over `PANEL_LINES_TARGET` one panel is most of that.
+ */
+export const ZONE_BASE_USD = 0.0085
+export const ZONE_USD_PER_LINE = 0.0000256
+export const ZONE_LINES_TARGET = 450
+export const PANEL_LINES_TARGET = 300
+const linesOf = (source: string) => source.split('\n').length
+
+export function checkZoneSize(manifest: Pick<PleatkitManifest, 'dynamic'>): Finding {
+  const files = manifest.dynamic.map((f) => ({ path: f.path, lines: linesOf(f.source) })).sort((a, b) => b.lines - a.lines)
+  const total = files.reduce((n, f) => n + f.lines, 0)
+  const edit = ZONE_BASE_USD + ZONE_USD_PER_LINE * total
+  const big = files.filter((f) => f.lines > PANEL_LINES_TARGET)
+  const details = [
+    `${files.length} dynamic files, ${total.toLocaleString('en')} lines; every edit sends all of them: a one-call edit costs about $${edit.toFixed(4)} with Sonnet 5.5 ($${ZONE_BASE_USD} + $${(ZONE_USD_PER_LINE * 1000).toFixed(4)} per 1,000 lines of the zone, measured)`,
+    `largest: ${files.slice(0, 3).map((f) => `${f.path} (${f.lines})`).join(', ')}`,
+    `zones under ${ZONE_LINES_TARGET} lines keep a one-call edit under $${(ZONE_BASE_USD + ZONE_USD_PER_LINE * ZONE_LINES_TARGET).toFixed(3)}`,
+  ]
+  if (total > ZONE_LINES_TARGET || big.length) {
+    return {
+      id: 'zone-size',
+      status: 'warn',
+      title: total > ZONE_LINES_TARGET ? `the dynamic zone is ${total.toLocaleString('en')} lines: its code costs more than the rest of each edit` : `${big.length} panel${big.length > 1 ? 's are' : ' is'} over ${PANEL_LINES_TARGET} lines`,
+      details: [...details, ...big.map((f) => `${f.path}: ${f.lines} lines`)],
+      fix: `keep in the zone only the panels users change, and split a panel over ${PANEL_LINES_TARGET} lines (a table and its columns, a card and its parts) so the parts users never change can stay outside it`,
+    }
+  }
+  return { id: 'zone-size', status: 'ok', title: `dynamic zone of ${total.toLocaleString('en')} lines: a one-call edit ≈ $${edit.toFixed(4)}`, details }
 }
 
 /**
@@ -484,6 +526,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
       if (manifest.dynamic.length) findings.push(await checkRelease(manifest, agent).catch((e: Error) => ({ id: 'release' as const, status: 'warn' as const, title: `the panels could not be checked: ${e.message.split('\n')[0]}`, details: [] })))
       findings.push(checkExternals(root, manifest))
       findings.push(await measureContextBudget(manifest, options.env ?? process.env, agent))
+      findings.push(checkZoneSize(manifest))
     }
   }
   findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server', allowedHosts))

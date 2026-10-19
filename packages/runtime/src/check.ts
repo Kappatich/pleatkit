@@ -30,6 +30,7 @@ export type StaticRule =
   | 'no-global-alias'
   | 'no-constructor-access'
   | 'no-dynamic-import'
+  | 'no-portal'
   | 'allowed-imports'
   | 'protected-element'
   | 'default-export'
@@ -171,6 +172,12 @@ const ALLOWED_HOST_URL = /^https:\/\/([a-z0-9.-]+)(\/|$)/
 /** Element properties and attributes that make the browser load or navigate to a URL. */
 const URL_ATTRS = new Set(['src', 'href', 'action', 'formaction', 'srcset', 'poster', 'data', 'ping', 'background', 'xlink:href', 'xlinkhref', 'cite', 'codebase', 'manifest', 'imagesrcset'])
 const BANNED_TAGS = new Set(['script', 'style', 'object', 'embed', 'base', 'meta', 'applet', 'frame', 'frameset', 'portal'])
+/**
+ * DECISIONS 82.4: an edit renders inside its panel. createPortal and attaching nodes to the page's own roots would put
+ * the edit's elements outside the panel's subtree, where the runtime's z-index cap (`z-cap.ts`) does not reach.
+ */
+const PAGE_ROOTS = new Set(['body', 'documentElement', 'head'])
+const NODE_INSERTS = new Set(['appendChild', 'append', 'prepend', 'insertBefore', 'replaceChildren', 'replaceChild', 'insertAdjacentElement', 'after', 'before', 'replaceWith'])
 const BANNED_CREATE = new Set(['script', 'style', 'iframe', 'object', 'embed', 'base', 'meta', 'link', 'frame', 'img', 'image', 'audio', 'video', 'source', 'form'])
 const CSS_URL = /url\(\s*(['"]?)\s*(?!data:)([a-z][a-z0-9+.-]*:|\/\/|\/\\|\\)/i
 const CSS_URL_OPEN = /url\(\s*['"]?\s*$/i
@@ -578,6 +585,13 @@ function rulesForFile(path: string, parsed: Parsed, ctx: CheckContext, push: (e:
       case 'ExportNamedDeclaration': {
         const spec = literalText(node.source)
         if (spec !== null) checkSpecifier(node, spec)
+        if (spec !== null && /^react-dom(\/|$)/.test(spec)) {
+          for (const sp of (node.specifiers as N[] | undefined) ?? []) {
+            const imported = sp.type === 'ImportSpecifier' || sp.type === 'ExportSpecifier' ? ((sp.imported ?? sp.local) as N | undefined) : undefined
+            const name = imported ? ((imported.name as string | undefined) ?? literalText(imported)) : null
+            if (name === 'createPortal') report(sp, 'no-portal', 'createPortal is not allowed in edits: an edit renders inside its panel')
+          }
+        }
         break
       }
       case 'ImportExpression': {
@@ -597,6 +611,13 @@ function rulesForFile(path: string, parsed: Parsed, ctx: CheckContext, push: (e:
         if (callee.type === 'MemberExpression') {
           const prop = callee.computed ? literalText(callee.property) : ((callee.property as N).name as string)
           if (prop === 'insertAdjacentHTML') report(node, 'no-raw-html', 'insertAdjacentHTML is not allowed; render with JSX')
+          if (prop && NODE_INSERTS.has(prop)) {
+            // document.body.appendChild(…), document.documentElement.append(…): out of the panel, onto the page
+            const target = callee.object as N
+            const rootProp = target?.type === 'MemberExpression' ? (target.computed ? literalText(target.property) : ((target.property as N).name as string)) : null
+            const onDocument = target?.type === 'MemberExpression' && (target.object as N).type === 'Identifier' && ((target.object as N).name as string) === 'document'
+            if (onDocument && rootProp && PAGE_ROOTS.has(rootProp)) report(node, 'no-portal', `document.${rootProp}.${prop}() is not allowed: an edit renders inside its panel`)
+          }
           if (prop === 'setAttribute' || prop === 'setAttributeNS') {
             const name = literalText(args[prop === 'setAttribute' ? 0 : 1])
             const value = args[prop === 'setAttribute' ? 1 : 2]
@@ -620,6 +641,7 @@ function rulesForFile(path: string, parsed: Parsed, ctx: CheckContext, push: (e:
       case 'MemberExpression': {
         const prop = node.computed ? literalText(node.property) : ((node.property as N).name as string)
         if (prop === 'constructor' || prop === '__proto__') report(node, 'no-constructor-access', `.${prop} is not allowed in edits`)
+        if (prop === 'createPortal') report(node, 'no-portal', 'createPortal is not allowed in edits: an edit renders inside its panel')
         if ((prop === 'cookie' || prop === 'domain') && (node.object as N).type === 'Identifier' && ((node.object as N).name as string) === 'document' && declared.has('document')) {
           report(node, 'no-document-cookie', `document.${prop} is not allowed`)
         }

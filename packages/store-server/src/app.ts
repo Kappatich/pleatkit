@@ -16,6 +16,7 @@ import { attachExtensions, type ExtensionContext, type StoreDb, type StoreEnv, t
 import { appendAudit, EVENT_TYPES, markEditorActive, recordEvent, verifyAuditChain, type EventType } from './ledger.js'
 import { buildReport, DEFAULT_MINUTES_PER_EDIT, MAX_MINUTES_PER_EDIT, parseMinutesPerEdit, parseRange, reportCsv } from './report.js'
 import { grepError, grepSnapshots, planSelectionRollback } from './selection.js'
+import { labelRoutes } from './labels.js'
 import * as schema from './schema.js'
 import { agentRuns, appPlans, appSettings, audit, bundleFiles, events, heads, quotaBuckets, releaseItems, releases, requests, snapshots, wishMaps, type WishCluster } from './schema.js'
 
@@ -508,7 +509,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
         // integer division in SQL (a bound number would be a REAL)
         hourMs: sql<number>`(${requests.createdAtMs} / ${sql.raw(String(hour))}) * ${sql.raw(String(hour))}`,
         classified: sql<number>`count(*)`,
-        alone: sql<number>`sum(CASE WHEN ${requests.verdict} IN ('needs-backend', 'clarify', 'refused', 'declined') AND json_array_length(${requests.log}) = 0 THEN 1 ELSE 0 END)`,
+        alone: sql<number>`sum(CASE WHEN ${requests.verdict} IN ('needs-backend', 'clarify', 'refused', 'declined', 'restore') AND json_array_length(${requests.log}) = 0 THEN 1 ELSE 0 END)`,
       })
       .from(requests)
       .where(and(eq(requests.appId, who.appId), gte(requests.createdAtMs, sinceMs), sql`json_extract(${requests.timings}, '$.classifyMs') IS NOT NULL`))
@@ -549,6 +550,8 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
         attachments: b.attachments && typeof b.attachments === 'object' ? b.attachments : null,
         // what the server side of a partial or needs-backend request would need (the agent's backend_note)
         adminNote: typeof (b as unknown as { backendNote?: unknown }).backendNote === "string" ? String((b as unknown as { backendNote: string }).backendNote).slice(0, 1000) : null,
+        // DECISIONS 82.5: the user's own words that need the server (the agent's backendQuote), capped like the note
+        backendQuote: typeof b.backendQuote === 'string' && b.backendQuote.trim() ? b.backendQuote.trim().slice(0, 1000) : null,
         createdAt: t,
         updatedAt: t,
         createdAtMs: Date.now(),
@@ -637,6 +640,9 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     // the list stays light: no files, log only as a count
     return c.json(rows.map(({ r: { files: _files, log, ...r }, headSnapshot }) => ({ ...r, toolCalls: log.length, isHead: Boolean(r.snapshotId) && headSnapshot === r.snapshotId })))
   })
+
+  // DECISIONS 81: the Labels screen (people label requests; disagreements with the classifier feed eval:classify)
+  labelRoutes(api, db)
 
   api.get('/admin/settings', (c) => {
     const appId = caller(c).appId

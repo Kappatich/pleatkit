@@ -77,7 +77,10 @@ export function resolveSpecifier(spec: string, importer: string, ctx: ResolveCon
   return { kind: 'missing', text: `Cannot resolve "${spec}": no such file in the dynamic zone and not an allowed external` }
 }
 
-export function loaderFor(path: string): 'tsx' | 'ts' | 'jsx' | 'js' | 'css' | 'json' {
+export function loaderFor(path: string): 'tsx' | 'ts' | 'jsx' | 'js' | 'css' | 'local-css' | 'json' {
+  // stage 5 block 5 (found by a blind install): a CSS module is what Vite makes of `*.module.css`: local class names and
+  // their map as the default export. As plain `css` the map was `{}`, so every panel of an edited zone lost its classes
+  if (/\.module\.css$/i.test(path)) return 'local-css'
   const ext = path.slice(path.lastIndexOf('.') + 1)
   switch (ext) {
     case 'ts':

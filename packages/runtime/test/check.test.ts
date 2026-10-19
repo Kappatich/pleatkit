@@ -494,3 +494,26 @@ describe('DECISIONS 63.1: allowedHosts lets <img src> and <a href> reach listed 
     expect(normalizeAllowedHosts(['CDN.example.com', 'cdn.example.com'])).toEqual(['cdn.example.com'])
   })
 })
+
+describe('DECISIONS 82.4: an edit stays inside its panel (no-portal) and its z-index is capped at run time', () => {
+  it.each([
+    ['createPortal named import', "import { createPortal } from 'react-dom'\nexport default function P() { return createPortal(<div className=\"fixed inset-0 z-[2147483647]\" />, document.body) }"],
+    ['createPortal renamed', "import { createPortal as cp } from 'react-dom'\nexport default function P() { return cp(<div />, document.body) }"],
+    ['ReactDOM.createPortal', "import * as ReactDOM from 'react-dom'\nexport default function P() { return ReactDOM.createPortal(<div />, document.body) }"],
+    ['default import .createPortal', "import RD from 'react-dom'\nexport default function P() { return (RD as any).createPortal(<div />, document.body) }"],
+    ['document.body.appendChild', inPanel("const d = document.createElement('div'); d.style.cssText = 'position:fixed;inset:0;z-index:2147483647'; document.body.appendChild(d)")],
+    ['document.body.append', inPanel("document.body.append(document.createElement('div'))")],
+    ['document.documentElement.prepend', inPanel("document.documentElement.prepend(document.createElement('div'))")],
+    ['document.body.insertBefore', inPanel("document.body.insertBefore(document.createElement('div'), null)")],
+    ['document.body.insertAdjacentElement', inPanel("document.body.insertAdjacentElement('afterbegin', document.createElement('div'))")],
+    ['document.body.replaceChildren', inPanel("document.body.replaceChildren(document.createElement('div'))")],
+  ])('%s is refused', async (_name, code) => {
+    expect(await rules(code, { externalPatterns: [...ctx.externalPatterns, 'react-dom'] })).toContain('no-portal')
+  })
+
+  it('a fixed or high z-index element inside the panel passes the static rules (the runtime caps it), and so do other inserts', async () => {
+    expect(await rules('export default function P() { return <div className="fixed inset-0 z-[2147483647]" style={{ zIndex: 2 ** 31 - 1 }} /> }')).toEqual([])
+    expect(await rules(inPanel("const ul = document.getElementById('list'); ul?.appendChild(document.createElement('li'))"))).not.toContain('no-portal')
+    expect(await rules("import { flushSync } from 'react-dom'\nexport default function P() { flushSync(() => undefined); return null }", { externalPatterns: [...ctx.externalPatterns, 'react-dom'] })).toEqual([])
+  })
+})

@@ -5,7 +5,7 @@ export { agentAuthFromEnv, identify, AgentAuthError, type AgentAuth, type AgentC
 export { Quotas, MemoryQuotaBackend, StoreQuotaBackend, resolvePlan, PLANS, DEFAULT_PLAN, type PlanLimits, type QuotaBackend, type QuotaDecision } from './quota.js'
 export { StoreClient } from './store-client.js'
 export { Alerts, WebhookSink, EmailSink, alertsFromEnv, DEFAULT_FREEZE, BUDGET_THRESHOLDS, type Alert, type AlertKind, type AlertSink, type AlertsOptions, type FreezePolicy, type BudgetUse } from './alerts.js'
-export { createTypechecker, typecheckFromEnv, type TypecheckOptions } from './typecheck.js'
+export { createTypechecker, typecheckFromEnv, warmTypecheck, type TypecheckOptions } from './typecheck.js'
 export { loadManifest, manifestSourceFromEnv, resolveManifest, trustedInput, validateClientContext, contextFromManifest, manifestPanels, type ManifestSource, type TrustedInput } from './manifest.js'
 export { BundleService, type CompileInput, type CompileOutput } from './bundle.js'
 export { AnthropicProvider, DEFAULT_MODEL, DEFAULT_CLASSIFIER_MODEL, MAX_TOKENS_PER_CALL, type AnthropicProviderOptions } from './providers/anthropic.js'

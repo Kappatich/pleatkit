@@ -1,0 +1,11 @@
+{
+  "name": "stage5-labels-backend-quote",
+  "description": "DECISIONS 82.5 and 81: a whole-request server change whose classifier answer carries backendQuote (the user's own words that need the server); the request log keeps it and /admin shows it.",
+  "match": ["audit trail of every phone"],
+  "classify": {
+    "label": "needs-backend",
+    "reason": "Keeping an audit trail of phone changes needs the server to store every change, so I passed the request to the administrator.",
+    "backendQuote": "keep an audit trail of every phone number change on the server"
+  },
+  "turns": []
+}

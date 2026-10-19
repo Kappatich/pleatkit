@@ -138,6 +138,12 @@ export class BundleService {
         )
       }
       await pending
+    } else if (this.store) {
+      // stage 5 block 5 (found by a blind install): store-server may have lost the bundle since this process stored it
+      // (a new database in development, a restore): the browser would get a 404 and refuse the edit. Store it again.
+      const hit = this.cache.get(ck)!
+      const there = await this.store.bundleFile(input.appId, `${key}.json`).catch(() => null)
+      if (!there) await this.store.putBundle(input.appId, key, hit)
     }
     return { ok: true, errors: [], key, filesHash, timeMs: Math.round(performance.now() - started) }
   }

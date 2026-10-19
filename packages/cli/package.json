@@ -38,7 +38,8 @@
   "dependencies": {
     "@pleatkit/vite-plugin": "workspace:*",
     "tinyglobby": "^0.2.15",
-    "@pleatkit/runtime": "workspace:*"
+    "@pleatkit/runtime": "workspace:*",
+    "typescript": "~5.9.3"
   },
   "peerDependencies": {
     "vite": "^6.0.0 || ^7.0.0 || ^8.0.0",

@@ -5,6 +5,7 @@ import type { UiKey } from '@pleatkit/ui'
 import { adminTranslator, type AdminTranslate } from './admin-i18n'
 import { useAdminApi, useAgentAdmin } from './admin-api'
 import { AuditScreen, EventsScreen, FlagsScreen, PlanScreen, ReleasesScreen, SnapshotsScreen, WishesScreen } from './AdminScreens'
+import { LabelsScreen } from './AdminLabels'
 import './admin.css'
 
 interface RequestRow {
@@ -23,6 +24,10 @@ interface RequestRow {
   snapshotId: string | null
   error: string | null
   attachments: { images: number; imageBytes: number; targetDomChars: number } | null
+  /** What the server side would need, for the admin (the agent's backend note). */
+  adminNote: string | null
+  /** DECISIONS 82.5: the user's own words that need the server. */
+  backendQuote: string | null
   createdAt: string
   toolCalls: number
   isHead: boolean
@@ -45,7 +50,7 @@ interface Stats {
 }
 
 /** The screens of /admin, `?view=` (the request log is the default). */
-export const ADMIN_VIEWS = ['requests', 'wishes', 'snapshots', 'releases', 'flags', 'events', 'audit', 'plan'] as const
+export const ADMIN_VIEWS = ['requests', 'wishes', 'labels', 'snapshots', 'releases', 'flags', 'events', 'audit', 'plan'] as const
 export type AdminView = (typeof ADMIN_VIEWS)[number]
 
 function readView(): AdminView {
@@ -188,6 +193,7 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
       {view !== 'requests' && (
         <main className="adm-main" data-testid={`admin-${view}-screen`}>
           {view === 'wishes' && <WishesScreen call={call} agent={agent} tr={tr} locale={locale} />}
+          {view === 'labels' && <LabelsScreen call={call} tr={tr} locale={locale} />}
           {view === 'snapshots' && <SnapshotsScreen call={call} tr={tr} locale={locale} />}
           {view === 'releases' && <ReleasesScreen call={call} tr={tr} locale={locale} />}
           {view === 'flags' && <FlagsScreen call={call} tr={tr} locale={locale} />}
@@ -283,6 +289,11 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
                     <td className="adm-req">
                       <span className="adm-text">{r.text}</span>
                       <span className="adm-summary">{r.summary}</span>
+                      {r.backendQuote && (
+                        <span className="adm-quote adm-backend-quote" data-testid="admin-backend-quote">
+                          {tr('adm.quote', { quote: r.backendQuote })}
+                        </span>
+                      )}
                     </td>
                     <td className="adm-outcome" data-testid="admin-status">
                       <span className="adm-mark" aria-hidden="true">
@@ -361,6 +372,11 @@ function RequestDetail({ id, call, tr, onChanged, viewAs }: { id: string; call: 
         {r.attachments && (r.attachments.images > 0 || r.attachments.targetDomChars > 0) && (
           <p className="adm-d-note" data-testid="admin-attachments">
             {tr('admin.attachments', { images: r.attachments.images, kb: Math.round(r.attachments.imageBytes / 1024), dom: r.attachments.targetDomChars })}
+          </p>
+        )}
+        {r.adminNote && r.status !== 'rejected' && (
+          <p className="adm-d-note" data-testid="admin-backend-note">
+            {tr('adm.note', { note: r.adminNote })}
           </p>
         )}
         {r.error && <p className="adm-d-error">{tr(r.verdict === 'failed' && !r.snapshotId ? 'admin.agentError' : 'admin.browserError', { error: r.error })}</p>}

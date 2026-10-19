@@ -6,6 +6,7 @@ export { HeadConflictError, StoreUnavailableError, withTimeout } from './errors.
 export { isWritablePath, normalizePath, validateZoneGlob, WRITABLE_EXT } from './paths.js'
 export { isComponentExport } from './component.js'
 export { scopeZoneCss, layeredCss } from './css-scope.js'
+export { capZIndex, watchZIndex, EDIT_Z_INDEX_CAP } from './z-cap.js'
 export { PleatkitUiRoot, mirrorUiStyles, UI_LAYER_ATTR, UI_STYLE_SELECTOR } from './ui-root.js'
 export { hasWebCrypto } from './sha.js'
 export type { CompileOptions } from './compiler.js'

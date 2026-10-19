@@ -6,8 +6,10 @@ import type { FileMap, PleatkitManifest } from './types.js'
 /**
  * `clarify`: the request was ambiguous; the result carries one question with options, nothing was changed.
  * `refused`: not run at all, with a fixed reply (`refusal` says why: off-topic request, quota, kill switch).
+ * `restore` (DECISIONS 82.2): the user wants an earlier version back ("put it back like it was"); the classifier
+ * answered without the model and nothing was changed: the chat opens the version history so the user picks one.
  */
-export type AgentVerdict = 'ok' | 'partial' | 'needs-backend' | 'not-editable' | 'declined' | 'failed' | 'clarify' | 'refused'
+export type AgentVerdict = 'ok' | 'partial' | 'needs-backend' | 'not-editable' | 'declined' | 'failed' | 'clarify' | 'refused' | 'restore'
 
 /**
  * `partial`: the UI part is done and applied; what is left needs the backend (`backendNote`, for the admin).
@@ -34,8 +36,11 @@ export interface AgentImage {
   data: string
   name?: string
 }
-/** `off-topic`: not about this app's interface (the agent is not a free chatbot, V1 A4). */
-export type RequestClass = 'ui' | 'needs-backend' | 'unclear' | 'off-topic'
+/**
+ * `off-topic`: not about this app's interface (the agent is not a free chatbot, V1 A4). `restore` (DECISIONS 82.2):
+ * back to an earlier version of the screen, answered with the version history instead of an edit.
+ */
+export type RequestClass = 'ui' | 'needs-backend' | 'unclear' | 'off-topic' | 'restore'
 /** Interface languages of the chat and the admin dashboard (DECISIONS item 20). */
 export type Locale = 'en' | 'ru'
 

@@ -19,6 +19,11 @@ import type { TypecheckFn, WorkspaceInput } from './workspace.js'
 export interface TypecheckOptions {
   /** Folder whose node_modules provide the types of packages (the app). Default: none (packages are `any`). */
   root?: string | null
+  /**
+   * Stage 5 block 5: keep the resolutions on disk and reuse the previous program (default true). False is the cold
+   * checker of blocks 3 and 4, for measurements (`PLEATKIT_TYPECHECK_WARM=0`).
+   */
+  warm?: boolean
 }
 
 /** Codes that only say "a package's types are not available here": not the edit's fault. */
@@ -41,6 +46,13 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
   // stage 5 (foreign apps): the release's own panels can carry type errors under this checker's settings (a
   // stricter app tsconfig, an app's own lib choices); an edit is refused only for errors it introduced
   const baseErrors = new Map<string, Set<string>>()
+  // stage 5 block 5 (brainstorm 17 §4): the warm checker. Resolving a package's .d.ts graph on disk (react, TanStack
+  // Table, recharts: thousands of lookups) took 1 to 2 s of every check on shadcn-admin, although the answer never
+  // changes while the agent runs. Resolutions on disk are kept for the checker's life (one per app), and each program
+  // is built from the previous one (TypeScript reuses its unchanged structure).
+  const warm = options.warm !== false
+  const diskResolutions = new Map<string, ts.ResolvedModuleWithFailedLookupLocations>()
+  let previous: ts.Program | undefined
   const diagnose = async (files: FileMap, input: WorkspaceInput, limit: number, only?: string[]): Promise<CompileError[]> => {
     const virtual = new Map<string, string>()
     const add = (map: FileMap) => {
@@ -95,12 +107,23 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
           const spec = lit.text
           // inside a package's own .d.ts (react/jsx-runtime.d.ts imports "./"), resolve on disk: resolving it
           // against the virtual files lost the JSX namespace, so every JSX element became `any` and `key` an error
-          if (root && !virtual.has(containingFile)) return ts.resolveModuleName(spec, containingFile, { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)
+          if (root && !virtual.has(containingFile)) {
+            if (!warm) return ts.resolveModuleName(spec, containingFile, { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)
+            const key = `${containingFile}\0${spec}`
+            let hit = diskResolutions.get(key)
+            if (!hit) diskResolutions.set(key, (hit = ts.resolveModuleName(spec, containingFile, { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)))
+            return hit
+          }
           const virtualHost: ts.ModuleResolutionHost = { fileExists: (f) => exists(f), readFile: (f) => virtual.get(f) }
           const local = ts.resolveModuleName(spec, containingFile, compilerOptions, virtualHost)
           if (local.resolvedModule) return local
           if (root && !spec.startsWith('.') && !spec.startsWith('/')) {
-            return ts.resolveModuleName(spec, path.join(root, '__pleatkit_typecheck__.ts'), { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)
+            // a package from a virtual file: the same answer from any of them
+            if (!warm) return ts.resolveModuleName(spec, path.join(root, '__pleatkit_typecheck__.ts'), { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)
+            const key = `\0pkg\0${spec}`
+            let hit = diskResolutions.get(key)
+            if (!hit) diskResolutions.set(key, (hit = ts.resolveModuleName(spec, path.join(root, '__pleatkit_typecheck__.ts'), { ...compilerOptions, paths: {}, baseUrl: undefined }, ts.sys)))
+            return hit
           }
           return local
         }),
@@ -109,7 +132,8 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
     // the app's ambient declarations (`declare module '@tanstack/react-table' { … }`, `*.svg?react`) are not
     // imported by anything: they apply only as roots of the program
     const ambient = Object.keys(input.coreTypes).filter((p) => p.endsWith('.d.ts') && /^\s*declare\s+(module|global)\b/m.test(input.coreTypes[p]!))
-    const program = ts.createProgram([...dynamic, ...ambient].map((p) => '/' + p), compilerOptions, host)
+    const program = ts.createProgram({ rootNames: [...dynamic, ...ambient].map((p) => '/' + p), options: compilerOptions, host, ...(previous ? { oldProgram: previous } : {}) })
+    if (warm) previous = program
     const out: CompileError[] = []
     for (const p of dynamic) {
       const sf = program.getSourceFile('/' + p)
@@ -123,7 +147,7 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
     }
     return out
   }
-  return async (files: FileMap, input: WorkspaceInput): Promise<CompileError[]> => {
+  const check = async (files: FileMap, input: WorkspaceInput): Promise<CompileError[]> => {
     const base = input.base
     const hasBase = Boolean(base && Object.keys(base).length)
     // 74.2: with the release known, only the files the edit changed and the dynamic files importing them are checked
@@ -141,6 +165,22 @@ export function createTypechecker(options: TypecheckOptions = {}): TypecheckFn {
     }
     return errors.filter((e) => !known.has(errorKey(e))).slice(0, 20)
   }
+  return check
+}
+
+/**
+ * Warm the checker before the first edit (brainstorm 17 §4): check the release's own panels once, so the packages'
+ * declarations are parsed and resolved when the first user asks. Errors are ignored (the release's own errors are
+ * the baseline anyway); the returned promise never rejects.
+ */
+export async function warmTypecheck(typecheck: TypecheckFn, input: WorkspaceInput): Promise<number> {
+  const started = performance.now()
+  try {
+    await typecheck(input.files, { ...input, base: {} })
+  } catch {
+    // warming is best effort
+  }
+  return performance.now() - started
 }
 
 const dynamicScripts = (files: FileMap, input: WorkspaceInput): string[] =>
@@ -208,10 +248,11 @@ export function typecheckFromEnv(env: Record<string, string | undefined>): Typec
   const mode = (env.PLEATKIT_TYPECHECK ?? 'auto').trim().toLowerCase()
   if (mode === '0' || mode === 'off' || mode === 'false') return null
   const forced = mode === '1' || mode === 'true' || mode === 'on'
+  const warm = !['0', 'off', 'false'].includes((env.PLEATKIT_TYPECHECK_WARM ?? '').trim().toLowerCase())
   const explicit = env.PLEATKIT_TYPECHECK_ROOT
   if (explicit) {
     if (!fs.existsSync(explicit)) throw new Error(`PLEATKIT_TYPECHECK_ROOT ${explicit} does not exist`)
-    return createTypechecker({ root: explicit })
+    return createTypechecker({ root: explicit, warm })
   }
   const defaultRoot = appRootOf(env.PLEATKIT_MANIFEST)
   const roots = new Map<string, string>()
@@ -226,9 +267,9 @@ export function typecheckFromEnv(env: Record<string, string | undefined>): Typec
     }
   }
   if (!forced && !defaultRoot && roots.size === 0) return null
-  const fallback = defaultRoot || forced ? createTypechecker({ root: defaultRoot }) : null
+  const fallback = defaultRoot || forced ? createTypechecker({ root: defaultRoot, warm }) : null
   if (roots.size === 0) return fallback
-  const perApp = new Map([...roots].map(([appId, root]) => [appId, createTypechecker({ root })]))
+  const perApp = new Map([...roots].map(([appId, root]) => [appId, createTypechecker({ root, warm })]))
   return async (files, input) => {
     const fn = perApp.get(input.context.namespace ?? '') ?? fallback
     return fn ? fn(files, input) : []

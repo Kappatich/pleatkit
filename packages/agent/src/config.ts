@@ -30,6 +30,8 @@ export interface AgentConfig {
   typecheck: TypecheckFn | null
   /** Type check of server compiles (commits) too: only with an explicit PLEATKIT_TYPECHECK=1, as before. */
   commitTypecheck: TypecheckFn | null
+  /** Stage 5 block 5: apps whose type check is warmed at start (every app with a manifest; PLEATKIT_TYPECHECK_WARM=0: none). */
+  warmTypecheckApps: string[]
   /** PLEATKIT_CLASSIFIER: auto (default, per app from the week's history, DECISIONS 75 Р5), parallel or sequential (73.3). */
   classifierMode: ClassifierSetting
   /** PLEATKIT_ALERT_* and PLEATKIT_FREEZE (05 #5). */
@@ -104,10 +106,23 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
   }
   const typecheck = typecheckFromEnv(env)
   const forced = ['1', 'true', 'on'].includes((env.PLEATKIT_TYPECHECK ?? '').trim().toLowerCase())
+  // stage 5 block 5: warm the type check of every app with a manifest at start (PLEATKIT_TYPECHECK_WARM=0: off)
+  const warm = typecheck && manifest && !['0', 'off', 'false'].includes((env.PLEATKIT_TYPECHECK_WARM ?? '').trim().toLowerCase())
+  let warmApps: string[] = []
+  if (warm) {
+    let many: string[] = []
+    try {
+      many = env.PLEATKIT_MANIFESTS ? Object.keys(JSON.parse(env.PLEATKIT_MANIFESTS) as Record<string, string>) : []
+    } catch {
+      // manifestSourceFromEnv reports the bad JSON
+    }
+    warmApps = [...new Set([...(env.PLEATKIT_MANIFEST ? [env.PLEATKIT_APP_ID || 'default'] : []), ...many])]
+  }
   return {
     auth,
     manifest,
     typecheck,
+    warmTypecheckApps: warmApps,
     commitTypecheck: forced ? typecheck : null,
     classifierMode: classifierSettingFromEnv(env.PLEATKIT_CLASSIFIER),
     alerts: alertsFromEnv(env),

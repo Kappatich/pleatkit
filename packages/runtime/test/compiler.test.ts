@@ -53,3 +53,23 @@ describe('Compiler (esbuild-wasm, Node build)', () => {
     expect(Math.min(...times)).toBeLessThan(2000)
   })
 })
+
+describe('stage 5 block 5: CSS modules in the dynamic zone (found by a blind install)', () => {
+  const compiler = nodeCompiler()
+  it('a .module.css import is a class map with local names, and its rules are in the zone CSS', async () => {
+    const files = {
+      ...BASE,
+      'src/dynamic/stats.tsx': `import styles from './stats.module.css'\nexport default function Stats() { return <div className={styles['grid']}><span className={styles.value}>1</span></div> }\n`,
+      'src/dynamic/stats.module.css': `.grid { display: grid; grid-template-columns: repeat(3, 1fr); }\n.value { font-weight: 600; }\n`,
+    }
+    const r = await compiler.compile(files)
+    expect(r.errors).toEqual([])
+    const css = r.bundle!.css
+    const local = /\.([\w-]*grid[\w-]*)\s*\{/.exec(css)?.[1]
+    expect(local).toBeTruthy()
+    // the map names the local class (the plain css loader made it `{}`)
+    expect(r.bundle!.js).toContain(local!)
+    expect(r.bundle!.js).not.toMatch(/var stats_default = \{\s*\}/)
+    expect(css).toContain('@scope ([data-pleatkit-id])')
+  })
+})
