@@ -143,6 +143,11 @@ export interface PleatkitManifest {
   css?: { mode: 'tailwind' | 'palette'; input?: string; hash: string }
   /** Selectors of elements edits must keep visible (brainstorm 05 #20), e.g. `[data-consent]`. */
   protected?: string[]
+  /**
+   * DECISIONS 63.1: exact host names (lower case, punycode) that `<img src>`/`srcSet` and `<a href>` of edits may
+   * point to over https: the runtime guard reads it from the browser copy, the agent's `check` from the server's.
+   */
+  allowedHosts?: string[]
   /** Design-system profile for the agent (brainstorm 05 #10, 04 §1): one line per component, from `.d.ts`. */
   designSystem?: { digest: string; docs?: string }
   /** Data contracts for the agent: entities and client methods, from the readonly zone's `.d.ts`. */

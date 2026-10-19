@@ -41,9 +41,10 @@ export type Locale = 'en' | 'ru'
 
 /**
  * What the compiler needs to resolve imports exactly like the browser does, plus the app instance namespace
- * (V1 B6) and the app's runtime CSS input, for server compiles (V1 B1).
+ * (V1 B6) and the app's runtime CSS input, for server compiles (V1 B1). `allowedHosts` (DECISIONS 63.1) is set only
+ * by the agent server from its own manifest (`trustedInput`); the same field in a request body is ignored.
  */
-export type CompileContextWire = Pick<PleatkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots' | 'css'> & { namespace?: string }
+export type CompileContextWire = Pick<PleatkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots' | 'css' | 'allowedHosts'> & { namespace?: string }
 
 /** `POST /agent/run` body. The browser is the source of truth for files; the server is stateless. */
 export interface AgentRunRequest {
@@ -154,8 +155,10 @@ export interface AgentResult {
   /**
    * `overlapMs` (DECISIONS 73.3): how long the main model's first call ran while the classifier was still deciding;
    * the classifier and the main model start together, so this is the time the parallel start saved on an edit.
+   * `classifierMode` (DECISIONS 75 Р5): how the classifier ran, when it ran; with PLEATKIT_CLASSIFIER=auto the
+   * agent server picks it per app from the week's share of requests the classifier answered alone.
    */
-  timings: { totalMs: number; classifyMs: number | null; modelMs: number; toolsMs: number; overlapMs?: number }
+  timings: { totalMs: number; classifyMs: number | null; modelMs: number; toolsMs: number; overlapMs?: number; classifierMode?: 'parallel' | 'sequential' }
   /**
    * DECISIONS 74.1: the main model's early call that the classifier made unnecessary, cancelled while streaming. Its
    * usage is in `usage` too (input and cache tokens as `message_start` reported them, output estimated from what had
@@ -183,6 +186,11 @@ export interface AgentResult {
   expectedHeadId?: string | null
   /** For `partial` (and `needs-backend` from the main loop): what the backend would need, for the admin's wishlist. */
   backendNote?: string
+  /**
+   * Block 4: the verbatim part(s) of the user's request that need the backend (always a substring of the request, so
+   * the drawer can show «Sent to your admin: "…"»). On a partial or needs-backend answer; absent otherwise.
+   */
+  backendQuote?: string
   /** Closed-list label of the request (brainstorm 12 A2), from the classifier; L1 facts use it, never the text. */
   intentLabel?: string
   /** At most 12 words of what was asked, without names or numbers (L0, for the wishlist map). */

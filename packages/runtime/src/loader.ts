@@ -1,6 +1,6 @@
-import { layeredCss } from './css-scope.js'
+import { layeredCss, pageStyledClasses, withoutStyledRules } from './css-scope.js'
 import { EXTERNALS_GLOBAL } from './constants.js'
-import { guardModule } from './url-guard.js'
+import { guardModule, type GuardOptions } from './url-guard.js'
 import type { CompiledBundle, ExternalEntry, ModuleNamespace } from './types.js'
 
 /** One app instance's host modules, as compiled bundles see them (V1 B6). */
@@ -31,13 +31,15 @@ const isLazy = (e: ExternalEntry): e is () => Promise<ModuleNamespace> => typeof
  * Expose host modules to compiled bundles as `globalThis.__pleatkit.apps[namespace].require(name)`. Entries may
  * be lazy (`() => import('lucide-react')`, V1 B6): they are resolved by `ensure()` right before a bundle that
  * imports them runs, so a big library is loaded only when an edit uses it. `react`, `react/jsx-runtime` and
- * `react-dom` are handed out guarded (`guardModule`, DECISIONS 74.3).
+ * `react-dom` are handed out guarded (`guardModule`, DECISIONS 74.3); `guard.allowedHosts` is the manifest's list
+ * of hosts `<img src>` and `<a href>` may point to (DECISIONS 63.1).
  */
-export function installExternals(externals: Record<string, ExternalEntry>, namespace = 'default'): AppRegistry {
+export function installExternals(externals: Record<string, ExternalEntry>, namespace = 'default', guard: GuardOptions = {}): AppRegistry {
   const resolved = new Map<string, unknown>()
   const pending = new Map<string, Promise<void>>()
   // DECISIONS 74.3: React's element factories reach edits guarded, so a URL from data stays on the app's origin
-  const wrap = (name: string, ns: ModuleNamespace) => Object.assign(Object.create(null), guardModule(name, ns as Record<string, unknown>), { __esModule: true })
+  // (or on a host of allowedHosts, 63.1)
+  const wrap = (name: string, ns: ModuleNamespace) => Object.assign(Object.create(null), guardModule(name, ns as Record<string, unknown>, guard), { __esModule: true })
   const registry: AppRegistry = {
     require(name) {
       const hit = resolved.get(name)
@@ -122,8 +124,9 @@ const STYLE_ATTR = 'data-pleatkit-css'
 
 /** The runtime CSS of edits, one `<style>` per app instance (V1 B6). */
 export function applyCss(rawCss: string, namespace = 'default'): void {
-  const css = layeredCss(rawCss)
   if (typeof document === 'undefined') return
+  // stage 5 block 4: a utility the page already styles stays the page's, in Tailwind's order (css-scope.ts)
+  const css = layeredCss(withoutStyledRules(rawCss, pageStyledClasses(document)))
   let el = document.querySelector<HTMLStyleElement>(`style[${STYLE_ATTR}="${CSS.escape(namespace)}"]`)
   if (!css) {
     el?.remove()

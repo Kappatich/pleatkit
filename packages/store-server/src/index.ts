@@ -10,6 +10,6 @@ export { resolveFlags, setFlag, deleteFlag, DEFAULT_FLAGS, type FlagScope } from
 export { idempotencyMiddleware, IDEMPOTENCY_TTL_MS } from './idempotency.js'
 export { buildExport, EXPORT_FORMAT } from './export.js'
 export * as schema from './schema.js'
-export { buildReport, reportCsv, parseRange, csvField, REPORT_COLUMNS, CARRY_OVER_PREFIX, type Report, type ReportRow, type ReportColumn } from './report.js'
+export { buildReport, reportCsv, parseRange, parseMinutesPerEdit, csvField, REPORT_COLUMNS, CARRY_OVER_PREFIX, DEFAULT_MINUTES_PER_EDIT, MAX_MINUTES_PER_EDIT, type Report, type ReportRow, type ReportColumn, type ReportOptions } from './report.js'
 export { grepSnapshots, planSelectionRollback, matchesOf, GREP_MIN, GREP_MAX, type GrepRow, type GrepMatch, type SelectionRollback } from './selection.js'
 export type { WishCluster } from './schema.js'

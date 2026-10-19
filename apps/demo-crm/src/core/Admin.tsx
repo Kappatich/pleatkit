@@ -193,7 +193,7 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
           {view === 'flags' && <FlagsScreen call={call} tr={tr} locale={locale} />}
           {view === 'events' && <EventsScreen call={call} tr={tr} locale={locale} />}
           {view === 'audit' && <AuditScreen call={call} tr={tr} locale={locale} />}
-          {view === 'plan' && <PlanScreen call={call} tr={tr} locale={locale} />}
+          {view === 'plan' && <PlanScreen call={call} agent={agent} tr={tr} locale={locale} />}
         </main>
       )}
 

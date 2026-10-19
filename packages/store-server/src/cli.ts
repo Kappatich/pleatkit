@@ -4,6 +4,7 @@ import { createStoreApp, openStore } from './app.js'
 import { authFromEnv } from './auth.js'
 import { loadExtensions } from './extensions-loader.js'
 import { DEFAULT_RETENTION, runMaintenance, type RetentionPolicy } from './retention.js'
+import { MAX_MINUTES_PER_EDIT, parseMinutesPerEdit } from './report.js'
 
 // PLEATKIT_STORE_DB: SQLite file (default .pleatkit/store.db), or :memory:
 // PLEATKIT_STORE_PORT: default 8790
@@ -13,6 +14,7 @@ import { DEFAULT_RETENTION, runMaintenance, type RetentionPolicy } from './reten
 // PLEATKIT_STORE_BODY_LIMIT: largest request body in bytes (default 4 MiB; larger bodies get 413)
 // PLEATKIT_RETENTION: JSON {"textDays": 90, "logDays": 30}, applied hourly (the cloud module reads "factsDays" too)
 // PLEATKIT_STORE_EXTENSIONS: none | <module>[,<module>]; unset: @pleatkit/store-cloud when this deployment's package.json depends on it (DECISIONS 70.1)
+// PLEATKIT_REPORT_MINUTES_PER_EDIT: minutes one applied edit saves a developer, for the report's dev_hours_saved (default 20)
 // PLEATKIT_REGION (default local) and PLEATKIT_ENVIRONMENT (default production with NODE_ENV=production, else development): recorded on every row (F2)
 let auth
 try {
@@ -36,7 +38,20 @@ try {
   process.exit(1)
 }
 const { extensions, modules } = loaded
-const app = createStoreApp(db, { moderation: process.env.PLEATKIT_MODERATION === 'review' ? 'review' : 'off', auth, region, environment, extensions, ...(bodyLimitBytes ? { bodyLimitBytes } : {}) })
+const reportMinutesPerEdit = parseMinutesPerEdit(process.env.PLEATKIT_REPORT_MINUTES_PER_EDIT)
+if (process.env.PLEATKIT_REPORT_MINUTES_PER_EDIT && reportMinutesPerEdit === null) {
+  console.error(`pleatkit store-server: PLEATKIT_REPORT_MINUTES_PER_EDIT must be a number above 0 and at most ${MAX_MINUTES_PER_EDIT}`)
+  process.exit(1)
+}
+const app = createStoreApp(db, {
+  moderation: process.env.PLEATKIT_MODERATION === 'review' ? 'review' : 'off',
+  auth,
+  region,
+  environment,
+  extensions,
+  ...(bodyLimitBytes ? { bodyLimitBytes } : {}),
+  ...(reportMinutesPerEdit !== null ? { reportMinutesPerEdit } : {}),
+})
 // F3 `edit.alive24h`, the retention job and the extensions' jobs (hourly, idempotent)
 const sweep = () => {
   try {

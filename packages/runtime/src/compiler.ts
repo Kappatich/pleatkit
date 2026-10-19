@@ -29,7 +29,7 @@ export interface CompilerOptions {
   loadEsbuild?: () => Promise<EsbuildApi>
 }
 
-export type CompileContext = Pick<PleatkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots'> & Pick<CheckContext, 'protected' | 'base'> & {
+export type CompileContext = Pick<PleatkitManifest, 'alias' | 'externals' | 'externalPatterns' | 'dynamicRoots' | 'allowedHosts'> & Pick<CheckContext, 'protected' | 'base'> & {
   /**
    * Instance namespace (the app id, V1 B6): compiled code reaches host modules through
    * `globalThis.__pleatkit.apps[namespace]`, so two pleatkit apps on one page never share a registry.
@@ -197,7 +197,7 @@ export class Compiler {
 
   /** The context the static rules see. */
   get checkContext(): CheckContext {
-    return { externals: this.ctx.externals, externalPatterns: this.ctx.externalPatterns, dynamicRoots: this.ctx.dynamicRoots, ...(this.ctx.protected ? { protected: this.ctx.protected } : {}), ...(this.ctx.base ? { base: this.ctx.base } : {}) }
+    return { externals: this.ctx.externals, externalPatterns: this.ctx.externalPatterns, dynamicRoots: this.ctx.dynamicRoots, ...(this.ctx.protected ? { protected: this.ctx.protected } : {}), ...(this.ctx.base ? { base: this.ctx.base } : {}), ...(this.ctx.allowedHosts?.length ? { allowedHosts: this.ctx.allowedHosts } : {}) }
   }
 
   /**

@@ -26,6 +26,12 @@ export default defineConfig({
 })
 ```
 
+`allowedHosts: ['images.example-cdn.com']` lets `<img src>`/`srcSet` and `<a href>` of edits point to those hosts
+over `https:` (default port only); every other URL stays on the app's origin. Exact host names, lower-cased (IDN as
+punycode): a scheme, path, port, user info or wildcard is an error at startup, so list each subdomain. The list goes
+into both copies of the manifest (the runtime guard reads the browser's, the agent's `check` only the server's). Add
+each host to the CSP: `img-src 'self' https://images.example-cdn.com`.
+
 Add `"types": ["@pleatkit/vite-plugin/client"]` to `tsconfig.json` for the `virtual:pleatkit` modules. Vite 6, 7
 or 8. Anonymous install telemetry is opt-out (`PLEATKIT_TELEMETRY=0`) and sends nothing until a collector is
 configured; see the repository README.

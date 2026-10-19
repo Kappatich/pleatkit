@@ -304,7 +304,7 @@ export class PleatkitEngine {
     this.baseFileHashes = fileHashes(this.baseFiles)
     this.ctxHash = contextHash(m, Object.fromEntries(m.readonly.map((f) => [f.path, f.source])))
     this.baseHash = Promise.all([this.originalHash, this.ctxHash]).then(([f, c]) => releaseHash(f, c, this.css.mode))
-    this.registry = installExternals(options.config.externals, this.namespace)
+    this.registry = installExternals(options.config.externals, this.namespace, { allowedHosts: m.allowedHosts ?? [] })
     this.boot = options.bootStorage !== undefined ? options.bootStorage : browserBootStorage()
     this.bootKey = `pleatkit:boot:${this.namespace}:${this.userId}`
     this.heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS

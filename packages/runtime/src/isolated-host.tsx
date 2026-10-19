@@ -12,6 +12,8 @@ export interface IsolatedHostOptions {
   /** Base modules by path (the original version of the dynamic zone). */
   fallback: Record<string, ModuleNamespace>
   dynamicRoots: string[]
+  /** DECISIONS 63.1: the manifest's `allowedHosts`, for the URL guard inside the frame. */
+  allowedHosts?: string[]
 }
 
 /** Parent → iframe. `js: null` means "use the original version"; `undefined` keeps the current modules. */
@@ -62,7 +64,8 @@ class Boundary extends Component<{ version: number; children: ReactNode }, { err
 }
 
 export function startIsolatedHost(options: IsolatedHostOptions): void {
-  installExternals(options.externals)
+  const guard = { allowedHosts: options.allowedHosts ?? [] }
+  installExternals(options.externals, 'default', guard)
   const container = document.getElementById('root') ?? document.body.appendChild(document.createElement('div'))
   const root = createRoot(container)
   let modules = byId(options.fallback, options.dynamicRoots)
@@ -80,7 +83,7 @@ export function startIsolatedHost(options: IsolatedHostOptions): void {
   const handle = async (msg: IsolatedRenderMessage): Promise<void> => {
     try {
       const ns = msg.namespace ?? 'default'
-      if (!registryFor(ns)) installExternals(options.externals, ns)
+      if (!registryFor(ns)) installExternals(options.externals, ns, guard)
       if (msg.js === null) modules = byId(options.fallback, options.dynamicRoots)
       else if (msg.url) {
         await registryFor(ns)!.ensure()

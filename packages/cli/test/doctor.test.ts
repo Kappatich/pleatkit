@@ -69,6 +69,25 @@ describe('pleatkit doctor', () => {
     expect(checkCsp(project({ 'index.html': '<html></html>' }), true)).toMatchObject({ status: 'ok' })
   })
 
+  it('csp (DECISIONS 63.1): names the manifest\'s allowedHosts and warns when img-src leaves one out', () => {
+    const csp = (policy: string) => project({ 'index.html': `<meta http-equiv="Content-Security-Policy" content="${policy}">` })
+    const hosts = ['cdn.example.com', 'img.example.org']
+    const none = checkCsp(project({ 'index.html': '<html></html>' }), false, 'server', hosts)
+    expect(none.status).toBe('ok')
+    expect(none.details.join('\n')).toContain("img-src 'self' https://cdn.example.com https://img.example.org")
+    expect(none.details.join('\n')).toContain('allowedHosts in the manifest: cdn.example.com, img.example.org')
+    const narrow = checkCsp(csp("script-src 'self'; img-src 'self' data: https://cdn.example.com"), false, 'server', hosts)
+    expect(narrow).toMatchObject({ status: 'warn', fix: "add each allowed host to img-src: img-src 'self' https://cdn.example.com https://img.example.org" })
+    expect(narrow.details[0]).toBe('index.html <meta>: img-src does not allow https://img.example.org (allowedHosts): images from it will not load')
+    expect(checkCsp(csp("script-src 'self'; img-src 'self' https://cdn.example.com img.example.org:443"), false, 'server', hosts).status).toBe('ok')
+    expect(checkCsp(csp("script-src 'self'; img-src 'self' *.example.com https://img.example.org"), false, 'server', hosts).status).toBe('ok')
+    expect(checkCsp(csp("default-src 'self'"), false, 'server', hosts).status).toBe('warn')
+    expect(checkCsp(csp("script-src 'self'"), false, 'server', hosts).status).toBe('ok')
+    expect(checkCsp(csp("script-src 'self'; img-src 'self' https://cdn.example.com:8443 https://img.example.org"), false, 'server', hosts).status).toBe('warn')
+    // without allowedHosts nothing changes
+    expect(checkCsp(csp("script-src 'self'; img-src 'self'"), false, 'server')).toMatchObject({ status: 'ok', details: [] })
+  })
+
   it('secrets: keys in the bundle and VITE_ secrets fail, and the report never prints the key', () => {
     const key = 'sk-ant-api03-' + 'A1b2C3d4E5'.repeat(4)
     const root = project({ 'dist/assets/index-abc.js': `const k="${key}";fetch("/x")`, '.env': 'VITE_ANTHROPIC_API_KEY=abc\nPLEATKIT_API_KEY=fine-on-the-server\n', '.env.example': 'VITE_X_KEY=placeholder' })

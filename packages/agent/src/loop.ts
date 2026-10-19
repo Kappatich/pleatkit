@@ -4,7 +4,7 @@ import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
 import { buildPrompt, classifierContext, PROMPT_VERSION, type PromptDigests } from './prompt.js'
 import { callModel, RateLimitedError, type ModelGate } from './rate-limit.js'
-import { checkText, ToolRunner, TOOLS } from './tools.js'
+import { backendQuoteOf, checkText, ToolRunner, TOOLS } from './tools.js'
 import type { CancelledCall, Classification, ModelProvider, ModelSession, ModelTurn, ToolCall, ToolResult } from './types.js'
 import { Workspace, type TypecheckFn } from './workspace.js'
 
@@ -51,6 +51,8 @@ export interface RunOptions {
   /**
    * DECISIONS 73.3: `parallel` (default) starts the main model's first call together with the classifier and cancels
    * it when the classifier answers alone (needs-backend, a question, off-topic); `sequential` waits for the classifier.
+   * The mode used is reported in `timings.classifierMode`. PLEATKIT_CLASSIFIER=auto is the server's choice per app
+   * (`ClassifierModes`, DECISIONS 75 Р5); the runner always gets one of these two.
    */
   classifierMode?: 'parallel' | 'sequential'
   onProgress?: (p: AgentProgress) => void
@@ -193,7 +195,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   // does the type check, which refuses only errors the release does not already have (74.2: shadcn-admin's own panels
   // carry a CheckedState error under the checker's settings, and every edit was refused without them)
   const ws = new Workspace({ ...req, ...(options.protected?.length ? { protected: options.protected } : {}), ...(options.base && Object.keys(options.base).length ? { base: options.base } : {}) }, options.typecheck ?? null)
-  const timings = { totalMs: 0, classifyMs: null as number | null, modelMs: 0, toolsMs: 0, overlapMs: undefined as number | undefined }
+  const timings = { totalMs: 0, classifyMs: null as number | null, modelMs: 0, toolsMs: 0, overlapMs: undefined as number | undefined, classifierMode: undefined as 'parallel' | 'sequential' | undefined }
   const output = { visibleTokens: 0, thinkingTokens: 0, limit: limits.maxOutputTokens, estimated: false }
   let classification: RequestClass | null = null
   let modelCalls = 0
@@ -202,6 +204,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   let clarify: AgentResult['clarify']
   let refusal: AgentResult['refusal']
   let backendNote: string | undefined
+  let backendQuote: string | undefined
   let cancelledCall: AgentResult['cancelledCall']
   let rateLimited = false
   const intent: { intentLabel?: string; gist?: string } = {}
@@ -220,12 +223,16 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       },
     })
 
-  const runner: ToolRunner = new ToolRunner(ws, (entry, call) => {
-    if (call.name === 'check' || (call.name === 'finish' && !entry.ok)) {
-      const ok = entry.ok && !entry.result.startsWith('FAILED')
-      progress({ type: 'check', ok, errorCount: ws.lastCheck?.errors.length ?? 0, text: t(lang, ok ? 'checkOk' : 'checkFailed') })
-    }
-  })
+  const runner: ToolRunner = new ToolRunner(
+    ws,
+    (entry, call) => {
+      if (call.name === 'check' || (call.name === 'finish' && !entry.ok)) {
+        const ok = entry.ok && !entry.result.startsWith('FAILED')
+        progress({ type: 'check', ok, errorCount: ws.lastCheck?.errors.length ?? 0, text: t(lang, ok ? 'checkOk' : 'checkFailed') })
+      }
+    },
+    req.request,
+  )
 
   const done = (verdict: AgentResult['verdict'], summary: string): Omit<AgentResult, 'requestId'> => {
     timings.totalMs = Math.round(performance.now() - started)
@@ -247,12 +254,13 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         imageBytes: (req.images ?? []).reduce((s, i) => s + Math.floor((i.data.length * 3) / 4), 0),
         targetDomChars: req.targetDom?.length ?? 0,
       },
-      timings: { ...timings, modelMs: Math.round(timings.modelMs), toolsMs: Math.round(timings.toolsMs), classifyMs: timings.classifyMs === null ? null : Math.round(timings.classifyMs), overlapMs: timings.overlapMs === undefined ? undefined : Math.round(timings.overlapMs) },
+      timings: { ...timings, modelMs: Math.round(timings.modelMs), toolsMs: Math.round(timings.toolsMs), classifyMs: timings.classifyMs === null ? null : Math.round(timings.classifyMs), overlapMs: timings.overlapMs === undefined ? undefined : Math.round(timings.overlapMs), ...(timings.classifierMode ? { classifierMode: timings.classifierMode } : {}) },
       ...(stopReason ? { stopReason } : {}),
       ...(error ? { error } : {}),
       ...(clarify ? { clarify } : {}),
       ...(refusal ? { refusal } : {}),
       ...(backendNote ? { backendNote } : {}),
+      ...(backendQuote ? { backendQuote } : {}),
       ...(cancelledCall ? { cancelledCall } : {}),
       ...(rateLimited ? { rateLimited: true } : {}),
       ...intent,
@@ -278,7 +286,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       // the classifier's request goes out first (a recorded transcript keeps one file per run: classify, then start)
       const classifying = viaGate(() => provider.classify({ request: req.request, context: classifierContext(req, options.digests ?? {}) }, signal))
       classifying.catch(() => undefined)
-      if (options.classifierMode !== 'sequential') {
+      timings.classifierMode = options.classifierMode === 'sequential' ? 'sequential' : 'parallel'
+      if (timings.classifierMode === 'parallel') {
         // start the edit now; the classifier's answer decides whether its result is used or the call is cancelled
         const abort = new AbortController()
         // DECISIONS 74.1: streamed, so a cancel stops the generation and only what was generated is billed. The session
@@ -332,6 +341,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
           await cancelEarly()
           // DECISIONS 73.4: the administrator gets what the server would need, from the classifier's own words
           backendNote = classifierBackendNote(c)
+          if (c.backendQuote) backendQuote = backendQuoteOf(c.backendQuote, req.request)
           return done('needs-backend', c.reason || t(lang, 'needsBackendDefault'))
         }
         if (ask) {
@@ -454,6 +464,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   if (fin) {
     if (fin.clarify) clarify = fin.clarify
     if (fin.backendNote) backendNote = fin.backendNote
+    if (fin.backendQuote) backendQuote = fin.backendQuote
     return done(fin.verdict, fin.summary)
   }
   const why =

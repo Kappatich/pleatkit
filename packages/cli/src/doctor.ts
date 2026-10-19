@@ -30,7 +30,9 @@ export interface DoctorOptions {
   agent?: AgentModule | null
 }
 
-type AgentModule = Pick<typeof import('@pleatkit/agent'), 'Workspace' | 'trustedInput' | 'countPromptTokens' | 'sampleRequest' | 'formatErrors'>
+type AgentModule = Pick<typeof import('@pleatkit/agent'), 'Workspace' | 'trustedInput' | 'countPromptTokens' | 'sampleRequest' | 'formatErrors'> &
+  // DECISIONS 75 Р2: optional, an older @pleatkit/agent has no expected cost
+  Partial<Pick<typeof import('@pleatkit/agent'), 'expectedEditCost' | 'formatUsd' | 'DEFAULT_MODEL' | 'DEFAULT_CLASSIFIER_MODEL'>>
 
 const loadAgent = async (): Promise<AgentModule | null> => (await import('@pleatkit/agent').catch(() => null)) as AgentModule | null
 
@@ -210,9 +212,24 @@ const RECOMMENDED_CSP = {
   server: "script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'",
 }
 
-/** Look for a CSP in index.html and in common hosting files, and check it against what pleatkit needs. */
-export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'browser' = 'server'): Finding {
+/** DECISIONS 63.1: does this source list (img-src, or default-src) let images load from `https://<host>`? */
+export function cspAllowsHost(sources: string[], host: string): boolean {
+  return sources.some((raw) => {
+    const s = raw.toLowerCase()
+    if (s === '*' || s === 'https:') return true
+    const m = /^(?:https?:\/\/)?(\*\.)?([a-z0-9.-]+)(?::(\d+|\*))?(?:\/\S*)?$/.exec(s)
+    if (!m || (m[3] && m[3] !== '443' && m[3] !== '*')) return false
+    return m[1] ? host.endsWith(`.${m[2]}`) : host === m[2]
+  })
+}
+
+/**
+ * Look for a CSP in index.html and in common hosting files, and check it against what pleatkit needs. With
+ * `allowedHosts` in the manifest (DECISIONS 63.1), `img-src` should list each of them, and nothing else is widened.
+ */
+export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'browser' = 'server', allowedHosts: string[] = []): Finding {
   const recommended = RECOMMENDED_CSP[compile]
+  const imgSrc = `img-src 'self' ${allowedHosts.map((h) => `https://${h}`).join(' ')}`
   const found: { where: string; policy: string }[] = []
   const html = path.join(root, 'index.html')
   if (fs.existsSync(html)) {
@@ -227,13 +244,20 @@ export function checkCsp(root: string, isolated: boolean, compile: 'server' | 'b
     if (m) found.push({ where: rel, policy: m[1]! })
   }
   const hints = isolated ? ['isolated panels: serve assets/pleatkit-isolated-host-*.js with Access-Control-Allow-Origin: *'] : []
+  if (allowedHosts.length) hints.push(`allowedHosts in the manifest: ${allowedHosts.join(', ')} (images from them need ${imgSrc})`)
   if (found.length === 0) {
-    return { id: 'csp', status: 'ok', title: 'no Content-Security-Policy found in the app', details: [`if you add one, pleatkit (compile: '${compile}') needs: ${recommended}`, ...hints] }
+    return { id: 'csp', status: 'ok', title: 'no Content-Security-Policy found in the app', details: [`if you add one, pleatkit (compile: '${compile}') needs: ${recommended}${allowedHosts.length ? `; ${imgSrc}` : ''}`, ...hints] }
   }
   const problems = found.flatMap((f) => cspProblems(f.policy, compile).map((p) => `${f.where}: ${p}`))
-  return problems.length
-    ? { id: 'csp', status: 'fail', title: 'the Content-Security-Policy blocks runtime edits', details: [...problems, ...hints], fix: `use at least: ${recommended}` }
-    : { id: 'csp', status: 'ok', title: `CSP allows runtime edits (${found.map((f) => f.where).join(', ')})`, details: hints }
+  // an img-src (or default-src) that leaves out an allowed host: those images will not load (a warning, not a block)
+  const blocked = found.flatMap((f) => {
+    const csp = parseCsp(f.policy)
+    const img = csp.get('img-src') ?? csp.get('default-src')
+    return img ? allowedHosts.filter((h) => !cspAllowsHost(img, h)).map((h) => `${f.where}: img-src does not allow https://${h} (allowedHosts): images from it will not load`) : []
+  })
+  if (problems.length) return { id: 'csp', status: 'fail', title: 'the Content-Security-Policy blocks runtime edits', details: [...problems, ...blocked, ...hints], fix: `use at least: ${recommended}` }
+  if (blocked.length) return { id: 'csp', status: 'warn', title: 'the Content-Security-Policy blocks images from allowedHosts', details: [...blocked, ...hints], fix: `add each allowed host to img-src: ${imgSrc}` }
+  return { id: 'csp', status: 'ok', title: `CSP allows runtime edits (${found.map((f) => f.where).join(', ')})`, details: hints }
 }
 
 // --- context budget (brainstorm 04 §1, §8 item 12) ---
@@ -253,15 +277,19 @@ export const TAIL_TARGET = 6_000
  * digests) and the tail (the dynamic files and the request). Targets: prefix 20k, tail 6k tokens; over them the
  * edits cost more and the model sees more noise.
  */
-export function checkContextBudget(manifest: PleatkitManifest): Finding {
+export function estimateContextTokens(manifest: PleatkitManifest): { cached: number; tail: number; readonly: number; types: number; digests: number } {
   const sum = (files: { source: string }[]) => files.reduce((s, f) => s + estimateTokens(f.source), 0)
   // DECISIONS 74.6: with an agent context the prompt holds its declarations, not every readonly source and core type
   const ctx = manifest.agentContext
   const readonly = ctx ? sum(ctx.files) : sum(manifest.readonly)
   const types = ctx ? 0 : sum(manifest.coreTypes)
   const digests = estimateTokens((manifest.designSystem?.digest ?? '') + (manifest.designSystem?.docs ?? '') + (manifest.dataContracts?.digest ?? ''))
-  const cached = INSTRUCTION_TOKENS + readonly + types + digests
-  const tail = sum(manifest.dynamic) + 200
+  return { cached: INSTRUCTION_TOKENS + readonly + types + digests, tail: sum(manifest.dynamic) + 200, readonly, types, digests }
+}
+
+export function checkContextBudget(manifest: PleatkitManifest): Finding {
+  const ctx = manifest.agentContext
+  const { cached, tail, readonly, types, digests } = estimateContextTokens(manifest)
   const biggest = (ctx ? ctx.files : [...manifest.readonly, ...manifest.coreTypes])
     .map((f) => ({ path: f.path, tokens: estimateTokens(f.source) }))
     .sort((a, b) => b.tokens - a.tokens)
@@ -285,8 +313,12 @@ export function checkContextBudget(manifest: PleatkitManifest): Finding {
 export async function measureContextBudget(manifest: PleatkitManifest, env: Record<string, string | undefined>, agent: AgentModule | null): Promise<Finding> {
   const estimate = checkContextBudget(manifest)
   const key = env.PLEATKIT_API_KEY
+  const estimated = (note: string): Finding => {
+    const e = estimateContextTokens(manifest)
+    return { ...estimate, details: [...estimate.details, note, ...expectedCostLine({ prefixTokens: e.cached, tailTokens: e.tail }, env.PLEATKIT_MODEL, env, agent, 'estimated')] }
+  }
   if (!key || !agent) {
-    return { ...estimate, details: [...estimate.details, key ? 'estimated: install @pleatkit/agent to count with the API' : 'estimated (about 3 characters per token); with PLEATKIT_API_KEY set, doctor counts with the API token counter (free)'] }
+    return estimated(key ? 'estimated: install @pleatkit/agent to count with the API' : 'estimated (about 2.2 characters per token); with PLEATKIT_API_KEY set, doctor counts with the API token counter (free)')
   }
   try {
     const c = await agent.countPromptTokens(manifest, { apiKey: key, ...(env.PLEATKIT_BASE_URL ? { baseURL: env.PLEATKIT_BASE_URL } : {}), ...(env.PLEATKIT_MODEL ? { model: env.PLEATKIT_MODEL } : {}) })
@@ -295,12 +327,32 @@ export async function measureContextBudget(manifest: PleatkitManifest, env: Reco
       `cached prefix ${c.prefixTokens.toLocaleString('en')} tokens (tools, instructions, digests, ${manifest.agentContext ? 'the agent context' : 'readonly sources, core types'}), counted by the API for ${c.model}, prompt ${c.promptVersion}; target ≤ ${CACHED_TARGET.toLocaleString('en')}`,
       `tail ${c.tailTokens.toLocaleString('en')} tokens (${manifest.dynamic.length} dynamic files and a short request); target ≤ ${TAIL_TARGET.toLocaleString('en')}`,
       ...estimate.details.filter((d) => d.startsWith('largest in the prefix')),
+      ...expectedCostLine(c, c.model, env, agent, 'counted'),
     ]
     const title = `context of one edit: ${c.prefixTokens.toLocaleString('en')} cached + ${c.tailTokens.toLocaleString('en')} per request tokens (counted)`
     return over ? { id: 'context-budget', status: 'warn', title: `the context of one edit is larger than the target (${c.prefixTokens.toLocaleString('en')} cached + ${c.tailTokens.toLocaleString('en')} per request tokens, counted)`, details, fix: estimate.fix ?? 'move large files out of readonly' } : { id: 'context-budget', status: 'ok', title, details }
   } catch (e) {
-    return { ...estimate, details: [...estimate.details, `estimated: the API token counter failed (${(e as Error).message.split('\n')[0]!.slice(0, 160)})`] }
+    return estimated(`estimated: the API token counter failed (${(e as Error).message.split('\n')[0]!.slice(0, 160)})`)
   }
+}
+
+/**
+ * DECISIONS 75 Р2: "Expected cost per edit on this app: $X (cold: $Y)" from the prompt size and the model price table
+ * (`expectedEditCost` of @pleatkit/agent), for the model the agent server would use (PLEATKIT_MODEL, else the default)
+ * and its classifier. Nothing when the agent package is too old to compute it.
+ */
+function expectedCostLine(size: { prefixTokens: number; tailTokens: number }, model: string | undefined, env: Record<string, string | undefined>, agent: AgentModule | null, how: 'counted' | 'estimated'): string[] {
+  if (!agent?.expectedEditCost || !agent.formatUsd) return []
+  const main = model ?? agent.DEFAULT_MODEL ?? 'claude-sonnet-5-5'
+  const anthropic = !env.PLEATKIT_PROVIDER || env.PLEATKIT_PROVIDER === 'anthropic'
+  const classifier = env.PLEATKIT_CLASSIFIER_MODEL ?? (anthropic ? (agent.DEFAULT_CLASSIFIER_MODEL ?? 'claude-haiku-5-5') : main)
+  const e = agent.expectedEditCost(size, main, classifier)
+  if (e.expectedUsd === null || e.coldUsd === null) return [`Expected cost per edit on this app: unknown (no price for ${e.unpriced.join(', ')})`]
+  const a = e.assumptions
+  return [
+    `Expected cost per edit on this app: ${agent.formatUsd(e.expectedUsd)} (cold: ${agent.formatUsd(e.coldUsd)}) with ${main} and the ${classifier} classifier`,
+    `  from the ${how} prompt size: prefix read from the cache, tail written to it, ${a.outputTokens} output tokens, a second call in ${Math.round(a.twoCallShare * 100)} % of edits; cold: the first edit after 5 minutes idle`,
+  ]
 }
 
 // --- the release's own panels pass check (stage 5, foreign apps) ---
@@ -415,6 +467,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
     findings.push({ id: 'config', status: 'ok', title: `pleatkit plugin found${config.file ? ` in ${path.basename(config.file)}` : ''}`, details: [`dynamic: ${zones.dynamic.join(', ')}`, `readonly: ${(zones.readonly ?? []).join(', ') || '(none)'}`] })
   }
   findings.push(checkReact(root, config.dedupe))
+  let allowedHosts: string[] = []
   if (config.options) {
     let manifest: PleatkitManifest | null = null
     try {
@@ -423,6 +476,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
       findings.push({ id: 'panels', status: 'fail', title: `could not read the zones: ${(e as Error).message.split('\n')[0]}`, details: [] })
     }
     if (manifest) {
+      allowedHosts = manifest.allowedHosts ?? []
       if (manifest.dynamic.length === 0) {
         findings.push({ id: 'panels', status: 'fail', title: `the dynamic zone (${config.options.zones.dynamic.join(', ')}) has no files`, details: [], fix: 'move the panels users may change into src/dynamic/<id>.tsx' })
       } else findings.push(checkPanels(root, manifest))
@@ -432,7 +486,7 @@ export async function doctor(options: DoctorOptions): Promise<Finding[]> {
       findings.push(await measureContextBudget(manifest, options.env ?? process.env, agent))
     }
   }
-  findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server'))
+  findings.push(checkCsp(root, Boolean(config.options?.isolated), config.options?.compile ?? 'server', allowedHosts))
   findings.push(checkSecureContext(options.url, config.served, Boolean(config.options?.publicKey ?? process.env.PLEATKIT_PUBLIC_KEY)))
   findings.push(checkSecrets(root, dist))
   return findings

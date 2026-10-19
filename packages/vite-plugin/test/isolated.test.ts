@@ -43,6 +43,15 @@ describe('isolated host as a separate file (DECISIONS 16)', () => {
     expect(await load('virtual:pleatkit/isolated')).toBe(`export default { url: "/${ISOLATED_DEV_PATH}" }`)
   })
 
+  it('DECISIONS 63.1: the browser copy of the manifest carries allowedHosts (the runtime guard reads it there)', async () => {
+    const p = pleatkit({ ...options, allowedHosts: ['CDN.example.com'] })
+    ;(p.configResolved as Hook)({ root, command: 'serve', base: '/', build: { assetsDir: 'assets' }, logger: { warn: () => undefined } } as unknown as ResolvedConfig)
+    const code = (await (p.load as Hook).call({}, (p.resolveId as Hook)('virtual:pleatkit/manifest'))) as string
+    const client = JSON.parse(code.replace(/^export default /, '')) as { allowedHosts?: string[]; agentContext?: unknown }
+    expect(client.allowedHosts).toEqual(['cdn.example.com'])
+    expect(client.agentContext).toBeUndefined()
+  })
+
   it('preview middleware adds Access-Control-Allow-Origin to the host file only (the frame has Origin: null)', () => {
     const mw = isolatedCorsMiddleware()
     const run = (url: string) => {

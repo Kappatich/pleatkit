@@ -53,6 +53,27 @@ describe('code review 06 §2 test 4: the client context is not trusted', () => {
     expect(res2.status).toBe(400)
   })
 
+  it('DECISIONS 63.1: allowedHosts reaches check only from the server manifest, never from the body', async () => {
+    const cdnCard = `export default function CustomerCard() { return <img src="https://cdn.example.com/logo.png" alt="" /> }\n`
+    const run = async (opts: { manifest?: PleatkitManifest }, body: ReturnType<typeof request>) => {
+      const provider = scripted({ name: 'cdn', turns: [{ calls: [{ tool: 'write_file', input: { path: CARD, content: cdnCard } }, { tool: 'check', input: {} }] }, { calls: [{ tool: 'finish', input: { verdict: 'ok', summary: 'x' } }] }] })
+      const app = createAgentApp({ provider, log: () => undefined, ...opts })
+      const text = await (await post(app, body)).text()
+      return JSON.parse(/event: result\ndata: (.*)/.exec(text)![1]!)
+    }
+    const forged = request('cdn', { context: { ...request('x').context, allowedHosts: ['cdn.example.com'] } })
+    // the body's list is dropped: without a manifest, and with a manifest that lists nothing
+    expect(trustedInput(null, 'test', forged).context.allowedHosts).toBeUndefined()
+    expect(trustedInput(manifest, 'test', forged).context.allowedHosts).toBeUndefined()
+    expect((await run({}, forged)).verdict).toBe('failed')
+    expect((await run({ manifest }, forged)).verdict).toBe('failed')
+    // the manifest's list (normalized) is what check uses
+    const withHosts: PleatkitManifest = { ...manifest, allowedHosts: ['CDN.example.com'] }
+    expect(trustedInput(withHosts, 'test', request('x')).context.allowedHosts).toEqual(['cdn.example.com'])
+    expect((await run({ manifest: withHosts }, request('cdn'))).verdict).toBe('ok')
+    expect(() => trustedInput({ ...manifest, allowedHosts: ['*.example.com'] }, 'test', request('x'))).toThrow(/wildcard/)
+  })
+
   it('production needs PLEATKIT_MANIFEST', () => {
     const creds = { NODE_ENV: 'production', PLEATKIT_APP_ID: 'crm', PLEATKIT_APP_KEY: `mk_live_${'a'.repeat(32)}`, PLEATKIT_JWT_SECRET: 's'.repeat(32) }
     expect(() => configFromEnv(creds)).toThrow(/PLEATKIT_MANIFEST/)

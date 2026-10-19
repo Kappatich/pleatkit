@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { TokenUsage } from '@pleatkit/runtime/compiler'
+import type { PleatkitManifest, TokenUsage } from '@pleatkit/runtime/compiler'
+import type { PromptTokenCount } from '../prefix.js'
 import { CLASSIFIER_INSTRUCTIONS, INTENT_LABELS } from '../prompt.js'
 import { perCallMaxTokens } from './budget.js'
 import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
@@ -28,6 +29,15 @@ export interface AnthropicProviderOptions {
    * then not validated by the API: the tool runner checks every field itself.
    */
   stream?: boolean
+  /**
+   * DECISIONS 76.1: when the conversation tail is written to the prompt cache. `always` (every call, the default):
+   * the first call writes the request's tail (the dynamic files) at 1.25× so a second call reads it at 0.1×;
+   * `after-first` (the default, DECISIONS 76.1): the first call writes only the system prefix, so a one-call
+   * edit sends the tail as plain input ($2/M, not $2.5/M) and a cancelled early call writes no tail at all
+   * (the parallel classifier's non-edit requests cost ~$0.0001 instead of ~$0.025); a two-call edit then pays the
+   * tail as input on the first call and writes it on the second. PLEATKIT_CACHE_TAIL=always for the old behavior.
+   */
+  cacheTail?: 'always' | 'after-first'
 }
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5'
@@ -63,8 +73,9 @@ const CLASSIFY_SCHEMA = {
     options: { type: 'array', items: { type: 'string' } },
     intent_label: { type: 'string', enum: [...INTENT_LABELS] },
     gist: { type: 'string' },
+    backend_quote: { type: 'string' },
   },
-  required: ['label', 'reason', 'question', 'options', 'intent_label', 'gist'],
+  required: ['label', 'reason', 'question', 'options', 'intent_label', 'gist', 'backend_quote'],
   additionalProperties: false,
 } as const
 
@@ -91,6 +102,7 @@ export class AnthropicProvider implements ModelProvider {
   private readonly effort: Effort
   private readonly fallbacks: boolean
   private readonly stream: boolean
+  private readonly cacheTail: 'always' | 'after-first'
 
   constructor(options: AnthropicProviderOptions) {
     this.client = new Anthropic({
@@ -105,6 +117,7 @@ export class AnthropicProvider implements ModelProvider {
     this.effort = options.effort ?? 'medium'
     this.fallbacks = options.fallbacks ?? true
     this.stream = options.stream ?? false
+    this.cacheTail = options.cacheTail ?? 'after-first'
   }
 
   async classify(input: ClassifyInput, signal: AbortSignal): Promise<Classification> {
@@ -129,8 +142,9 @@ export class AnthropicProvider implements ModelProvider {
     if (msg.stop_reason === 'refusal') return { label: 'unclear', reason: '', usage, model: msg.model }
     const text = msg.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
     try {
-      const parsed = JSON.parse(text) as { label: Classification['label']; reason: string; question?: string; options?: string[]; intent_label?: string; gist?: string }
-      return { label: parsed.label, reason: parsed.reason, ...clarifyOf(parsed), ...intentOf(parsed), usage, model: msg.model }
+      const parsed = JSON.parse(text) as { label: Classification['label']; reason: string; question?: string; options?: string[]; intent_label?: string; gist?: string; backend_quote?: string }
+      const backendQuote = parsed.label === 'needs-backend' && typeof parsed.backend_quote === 'string' && parsed.backend_quote.trim() ? parsed.backend_quote.trim().slice(0, 1000) : undefined
+      return { label: parsed.label, reason: parsed.reason, ...clarifyOf(parsed), ...intentOf(parsed), ...(backendQuote ? { backendQuote } : {}), usage, model: msg.model }
     } catch {
       return { label: 'unclear', reason: '', usage, model: msg.model }
     }
@@ -138,6 +152,13 @@ export class AnthropicProvider implements ModelProvider {
 
   get clusterModel(): string {
     return this.classifierModel
+  }
+
+  /** DECISIONS 75 Р2: the app's prompt counted with `count_tokens` (free) through this provider's client and key. */
+  async countPromptTokens(manifest: PleatkitManifest): Promise<PromptTokenCount> {
+    // imported here: prefix.ts imports this module for DEFAULT_MODEL
+    const { countPromptTokens } = await import('../prefix.js')
+    return countPromptTokens(manifest, { client: this.client, model: this.model })
   }
 
   /** C9: the wish-list map in one classifier call (structured output, low effort). */
@@ -234,8 +255,10 @@ export class AnthropicProvider implements ModelProvider {
         const params: Anthropic.Beta.MessageCreateParamsNonStreaming = {
             // automatic caching of the conversation tail (brainstorm 04 §0.1): every turn re-reads the dynamic
             // files and the tool history from the cache instead of paying for them again; the explicit breakpoint
-            // on the system block keeps tools + instructions + readonly sources cached across requests
-            cache_control: { type: 'ephemeral' },
+            // on the system block keeps tools + instructions + readonly sources cached across requests.
+            // DECISIONS 76.1: with cacheTail 'after-first' the first call of an edit carries only the system
+            // breakpoint (most edits take one call, and a cancelled early call then pays no tail write)
+            ...(this.cacheTail === 'after-first' && messages.length === 1 ? {} : { cache_control: { type: 'ephemeral' as const } }),
             model: this.model,
             max_tokens: perCallMaxTokens(options.maxOutputTokens),
             thinking: { type: 'adaptive' },

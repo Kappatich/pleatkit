@@ -74,10 +74,12 @@ describe('AnthropicProvider (wire format, fake fetch)', () => {
     expect(first.body.tool_choice).toEqual({ type: 'auto' })
     expect(first.body.tools.map((t: { name: string }) => t.name)).toEqual(['list_files', 'read_file', 'write_file', 'edit_file', 'check', 'finish'])
     expect(first.body.tools.every((t: { strict: boolean; input_schema: { additionalProperties: boolean } }) => t.strict && t.input_schema.additionalProperties === false)).toBe(true)
-    // two cache points: the block holding readonly sources + core types, and the automatic tail (04 §0.1)
-    const breakpoints = JSON.stringify(first.body).match(/cache_control/g) ?? []
-    expect(breakpoints).toHaveLength(2)
-    expect(first.body.cache_control).toEqual({ type: 'ephemeral' })
+    // DECISIONS 76.1: the first call of an edit carries only the system breakpoint (readonly sources + core types);
+    // the tail (dynamic files) is written to the cache from the second call on (cacheTail 'after-first', the default)
+    expect((JSON.stringify(first.body).match(/cache_control/g) ?? [])).toHaveLength(1)
+    expect(first.body.cache_control).toBeUndefined()
+    expect((JSON.stringify(second.body).match(/cache_control/g) ?? [])).toHaveLength(2)
+    expect(second.body.cache_control).toEqual({ type: 'ephemeral' })
     expect(first.body.tools.some((t: { eager_input_streaming?: boolean }) => t.eager_input_streaming)).toBe(false)
     expect(first.body.system[1].cache_control).toEqual({ type: 'ephemeral' })
     expect(first.body.system[1].text).toContain('<readonly_sources>')

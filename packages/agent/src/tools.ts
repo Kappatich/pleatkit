@@ -53,6 +53,7 @@ export const TOOLS: ToolSpec[] = [
       summary: { type: 'string', description: 'One or two plain-language sentences for the user, in their language; no code or file names' },
       verdict: { type: 'string', enum: ['ok', 'partial', 'needs-backend', 'not-editable', 'declined', 'clarify', 'failed'] },
       backend_note: { type: 'string', description: 'For partial and needs-backend: what the server would need, for the administrator; otherwise empty' },
+      backend_quote: { type: 'string', description: 'For partial and needs-backend: the exact words of the user request that need the server, copied verbatim from the request (a substring of it), so the user can see what was passed on; otherwise empty' },
       question: { type: 'string', description: 'For clarify: the one question; otherwise empty' },
       options: { type: 'array', items: { type: 'string' }, description: 'For clarify: 2 to 4 short answers; otherwise empty' },
     }),
@@ -63,6 +64,7 @@ export interface Finish {
   verdict: AgentVerdict
   summary: string
   backendNote?: string
+  backendQuote?: string
   clarify?: { question: string; options: string[] }
 }
 
@@ -84,6 +86,8 @@ export class ToolRunner {
   constructor(
     private readonly ws: Workspace,
     private readonly onEvent: (entry: ToolLogEntry, call: ToolCall) => void,
+    /** The user's request text, for `backend_quote` substring validation. */
+    private readonly request = '',
   ) {}
 
   /** Record a call that was not run (cut off by max_tokens). */
@@ -186,7 +190,8 @@ export class ToolRunner {
           throw new Error(`Commit rejected, the code does not pass check:\n${formatErrors(this.ws.lastCheck?.errors ?? [])}\nFix the errors, then call finish again.`)
         }
         if (verdict === 'partial' && !this.ws.changed) throw new Error('partial means some of it is done on screen, but nothing was changed; use needs-backend')
-        this.finished = { verdict, summary: summary || defaultSummary(verdict), ...(opt('backend_note') ? { backendNote: opt('backend_note').slice(0, 1000) } : {}) }
+        const quote = (verdict === 'partial' || verdict === 'needs-backend') && opt('backend_quote') ? backendQuoteOf(opt('backend_quote'), this.request) : undefined
+        this.finished = { verdict, summary: summary || defaultSummary(verdict), ...(opt('backend_note') ? { backendNote: opt('backend_note').slice(0, 1000) } : {}), ...(quote ? { backendQuote: quote } : {}) }
         return 'Finished.'
       }
       default:
@@ -202,6 +207,22 @@ export function capResult(content: string): string {
   if (content.length <= MAX_TOOL_RESULT_CHARS) return content
   return `${content.slice(0, MAX_TOOL_RESULT_CHARS)}
 … [cut: ${content.length - MAX_TOOL_RESULT_CHARS} more characters of ${content.length}. Work with the part shown; edit_file changes a part of a file without rewriting it.]`
+}
+
+/**
+ * Block 4: the backend quote must be verbatim from the request so the drawer can show the user exactly what was
+ * passed on. Normalise whitespace on both sides; when the quote is not found in the request, fall back to the whole
+ * request (better to show the whole ask than a paraphrase the model invented). Returns undefined for an empty quote.
+ */
+export function backendQuoteOf(quote: string, request: string): string | undefined {
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim()
+  const q = norm(quote)
+  if (!q) return undefined
+  if (norm(request).includes(q)) return q.slice(0, 1000)
+  // the model may have quoted with slightly different spacing or a trailing period: try without trailing punctuation
+  const trimmed = q.replace(/[.!?,;:"'»«)\]]+$/, '').trim()
+  if (trimmed && norm(request).includes(trimmed)) return trimmed.slice(0, 1000)
+  return norm(request).slice(0, 1000)
 }
 
 function defaultSummary(v: Finish['verdict']): string {

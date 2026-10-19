@@ -2,7 +2,7 @@ import * as esbuild from 'esbuild-wasm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cssRules, decodeMappings, parseProtected, staticCheck, type CheckContext, type TransformFn } from '../src/check.js'
 import { isComponentExport } from '../src/component.js'
-import { guardModule, guardProps, sameOriginUrl, type PageOrigin } from '../src/url-guard.js'
+import { allowedHostUrl, guardModule, guardProps, normalizeAllowedHosts, sameOriginUrl, type PageOrigin } from '../src/url-guard.js'
 import { installExternals } from '../src/loader.js'
 import { scopeZoneCss, layeredCss } from '../src/css-scope.js'
 import { isWritablePath, validateZoneGlob } from '../src/paths.js'
@@ -307,5 +307,190 @@ describe('DECISIONS 74.3: a URL from data stays on the app (static rule + runtim
     ;(registry.require('react/jsx-runtime') as { jsx: (t: unknown, p: unknown) => void }).jsx('a', { href: 'https://evil.example', children: 'x' })
     expect(seen).toEqual([{ children: 'x' }])
     expect((registry.require('lucide-react') as { X: number }).X).toBe(1)
+  })
+})
+
+describe('DECISIONS 63.1: allowedHosts lets <img src> and <a href> reach listed hosts over https, nothing else', () => {
+  const hosts = ['cdn.example.com', 'xn--bcher-kva.example']
+  const page: PageOrigin = { origin: 'https://app.example', base: 'https://app.example/users/list' }
+  const panel = (jsx: string) => `const Avatar = (p: any) => null\nexport default function P({ data }: { data: any }) { return <>${jsx}</> }`
+  const withHosts = (body: string) => rules(body, { allowedHosts: hosts })
+  const CDN = 'https://cdn.example.com/a.png'
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each([
+    ['<img src> literal', `<img src="${CDN}" alt="" />`],
+    ['<a href> literal', '<a href="https://cdn.example.com/docs?x=1#y">x</a>'],
+    ['the host alone', '<a href="https://cdn.example.com">x</a>'],
+    ['a punycode host as listed', '<img src="https://xn--bcher-kva.example/a.png" alt="" />'],
+    ['a template after the host and its slash', '<img src={`https://cdn.example.com/${data.id}.png`} alt="" />'],
+    ['"https://host/" + data', '<img src={"https://cdn.example.com/" + data.id} alt="" />'],
+    ['a conditional of an allowed host and a relative path', `<img src={data.x ? "${CDN}" : "/b.png"} alt="" />`],
+  ])('statically allowed: %s', async (_name, jsx) => {
+    expect(await withHosts(panel(jsx))).toEqual([])
+  })
+
+  it.each([
+    ['without allowedHosts', `<img src="${CDN}" alt="" />`, 'no-remote-request', []],
+    ['a host not listed', '<img src="https://evil.example/a.png" alt="" />', 'no-remote-request', hosts],
+    ['a longer host', '<img src="https://cdn.example.com.evil.example/a.png" alt="" />', 'no-remote-request', hosts],
+    ['user info after the host (@evil)', '<img src="https://cdn.example.com@evil.example/a.png" alt="" />', 'no-remote-request', hosts],
+    ['user info before the host', '<img src="https://evil.example@cdn.example.com/a.png" alt="" />', 'no-remote-request', hosts],
+    ['the host in the path', '<img src="https://evil.example/cdn.example.com/a.png" alt="" />', 'no-remote-request', hosts],
+    ['another port', '<img src="https://cdn.example.com:8443/a.png" alt="" />', 'no-remote-request', hosts],
+    ['the default port written out (statically exact)', '<img src="https://cdn.example.com:443/a.png" alt="" />', 'no-remote-request', hosts],
+    ['http:', '<img src="http://cdn.example.com/a.png" alt="" />', 'no-remote-request', hosts],
+    ['protocol-relative', '<img src="//cdn.example.com/a.png" alt="" />', 'no-remote-request', hosts],
+    ['upper case', '<img src="https://CDN.example.com/a.png" alt="" />', 'no-remote-request', hosts],
+    ['a trailing dot', '<img src="https://cdn.example.com./a.png" alt="" />', 'no-remote-request', hosts],
+    ['percent-encoding in the host', '<img src="https://cdn%2Eexample.com/a.png" alt="" />', 'no-remote-request', hosts],
+    ['an IDN written in Unicode', '<img src="https://bücher.example/a.png" alt="" />', 'no-remote-request', hosts],
+    ['backslashes', String.raw`<img src={"https:\\cdn.example.com/a.png"} alt="" />`, 'no-remote-request', hosts],
+    ['a backslash after the host', String.raw`<img src={"https://cdn.example.com\\@evil.example/"} alt="" />`, 'no-remote-request', hosts],
+    ['a tab in the host', String.raw`<img src={"https://cdn.exa\tmple.com/a.png"} alt="" />`, 'no-remote-request', hosts],
+    ['a leading space', `<img src=" ${CDN}" alt="" />`, 'no-remote-request', hosts],
+    ['a leading control character', String.raw`<img src={"\u0001https://cdn.example.com/a.png"} alt="" />`, 'no-remote-request', hosts],
+    ['a template glued to the host', '<img src={`https://cdn.example.com${data.path}`} alt="" />', 'no-remote-request', hosts],
+    ['a concatenation glued to the host', '<img src={"https://cdn.example.com" + data.path} alt="" />', 'no-remote-request', hosts],
+    ['<img srcSet>', `<img srcSet="${CDN} 2x" alt="" />`, 'no-remote-request', hosts],
+    ['<video poster>', `<video poster="${CDN}" />`, 'no-remote-request', hosts],
+    ['<video src>', '<video src="https://cdn.example.com/a.mp4" />', 'no-remote-request', hosts],
+    ['<source src>', '<video><source src="https://cdn.example.com/a.mp4" /></video>', 'no-remote-request', hosts],
+    ['<form action>', '<form action="https://cdn.example.com/post" />', 'no-remote-request', hosts],
+    ['<button formAction>', '<button formAction="https://cdn.example.com/post" />', 'no-remote-request', hosts],
+    ['<iframe src>', '<iframe src="https://cdn.example.com/x" />', 'no-remote-request', hosts],
+    ['<link href>', '<link rel="preload" href="https://cdn.example.com/x.js" />', 'no-remote-request', hosts],
+    ['<a ping>', '<a href="/x" ping="https://cdn.example.com/p">x</a>', 'no-remote-request', hosts],
+    ['<a xlinkHref>', `<a xlinkHref="${CDN}">x</a>`, 'no-remote-request', hosts],
+    ['<image href> (svg)', `<svg><image href="${CDN}" /></svg>`, 'no-remote-request', hosts],
+    ['<img href> (not the attribute)', `<img href="${CDN}" alt="" />`, 'no-remote-request', hosts],
+    ['a component prop', `<Avatar src="${CDN}" />`, 'no-remote-request', hosts],
+    ['url() in style', `<div style={{ backgroundImage: "url(${CDN})" }} />`, 'no-remote-css', hosts],
+    ['url() in a Tailwind class', `<div className="bg-[url(${CDN})]" />`, 'no-remote-css', hosts],
+  ])('statically refused: %s', async (_name, jsx, rule, list) => {
+    expect(await rules(panel(jsx), { allowedHosts: list })).toContain(rule)
+  })
+
+  it('statically refused: assignments, setAttribute, fetch, new Image, import() and CSS files keep refusing listed hosts', async () => {
+    expect(await withHosts(inPanel(`const img = document.getElementById('x') as any; img.src = '${CDN}'`))).toContain('no-remote-request')
+    expect(await withHosts(inPanel(`document.body.setAttribute('src', '${CDN}')`))).toContain('no-remote-request')
+    expect(await withHosts(inPanel(`fetch('${CDN}')`))).toContain('no-remote-request')
+    expect(await withHosts(inPanel(`new Image().src = '${CDN}'`))).toContain('no-remote-request')
+    expect(await withHosts(inPanel(`import('https://cdn.example.com/x.js')`))).toContain('no-dynamic-import')
+    expect(cssRules('src/dynamic/a.css', `.x { background: url(${CDN}) }`, {}).map((e) => e.rule)).toEqual(['no-remote-css'])
+  })
+
+  it.each([
+    ['as written', CDN, CDN],
+    ['the default port written out', 'https://cdn.example.com:443/a.png', CDN],
+    ['upper case', 'https://CDN.Example.COM/a.png', CDN],
+    ['protocol-relative on an https page', '//cdn.example.com/a.png', CDN],
+    ['/\\host on an https page', '/\\cdn.example.com/a.png', CDN],
+    ['a backslash for the path', 'https://cdn.example.com\\a.png', CDN],
+    ['a backslash, then @evil (a path on the host)', 'https://cdn.example.com\\@evil.example/', 'https://cdn.example.com/@evil.example/'],
+    ['a tab in the host (the browser strips it)', 'https://cdn.exa\tmple.com/a.png', CDN],
+    ['surrounding whitespace', ' https://cdn.example.com/a.png\n', CDN],
+    ['percent-encoding that decodes to the host', 'https://cdn%2Eexample.com/a.png', CDN],
+    ['an IDN in Unicode, listed as punycode', 'https://bücher.example/a.png', 'https://xn--bcher-kva.example/a.png'],
+  ])('runtime keeps (canonical): %s', (_name, value, canonical) => {
+    expect(allowedHostUrl(value, hosts, page)).toBe(canonical)
+    expect(guardProps('img', { src: value }, page, { allowedHosts: hosts })).toEqual({ src: canonical })
+    expect(guardProps('a', { href: value }, page, { allowedHosts: hosts })).toEqual({ href: canonical })
+  })
+
+  it.each([
+    ['http:', 'http://cdn.example.com/a.png'],
+    ['user info after the host', 'https://cdn.example.com@evil.example/a.png'],
+    ['user info before the host', 'https://evil.example@cdn.example.com/a.png'],
+    ['user and password', 'https://u:p@cdn.example.com/a.png'],
+    ['a longer host', 'https://cdn.example.com.evil.example/a.png'],
+    ['the host in the path', 'https://evil.example/cdn.example.com/a.png'],
+    ['the host in the query', 'https://evil.example/?u=https://cdn.example.com/'],
+    ['another port', 'https://cdn.example.com:8443/a.png'],
+    ['a trailing dot', 'https://cdn.example.com./a.png'],
+    ['a comma in the host', 'https://cdn.example.com,evil.example/a.png'],
+    ['an encoded @ in the host', 'https://cdn.example.com%40evil.example/'],
+    ['an encoded / in the host', 'https://cdn.example.com%2F.evil.example/'],
+    ['a backslash before @host', 'https://evil.example\\@cdn.example.com/'],
+    ['a look-alike (Cyrillic a)', 'https://cdn.exаmple.com/a.png'],
+    ['an IDN not listed', 'https://bucher.example/a.png'],
+    ['javascript:', 'javascript:alert(1)'],
+    ['data:', 'data:image/png;base64,AAAA'],
+    ['blob: of the host', 'blob:https://cdn.example.com/1'],
+    ['wss:', 'wss://cdn.example.com/'],
+    ['a relative path (same origin, not a listed host)', '/a.png'],
+  ])('runtime refuses as an external URL: %s', (_name, value) => {
+    expect(allowedHostUrl(value, hosts, page)).toBeUndefined()
+  })
+
+  it('runtime: protocol-relative on an http page is http: and refused; without allowedHosts nothing external is kept', () => {
+    const http: PageOrigin = { origin: 'http://app.example', base: 'http://app.example/' }
+    expect(allowedHostUrl('//cdn.example.com/a.png', hosts, http)).toBeUndefined()
+    expect(guardProps('img', { src: CDN }, page)).toEqual({})
+    expect(guardProps('img', { src: CDN }, page, { allowedHosts: [] })).toEqual({})
+    expect(allowedHostUrl(CDN, [], page)).toBeUndefined()
+  })
+
+  it('runtime: only <img src>/srcSet and <a href> get listed hosts; every other element and prop keeps the same-origin rule', () => {
+    const g = (type: string, props: Record<string, unknown>) => guardProps(type, props, page, { allowedHosts: hosts })
+    expect(g('img', { srcSet: `${CDN} 1x, https://cdn.example.com/b.png 2x`, alt: '' })).toEqual({ srcSet: `${CDN} 1x, https://cdn.example.com/b.png 2x`, alt: '' })
+    expect(g('img', { srcSet: `/a.png 1x, ${CDN} 2x` })).toEqual({ srcSet: `/a.png 1x, ${CDN} 2x` })
+    expect(g('img', { srcSet: `${CDN} 1x, https://evil.example/b.png 2x` })).toEqual({})
+    // the HTML parser reads "https://cdn.example.com,evil.example/a.png" as one URL on another host
+    expect(g('img', { srcSet: 'https://cdn.example.com,evil.example/a.png 2x' })).toEqual({})
+    expect(g('img', { srcSet: `${CDN} 1x (, https://evil.example/b.png 2x)` })).toEqual({})
+    expect(g('a', { href: CDN, ping: 'https://cdn.example.com/p', children: 'x' })).toEqual({ href: CDN, children: 'x' })
+    for (const [type, props] of [
+      ['video', { src: CDN, poster: CDN }],
+      ['source', { src: CDN, srcSet: `${CDN} 2x` }],
+      ['form', { action: CDN }],
+      ['button', { formAction: CDN }],
+      ['iframe', { src: CDN }],
+      ['script', { src: CDN }],
+      ['link', { href: CDN, imageSrcSet: `${CDN} 2x` }],
+      ['image', { href: CDN }],
+      ['a', { xlinkHref: CDN }],
+      ['img', { href: CDN, data: CDN }],
+      ['object', { data: CDN }],
+    ] as [string, Record<string, unknown>][]) {
+      expect(g(type, props), type).toEqual({})
+    }
+    expect(g('div', { style: { backgroundImage: `url(${CDN})`, color: 'red' } })).toEqual({ style: { color: 'red' } })
+    expect(g('img', { src: 'http://cdn.example.com/a.png' })).toEqual({})
+    const Avatar = () => null
+    expect(g(Avatar as unknown as string, { src: CDN })).toEqual({ src: CDN })
+  })
+
+  it('runtime: an opaque page (isolated frame) keeps an absolute listed URL, still nothing relative', () => {
+    const opaque: PageOrigin = { origin: 'null', base: 'about:srcdoc' }
+    expect(guardProps('img', { src: CDN }, opaque, { allowedHosts: hosts })).toEqual({ src: CDN })
+    expect(guardProps('img', { src: '/a.png' }, opaque, { allowedHosts: hosts })).toEqual({})
+    expect(guardProps('img', { src: '//cdn.example.com/a.png' }, opaque, { allowedHosts: hosts })).toEqual({})
+  })
+
+  it('runtime: jsx, createElement, cloneElement and the externals registry carry the list; react-dom hints never get it', () => {
+    vi.stubGlobal('location', { origin: page.origin, href: page.base })
+    const seen: unknown[] = []
+    const jsx = guardModule('react/jsx-runtime', { jsx: (_t: unknown, p: unknown) => seen.push(p), jsxs: () => null }, { allowedHosts: hosts }).jsx as (t: unknown, p: unknown) => void
+    jsx('img', { src: 'https://CDN.example.com/a.png', alt: '' })
+    jsx('video', { poster: CDN })
+    const react = guardModule('react', { createElement: (_t: unknown, p: unknown) => seen.push(p), cloneElement: (_e: unknown, p: unknown) => seen.push(p) }, { allowedHosts: hosts })
+    ;(react.createElement as (t: unknown, p: unknown) => void)('a', { href: CDN })
+    ;(react.cloneElement as (e: unknown, p: unknown) => void)({ type: 'img' }, { src: CDN })
+    ;(react.cloneElement as (e: unknown, p: unknown) => void)({ type: 'iframe' }, { src: CDN })
+    expect(seen).toEqual([{ src: CDN, alt: '' }, {}, { href: CDN }, { src: CDN }, {}])
+    const loaded: unknown[] = []
+    const dom = guardModule('react-dom', { preinit: (h: unknown) => loaded.push(h), preload: (h: unknown) => loaded.push(h), preconnect: (h: unknown) => loaded.push(h) }, { allowedHosts: hosts })
+    ;(dom.preinit as (h: string) => void)('https://cdn.example.com/x.js')
+    ;(dom.preload as (h: string) => void)(CDN)
+    ;(dom.preconnect as (h: string) => void)('https://cdn.example.com')
+    expect(loaded).toEqual([])
+    const out: unknown[] = []
+    const registry = installExternals({ 'react/jsx-runtime': { jsx: (_t: unknown, p: unknown) => out.push(p), jsxs: () => null } }, 'allowed-hosts-test', { allowedHosts: hosts })
+    ;(registry.require('react/jsx-runtime') as { jsx: (t: unknown, p: unknown) => void }).jsx('img', { src: CDN })
+    ;(registry.require('react/jsx-runtime') as { jsx: (t: unknown, p: unknown) => void }).jsx('img', { src: 'https://evil.example/a.png' })
+    expect(out).toEqual([{ src: CDN }, {}])
+    expect(normalizeAllowedHosts(undefined)).toEqual([])
+    expect(normalizeAllowedHosts(['CDN.example.com', 'cdn.example.com'])).toEqual(['cdn.example.com'])
   })
 })
