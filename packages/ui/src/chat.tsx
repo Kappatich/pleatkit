@@ -266,6 +266,12 @@ export function PleatkitChat({
         update(id, { status: 'clarify', clarify: result.clarify, origin: { request: trimmed, attached } })
         return
       }
+      // `restore` (DECISIONS 82.2): "put it back like it was" needs no model: open the timetable with its Restore buttons
+      if ((result.verdict as string) === 'restore') {
+        update(id, { status: 'nothing', summary: tr('chat.restoreSummary') })
+        setShowHistory(true)
+        return
+      }
       if (result.verdict === 'needs-backend') {
         update(id, { status: 'needs-backend', ...(result.backendQuote ? { quote: result.backendQuote } : {}), ...(result.backendNote ? { note: result.backendNote } : {}) })
         if (!open) toast(tr('toast.admin'), 'admin')
