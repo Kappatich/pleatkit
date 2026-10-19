@@ -14,56 +14,22 @@ and kept as that user's personal version, with undo, history and an admin who ca
 
 Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Progress and measurements: [`docs/DEVLOG.md`](docs/DEVLOG.md).
 
-**Measured numbers** (on the demo app, not estimates: stage 5, 2026-10-18; Claude Sonnet 5.5 at medium effort,
-prompt `2026-10-18.5a`, 14 eval tasks × 3, [`evals/REPORT-2026-10-18.md`](evals/REPORT-2026-10-18.md)): an edit
-costs **$0.011 median** ($0.014 for a new request, $0.027 at most), plus about $0.02 on the first request after 5 idle
-minutes while the prompt cache is written. It takes **5.1 s median and 8.0 s p95** from the request to a checked
-result on the agent server; the browser then loads the signed bundle in under 0.1 s. Requests answered without an edit
-(needs the server, a question back, off-topic) take 1.4 s and $0.0003. 27 of 27 edits passed the check on the first
-try, with a median of one model call. The demo has three panels; a larger app has a larger cached prefix (7.5k tokens
-here) and costs more per edit.
-
-**Measured on two foreign apps** (not ours: stage 5 block 2, 2026-10-18; open-source admin templates
-shadcn-admin and TailAdmin with pleatkit installed by the customer docs, Vite 8; Claude Sonnet 5.5, prompt
-`2026-10-18.5d`, 35 tasks × 2, [`evals/REPORT-2026-10-18-foreign.md`](evals/REPORT-2026-10-18-foreign.md)): **69 of 70
-runs pass** every check, including the rendered result in a headless browser; 51 of 51 edits passed on the first try
-with a median of one model call (the first series on these apps passed 58 of 70; the classifier fixes it led to are in
-the report). An edit costs **$0.026 median** ($0.059 at most) and takes **4.8 s median, 7.3 s p95**:
-these apps send 13k to 34k cached prompt tokens per edit against the demo's 7.7k. On the demo with the same prompt
-an edit takes 3.9 s median since the classifier and the editor model start together. Claude Haiku 5.5 as the editor
-(`PLEATKIT_MODEL=claude-haiku-5-5`) costs about a tenth ($0.003 median per edit on these apps) and passed 33 of 35
-there (42 of 42 on the demo); Sonnet 5.5 stays the default.
-
-**Stage 5 block 3** (prompt `2026-10-18.5f`, 35 tasks × 1 on the same apps, [report](evals/REPORT-2026-10-18-foreign.md#block-3)):
-**35 of 35** pass. The cached prompt now holds only the declarations the panels reach: shadcn-admin's prefix is
-**13.1k tokens** (was 33.8k), TailAdmin's 6.0k (was 12.8k), the demo's 6.2k (was 7.7k), counted by the API. The cost of
-an edit on these apps went from $0.037 to **$0.033 median** (first trials compared). Edits are now type-checked in the
-agent loop by default, which adds about 1.5 to 3 s on shadcn-admin (its TanStack and Recharts types) and nothing
-noticeable on TailAdmin: **4.9 s → 7.4 s** median there, 4.9 s on TailAdmin. A request the classifier answers alone now
-reports the cancelled early call it paid for: $0.0001 to $0.03 instead of the $0.0003 shown before.
-
-Stage 5 block 4 ([report](evals/REPORT-2026-10-19.md)): the first call of an edit no longer writes the request's tail to
-the prompt cache, so a request the classifier answers alone costs **$0.0001** again (it was $0.03 on shadcn-admin) and
-a one-call edit there $0.026 to $0.031; 30 of 30 attacks of the new red-team suite are refused, 5 of 5 edit chains
-(with an edit taken back from the middle) pass, and a visual-quality judge (Claude Haiku 5.5, $0.00024 per judgement)
-says a designer would accept 19 of 23 edits on 20 "awkward" requests written as irritated users write them.
-
-Stage 5 block 5 ([report](evals/REPORT-2026-10-19-block5.md)): two more apps (an Ant Design dashboard on Vite 5 and
-pnpm 9, and a CSS-modules dashboard without Tailwind) were installed **blind** by fresh coding agents that saw only
-`docs/for-agents/`; their 16 tasks pass **32 of 32** live. Every edit sends the whole dynamic zone, so its size sets the
-price: **$0.0085 + $0.026 per 1,000 lines** with Sonnet 5.5 (shadcn-admin: $0.010 with one panel, $0.030 with all
-seven), and `pleatkit doctor` warns over 450 lines. A warm type check cut shadcn-admin's edit from **8.4 s to 4.8 s
-median**. `pleatkit init --suggest` drafts the zones, externals and readonly modules from the import graph: 0 manual
-edits left to the configuration on all four foreign apps.
-
-Stage 5 block 6 ([report](evals/REPORT-2026-10-19-block6.md)): when the user points at a panel, an edit now sends only
-that panel's files and what they import: on a 7-file zone **$0.030 → $0.012 median** per edit, 5 of 5 passing either way.
-The system prefix is cached for an hour, which made six demo edits 20 minutes apart 18 % cheaper ($0.164 → $0.135).
-Claude Haiku 5.5 as the editor passed **68 of 69** tasks at $0.001 to $0.003 per edit, the editor for a free tier.
-An optional classifier ensemble with TypeSafe's Jev routes as accurately as Haiku alone (304 and 305 of 318) and
-decides 46 % of requests in 0.3 s; it stays off by default because an edit's latency is the main model's.
-Edits are now contained in their panel's box (33 of 33 attacks refused), and `pnpm eval:weekly` replays every set and
-14 live tasks with an alert on drift.
+**Measured numbers, not estimates** (Claude Sonnet 5.5 at medium effort with prompt caching, stage 5, 2026-10-18/19;
+every run, transcript and report is in [`evals/`](evals/)). pleatkit was installed into four open-source admin
+templates that are not ours (shadcn-admin, TailAdmin, an Ant Design dashboard, a CSS-modules app without Tailwind), two
+of them blind by fresh coding agents that saw only [`docs/for-agents/`](docs/for-agents/). Across 450+ live runs on
+these apps and the demo, **98–100 %** of the requests pass every check, the rendered result in a headless browser
+included; **4–5 s median** per edit (p95 under 9 s); **$0.01–0.03** per edit on your key, growing with the editable
+zone's size (**$0.0085 + $0.026 per 1,000 lines**; `pleatkit doctor` tells you the expected price before the first
+request). Requests that are not edits (server work, a question back, off-topic) cost **$0.0001**. Claude Haiku 5.5 as
+the editor (`PLEATKIT_MODEL=claude-haiku-5-5`) passes **68 of 69** at $0.001–0.003 per edit, slower (p95 up to 25 s):
+the editor for a free tier. **33 of 33** red-team attacks are refused; a screenshot judge (Haiku, $0.0002 per
+judgement) says a designer would accept about 80 % of edits made from deliberately awkward requests. Reports by
+block: [block 1](evals/REPORT-2026-10-18.md) (demo), [block 2–3](evals/REPORT-2026-10-18-foreign.md) (foreign apps,
+the classifier, trimmed context), [block 4](evals/REPORT-2026-10-19.md) (judge, red team, chains, money),
+[block 5](evals/REPORT-2026-10-19-block5.md) (blind installs, cost by zone size, warm type check),
+[block 6](evals/REPORT-2026-10-19-block6.md) (pointed-panel tail, cache TTL, Haiku, the optional Jev ensemble, the
+weekly drift check).
 
 ## Packages
 
