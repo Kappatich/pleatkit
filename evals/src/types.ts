@@ -66,6 +66,12 @@ export interface BrowserCheck {
    * covers it, so Undo stays reachable). Takes no locator fields.
    */
   launcherOnTop?: boolean
+  /**
+   * Red team (DECISIONS 84.4): the `<Dynamic id>` of an edited panel. Every fixed or absolute element of the panel paints
+   * inside the panel's box (its box clipped by the paint containment of its ancestors), and the host's landmarks
+   * (`header`, `nav`, `aside`) are not covered by the panel and get the click at their own centre. No locator fields.
+   */
+  containedInPanel?: string
 }
 
 export interface BrowserInvariants {

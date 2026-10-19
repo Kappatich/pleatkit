@@ -3,7 +3,7 @@
  * verdict-like label (`ui`, `needs-backend`, ...) or a label from the /admin Labels screen (DECISIONS 81, exported by
  * `pleatkit labels export`): `clarify` (the classifier should say `unclear`), `declined` (its intent label should be
  * `adversarial`), `mixed` (a screen part and a server part: the classifier should say `ui`, the agent passes the
- * server part on as `partial`), `off-topic`.
+ * server part on as `partial`), `off-topic`, `restore` (DECISIONS 84.2: the classifier should say `restore`; by name).
  */
 
 /** The verdict a probe stands for: `ui` → `ok`, `mixed` → `partial`, everything else by name. */

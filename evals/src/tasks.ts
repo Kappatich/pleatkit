@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { trustedInput, type TrustedInput } from '@pleatkit/agent'
+import { manifestPanels, trustedInput, type TrustedInput } from '@pleatkit/agent'
 import type { AgentImage, AgentRunRequest, AgentVerdict, FileMap, PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { APPS, isAppId, manifestFile, type AppId } from './apps.js'
 import type { EvalTask, FileRefMap } from './types.js'
@@ -65,8 +65,9 @@ export function validateTask(t: Partial<EvalTask>, file = '(task)'): string[] {
   for (const [name, map] of refs) for (const [k, v] of Object.entries(map ?? {})) if (!fs.existsSync(repoPath(v))) at(`${name}["${k}"]: ${v} does not exist`)
   for (const img of t.images ?? []) if (!fs.existsSync(repoPath(img))) at(`images: ${img} does not exist`)
   for (const [i, c] of (t.invariants?.browser?.checks ?? []).entries()) {
-    if (!c.launcherOnTop && !c.testid && c.byText === undefined && c.textMatches === undefined && !c.within && !c.panel && !c.selector && !c.role) at(`invariants.browser.checks[${i}] needs testid, byText, within or panel`)
+    if (!c.launcherOnTop && !c.containedInPanel && !c.testid && c.byText === undefined && c.textMatches === undefined && !c.within && !c.panel && !c.selector && !c.role) at(`invariants.browser.checks[${i}] needs testid, byText, within or panel`)
     if (c.panel && isAppId(t.app) && !Object.values(APPS[t.app].panels).flat().includes(c.panel)) at(`invariants.browser.checks[${i}].panel: ${c.panel} is not a panel of ${t.app}`)
+    if (c.containedInPanel && isAppId(t.app) && !Object.values(APPS[t.app].panels).flat().includes(c.containedInPanel)) at(`invariants.browser.checks[${i}].containedInPanel: ${c.containedInPanel} is not a panel of ${t.app}`)
   }
   const classRes = (t.invariants?.browser?.checks ?? []).flatMap((c) => [c.classMatches, c.textMatches, c.matches, c.name, c.css?.matches].filter((x): x is string => typeof x === 'string'))
   for (const re of [...(t.invariants?.forbidden ?? []), ...(t.invariants?.files ?? []).flatMap((f) => [...(f.mustMatch ?? []), ...(f.mustNotMatch ?? [])]), ...(t.invariants?.anyMustMatch ?? []), ...classRes]) {
@@ -155,6 +156,18 @@ export function prepareTask(task: EvalTask, manifest: PleatkitManifest, startFil
     ...(task.clarification ? { clarification: task.clarification } : {}),
     ...(migration ? { migration } : {}),
     ...(revert ? { revert } : {}),
+  }
+  // block 6 (DECISIONS 84.5, 17 §14): `--point` (PLEATKIT_EVAL_POINT=1) points at the panel the task's reference changes
+  // when the task points at none, as a user clicking the panel would; `--panel-shots <dir>` (PLEATKIT_EVAL_PANEL_SHOTS)
+  // attaches `<dir>/<task>.before.png` (the browser grader's "before" screenshot of that panel) as the target image
+  if (process.env.PLEATKIT_EVAL_POINT === '1' && !body.target && !migration && !revert) {
+    const ref = Object.keys(task.reference?.files ?? {}).find((p) => manifestPanels(manifest).includes(p))
+    if (ref) body.target = ref.replace(/^.*\//, '').replace(/\.\w+$/, '')
+  }
+  const shots = process.env.PLEATKIT_EVAL_PANEL_SHOTS
+  if (shots && body.target) {
+    const shot = path.join(shots, `${task.id}.before.png`)
+    if (fs.existsSync(shot)) body.targetImage = { mediaType: 'image/png', data: fs.readFileSync(shot).toString('base64'), name: path.basename(shot) }
   }
   const trusted = trustedInput(manifest, appId, body)
   const zone = Number(process.env.PLEATKIT_EVAL_ZONE_FILES ?? 0)

@@ -41,6 +41,12 @@ const value = (name: string) => {
 const only = value('only')?.split(',').filter(Boolean)
 /** Block 5 (brainstorm 17 §3): `--zone-files n` keeps n dynamic files in the zone (cost against zone size); replay a set with the same n. */
 if (value('zone-files')) process.env.PLEATKIT_EVAL_ZONE_FILES = value('zone-files')
+/** Block 6 (17 §21): `--pause <seconds>` between the tasks of a live record (the cache TTL profile). */
+if (value('pause')) process.env.PLEATKIT_EVAL_PAUSE_S = value('pause')
+/** Block 6: `--point` points at the reference's panel (the pointed-panel tail, DECISIONS 84.5); replay a set with the same flag. */
+if (flag('point')) process.env.PLEATKIT_EVAL_POINT = '1'
+/** Block 6 (17 §14): `--panel-shots <dir>` gives the pointed panel's "before" screenshot (<dir>/<task>.before.png) to the model. */
+if (value('panel-shots')) process.env.PLEATKIT_EVAL_PANEL_SHOTS = path.resolve(process.env.INIT_CWD ?? process.cwd(), value('panel-shots')!)
 const log = (line: string) => console.log(line)
 const rel = (p: string) => path.relative(REPO_ROOT, p).replace(/\\/g, '/')
 /** A path the user typed: relative to where pnpm was run (INIT_CWD), not to evals/ where the script runs. */

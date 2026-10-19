@@ -152,7 +152,25 @@ async function visualMeasure(page: Page, demo: boolean, panel: string | null): P
       m.nameless = nameless.length
       // 4. text contrast: parse rgb(a) and compute WCAG ratio; report only clearly low ( < 3.0 )
       const lum = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4) }
-      const rgb = (v: string): [number, number, number, number] | null => { const m = v.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1]!.split(',').map((x) => parseFloat(x)); return [p[0]!, p[1]!, p[2]!, p[3] ?? 1] }
+      // block 6: Tailwind 4's palette computes to oklch(), which the rgb() parse missed (a green badge then counted as
+      // white text on the white card: a false 1.0:1); any other CSS colour goes through a 1×1 canvas
+      const cv = document.createElement('canvas')
+      cv.width = cv.height = 1
+      const cx = cv.getContext('2d', { willReadFrequently: true })
+      const rgb = (v: string): [number, number, number, number] | null => {
+        const m = v.match(/^rgba?\(([^)]+)\)$/)
+        if (m) {
+          const p = m[1]!.split(/[\s,/]+/).filter(Boolean).map((x) => parseFloat(x))
+          return [p[0]!, p[1]!, p[2]!, p[3] ?? 1]
+        }
+        if (!cx || !v || v === 'transparent') return null
+        cx.clearRect(0, 0, 1, 1)
+        cx.fillStyle = 'rgba(0, 0, 0, 0)'
+        cx.fillStyle = v
+        cx.fillRect(0, 0, 1, 1)
+        const d = cx.getImageData(0, 0, 1, 1).data
+        return [d[0]!, d[1]!, d[2]!, d[3]! / 255]
+      }
       const bgOf = (el: Element): [number, number, number] => { for (let e: Element | null = el; e; e = e.parentElement) { const c = rgb(getComputedStyle(e).backgroundColor); if (c && c[3] > 0.3) return [c[0], c[1], c[2]] } return [255, 255, 255] }
       const ratio = (a: [number, number, number], b: [number, number, number]) => { const la = 0.2126 * lum(a[0]) + 0.7152 * lum(a[1]) + 0.0722 * lum(a[2]); const lb = 0.2126 * lum(b[0]) + 0.7152 * lum(b[1]) + 0.0722 * lum(b[2]); const [hi, lo] = la > lb ? [la, lb] : [lb, la]; return (hi + 0.05) / (lo + 0.05) }
       let worst = 21
@@ -204,6 +222,80 @@ async function runCheck(page: Page, c: BrowserCheck, problems: string[]): Promis
         return el.closest('[data-testid="mk-chat-open"]') || (el.getAttribute('data-testid') ?? '') === 'mk-chat-open' ? 'launcher' : `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(/\s+/).slice(0, 3).join('.') : ''}`
       }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
       if (top !== 'launcher') throw new Error(`Expected: the launcher on top at its centre, Received: ${top}`)
+    })
+    return
+  }
+  if (c.containedInPanel) {
+    const id = c.containedInPanel
+    await soft(problems, `contained in panel ${id}`, async () => {
+      const found = await page.evaluate((id) => {
+        type B = { l: number; t: number; r: number; b: number }
+        const wrapper = document.querySelector(`[data-pleatkit-id="${id}"]`)
+        if (!wrapper) return { error: 'the panel is not on the page' }
+        const of = (e: Element): B => { const x = e.getBoundingClientRect(); return { l: x.left, t: x.top, r: x.right, b: x.bottom } }
+        const empty = (x: B) => x.r - x.l <= 0 || x.b - x.t <= 0
+        // the panel's box: its root elements (the wrapper is `display: contents`)
+        const roots: Element[] = []
+        const collect = (el: Element) => {
+          for (const ch of Array.from(el.children)) {
+            const d = getComputedStyle(ch).display
+            if (d === 'contents') collect(ch)
+            else if (d !== 'none') roots.push(ch)
+          }
+        }
+        collect(wrapper)
+        const boxes = roots.map(of).filter((x) => !empty(x))
+        if (!boxes.length) return { error: 'the panel has no box' }
+        const panel = { l: Math.min(...boxes.map((x) => x.l)), t: Math.min(...boxes.map((x) => x.t)), r: Math.max(...boxes.map((x) => x.r)), b: Math.max(...boxes.map((x) => x.b)) }
+        const name = (e: Element) => `${e.tagName.toLowerCase()}${e.className && typeof e.className === 'string' ? '.' + e.className.split(/\s+/).slice(0, 3).join('.') : ''}`
+        const fmt = (x: B) => `[${Math.round(x.l)},${Math.round(x.t)} ${Math.round(x.r)},${Math.round(x.b)}]`
+        // 1. what every fixed/absolute element of the panel paints: its box clipped by each paint-contained ancestor
+        // (paint containment clips every descendant, whatever its position); it must lie inside the panel's box
+        const outside: string[] = []
+        let positioned = 0
+        for (const el of Array.from(wrapper.querySelectorAll('*')).slice(0, 5000)) {
+          const cs = getComputedStyle(el)
+          if (cs.position !== 'fixed' && cs.position !== 'absolute') continue
+          positioned++
+          if (cs.visibility === 'hidden') continue
+          let p = of(el)
+          for (let a = el.parentElement; a && !empty(p); a = a.parentElement) {
+            if (!/\b(paint|strict|content)\b/.test(getComputedStyle(a).contain)) continue
+            const c = of(a)
+            p = { l: Math.max(p.l, c.l), t: Math.max(p.t, c.t), r: Math.min(p.r, c.r), b: Math.min(p.b, c.b) }
+          }
+          if (empty(p)) continue
+          if (p.l < panel.l - 1 || p.t < panel.t - 1 || p.r > panel.r + 1 || p.b > panel.b + 1) outside.push(`${name(el)} paints ${fmt(p)}`)
+        }
+        // 2. the host's landmarks outside the panels are not covered by the panel and take the click at their centre
+        const covered: string[] = []
+        let landmarks = 0
+        const vw = window.innerWidth
+        const vh = window.innerHeight
+        for (const lm of Array.from(document.querySelectorAll('aside, nav, header, [data-slot="sidebar-container"]'))) {
+          if (lm.closest('[data-pleatkit-id], [data-testid="mk-chat"]')) continue
+          const st = getComputedStyle(lm)
+          const x = of(lm)
+          const v = { l: Math.max(0, x.l), t: Math.max(0, x.t), r: Math.min(vw, x.r), b: Math.min(vh, x.b) }
+          if (empty(v) || st.display === 'none' || st.visibility === 'hidden') continue
+          landmarks++
+          const at = (fx: number, fy: number) => document.elementFromPoint(v.l + (v.r - v.l) * fx, v.t + (v.b - v.t) * fy)
+          const centre = at(0.5, 0.5)
+          if (!centre || !lm.contains(centre)) covered.push(`${name(lm)} centre is ${centre ? name(centre) : 'nothing'}`)
+          for (const [fx, fy] of [[0.5, 0.5], [0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]] as const) {
+            const hit = at(fx, fy)
+            if (hit && wrapper.contains(hit)) {
+              covered.push(`${name(lm)} covered at (${fx}, ${fy}) by ${name(hit)}`)
+              break
+            }
+          }
+        }
+        return { positioned, outside, landmarks, covered, panel: fmt(panel) }
+      }, id)
+      if ('error' in found) throw new Error(`Expected: panel ${id} with a box, Received: ${found.error}`)
+      if (found.outside.length) throw new Error(`Expected: every fixed/absolute element painting inside the panel ${found.panel}, Received: ${found.outside.slice(0, 3).join('; ')}`)
+      if (!found.landmarks) throw new Error('Expected: at least one visible landmark (header, nav, aside) outside the panels, Received: none')
+      if (found.covered.length) throw new Error(`Expected: the host's landmarks uncovered and clickable, Received: ${found.covered.slice(0, 3).join('; ')}`)
     })
     return
   }

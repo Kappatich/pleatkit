@@ -17,7 +17,8 @@
     "summarize": "tsx src/summarize.ts",
     "cancel": "tsx src/cancel-probe.ts",
     "judge": "tsx src/cli.ts judge",
-    "chains": "tsx src/cli.ts chains"
+    "chains": "tsx src/cli.ts chains",
+    "weekly": "tsx src/weekly.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
