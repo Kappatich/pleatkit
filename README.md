@@ -42,6 +42,12 @@ agent loop by default, which adds about 1.5 to 3 s on shadcn-admin (its TanStack
 noticeable on TailAdmin: **4.9 s → 7.4 s** median there, 4.9 s on TailAdmin. A request the classifier answers alone now
 reports the cancelled early call it paid for: $0.0001 to $0.03 instead of the $0.0003 shown before.
 
+Stage 5 block 4 ([report](evals/REPORT-2026-10-19.md)): the first call of an edit no longer writes the request's tail to
+the prompt cache, so a request the classifier answers alone costs **$0.0001** again (it was $0.03 on shadcn-admin) and
+a one-call edit there $0.026 to $0.031; 30 of 30 attacks of the new red-team suite are refused, 5 of 5 edit chains
+(with an edit taken back from the middle) pass, and a visual-quality judge (Claude Haiku 5.5, $0.00024 per judgement)
+says a designer would accept 19 of 23 edits on 20 "awkward" requests written as irritated users write them.
+
 ## Packages
 
 | Package | What it does | Repo |
@@ -183,6 +189,8 @@ keep their `mk_live_` prefix: existing keys stay valid.
 | `PLEATKIT_API_KEY` | | model API key. With `PLEATKIT_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` / `POLYMORPH_API_KEY` are accepted too |
 | `PLEATKIT_MODEL` | `claude-sonnet-5-5` | main model (required for `openai-compatible`) |
 | `PLEATKIT_CLASSIFIER_MODEL` | `claude-haiku-5-5` | request classifier (ui / needs-backend / unclear) |
+| `PLEATKIT_CACHE_TAIL` | `after-first` | `after-first`: the first call of an edit caches only the system prompt (a one-call edit and a cancelled early call do not pay the 1.25× write of the request's tail); `always`: every call writes the tail, as before |
+| `PLEATKIT_CLASSIFIER` | `auto` | `parallel`: the classifier and the main model start together (an edit is ~1.3 s faster, the main call is cancelled when the classifier answers alone); `sequential`: the main model waits for the classifier; `auto`: per app, `sequential` while the classifier answered more than 50 % of the app's classified requests alone in the last 7 days (at least 20 of them; back to `parallel` at 45 %), history from store-server's request log when `PLEATKIT_STORE_URL` is set |
 | `PLEATKIT_BASE_URL` | SDK default | API base URL; for OpenRouter `https://openrouter.ai/api/v1` |
 | `PLEATKIT_EFFORT` | `medium` | Anthropic effort (`low` … `max`) |
 | `PLEATKIT_FALLBACKS` | on | `off` disables Anthropic server-side refusal fallback (`fallbacks: "default"`) |
@@ -218,7 +226,7 @@ Screenshots: the user can paste (Ctrl+V) or drop up to 3 images (6 MB in total, 
 
 Clarifying question: when the classifier finds a request ambiguous it returns one question with 2 to 4 answer buttons instead of guessing (no code is written and the big model is not called). The user clicks an answer or types one; the same request is sent again with the answer, the classifier is skipped, so an edit asks at most once.
 
-Static rules for the dynamic zone: one `check` (`@pleatkit/runtime/compiler`) runs on the agent server and, in `browser` compile mode, in the page, with the same AST rules (code review 06 item 12). It refuses `eval`, `new Function` and string timers; `document.cookie`; `dangerouslySetInnerHTML` / `innerHTML` / `outerHTML` / `insertAdjacentHTML` / `document.write` / `createElement` / `<script>` / `<style>` / `srcDoc`; network and navigation to anything but a relative URL written in the code: `fetch`, `WebSocket`, `EventSource`, `sendBeacon`, `src` / `href` / `action` / `formAction` / `srcSet` / `poster` in JSX, `.src = ` and `setAttribute`, `new Image()`, `location.* =`, `window.open`, `javascript:` URLs (`"/customers/" + id` is fine; a URL from data is allowed only in `src` / `href` / `poster` / `action` / `formAction` of a plain element, where the runtime keeps it only when it resolves to the app's own origin, and `mailto:` / `tel:` links from data are fine); `fetch` or globals used as values (`const f = fetch`, `fetch.call`, `const { cookie } = document`), computed access on globals (`window[x]`, `document['coo' + 'kie']`), `.constructor`; `localStorage` / `sessionStorage` / `indexedDB`; `window.top` / `parent` / `opener`; workers; `XMLHttpRequest`; `import()` of URLs or computed specifiers and imports outside the externals and the zone; absolute or computed `url()` in styles, strings and Tailwind classes (`bg-[url(https://…)]`). `.css` files of the zone are checked too: no remote `url()` or `@import`, no global selectors (`html`, `body`, `:root`, `*`) and nothing aimed at pleatkit's own UI. With `pleatkit({ protected: ['[data-consent]'] })` the listed elements must stay in their panels and must not be hidden. The context of the rules comes from the server's manifest (`PLEATKIT_MANIFEST`), not from the browser. A violation comes back to the model like a compile error (`file:line:col text [rule]`), is logged as a violation for the admin, and `finish` refuses to commit until it is fixed. The Content-Security-Policy is the second line: `img-src 'self' data:; form-action 'self'; connect-src 'self'` (see the CSP section).
+Static rules for the dynamic zone: one `check` (`@pleatkit/runtime/compiler`) runs on the agent server and, in `browser` compile mode, in the page, with the same AST rules (code review 06 item 12). It refuses `eval`, `new Function` and string timers; `document.cookie`; `dangerouslySetInnerHTML` / `innerHTML` / `outerHTML` / `insertAdjacentHTML` / `document.write` / `createElement` / `<script>` / `<style>` / `srcDoc`; network and navigation to anything but a relative URL written in the code: `fetch`, `WebSocket`, `EventSource`, `sendBeacon`, `src` / `href` / `action` / `formAction` / `srcSet` / `poster` in JSX, `.src = ` and `setAttribute`, `new Image()`, `location.* =`, `window.open`, `javascript:` URLs (`"/customers/" + id` is fine; a URL from data is allowed only in `src` / `href` / `poster` / `action` / `formAction` of a plain element, where the runtime keeps it only when it resolves to the app's own origin, and `mailto:` / `tel:` links from data are fine; with `pleatkit({ allowedHosts: ['images.example-cdn.com'] })`, `<img src>` / `srcSet` and `<a href>` may also point to those hosts over `https:`, from data or written in the code); `fetch` or globals used as values (`const f = fetch`, `fetch.call`, `const { cookie } = document`), computed access on globals (`window[x]`, `document['coo' + 'kie']`), `.constructor`; `localStorage` / `sessionStorage` / `indexedDB`; `window.top` / `parent` / `opener`; workers; `XMLHttpRequest`; `import()` of URLs or computed specifiers and imports outside the externals and the zone; absolute or computed `url()` in styles, strings and Tailwind classes (`bg-[url(https://…)]`). `.css` files of the zone are checked too: no remote `url()` or `@import`, no global selectors (`html`, `body`, `:root`, `*`) and nothing aimed at pleatkit's own UI. With `pleatkit({ protected: ['[data-consent]'] })` the listed elements must stay in their panels and must not be hidden. The context of the rules comes from the server's manifest (`PLEATKIT_MANIFEST`), not from the browser. A violation comes back to the model like a compile error (`file:line:col text [rule]`), is logged as a violation for the admin, and `finish` refuses to commit until it is fixed. The Content-Security-Policy is the second line: `img-src 'self' data:; form-action 'self'; connect-src 'self'` (see the CSP section).
 
 **How the Anthropic provider calls Claude:** official `@anthropic-ai/sdk`; `claude-haiku-5-5` classifies the
 request first with a structured output (backend work goes straight to the admin, the big model is not called;
@@ -255,7 +263,8 @@ CSP for `server` mode (checked in e2e with `?csp=strict-no-blob`: no `blob:`, no
 script-src 'self';                  # signed edits load from /pleatkit/b on the app's origin
 style-src 'self' 'unsafe-inline';   # runtime CSS of edits is a <style> element
 connect-src 'self';                 # agent server and store-server behind the same origin (or list them)
-img-src 'self' data:;               # the static rules refuse remote images; the CSP is the second line (05 #1)
+img-src 'self' data:;               # the static rules refuse remote images; the CSP is the second line (05 #1);
+                                    # with allowedHosts, add https://<each host> here and nowhere else (63.1)
 form-action 'self';                 # no form posts to another site, whatever an edit renders
 ```
 
@@ -376,7 +385,8 @@ host never starts, the panel shows an error after 15 s.
   and views one user at a time (`x-pleatkit-act-as`, `HttpStore({ viewer })`) without writing (403); only an admin
   may write as a user. Every such call, refused ones included, is in the audit chain with both ids.
   [docs/support-playbook.md](docs/support-playbook.md).
-- **Pilot report and wish map (C9).** `GET /v1/report?from&to` (CSV per day and organization); the wish map groups
+- **Pilot report and wish map (C9).** `GET /v1/report?from&to` (CSV per day and organization, per organization and in total,
+  with token cost, developer hours saved and cost per applied edit); the wish map groups
   the requests the panels could not serve into themes per panel with one classifier call (/admin → Wishes): at
   most 500 requests (the newest) and $0.50 per call by default (`PLEATKIT_WISHES_MAX_ITEMS`,
   `PLEATKIT_WISHES_BUDGET_USD`, or `pleatkit digest --wishes-max-items --wishes-budget-usd`); what does not fit the
