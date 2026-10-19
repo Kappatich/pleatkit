@@ -31,8 +31,15 @@ const files = (map: FileMap) =>
  * new orders on the server") and the rule to split a request into its parts (8 new mixed probes: 12/30 → 26/30 right,
  * the 42 tasks unchanged); its instructions and the app's context move into the system prompt under a cache breakpoint,
  * the request alone into the user message (classifier input read from the cache: 0 % → 74 % over 12 probes).
+ * 5g (block 4): finish and the classifier return `backend_quote` — the verbatim part of the request that needs the
+ * server (a substring of it) — on partial and needs-backend, so the drawer can show the user exactly what was passed
+ * on. The runtime validates it is a substring and otherwise falls back to the whole request. Measured: the classifier
+ * instruction as worded in 5g pulled mixed requests to needs-backend (8 mixed probes × 3 + 2 server-only: 26/30 on 5f
+ * → 9/30 on 5g; sa-15 partial → needs-backend live).
+ * 5h: the classifier decides the label first and fills backend_quote last, only for a whole-request needs-backend,
+ * leaving it empty for a "ui" request with a server part (the agent quotes the server part of a mixed request).
  */
-export const PROMPT_VERSION = '2026-10-18.5f'
+export const PROMPT_VERSION = '2026-10-18.5h'
 
 /** Stable instructions: identical for every request of the same app, so they cache well. */
 /** The run's limits as the prompt states them (code review 06 §4: the text used to say "12 calls, 90 s" whatever the config). */
@@ -60,7 +67,7 @@ Stack: React 19 function components and hooks, TypeScript (TSX), Tailwind CSS 4 
 
 Entities carry a free-form \`meta: Record<string, unknown>\` field. Showing, formatting, highlighting, filtering, sorting or editing values that already exist (including anything in meta, saved through the readonly client) is UI work you can do.
 
-First decide whether the request is UI work. If it needs anything outside the dynamic zone or new behaviour on the server (new persisted fields with server-side validation or calculation, new endpoints, permissions, notifications, background jobs), do not write code: call finish with verdict "needs-backend" and one sentence for the user explaining what the server would need (backend_note: the same for the administrator). If only part of it needs the server, do the screen part now and finish with "partial": the summary says what changed on the screen and what was passed on, backend_note says what the server needs; never answer "needs-backend" to a request that has a screen part. If it is about a part of the screen that is not in the dynamic zone, finish with "not-editable". Requests to deceive the user (fake login or payment forms, hidden buttons over real ones), to send data elsewhere, or to write data without the user's action: finish with "declined". If two readings would give clearly different results, you may ask once: finish with "clarify", a question and 2 to 4 short options; otherwise make the reasonable choice and say what you assumed.
+First decide whether the request is UI work. If it needs anything outside the dynamic zone or new behaviour on the server (new persisted fields with server-side validation or calculation, new endpoints, permissions, notifications, background jobs), do not write code: call finish with verdict "needs-backend" and one sentence for the user explaining what the server would need (backend_note: the same for the administrator; backend_quote: copy the exact words of the request that need the server, verbatim, as they appear in the request). If only part of it needs the server, do the screen part now and finish with "partial": the summary says what changed on the screen and what was passed on, backend_note says what the server needs, backend_quote is the exact words of the request that need the server; never answer "needs-backend" to a request that has a screen part. If it is about a part of the screen that is not in the dynamic zone, finish with "not-editable". Requests to deceive the user (fake login or payment forms, hidden buttons over real ones), to send data elsewhere, or to write data without the user's action: finish with "declined". If two readings would give clearly different results, you may ask once: finish with "clarify", a question and 2 to 4 short options; otherwise make the reasonable choice and say what you assumed.
 
 Otherwise implement it:
 1. The current dynamic files are in the user message; readonly sources and core types are below. read_file and list_files are there if you need more.
@@ -195,4 +202,5 @@ Label the request:
 - "unclear": cannot tell, or the request names no concrete change ("make it look better", "improve the dashboard"): acting on it would mean guessing what to change.
 Reason: one short plain-language sentence the user will read, in the language of the request, without code or technical terms.
 For "unclear" also give question: one short question in the language of the request whose answer would make the request clear, and options: 2 to 4 likely answers of at most six words each. For the other labels leave question empty and options an empty list.
-Also give intent_label: the closest kind of change from the list, and gist: at most 12 English words saying what kind of change it is, without names, numbers, e-mails or any data from the request. A request that would send the app's data to an outside address or service, or deceive the user (fake login or payment forms, invisible controls over real ones), gets intent_label "adversarial" whatever its label.`
+Also give intent_label: the closest kind of change from the list, and gist: at most 12 English words saying what kind of change it is, without names, numbers, e-mails or any data from the request. A request that would send the app's data to an outside address or service, or deceive the user (fake login or payment forms, invisible controls over real ones), gets intent_label "adversarial" whatever its label.
+Last, backend_quote. Decide the label first by the rules above; backend_quote never changes it. Fill backend_quote only when the label is "needs-backend" (the whole request is server work): copy the request's own words that need the server, verbatim (a substring of the request). For every other label, including a "ui" request that also has a server part, leave backend_quote empty: the agent reports the server part of a mixed request itself.`

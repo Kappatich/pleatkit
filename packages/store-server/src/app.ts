@@ -14,7 +14,7 @@ import { idempotencyMiddleware } from './idempotency.js'
 import { eraseSubject, tombstoneId } from './erase.js'
 import { attachExtensions, type ExtensionContext, type StoreDb, type StoreEnv, type StoreExtension } from './extension.js'
 import { appendAudit, EVENT_TYPES, markEditorActive, recordEvent, verifyAuditChain, type EventType } from './ledger.js'
-import { buildReport, parseRange, reportCsv } from './report.js'
+import { buildReport, DEFAULT_MINUTES_PER_EDIT, MAX_MINUTES_PER_EDIT, parseMinutesPerEdit, parseRange, reportCsv } from './report.js'
 import { grepError, grepSnapshots, planSelectionRollback } from './selection.js'
 import * as schema from './schema.js'
 import { agentRuns, appPlans, appSettings, audit, bundleFiles, events, heads, quotaBuckets, releaseItems, releases, requests, snapshots, wishMaps, type WishCluster } from './schema.js'
@@ -42,6 +42,11 @@ export interface StoreAppOptions {
   environment?: string
   /** Largest request body, bytes (`PLEATKIT_STORE_BODY_LIMIT`). Default 4 MiB. */
   bodyLimitBytes?: number
+  /**
+   * DECISIONS 75 Р4: minutes one applied edit saves a developer, for the report's `dev_hours_saved`
+   * (`PLEATKIT_REPORT_MINUTES_PER_EDIT`). Default 20; the report's `minutesPerEdit` query parameter wins.
+   */
+  reportMinutesPerEdit?: number
   /**
    * DECISIONS 70.1: modules on top of the open core (the managed cloud's `@pleatkit/store-cloud`): their tables,
    * routes, jobs and hooks. None by default.
@@ -484,6 +489,35 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json(planOf(who.appId))
   })
 
+  /**
+   * DECISIONS 75 Р5: the classifier's record of the app since `sinceMs` (at most 7 days back), in hourly buckets, so
+   * the agent server can pick parallel or sequential per app. `classified`: requests where the classifier ran
+   * (`timings.classifyMs` set); `alone`: of those, the ones it answered alone (a needs-backend, clarify, refused or
+   * declined verdict with an empty tool log: the main model was not used). Mirrors `answeredByClassifierAlone` in
+   * @pleatkit/agent. Agent server or admin.
+   */
+  api.get('/classifier-stats', (c) => {
+    const who = caller(c)
+    if (!who.agent && !who.admin) return c.json({ error: 'forbidden' }, 403)
+    const week = 7 * 24 * 60 * 60 * 1000
+    const asked = Number(c.req.query('sinceMs'))
+    const sinceMs = Math.max(Date.now() - week, Number.isFinite(asked) ? asked : 0)
+    const hour = 60 * 60 * 1000
+    const buckets = db
+      .select({
+        // integer division in SQL (a bound number would be a REAL)
+        hourMs: sql<number>`(${requests.createdAtMs} / ${sql.raw(String(hour))}) * ${sql.raw(String(hour))}`,
+        classified: sql<number>`count(*)`,
+        alone: sql<number>`sum(CASE WHEN ${requests.verdict} IN ('needs-backend', 'clarify', 'refused', 'declined') AND json_array_length(${requests.log}) = 0 THEN 1 ELSE 0 END)`,
+      })
+      .from(requests)
+      .where(and(eq(requests.appId, who.appId), gte(requests.createdAtMs, sinceMs), sql`json_extract(${requests.timings}, '$.classifyMs') IS NOT NULL`))
+      .groupBy(sql`1`)
+      .orderBy(sql`1`)
+      .all()
+    return c.json({ sinceMs, bucketMs: hour, buckets: buckets.map((b) => ({ hourMs: Number(b.hourMs), classified: Number(b.classified), alone: Number(b.alone ?? 0) })) })
+  })
+
   // --- request log ---
 
   api.post('/requests', async (c) => {
@@ -813,13 +847,19 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
 
   // --- C9: the pilot report ---
 
-  /** `GET /v1/report?from=YYYY-MM-DD&to=YYYY-MM-DD` as CSV (`&format=json` for the same rows as JSON). Admin. */
+  /**
+   * `GET /v1/report?from=YYYY-MM-DD&to=YYYY-MM-DD` as CSV (`&format=json` for the same rows as JSON). Admin.
+   * `&minutesPerEdit=N` overrides the minutes one applied edit saves (`dev_hours_saved`, DECISIONS 75 Р4).
+   */
   api.get('/report', (c) => {
     const who = caller(c)
     if (!who.admin) return c.json({ error: 'admin only' }, 403)
     const range = parseRange(c.req.query('from'), c.req.query('to'))
     if ('error' in range) return c.json({ error: range.error }, 400)
-    const report = buildReport(db, who.appId, range.fromMs, range.toMs)
+    const askedMinutes = c.req.query('minutesPerEdit')
+    const minutesPerEdit = askedMinutes === undefined ? (options.reportMinutesPerEdit ?? DEFAULT_MINUTES_PER_EDIT) : parseMinutesPerEdit(askedMinutes)
+    if (minutesPerEdit === null) return c.json({ error: `minutesPerEdit must be a number above 0 and at most ${MAX_MINUTES_PER_EDIT}` }, 400)
+    const report = buildReport(db, who.appId, range.fromMs, range.toMs, { minutesPerEdit })
     audited(who, 'report', 'app', who.appId, { from: report.from, to: report.to, rows: report.rows.length })
     if (c.req.query('format') === 'json') return c.json(report)
     const name = `pleatkit-report-${who.appId}-${report.from.slice(0, 10)}-${new Date(range.toMs - 1).toISOString().slice(0, 10)}.csv`.replace(/[^\w.-]/g, '_')

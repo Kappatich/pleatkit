@@ -63,7 +63,7 @@ describe('one clarifying question (stage 3b)', () => {
       )
     }) as typeof globalThis.fetch
     const r = await runAgent(request('change it'), new AnthropicProvider({ apiKey: 'k', baseURL: 'http://anthropic.test', fetch }), { classifierMode: 'sequential' })
-    expect(calls[0].output_config.format.schema.required).toEqual(['label', 'reason', 'question', 'options', 'intent_label', 'gist'])
+    expect(calls[0].output_config.format.schema.required).toEqual(['label', 'reason', 'question', 'options', 'intent_label', 'gist', 'backend_quote'])
     expect(calls).toHaveLength(1)
     expect(r.clarify).toEqual({ question: 'Which part should change?', options: ['The card', 'The table'] })
   })

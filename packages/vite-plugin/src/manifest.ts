@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import picomatch from 'picomatch'
 import ts from 'typescript'
 import { globSync } from 'tinyglobby'
-import { validateZoneGlob } from '@pleatkit/runtime/compiler'
+import { normalizeAllowedHosts, validateZoneGlob } from '@pleatkit/runtime/compiler'
 import { buildAgentContext, DEFAULT_CONTEXT_CAP_TOKENS, type AgentContext } from './context.js'
 import { emitDeclarations } from './declarations.js'
 import { tailwindInput } from './tailwind.js'
@@ -56,6 +56,13 @@ export interface PleatkitOptions {
    */
   protected?: string[]
   /**
+   * DECISIONS 63.1: other hosts that images and links of edits may point to: `['images.example-cdn.com']`. Only
+   * `<img src>`/`srcSet` and `<a href>`, only `https:` on the default port. Exact host names (no scheme, path, port or
+   * wildcard; list each subdomain); lower-cased, IDN as punycode. Add each to the CSP's `img-src`
+   * (`img-src 'self' https://images.example-cdn.com`). Default: none, URLs stay on the app's origin.
+   */
+  allowedHosts?: string[]
+  /**
    * Run every edited panel in the sandboxed iframe (code review 06 item 8). Default false: same realm (faster;
    * the static rules and the CSP are the boundary). Needs `isolated: true`.
    */
@@ -94,6 +101,8 @@ export interface PleatkitManifest {
   css?: { mode: 'tailwind' | 'palette'; input?: string; hash: string }
   /** Selectors of elements edits must keep visible (brainstorm 05 #20). */
   protected?: string[]
+  /** DECISIONS 63.1: hosts `<img src>` and `<a href>` of edits may point to over https (normalized). */
+  allowedHosts?: string[]
   /** Design-system digest for the agent, one line per component (brainstorm 05 #10). */
   designSystem?: { digest: string; docs?: string }
   /** Data contracts for the agent: types and client methods of the readonly zone (brainstorm 04 §1). */
@@ -137,6 +146,15 @@ export function normalizeZones(globs: string[], kind: 'dynamic' | 'readonly'): s
   })
 }
 
+/** `allowedHosts` validated and normalized; a bad entry is an error at startup, not a host silently ignored. */
+function allowedHostsOption(list: string[] | undefined): string[] {
+  try {
+    return normalizeAllowedHosts(list)
+  } catch (e) {
+    throw new Error(`[pleatkit] ${(e as Error).message}`)
+  }
+}
+
 export function resolveOptions(options: PleatkitOptions) {
   return {
     dynamic: normalizeZones(options.zones.dynamic, 'dynamic'),
@@ -151,6 +169,7 @@ export function resolveOptions(options: PleatkitOptions) {
     publicKey: options.publicKey ?? process.env.PLEATKIT_PUBLIC_KEY ?? null,
     lazyExternals: options.lazyExternals ?? true,
     protected: options.protected ?? [],
+    allowedHosts: allowedHostsOption(options.allowedHosts),
     isolateEdits: options.isolateEdits ?? false,
     sendDomText: options.sendDomText ?? false,
     designSystem: options.designSystem ?? null,
@@ -273,6 +292,7 @@ export function buildManifest(root: string, options: PleatkitOptions): PleatkitM
     alias: o.alias,
     css: cssInfo(root, o.css, o.tailwindEntry),
     ...(o.protected.length ? { protected: o.protected } : {}),
+    ...(o.allowedHosts.length ? { allowedHosts: o.allowedHosts } : {}),
     ...digests(root, o, readonly, coreTypes, agentContext),
     ...(agentContext ? { agentContext } : {}),
   }

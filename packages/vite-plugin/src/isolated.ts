@@ -27,7 +27,7 @@ export async function buildIsolatedHost(root: string, manifest: PleatkitManifest
   const entry = [
     ...imports,
     `import { startIsolatedHost } from '@pleatkit/runtime/isolated-host'`,
-    `startIsolatedHost({ externals: { ${externals.join(', ')} }, fallback: { ${fallback.join(', ')} }, dynamicRoots: ${JSON.stringify(manifest.dynamicRoots)} })`,
+    `startIsolatedHost({ externals: { ${externals.join(', ')} }, fallback: { ${fallback.join(', ')} }, dynamicRoots: ${JSON.stringify(manifest.dynamicRoots)}${manifest.allowedHosts?.length ? `, allowedHosts: ${JSON.stringify(manifest.allowedHosts)}` : ''} })`,
   ].join('\n')
 
   const resolveFromApp: EsbuildPlugin = {

@@ -1,4 +1,5 @@
-import type { AgentImage, RequestClass, TokenUsage } from '@pleatkit/runtime/compiler'
+import type { AgentImage, PleatkitManifest, RequestClass, TokenUsage } from '@pleatkit/runtime/compiler'
+import type { PromptTokenCount } from './prefix.js'
 import type { ClusterInput, ClusterOutput } from './wishes.js'
 
 /** JSON schema of a tool's input. Every tool is strict: all properties required, no extra ones. */
@@ -93,6 +94,8 @@ export interface Classification {
   /** DECISIONS 44: one of the closed list of request labels, and at most 12 words without names or numbers. */
   intentLabel?: string
   gist?: string
+  /** Block 4: for `needs-backend`, the verbatim part of the request that needs the server (a substring of it). */
+  backendQuote?: string
   usage: TokenUsage | null
   model: string | null
 }
@@ -111,5 +114,10 @@ export interface ModelProvider {
   cluster?(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput>
   /** The model `cluster` calls, so its cost can be estimated before the call (DECISIONS 70.3). */
   readonly clusterModel?: string
+  /**
+   * DECISIONS 75 Р2: the app's prompt counted by the provider's token counter (Anthropic's `count_tokens`, free), for
+   * the expected cost of an edit on /admin. Optional: without it the agent server estimates from characters.
+   */
+  countPromptTokens?(manifest: PleatkitManifest): Promise<PromptTokenCount>
   start(prompt: PromptParts, tools: ToolSpec[], meta: { request: string }): ModelSession
 }

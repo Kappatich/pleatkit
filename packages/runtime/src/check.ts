@@ -43,6 +43,8 @@ export interface CheckContext {
   protected?: string[]
   /** The release's original dynamic files: protected elements are counted there. */
   base?: FileMap
+  /** DECISIONS 63.1: hosts a literal `https://<host>/…` in `<img src>` or `<a href>` may name (normalized, exact). */
+  allowedHosts?: string[]
 }
 
 /** The esbuild call the check needs (native esbuild and esbuild-wasm both have it). */
@@ -161,6 +163,11 @@ const MAIL = /^(mailto|tel):/i
  * written in the code is still refused here.
  */
 const GUARDED_URL_ATTRS = new Set(['src', 'href', 'poster', 'action', 'formaction'])
+/**
+ * DECISIONS 63.1: `https://<host>` followed by `/` or the end, the host written exactly as listed in `allowedHosts`
+ * (lower case; no port, user info, escapes, whitespace or trailing dot: anything else fails the match and is refused).
+ */
+const ALLOWED_HOST_URL = /^https:\/\/([a-z0-9.-]+)(\/|$)/
 /** Element properties and attributes that make the browser load or navigate to a URL. */
 const URL_ATTRS = new Set(['src', 'href', 'action', 'formaction', 'srcset', 'poster', 'data', 'ping', 'background', 'xlink:href', 'xlinkhref', 'cite', 'codebase', 'manifest', 'imagesrcset'])
 const BANNED_TAGS = new Set(['script', 'style', 'object', 'embed', 'base', 'meta', 'applet', 'frame', 'frameset', 'portal'])
@@ -284,7 +291,7 @@ function urlParts(n: N): { text: string; computed: boolean } | null {
 }
 
 /** A URL the browser will load or navigate to: relative and written in the code, or the edit is refused. */
-function checkUrl(report: Report, node: N, value: N | undefined | null, what: string, opts: { allowMail?: boolean; guarded?: boolean } = {}): void {
+function checkUrl(report: Report, node: N, value: N | undefined | null, what: string, opts: { allowMail?: boolean; guarded?: boolean; hosts?: string[] } = {}): void {
   if (!value) return
   if (value.type === 'Identifier' && value.name === 'undefined') return
   if (value.type === 'Literal' && (value.value === null || value.value === undefined)) return
@@ -301,6 +308,10 @@ function checkUrl(report: Report, node: N, value: N | undefined | null, what: st
   if (!parts) return report(node, 'no-computed-url', `${what} with a URL computed at run time is not allowed: ${HINT.url}`)
   if (JS_URL.test(parts.text)) return report(node, 'no-computed-url', `${what} with a javascript: URL is not allowed`)
   if (opts.allowMail && MAIL.test(parts.text)) return
+  // 63.1: an allowed host written in the code; a computed rest must come after the host's closing `/`
+  // (`https://cdn.example${x}` could go on as `.evil.example` or `@evil.example`)
+  const host = opts.hosts?.length ? ALLOWED_HOST_URL.exec(parts.text) : null
+  if (host && opts.hosts!.includes(host[1]!) && (!parts.computed || host[2] === '/')) return
   if (ABSOLUTE_URL.test(parts.text)) return report(node, 'no-remote-request', `${what} to "${parts.text.slice(0, 80)}" is not allowed: only relative URLs of this app (${HINT.url})`)
   if (parts.computed && !PINNED_PREFIX.test(parts.text)) {
     if (opts.guarded) return
@@ -654,7 +665,9 @@ function rulesForFile(path: string, parsed: Parsed, ctx: CheckContext, push: (e:
             // stage 5 (foreign apps): `data` loads a URL only on an element (<object>, banned above); on a component
             // it is a prop like any other (recharts' <BarChart data={rows}>, tables), not a request
             if (lower === 'data' && !/^[a-z]/.test(tag)) continue
-            checkUrl(report, a, a.value as N, `<${tag || 'element'} ${name}>`, { allowMail: lower === 'href', guarded: /^[a-z]/.test(tag) && GUARDED_URL_ATTRS.has(lower) })
+            // 63.1: only <img src> and <a href> (exact names) may name a host of allowedHosts
+            const hosts = (tag === 'img' && name === 'src') || (tag === 'a' && name === 'href') ? ctx.allowedHosts : undefined
+            checkUrl(report, a, a.value as N, `<${tag || 'element'} ${name}>`, { allowMail: lower === 'href', guarded: /^[a-z]/.test(tag) && GUARDED_URL_ATTRS.has(lower), ...(hosts ? { hosts } : {}) })
           }
         }
         break

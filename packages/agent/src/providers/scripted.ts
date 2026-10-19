@@ -15,7 +15,7 @@ export interface ScriptFixture {
   description?: string
   /** Case-insensitive regular expressions; the first fixture with a matching one is used. */
   match: string[]
-  classify?: { label: RequestClass; reason?: string; question?: string; options?: string[]; intentLabel?: string; gist?: string }
+  classify?: { label: RequestClass; reason?: string; question?: string; options?: string[]; intentLabel?: string; gist?: string; backendQuote?: string }
   turns: ScriptTurn[]
   /**
    * C9: themes of the wish-list map. The scripted `cluster` call puts each request into the first theme with a
@@ -89,6 +89,7 @@ export class ScriptedProvider implements ModelProvider {
       reason: c?.reason ?? '',
       ...(c?.question && c.options ? { question: c.question, options: c.options } : {}),
       ...intentOf({ intent_label: c?.intentLabel, gist: c?.gist }),
+      ...(c?.backendQuote ? { backendQuote: c.backendQuote } : {}),
       usage: emptyUsage(),
       model: 'scripted-classifier',
     }

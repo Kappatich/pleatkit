@@ -1,14 +1,26 @@
 import { and, eq, gte, inArray, lt } from 'drizzle-orm'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
+import { costUsd } from '@pleatkit/runtime/compiler'
 import * as schema from './schema.js'
 import { events, requests, snapshots } from './schema.js'
 
 type Db = BetterSQLite3Database<typeof schema>
 
 /**
- * C9: the pilot report, one row per day and customer organization, plus a total. What was asked (requests by
- * verdict), what happened to the edits (applied, undone by the user, rolled back by an admin, still live after
- * 24 hours), what carried over to new releases, and what it cost. `GET /v1/report?from&to` (CSV or JSON).
+ * C9: the pilot report, one row per day and customer organization, then one row per organization over the whole
+ * range (`date` = `all`), then the total (`date` = `total`, `org` = `all`). What was asked (requests by verdict),
+ * what happened to the edits (applied, undone by the user, rolled back by an admin, still live after 24 hours), what
+ * carried over to new releases, and what it cost. `GET /v1/report?from&to[&minutesPerEdit][&format=json]`.
+ *
+ * Money (DECISIONS 75, brainstorm 16 Р4), appended after the old columns so existing CSV readers keep working:
+ * - `cost_usd`: the agent's own cost of the requests of the range (their logged usage), as before;
+ * - `token_cost_usd`: the metering ledger's `tokens.used` events of the range priced by the model price table of
+ *   @pleatkit/runtime (the same table the agent uses), by the day and organization of the event;
+ * - `unpriced_tokens`: tokens of `tokens.used` events whose model the price table does not know (not in
+ *   `token_cost_usd`; the JSON lists the models in `unpricedModels`);
+ * - `dev_hours_saved`: applied edits × minutes per edit / 60, rounded to 0.1 h (minutes per edit: the
+ *   `minutesPerEdit` query parameter, else store-server's `PLEATKIT_REPORT_MINUTES_PER_EDIT`, else 20);
+ * - `cost_per_applied_edit_usd`: `token_cost_usd` / `applied`; empty when nothing was applied.
  */
 export const REPORT_COLUMNS = [
   'date',
@@ -30,10 +42,20 @@ export const REPORT_COLUMNS = [
   'alive_24h',
   'carry_overs',
   'cost_usd',
+  'token_cost_usd',
+  'unpriced_tokens',
+  'dev_hours_saved',
+  'cost_per_applied_edit_usd',
 ] as const
 
 export type ReportColumn = (typeof REPORT_COLUMNS)[number]
-export type ReportRow = Record<ReportColumn, string | number>
+/** A cell: a number, the date or org label, or null (CSV: empty) for a ratio without a denominator. */
+export type ReportRow = Record<ReportColumn, string | number | null>
+
+/** Brainstorm 16 part 2 item 6: what one applied edit saves a developer, minutes (a ticket, a change, a review). */
+export const DEFAULT_MINUTES_PER_EDIT = 20
+/** The most a `minutesPerEdit` may say (a working day). */
+export const MAX_MINUTES_PER_EDIT = 480
 
 const VERDICT_COLUMN: Record<string, ReportColumn> = {
   ok: 'ok',
@@ -69,21 +91,43 @@ export function parseRange(from: string | undefined, to: string | undefined, now
   return { fromMs, toMs }
 }
 
+/** A `minutesPerEdit` value (query parameter or environment): a number above 0 and at most 480. */
+export function parseMinutesPerEdit(v: string | undefined | null): number | null {
+  if (v === undefined || v === null || v.trim() === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 && n <= MAX_MINUTES_PER_EDIT ? n : null
+}
+
 const blank = (date: string, org: string): ReportRow =>
   Object.fromEntries(REPORT_COLUMNS.map((c) => [c, c === 'date' ? date : c === 'org' ? org : 0])) as ReportRow
 
 const costOf = (usage: unknown): number =>
   Array.isArray(usage) ? usage.reduce((s: number, u: { costUsd?: unknown }) => s + (typeof u?.costUsd === 'number' ? u.costUsd : 0), 0) : 0
 
+const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+
 export interface Report {
   appId: string
   from: string
   to: string
+  /** The minutes per applied edit behind `dev_hours_saved`. */
+  minutesPerEdit: number
+  /** Per day and organization. */
   rows: ReportRow[]
+  /** Per organization over the whole range (`date` = `all`). */
+  orgs: ReportRow[]
   total: ReportRow
+  /** Models of `tokens.used` events the price table does not know (their tokens are in `unpriced_tokens`). */
+  unpricedModels: string[]
 }
 
-export function buildReport(db: Db, appId: string, fromMs: number, toMs: number): Report {
+export interface ReportOptions {
+  /** Minutes one applied edit saves a developer (default 20). */
+  minutesPerEdit?: number
+}
+
+export function buildReport(db: Db, appId: string, fromMs: number, toMs: number, options: ReportOptions = {}): Report {
+  const minutesPerEdit = options.minutesPerEdit ?? DEFAULT_MINUTES_PER_EDIT
   const reqs = db
     .select()
     .from(requests)
@@ -112,13 +156,26 @@ export function buildReport(db: Db, appId: string, fromMs: number, toMs: number)
     .where(and(eq(snapshots.appId, appId), gte(snapshots.createdAt, new Date(fromMs).toISOString()), lt(snapshots.createdAt, new Date(toMs).toISOString())))
     .all()
     .filter((s) => s.message.startsWith(CARRY_OVER_PREFIX))
+  // DECISIONS 75 Р4: the tokens the agent metered in the range, by the event's own day and organization
+  const tokens = db
+    .select({ orgId: events.orgId, tsMs: events.tsMs, value: events.value, props: events.props })
+    .from(events)
+    .where(and(eq(events.appId, appId), eq(events.type, 'tokens.used'), gte(events.tsMs, fromMs), lt(events.tsMs, toMs)))
+    .all()
 
   const rows = new Map<string, ReportRow>()
+  const orgRows = new Map<string, ReportRow>()
   const users = new Map<string, Set<string>>()
+  const orgUsers = new Map<string, Set<string>>()
   const row = (date: string, org: string) => {
     const k = `${date}\0${org}`
     let r = rows.get(k)
     if (!r) rows.set(k, (r = blank(date, org)))
+    return r
+  }
+  const orgRow = (org: string) => {
+    let r = orgRows.get(org)
+    if (!r) orgRows.set(org, (r = blank('all', org)))
     return r
   }
   const inc = (r: ReportRow, c: ReportColumn, by = 1) => (r[c] = (r[c] as number) + by)
@@ -127,8 +184,7 @@ export function buildReport(db: Db, appId: string, fromMs: number, toMs: number)
   const allOrgs = new Set<string>()
   for (const q of reqs) {
     const date = dayOf(q.createdAtMs)
-    const r = row(date, q.orgId)
-    for (const target of [r, total]) {
+    for (const target of [row(date, q.orgId), orgRow(q.orgId), total]) {
       inc(target, 'requests')
       inc(target, VERDICT_COLUMN[q.verdict] ?? 'failed')
       if (q.snapshotId) inc(target, 'applied')
@@ -137,35 +193,65 @@ export function buildReport(db: Db, appId: string, fromMs: number, toMs: number)
     }
     const k = `${date}\0${q.orgId}`
     users.set(k, (users.get(k) ?? new Set()).add(q.userId))
+    orgUsers.set(q.orgId, (orgUsers.get(q.orgId) ?? new Set()).add(q.userId))
     allUsers.add(`${q.orgId}\0${q.userId}`)
     allOrgs.add(q.orgId)
   }
   for (const s of carried) {
-    inc(row(s.createdAt.slice(0, 10), s.orgId), 'carry_overs')
-    inc(total, 'carry_overs')
+    for (const target of [row(s.createdAt.slice(0, 10), s.orgId), orgRow(s.orgId), total]) inc(target, 'carry_overs')
     allOrgs.add(s.orgId)
   }
-  const out = [...rows.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.org).localeCompare(String(b.org)))
+  const unpricedModels = new Set<string>()
+  for (const e of tokens) {
+    const p = (e.props ?? {}) as Record<string, unknown>
+    const model = typeof p.model === 'string' ? p.model : ''
+    const usd = model ? costUsd(model, { inputTokens: num(p.input), outputTokens: num(p.output), cacheReadTokens: num(p.cacheRead), cacheWriteTokens: num(p.cacheWrite) }) : null
+    if (usd === null) unpricedModels.add(model || '(no model)')
+    for (const target of [row(dayOf(e.tsMs), e.orgId), orgRow(e.orgId), total]) {
+      if (usd === null) inc(target, 'unpriced_tokens', num(e.value))
+      else inc(target, 'token_cost_usd', usd)
+    }
+    allOrgs.add(e.orgId)
+  }
+
+  const finish = (r: ReportRow) => {
+    const applied = r.applied as number
+    const tokenCost = r.token_cost_usd as number
+    r.cost_usd = Number((r.cost_usd as number).toFixed(4))
+    r.token_cost_usd = Number(tokenCost.toFixed(4))
+    r.dev_hours_saved = Math.round((applied * minutesPerEdit) / 6) / 10
+    r.cost_per_applied_edit_usd = applied > 0 ? Number((tokenCost / applied).toFixed(4)) : null
+  }
+  const byDateOrg = (a: ReportRow, b: ReportRow) => String(a.date).localeCompare(String(b.date)) || String(a.org).localeCompare(String(b.org))
+  const out = [...rows.values()].sort(byDateOrg)
   for (const r of out) {
     r.orgs = 1
     r.users = users.get(`${r.date}\0${r.org}`)?.size ?? 0
-    r.cost_usd = Number((r.cost_usd as number).toFixed(4))
+    finish(r)
+  }
+  const orgs = [...orgRows.values()].sort(byDateOrg)
+  for (const r of orgs) {
+    r.orgs = 1
+    r.users = orgUsers.get(String(r.org))?.size ?? 0
+    finish(r)
   }
   total.orgs = allOrgs.size
   total.users = allUsers.size
-  total.cost_usd = Number((total.cost_usd as number).toFixed(4))
-  return { appId, from: new Date(fromMs).toISOString(), to: new Date(toMs).toISOString(), rows: out, total }
+  finish(total)
+  return { appId, from: new Date(fromMs).toISOString(), to: new Date(toMs).toISOString(), minutesPerEdit, rows: out, orgs, total, unpricedModels: [...unpricedModels].sort() }
 }
 
 /** RFC 4180: quote a field that has a comma, a quote or a line break; a leading `=+-@` is defused for spreadsheets. */
-export function csvField(v: string | number): string {
+export function csvField(v: string | number | null): string {
+  if (v === null) return ''
   let s = String(v)
   if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
+/** The day × organization rows, then one row per organization over the range (`date` = `all`), then the total. */
 export function reportCsv(r: Report): string {
   const lines = [REPORT_COLUMNS.join(',')]
-  for (const row of [...r.rows, r.total]) lines.push(REPORT_COLUMNS.map((c) => csvField(row[c])).join(','))
+  for (const row of [...r.rows, ...r.orgs, r.total]) lines.push(REPORT_COLUMNS.map((c) => csvField(row[c])).join(','))
   return lines.join('\r\n') + '\r\n'
 }

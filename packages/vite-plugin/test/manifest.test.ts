@@ -81,6 +81,34 @@ describe('zone globs are validated (code review 06 item 11)', () => {
   })
 })
 
+describe('allowedHosts (DECISIONS 63.1)', () => {
+  it('is normalized into the manifest (server copy and browser copy alike); absent when not set', () => {
+    expect(buildManifest(root, options).allowedHosts).toBeUndefined()
+    const m = buildManifest(root, { ...options, allowedHosts: ['Images.Example-CDN.com', 'bücher.example', 'images.example-cdn.com', ' cdn.example.org '] })
+    expect(m.allowedHosts).toEqual(['images.example-cdn.com', 'xn--bcher-kva.example', 'cdn.example.org'])
+  })
+
+  it.each([
+    ['https://cdn.example.com', /bare host name/],
+    ['cdn.example.com/images', /bare host name/],
+    ['cdn.example.com:443', /bare host name/],
+    ['user@cdn.example.com', /bare host name/],
+    ['*.example.com', /wildcard/],
+    ['cdn%2Eexample.com', /bare host name/],
+    ['cdn.example.com.', /ends with a dot/],
+    ['1.2.3.4', /IP address/],
+    ['0x7f.1', /IP address/],
+    ['[::1]', /bare host name/],
+    ['localhost', /single label/],
+    ['exa_mple.com', /not a valid host name/],
+    ['-cdn.example.com', /not a valid host name/],
+    ['', /empty/],
+  ])('refuses %j at startup', (entry, why) => {
+    expect(() => buildManifest(root, { ...options, allowedHosts: [entry] })).toThrow(why)
+    expect(() => buildManifest(root, { ...options, allowedHosts: [entry] })).toThrow(/^\[pleatkit\] allowedHosts:/)
+  })
+})
+
 describe('digests for the agent prompt (brainstorm 04 §1, 05 #10)', () => {
   it('one line per design-system component and the readonly data contract', async () => {
     const { designSystemDigest, dataContractsDigest } = await import('../src/manifest.js')

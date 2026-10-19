@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { validateZoneGlob, type AgentRunRequest, type CompileContextWire, type FileMap, type PleatkitManifest } from '@pleatkit/runtime/compiler'
+import { normalizeAllowedHosts, validateZoneGlob, type AgentRunRequest, type CompileContextWire, type FileMap, type PleatkitManifest } from '@pleatkit/runtime/compiler'
 
 /**
  * Where the agent server gets the app's manifest (code review 06 item 8): the context of the static rules
@@ -60,6 +60,8 @@ export async function resolveManifest(source: ManifestSource | null | undefined,
 
 /** The compile context the server trusts, from its manifest. */
 export function contextFromManifest(m: PleatkitManifest, namespace: string): CompileContextWire {
+  // DECISIONS 63.1: the hosts a literal <img src>/<a href> may name come only from here (a bad entry is an error)
+  const allowedHosts = normalizeAllowedHosts(m.allowedHosts)
   return {
     alias: m.alias,
     externals: m.externals,
@@ -67,6 +69,7 @@ export function contextFromManifest(m: PleatkitManifest, namespace: string): Com
     dynamicRoots: m.dynamicRoots,
     namespace,
     ...(m.css ? { css: m.css } : {}),
+    ...(allowedHosts.length ? { allowedHosts } : {}),
   }
 }
 
@@ -120,5 +123,7 @@ export function trustedInput(manifest: PleatkitManifest | null, appId: string, b
     }
   }
   validateClientContext(body.context)
-  return { context: { ...body.context, namespace: appId }, readonly: body.readonly, coreTypes: body.coreTypes, components: body.components, protected: [], base: {}, manifest: null }
+  // 63.1: allowedHosts never comes from the request body: without a server manifest, no external host is allowed
+  const { allowedHosts: _fromBody, ...context } = body.context
+  return { context: { ...context, namespace: appId }, readonly: body.readonly, coreTypes: body.coreTypes, components: body.components, protected: [], base: {}, manifest: null }
 }

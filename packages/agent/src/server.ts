@@ -11,10 +11,13 @@ import { Alerts, type AlertsOptions } from './alerts.js'
 import { manifestPanels, resolveManifest, trustedInput, type ManifestSource } from './manifest.js'
 import { digestsFromManifest } from './prompt.js'
 import { buildWishMap, type WishLimits } from './wishes.js'
+import { appExpectedCost } from './expected-cost.js'
+import type { PromptTokenCount } from './prefix.js'
 import type { TypecheckFn } from './workspace.js'
 import { MemoryQuotaBackend, Quotas, resolvePlan, StoreQuotaBackend, type PlanLimits } from './quota.js'
 import { modelGate } from './rate-limit.js'
 import { StoreClient } from './store-client.js'
+import { ClassifierModes, type ClassifierSetting } from './classifier-mode.js'
 import type { ModelProvider } from './types.js'
 
 export interface AgentServerOptions {
@@ -55,8 +58,14 @@ export interface AgentServerOptions {
   typecheck?: TypecheckFn | null
   /** Type check server compiles (commits) too; default none (only an explicit PLEATKIT_TYPECHECK=1 sets it). */
   commitTypecheck?: TypecheckFn | null
-  /** DECISIONS 73.3: PLEATKIT_CLASSIFIER=sequential waits for the classifier before the main model (default: parallel). */
-  classifierMode?: 'parallel' | 'sequential'
+  /**
+   * PLEATKIT_CLASSIFIER (DECISIONS 73.3, 75 Р5): `auto` (default) picks parallel or sequential per app from the week's
+   * share of requests the classifier answered alone (`ClassifierModes`, seeded from store-server's request log when
+   * `storeUrl` is set); `parallel` or `sequential` fixes it for every app.
+   */
+  classifierMode?: ClassifierSetting
+  /** The per-app history behind `auto` (default: one per server, seeded from store-server). */
+  classifierModes?: ClassifierModes
   /** Stage 5 block 3: model calls at a time in this process (the process-wide gate; default 8). */
   modelConcurrency?: number
   /** Retries of a model call refused with 429 / overloaded (default 3). */
@@ -110,6 +119,7 @@ export async function reportRun(
     ...(result.attachments ? { attachments: result.attachments } : {}),
     ...(result.promptVersion ? { promptVersion: result.promptVersion } : {}),
     ...(result.backendNote ? { backendNote: result.backendNote } : {}),
+    ...(result.backendQuote ? { backendQuote: result.backendQuote } : {}),
     ...(result.intentLabel ? { intentLabel: result.intentLabel } : {}),
     ...(result.gist ? { gist: result.gist } : {}),
     compilerVersion: COMPILER_VERSION,
@@ -192,6 +202,10 @@ export function createAgentApp(options: AgentServerOptions) {
 
   if (options.modelConcurrency) modelGate.resize(options.modelConcurrency)
   const bundles = new BundleService(auth.credentials, store, 500, options.commitTypecheck ?? null)
+  // DECISIONS 75 Р5: parallel or sequential classifier per app (auto), or one fixed mode
+  const classifierSetting: ClassifierSetting = options.classifierMode ?? 'auto'
+  const classifierModes =
+    classifierSetting === 'auto' ? (options.classifierModes ?? new ClassifierModes({ seed: store ? (appId, sinceMs) => store.classifierStats(appId, sinceMs) : null, log })) : null
   const alerts = options.alerts === false ? null : options.alerts instanceof Alerts ? options.alerts : new Alerts({ sinks: [], ...options.alerts, store, log })
 
   // F6: flags per user, cached briefly (the kill switch takes effect within this time)
@@ -233,7 +247,7 @@ export function createAgentApp(options: AgentServerOptions) {
     }
   }
 
-  const health = (c: Context) => c.json({ ok: true, provider: runner.name, model: runner.model, store: Boolean(store), auth: Boolean(auth.credentials), modelCalls: { ...modelGate.load, limit: modelGate.limit } })
+  const health = (c: Context) => c.json({ ok: true, provider: runner.name, model: runner.model, store: Boolean(store), auth: Boolean(auth.credentials), modelCalls: { ...modelGate.load, limit: modelGate.limit }, classifier: { setting: classifierSetting, ...(classifierModes ? { apps: classifierModes.snapshot() } : {}) } })
   app.get('/health', health)
   app.get('/v1/health', health)
 
@@ -309,8 +323,12 @@ export function createAgentApp(options: AgentServerOptions) {
         } else {
           plan = quota?.plan ?? null
           const limits = { ...options.limits, ...(plan ? { maxCostUsd: Math.min(plan.perEditUsd, options.limits?.maxCostUsd ?? Infinity) } : {}) }
-          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null, ...(options.classifierMode ? { classifierMode: options.classifierMode } : {}), ...(options.rateLimitRetries !== undefined ? { rateLimitRetries: options.rateLimitRetries } : {}),
+          // the classifier is skipped for a pointed-at panel, an answered question and a migration: no history needed
+          const classifies = !req.migration && !req.target && !req.clarification
+          const classifierMode = classifierSetting === 'auto' ? (classifierModes && classifies ? await classifierModes.modeFor(who.appId) : 'parallel') : classifierSetting
+          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null, classifierMode, ...(options.rateLimitRetries !== undefined ? { rateLimitRetries: options.rateLimitRetries } : {}),
             digests: digestsFromManifest(trusted.manifest) })
+          classifierModes?.record(who.appId, result)
         }
         const cost = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
         const budget = quotas && result.verdict !== 'refused' ? await quotas.afterEdit(who, cost).catch((e: Error) => (log(`[pleatkit-agent] could not record the cost: ${e.message}`), null)) : null
@@ -398,30 +416,35 @@ export function createAgentApp(options: AgentServerOptions) {
   })
 
   /**
+   * The app of an admin route: like a run, the app with credentials (always in production) needs an admin's token;
+   * other apps in development take the demo's admin header, as store-server does.
+   */
+  const adminApp = async (c: Context, body: { appId?: unknown }): Promise<string | Response> => {
+    const asked = typeof body.appId === 'string' && body.appId ? body.appId : 'default'
+    if (c.req.header('authorization') || (auth.credentials && (auth.production || asked === auth.credentials.appId))) {
+      try {
+        const who = await identify(c.req.header('authorization'), { appId: asked }, auth)
+        if (who.via !== 'jwt' || who.role !== 'admin') return c.json({ error: 'admin only' }, 403)
+        return who.appId
+      } catch (e) {
+        if (e instanceof AgentAuthError) return c.json({ error: e.message }, e.status)
+        throw e
+      }
+    }
+    if (c.req.header('x-pleatkit-admin') !== '1') return c.json({ error: 'admin only' }, 403)
+    return asked
+  }
+
+  /**
    * C9: rebuild the wish-list map of the last 7 days (`{ days? }`): one classifier call over the requests the zone
    * could not serve, stored in store-server for /admin. An admin's token; in development the admin header.
    */
   app.post('/v1/wishes', async (c) => {
     if (!store) return c.json({ error: 'the wish map needs store-server (PLEATKIT_STORE_URL)' }, 400)
     if (!options.provider) return c.json({ error: 'the wish map needs a model provider' }, 501)
-    let appId: string
     const body = (await c.req.json().catch(() => ({}))) as { appId?: string; days?: number }
-    const asked = typeof body.appId === 'string' && body.appId ? body.appId : 'default'
-    // like a run: the app with credentials (always in production) needs an admin's token; other apps in
-    // development take the demo's admin header, as store-server does
-    if (c.req.header('authorization') || (auth.credentials && (auth.production || asked === auth.credentials.appId))) {
-      try {
-        const who = await identify(c.req.header('authorization'), { appId: asked }, auth)
-        if (who.via !== 'jwt' || who.role !== 'admin') return c.json({ error: 'admin only' }, 403)
-        appId = who.appId
-      } catch (e) {
-        if (e instanceof AgentAuthError) return c.json({ error: e.message }, e.status)
-        throw e
-      }
-    } else {
-      if (c.req.header('x-pleatkit-admin') !== '1') return c.json({ error: 'admin only' }, 403)
-      appId = asked
-    }
+    const appId = await adminApp(c, body)
+    if (appId instanceof Response) return appId
     const days = typeof body.days === 'number' && body.days > 0 && body.days <= 90 ? body.days : 7
     const manifest = await resolveManifest(options.manifest, appId).catch(() => null)
     const panels = manifest ? manifestPanels(manifest).map((p) => p.replace(/^.*\//, '').replace(/\.(tsx|ts|jsx|js)$/, '')) : []
@@ -434,6 +457,20 @@ export function createAgentApp(options: AgentServerOptions) {
       log(`[pleatkit-agent] wish map failed: ${(e as Error).message}`)
       return c.json({ error: (e as Error).message }, 502)
     }
+  })
+
+  /**
+   * DECISIONS 75 Р2: the expected cost of one edit on this app (`{ appId }`), for the /admin Plan screen: the app's
+   * prompt counted with the provider's free `count_tokens` (cached per release and model) or estimated. Admin only.
+   */
+  const promptCounts = new Map<string, PromptTokenCount>()
+  app.post('/v1/expected-cost', async (c) => {
+    const appId = await adminApp(c, (await c.req.json().catch(() => ({}))) as { appId?: unknown })
+    if (appId instanceof Response) return appId
+    const manifest = await resolveManifest(options.manifest, appId).catch(() => null)
+    if (!manifest) return c.json({ error: 'the expected cost needs the app manifest (PLEATKIT_MANIFEST)' }, 400)
+    const provider = options.provider ?? { name: runner.name, model: runner.model }
+    return c.json(await appExpectedCost(manifest, provider, promptCounts))
   })
 
   /** Signed bundles this process compiled (or store-server has), for apps that proxy `/pleatkit/b` to the agent. */

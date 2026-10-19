@@ -8,6 +8,7 @@ import { manifestSourceFromEnv, type ManifestSource } from './manifest.js'
 import { DEFAULT_MODEL_CONCURRENCY, DEFAULT_RATE_LIMIT_RETRIES } from './rate-limit.js'
 import { typecheckFromEnv } from './typecheck.js'
 import type { TypecheckFn } from './workspace.js'
+import type { ClassifierSetting } from './classifier-mode.js'
 import type { ModelProvider } from './types.js'
 import { wishLimitsFromEnv, type WishLimits } from './wishes.js'
 
@@ -29,8 +30,8 @@ export interface AgentConfig {
   typecheck: TypecheckFn | null
   /** Type check of server compiles (commits) too: only with an explicit PLEATKIT_TYPECHECK=1, as before. */
   commitTypecheck: TypecheckFn | null
-  /** PLEATKIT_CLASSIFIER: parallel (default) or sequential (DECISIONS 73.3). */
-  classifierMode: 'parallel' | 'sequential'
+  /** PLEATKIT_CLASSIFIER: auto (default, per app from the week's history, DECISIONS 75 Р5), parallel or sequential (73.3). */
+  classifierMode: ClassifierSetting
   /** PLEATKIT_ALERT_* and PLEATKIT_FREEZE (05 #5). */
   alerts: Pick<AlertsOptions, 'sinks' | 'freeze'>
   /** DECISIONS 70.3: PLEATKIT_WISHES_MAX_ITEMS (default 500) and PLEATKIT_WISHES_BUDGET_USD (default 0.50). */
@@ -56,6 +57,9 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * PLEATKIT_EFFORT      low | medium | high | xhigh | max (anthropic, default medium)
  * PLEATKIT_FALLBACKS   off disables Anthropic server-side refusal fallback
  * PLEATKIT_STREAM      1: stream model calls with eager_input_streaming on the tools
+ * PLEATKIT_CACHE_TAIL  after-first (default): the first call of an edit writes only the system prefix to the prompt
+ *                      cache, so a one-call edit and a cancelled early call do not pay the 1.25x tail write
+ *                      (DECISIONS 76.1); always: every call writes the tail, as before block 4
  * PLEATKIT_FIXTURES    directory of scripted fixtures (*.json)
  * PLEATKIT_SCRIPTED_DELAY_MS  pause before each scripted answer (recorded demos), default 0
  * PLEATKIT_STORE_URL   @pleatkit/store-server URL for the request log
@@ -68,8 +72,11 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * PLEATKIT_TYPECHECK   unset (auto): the agent loop type-checks edits against the manifest's readonly sources and .d.ts
  *                      when the app folder (PLEATKIT_TYPECHECK_ROOT, or the folder of the manifest's dist/) has
  *                      node_modules; 0: off; 1: always, also server compiles (packages are `any` without a root)
- * PLEATKIT_CLASSIFIER  parallel (default): the classifier and the main model start together, the main call is cancelled
- *                      when the classifier answers alone; sequential: the main model waits for the classifier
+ * PLEATKIT_CLASSIFIER  auto (default): per app, sequential while the classifier answered more than 50 % of the app's
+ *                      classified requests alone in the last 7 days (at least 20 of them; back to parallel at 45 %),
+ *                      else parallel; history seeded from PLEATKIT_STORE_URL's request log. parallel: the classifier
+ *                      and the main model start together, the main call is cancelled when the classifier answers
+ *                      alone; sequential: the main model waits for the classifier
  * PLEATKIT_ALERT_WEBHOOK  URL that gets a JSON POST for every alert (Slack-compatible `text`)
  * PLEATKIT_ALERT_EMAIL_URL, PLEATKIT_ALERT_EMAIL_TO, PLEATKIT_ALERT_EMAIL_TOKEN  e-mail through an HTTP e-mail API
  * PLEATKIT_FREEZE      off, or JSON {"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}
@@ -102,7 +109,7 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
     manifest,
     typecheck,
     commitTypecheck: forced ? typecheck : null,
-    classifierMode: env.PLEATKIT_CLASSIFIER === 'sequential' ? 'sequential' : 'parallel',
+    classifierMode: classifierSettingFromEnv(env.PLEATKIT_CLASSIFIER),
     alerts: alertsFromEnv(env),
     wishes: wishLimitsFromEnv(env),
     modelConcurrency: Math.max(1, Math.floor(num(env.PLEATKIT_MODEL_CONCURRENCY) ?? DEFAULT_MODEL_CONCURRENCY)),
@@ -118,6 +125,14 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
       ...(num(env.PLEATKIT_MAX_OUTPUT_TOKENS) ? { maxOutputTokens: num(env.PLEATKIT_MAX_OUTPUT_TOKENS) } : {}),
     },
   }
+}
+
+/** PLEATKIT_CLASSIFIER: auto (unset or empty), parallel or sequential; anything else is a configuration error. */
+export function classifierSettingFromEnv(value: string | undefined): ClassifierSetting {
+  const v = (value ?? '').trim().toLowerCase()
+  if (v === '' || v === 'auto') return 'auto'
+  if (v === 'parallel' || v === 'sequential') return v
+  throw new Error(`PLEATKIT_CLASSIFIER must be auto, parallel or sequential (got "${value}")`)
 }
 
 /**
@@ -139,6 +154,7 @@ export function providerFromEnv(env: Env = process.env): ModelProvider {
       effort: (env.PLEATKIT_EFFORT as 'medium' | undefined) ?? 'medium',
       fallbacks: env.PLEATKIT_FALLBACKS !== 'off',
       stream: env.PLEATKIT_STREAM === '1',
+      ...(env.PLEATKIT_CACHE_TAIL === 'after-first' || env.PLEATKIT_CACHE_TAIL === 'always' ? { cacheTail: env.PLEATKIT_CACHE_TAIL } : {}),
     })
   } else if (kind === 'openai-compatible' || kind === 'openai' || kind === 'openrouter') {
     const apiKey = env.PLEATKIT_API_KEY ?? env.OPENAI_API_KEY ?? env.OPENROUTER_API_KEY

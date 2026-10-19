@@ -78,6 +78,12 @@ export class StoreClient {
     return this.call('GET', '/plan', { appId, userId: '' })
   }
 
+  /** DECISIONS 75 Р5: the classifier's hourly record of the app since `sinceMs` (at most 7 days), from the request log. */
+  async classifierStats(appId: string, sinceMs: number): Promise<{ hourMs: number; classified: number; alone: number }[]> {
+    const r = await this.call<{ buckets?: { hourMs: number; classified: number; alone: number }[] }>('GET', `/classifier-stats?sinceMs=${Math.floor(sinceMs)}`, { appId, userId: '' }, undefined, {}, 3_000)
+    return Array.isArray(r.buckets) ? r.buckets : []
+  }
+
   putBundle(appId: string, key: string, bundle: { js: string; css: string; signature: BundleSignature }): Promise<null> {
     return this.call('PUT', `/bundles/${key}`, { appId, userId: '' }, bundle)
   }
