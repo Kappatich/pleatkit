@@ -254,3 +254,45 @@ pnpm eval:replay -- --set awkward && pnpm eval:replay -- --set redteam
   35 × 2, pinned as `evals/baseline.apps.json`), `cache-afterfirst` / `cache-always` (the first A/B, confounded by the
   prompt cache; kept for the record), `cache-af2` / `cache-al2`, `probe-5g` / `probe-5h` (crm-10, sa-15, sa-13, ta-13),
   `awkward`, `redteam`, `redteam-live`.
+
+## Stage 5, block 5
+
+Numbers: [`evals/REPORT-2026-10-19-block5.md`](../evals/REPORT-2026-10-19-block5.md).
+
+- **Two more foreign apps** (`evals/apps/antd-dashboard`: Ant Design 6, React Router 6, TanStack Query, Vite 5 → 6,
+  pnpm 9; `evals/apps/mesa`: CSS modules without Tailwind, React Router 8, TanStack Query, Vite 8, npm), installed blind
+  by a fresh coding agent from `docs/for-agents/` only. Their 16 tasks are the suite `blind` (`evals/tasks/blind`,
+  generator `make-blind.mjs`, references under `evals/references/blind/`): per app five edits (one of them partial), a
+  server-only request, an ambiguous one and an attack. Live sets `blind-ab` and `blind-me` (8 × 2 each).
+
+```bash
+cd evals/apps/antd-dashboard && pnpm install --ignore-workspace --ignore-scripts && pnpm build && pnpm smoke
+cd evals/apps/mesa && npm ci && npm run build && npm run smoke
+pnpm eval:sanity -- --tasks blind
+pnpm eval:replay -- --set blind-ab && pnpm eval:replay -- --set blind-me
+PLEATKIT_EVAL_BUDGET_USD=1 pnpm eval:record -- --live --tasks blind --set blind-ab --trials 2 --only ab-01-…,…
+```
+
+- **Cost against zone size** (brainstorm 17 §3): `--zone-files n` keeps n dynamic files in each task's zone (the files
+  the task's reference changes, then the other panels of its route, then the rest; `PLEATKIT_EVAL_ZONE_FILES`). Sets
+  `zone-1`, `zone-3`, `zone-7` (shadcn-admin, 5 dashboard tasks each); replay them with the same `--zone-files`.
+  `node evals/report/make-zone-chart.mjs` draws `evals/report/zone-cost.svg` from them.
+- **Warm type check** (brainstorm 17 §4): the runner warms each app's checker once before its first task, like the
+  agent server at start; `PLEATKIT_TYPECHECK_WARM=0` runs the cold checker of blocks 3 and 4 (sets `tsc-cold` and
+  `tsc-warm`, 5 shadcn-admin edits each). `pnpm --filter @pleatkit/evals exec tsx src/typecheck-bench.ts shadcn-admin 14`
+  times the checker alone (free; `BENCH_WARMUP=1` warms it first).
+- **Prompt 5i** was measured with `eval:classify` before any live run: `evals/probes/restore-and-jobs.json` (restore,
+  scheduled jobs and syncs joined to screen changes) next to the mixed probes and the 60 tasks of demo, apps and
+  awkward. The `restore` label (DECISIONS 82.2) is a verdict of its own; `expected.alsoAccept` takes it, and an answer
+  accepted without a change skips the task's per-file invariants (they describe the change).
+- **Red team:** 32 tasks: `rt-s-overlay-append-body` (an overlay attached to `document.body`, refused by the new static
+  rule `no-portal`) and `rt-r-zindex-overlay`, a runtime case: a full-screen element with the largest z-index is applied,
+  and the browser check `launcherOnTop` requires pleatkit's launcher to stay the topmost element at its own position
+  (the runtime caps an edited panel's z-index at 999). Live judgement set on 5i: `redteam-live-5i`.
+- **The judge** gets the part of a `partial` request passed to the server (`<passed_to_server>`) and a line diff of the
+  change (`<code_diff>`, `codeDiff` in `evals/src/judge.ts`); the rubric says how to use them.
+- **Landmarks are compared by tag and text**, not by position: a landmark the page adds after its data loads no longer
+  counts as one the commit hid.
+- Other sets of this block: `awkward-5i` (aw-03, aw-16, aw-17 × 2 on 5i).
+- The blind installs' gap logs (10 attempts, JSON: step, kind, what, how it was resolved, the doc fix) are kept in
+  `evals/probes/blind/`; the classifier results of 5i in `evals/probes/results/classify-*-5i.json`.

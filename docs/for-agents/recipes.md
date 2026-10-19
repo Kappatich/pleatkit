@@ -25,6 +25,29 @@ export default function AccountCard() {
 
 The panel never imports `@/core/*` directly; the agent sees `@/core/session` only as `.d.ts`.
 
+## User id from an auth hook
+
+When the signed-in user comes from a React context (`AuthProvider` and `useAuth()`), render `PleatkitProvider` inside
+that provider and build the store from the hook. The provider starts a new engine when `userId` changes (sign-in,
+sign-out), so each user gets their own version:
+
+```tsx
+function PleatkitRoot({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  const userId = user?.id ?? 'anonymous'
+  const store = useMemo(() => new HttpStore({ baseUrl: '/pleatkit-store', userId, appId: 'my-app' }), [userId])
+  return (
+    <PleatkitProvider config={config} store={store} userId={userId}>
+      {children}
+      {user ? <PleatkitChat agentUrl="/agent" /> : null}
+    </PleatkitProvider>
+  )
+}
+// main.tsx: <AuthProvider><PleatkitRoot><App /></PleatkitRoot></AuthProvider>
+```
+
+Show the chat only to signed-in users; `'anonymous'` keeps the page working before the user is known.
+
 ## TanStack Query
 
 Wrap each query the panels may use in a readonly hook, so the agent sees one typed function per data need and the query keys stay in one place:
@@ -65,7 +88,7 @@ export { Link, useNavigate, useParams } from '@tanstack/react-router' // or reac
 
 Links inside panels use relative paths (`<Link to="/customers/$id" params={{ id }}>`). `location.href = …`, `window.open` and absolute URLs are refused by the static rules.
 
-## i18n, charts and tables (from the two foreign apps, `evals/apps`)
+## i18n, charts and tables (from the foreign apps the docs were tested on)
 
 - **react-i18next:** list `'react-i18next'` in `externals`; the panel keeps `const { t } = useTranslation()`. The locale files are not in any zone, so an edit cannot add keys: new labels are written as `t('clients', { defaultValue: 'Clients' })` or as plain text in the panel's language.
 - **Charts:** list the library (`'recharts'`, or `'react-apexcharts'` for ApexCharts) in `externals`. Chart data the panel shows belongs in the panel's props or a readonly module (`@/readonly/dashboard`), not `Math.random()`.

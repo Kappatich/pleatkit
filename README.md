@@ -48,6 +48,14 @@ a one-call edit there $0.026 to $0.031; 30 of 30 attacks of the new red-team sui
 (with an edit taken back from the middle) pass, and a visual-quality judge (Claude Haiku 5.5, $0.00024 per judgement)
 says a designer would accept 19 of 23 edits on 20 "awkward" requests written as irritated users write them.
 
+Stage 5 block 5 ([report](evals/REPORT-2026-10-19-block5.md)): two more apps (an Ant Design dashboard on Vite 5 and
+pnpm 9, and a CSS-modules dashboard without Tailwind) were installed **blind** by fresh coding agents that saw only
+`docs/for-agents/`; their 16 tasks pass **32 of 32** live. Every edit sends the whole dynamic zone, so its size sets the
+price: **$0.0085 + $0.026 per 1,000 lines** with Sonnet 5.5 (shadcn-admin: $0.010 with one panel, $0.030 with all
+seven), and `pleatkit doctor` warns over 450 lines. A warm type check cut shadcn-admin's edit from **8.4 s to 4.8 s
+median**. `pleatkit init --suggest` drafts the zones, externals and readonly modules from the import graph: 0 manual
+edits left to the configuration on all four foreign apps.
+
 ## Packages
 
 | Package | What it does | Repo |
@@ -56,7 +64,7 @@ says a designer would accept 19 of 23 edits on 20 "awkward" requests written as 
 | `@pleatkit/runtime` | `<PleatkitProvider>`, `<Dynamic>`, snapshot engine (draft/check/commit/undo/redo/reset), signed server bundles or esbuild-wasm in the page, Tailwind 4 at runtime, safe mode, `LocalStore` (IndexedDB) and `HttpStore` | pleatkit (public, MIT) |
 | `@pleatkit/ui` | chat drawer, "point at a panel" picker, history, undo/reset, toasts, stale-version banner | pleatkit (public, MIT) |
 | `@pleatkit/agent` | Node agent server: model loop with zone-checked tools, server-side check, SSE progress, providers `anthropic` / `openai-compatible` / `scripted` | pleatkit (public, MIT) |
-| `@pleatkit/cli` | `pleatkit doctor` (setup checks with fixes), `ping`, `keys new`, `keys public`, `export` | pleatkit (public, MIT) |
+| `@pleatkit/cli` | `pleatkit doctor` (setup checks with fixes), `init --suggest` (zones from the import graph), `ping`, `keys new`, `keys public`, `export`, `labels export` | pleatkit (public, MIT) |
 | `@pleatkit/store-server` | the open store: snapshots, heads, bundles, the request log, quotas, usage events, the audit chain, roles, flags, releases, code search, export and erasure; Hono + Drizzle + SQLite | pleatkit (public, MIT) |
 | `@pleatkit/store-cloud` | the managed cloud's modules on top of the store (the learning layer; later billing, region routing) | **pleatkit-cloud** (private) |
 | `apps/demo-crm` | demo CRM with two users, three dynamic panels and an `/admin` dashboard | pleatkit (public) |

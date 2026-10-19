@@ -1,6 +1,6 @@
 # pleatkit for coding agents
 
-Version: pleatkit 0.3.0, docs dated 2026-10-18. Tested by following them into a fresh `create vite@7 --template react-ts` app ([`examples/t1-vite`](../../examples/t1-vite)) and into two existing open-source admin templates, shadcn-admin (Vite 8, pnpm, TanStack Router and Table, recharts) and TailAdmin (Vite 8, npm, react-i18next, ApexCharts): [`evals/apps`](../../evals/apps/README.md).
+Version: pleatkit 0.3.0, docs dated 2026-10-19. Tested by following them into a fresh `create vite@7 --template react-ts` app and into four existing open-source apps: shadcn-admin (Vite 8, pnpm, TanStack Router and Table, recharts), TailAdmin (Vite 8, npm, react-i18next, ApexCharts), an Ant Design dashboard (Vite 5 → 6, pnpm 9, React Router, TanStack Query, no Tailwind) and a CSS-modules dashboard (Vite 8, npm, React Router, TanStack Query, no Tailwind); the last two by a coding agent that saw only this folder. Everything you need is in `docs/for-agents/`.
 
 ## What it is
 
@@ -34,12 +34,13 @@ Zones, set by globs in the Vite plugin:
 
 ## Decide the zones (before step 4 of install.md)
 
-Good dynamic panels: views users have opinions about (cards, tables, dashboards, detail panes), that get their data as props or from the readonly client, and render without side effects on the server. Keep out of `dynamic`: auth, routing, payments, anything that writes data without the user's action, shared layout. Start with one or two panels; more can be moved later.
+Good dynamic panels: views users have opinions about (cards, tables, dashboards, detail panes), that get their data as props or from the readonly client, and render without side effects on the server. Keep out of `dynamic`: auth, routing, payments, anything that writes data without the user's action, shared layout. Start with one or two panels; more can be moved later. Every dynamic file is in every edit's prompt: three or four ordinary panels (a table with its columns and its CSS module each) reach doctor's 6,000-token tail target and its 450-line `zone-size` target. Those two `[warn]`s only mean a higher cost per edit (about $0.026 per 1,000 lines with Sonnet 5.5); they do not block the install.
 
 ## Facts you may need
 
-- Packages: `@pleatkit/vite-plugin` (dev), `@pleatkit/runtime`, `@pleatkit/ui`, `@pleatkit/agent` (server, bin `pleatkit-agent`), `@pleatkit/cli` (bin `pleatkit`: `doctor`, `ping`, `keys`, `export`).
+- Packages: `@pleatkit/vite-plugin` (dev), `@pleatkit/runtime`, `@pleatkit/ui`, `@pleatkit/agent` (server, bin `pleatkit-agent`), `@pleatkit/store-server` (bin `pleatkit-store`), `@pleatkit/cli` (bin `pleatkit`: `doctor`, `ping`, `init --suggest`, `keys`, `export`, `check-snapshots`, `labels export`).
 - Not on npm yet: install from a local checkout with `link:` (install.md step 1 shows both forms).
 - Agent server: port 8789 by default (`PLEATKIT_AGENT_PORT`); routes `POST /agent/v1/run` (SSE), `POST /agent/v1/compile`, `GET /agent/v1/b/<app>/<key>.js|css|json`, `GET /agent/health` (unversioned `/agent/run` still works). Without `PLEATKIT_API_KEY` it runs the `scripted` provider, which replays recorded answers from `PLEATKIT_FIXTURES` (default `./fixtures`) and politely refuses anything else.
-- Supported: Vite 6 to 8, React 18 or 19, TypeScript 5 or 6, Tailwind 4 through `@tailwindcss/vite` or PostCSS (optional, `css: 'tailwind'`), pnpm or npm. Not supported: Next.js, webpack.
-- Full reference: the repository [`README.md`](../../README.md).
+- Supported: Vite 6 to 8 (Vite 5: upgrade to 6 first, install.md step 0), React 18 or 19, TypeScript 5 or 6, Tailwind 4 through `@tailwindcss/vite` or PostCSS (optional, `css: 'tailwind'`), apps without Tailwind (CSS modules, a component library: `css: 'palette'`), pnpm 9 or 10, or npm. Not supported: Next.js, webpack.
+- Telemetry: the CLI and the Vite plugin can send one anonymous event per command; `PLEATKIT_TELEMETRY=0` (or `DO_NOT_TRACK=1`, or CI) turns it off, and in this version nothing is sent unless `PLEATKIT_TELEMETRY_URL` is set.
+- Background (not needed for an install): the repository's `README.md`.

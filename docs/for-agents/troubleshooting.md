@@ -16,6 +16,18 @@ Run: nothing. `pnpm approve-builds` only if a build later fails with an esbuild 
 Cause: pnpm on Windows writes the path with backslashes, also when you typed forward slashes, in `package.json` and in the `specifier:` lines of `pnpm-lock.yaml`. It works locally, but not on other machines.
 Run: edit both files to forward slashes (`link:../../pleatkit/packages/runtime`), then `pnpm install --frozen-lockfile` (it must pass unchanged).
 
+**`pnpm add`: `ERR_PNPM_ADDING_TO_ROOT`.**
+Cause: the app has its own `pnpm-workspace.yaml`, so its folder is a workspace root.
+Run: the same command with `-w`.
+
+**`pnpm add` fails in another package's postinstall** (Windows: `path longer than allowed`, `ELIFECYCLE -4058`).
+Cause: an install script of one of the app's own dependencies (a Storybook addon) fails; pleatkit's packages have none.
+Run: `pnpm add --ignore-scripts …` (and `pnpm install --ignore-scripts`), or move the app to a shorter path.
+
+**`pnpm store` prints pnpm's usage and no server starts.**
+Cause: `store` is a pnpm command; the app's script of the same name runs only with `run`.
+Run: `pnpm run store` (and `pnpm run agent`).
+
 **npm: `Unsupported URL Type "link:": link:../pleatkit/packages/runtime`.**
 Cause: `link:` is pnpm's protocol; npm has none.
 Run: `npm install <PLEATKIT>/packages/runtime …` with the folder paths ([install.md](install.md) step 2): npm records `file:` and links the folders.
@@ -94,16 +106,16 @@ Run: start `pnpm dev` or `pnpm exec vite preview` (after `pnpm build`) and pass 
 Cause: no `/agent` proxy in `server.proxy` / `preview.proxy`, or the agent server is not running.
 Run: add `'/agent': 'http://localhost:8789'` to both proxies; start `pnpm agent`.
 
-**Agent: `EADDRINUSE: address already in use :::8789`.**
-Cause: another process uses port 8789.
-Run: `PLEATKIT_AGENT_PORT=8790 pnpm agent` and change both proxy targets to `http://localhost:8790`.
+**Agent: `EADDRINUSE: address already in use :::8789`** (or store-server on `:::8790`).
+Cause: another process uses the port (on Windows, often an agent from an earlier terminal that kept running).
+Run: move the agent to a free port that is not store-server's (8790): `PLEATKIT_AGENT_PORT=8791 pnpm run agent`, and change only the `/agent` proxy target (in `server.proxy` and `preview.proxy`) to `http://localhost:8791`. Moving store-server instead: `PLEATKIT_STORE_PORT`, the agent's `PLEATKIT_STORE_URL`, and the `/pleatkit-store` and `/pleatkit/b` targets ([install.md](install.md) step 7, "Other ports").
 
 **Chat: `Not done` with "has no recorded answer for this request".**
 Cause: the agent runs without a key (scripted provider) and has no recorded answer for this text.
 Run: start the agent with `PLEATKIT_API_KEY=<key>`, or add a recorded answer to `fixtures/` ([verify.md](verify.md) check 3).
 
 **Every edit fails: the chat says "Something went wrong on our side and nothing was changed", and the request log shows `finish` refused for a line of a file the edit did not touch.**
-Cause: every edit is checked with the whole dynamic zone, and one of the release's own panels breaks a static rule. Typical in an existing app: a URL from data passed to a component (`<Avatar src={user.avatar}>`, rule `no-computed-url`) or an absolute URL to another host written in the code (`no-remote-request`). A URL from data on a plain element (`<img src={product.image}>`) is allowed (stage 5 block 3): the runtime keeps it only on the app's origin.
+Cause: every edit is checked with the whole dynamic zone, and one of the release's own panels breaks a static rule. Typical in an existing app: a URL from data passed to a component (`<Avatar src={user.avatar}>`, rule `no-computed-url`) or an absolute URL to another host written in the code (`no-remote-request`). A URL from data on a plain element (`<img src={product.image}>`) is allowed: the runtime keeps it only on the app's origin.
 Run: `pnpm exec pleatkit doctor`: `[FAIL] release` lists the lines. Keep the file name in the data and write the folder in the code (``src={`/images/${product.image}`}``), rebuild, run doctor again.
 
 **The spacing between a panel and its neighbours disappeared after moving it into `<Dynamic>`.**
@@ -121,6 +133,10 @@ Run: open the browser console (`[pleatkit]` lines) and check that every external
 **A panel shows "The last edit broke the “…” panel" and rolls back after 10 s.**
 Cause: the edit compiled but throws while rendering (for example reading a field of `undefined`).
 Run: nothing; the previous version comes back. The admin log has the edit.
+
+**The chat offers "Use new version" / "Carry them over", or a recorded answer's `old_str` no longer matches, after you changed the panels and rebuilt.**
+Cause: the user (also your test user) has edits made on the previous release's files; they stay until carried over (a stale version).
+Run: during the install, click **Use new version** in the chat (or stop store-server and delete `.pleatkit/store.db`); in production, `pleatkit check-snapshots` before the release ([production.md](production.md)).
 
 **Edits do not survive a reload.**
 Cause: a new `LocalStore` name or a different `userId` on each load.
