@@ -13,8 +13,9 @@ import type { ModelProvider } from './types.js'
  *   first call   = prefix × cache read + tail × cache write + output × output price (+ 4 uncached tokens)
  *   second call  = (prefix + tail) × cache read + first turn × cache write + second output × output price
  *   expected     = first call + twoCallShare × second call + classifier (its fixed part read from the cache)
- *   cold         = the same with the prefix written instead of read (the first edit after 5 minutes idle) and the
- *                  classifier's fixed part written
+ *   cold         = the same with the prefix written instead of read (the first edit after the prefix's cache TTL:
+ *                  an hour since block 6, 5 minutes before; a 1-hour write costs 2× input, a 5-minute one 1.25×) and
+ *                  the classifier's fixed part written (5 minutes)
  *
  * The constants below were calibrated on the recorded live runs of prompt 5f and 5d (evals/recordings/apps-5f,
  * probe-5f, live-5d, live-5d-sequential: 90 applied edits on the demo, shadcn-admin and TailAdmin):
@@ -46,6 +47,8 @@ export interface EditCostAssumptions {
   classifierPrefixTokens: number
   classifierInputTokens: number
   classifierOutputTokens: number
+  /** Block 6 (17 §21): the TTL of the system prefix's cache entry, which prices a cold edit's prefix write. */
+  prefixTtl: '5m' | '1h'
 }
 
 export const EDIT_COST_ASSUMPTIONS: Readonly<EditCostAssumptions> = {
@@ -58,6 +61,7 @@ export const EDIT_COST_ASSUMPTIONS: Readonly<EditCostAssumptions> = {
   classifierPrefixTokens: 2_000,
   classifierInputTokens: 40,
   classifierOutputTokens: 90,
+  prefixTtl: '1h',
 }
 
 export interface PromptSize {
@@ -102,11 +106,11 @@ export function expectedEditCost(size: PromptSize, model: string, classifierMode
   const base = { model, classifierModel, prefixTokens: P, tailTokens: T, assumptions: a, unpriced }
   if (unpriced.length) return { ...base, expectedUsd: null, coldUsd: null, breakdown: null }
 
-  const usd = (m: string, u: { input?: number; output?: number; read?: number; write?: number }) =>
-    costUsd(m, { inputTokens: u.input ?? 0, outputTokens: u.output ?? 0, cacheReadTokens: u.read ?? 0, cacheWriteTokens: u.write ?? 0 })!
+  const usd = (m: string, u: { input?: number; output?: number; read?: number; write?: number; write1h?: number }) =>
+    costUsd(m, { inputTokens: u.input ?? 0, outputTokens: u.output ?? 0, cacheReadTokens: u.read ?? 0, cacheWriteTokens: (u.write ?? 0) + (u.write1h ?? 0), cacheWrite1hTokens: u.write1h ?? 0 })!
   const tail = a.tailWrite ? usd(model, { write: T }) : usd(model, { input: T })
   const prefixRead = usd(model, { read: P })
-  const prefixWrite = usd(model, { write: P })
+  const prefixWrite = a.prefixTtl === '1h' ? usd(model, { write1h: P }) : usd(model, { write: P })
   const output = usd(model, { input: a.uncachedTokens, output: a.outputTokens })
   const second = usd(model, { input: a.uncachedTokens, read: P + T, write: a.secondCallWriteTokens, output: a.secondCallOutputTokens }) * a.twoCallShare
   const classifierFixed = { input: a.classifierInputTokens, output: a.classifierOutputTokens }

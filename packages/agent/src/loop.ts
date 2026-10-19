@@ -2,7 +2,7 @@ import { AGENT_IMAGE_TYPES, MAX_AGENT_IMAGE_BYTES, MAX_AGENT_IMAGES, MAX_TARGET_
 import type { AgentImage, AgentProgress, AgentResult, AgentRunRequest, FileMap, RequestClass } from '@pleatkit/runtime/compiler'
 import { t } from './i18n.js'
 import { UsageMeter } from './pricing.js'
-import { buildPrompt, classifierContext, PROMPT_VERSION, type PromptDigests } from './prompt.js'
+import { buildPrompt, classifierContext, PROMPT_VERSION, type PromptDigests, type TailMode } from './prompt.js'
 import { callModel, RateLimitedError, type ModelGate } from './rate-limit.js'
 import { backendQuoteOf, checkText, ToolRunner, TOOLS } from './tools.js'
 import type { CancelledCall, Classification, ModelProvider, ModelSession, ModelTurn, ToolCall, ToolResult } from './types.js'
@@ -61,6 +61,8 @@ export interface RunOptions {
   rateLimitRetries?: number
   /** Aborts the run, e.g. when the browser disconnects. */
   signal?: AbortSignal
+  /** DECISIONS 84.5: `pointed` (default) sends only the pointed panel's files in the first message; `all` every file. */
+  tail?: TailMode
 }
 
 /** `src/dynamic/customer-card.tsx` → "the customer card"; non-panel files get a generic name. */
@@ -125,6 +127,8 @@ export function validateRequest(body: unknown): AgentRunRequest {
     throw new Error('context { dynamicRoots, externals, externalPatterns, alias } is required')
   }
   const images = validateImages(b.images)
+  // block 6 (17 §14): the pointed panel's "before" screenshot counts in the same limits as the user's screenshots
+  const targetImage = b.targetImage === undefined || b.targetImage === null ? undefined : validateImages([...(images ?? []), b.targetImage])?.at(-1)
   const cl = b.clarification as { question?: unknown; answer?: unknown } | undefined
   if (cl !== undefined && (typeof cl !== 'object' || cl === null || typeof cl.question !== 'string' || typeof cl.answer !== 'string' || !cl.answer.trim())) {
     throw new Error('clarification must be { question, answer } strings')
@@ -133,6 +137,7 @@ export function validateRequest(body: unknown): AgentRunRequest {
   return {
     ...b,
     ...(images ? { images } : {}),
+    ...(targetImage ? { targetImage } : { targetImage: undefined }),
     ...(typeof b.targetDom === 'string' ? { targetDom: b.targetDom.slice(0, MAX_TARGET_DOM_CHARS) } : {}),
     readonly: b.readonly ?? {},
     coreTypes: b.coreTypes ?? {},
@@ -207,6 +212,9 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   let backendQuote: string | undefined
   let cancelledCall: AgentResult['cancelledCall']
   let rateLimited = false
+  let ensemble: AgentResult['classifier']
+  // block 6: set when the result is built; a classifier answer arriving later (the ensemble) is no longer metered
+  let finished = false
   const intent: { intentLabel?: string; gist?: string } = {}
   const spent = () => meter.rows().reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
 
@@ -235,6 +243,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   )
 
   const done = (verdict: AgentResult['verdict'], summary: string): Omit<AgentResult, 'requestId'> => {
+    finished = true
     timings.totalMs = Math.round(performance.now() - started)
     return {
       verdict,
@@ -251,7 +260,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       output,
       attachments: {
         images: req.images?.length ?? 0,
-        imageBytes: (req.images ?? []).reduce((s, i) => s + Math.floor((i.data.length * 3) / 4), 0),
+        imageBytes: [...(req.images ?? []), ...(req.targetImage ? [req.targetImage] : [])].reduce((s, i) => s + Math.floor((i.data.length * 3) / 4), 0),
         targetDomChars: req.targetDom?.length ?? 0,
       },
       timings: { ...timings, modelMs: Math.round(timings.modelMs), toolsMs: Math.round(timings.toolsMs), classifyMs: timings.classifyMs === null ? null : Math.round(timings.classifyMs), overlapMs: timings.overlapMs === undefined ? undefined : Math.round(timings.overlapMs), ...(timings.classifierMode ? { classifierMode: timings.classifierMode } : {}) },
@@ -263,6 +272,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       ...(backendQuote ? { backendQuote } : {}),
       ...(cancelledCall ? { cancelledCall } : {}),
       ...(rateLimited ? { rateLimited: true } : {}),
+      ...(ensemble ? { classifier: ensemble } : {}),
       ...intent,
     }
   }
@@ -273,7 +283,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
   const startSession = () => {
     // one clarifying question per edit (brainstorm 04 §3): after the user answered, finish("clarify") is refused
     runner.clarified = Boolean(req.clarification)
-    session = provider.start(buildPrompt(req, limits, options.digests ?? {}), TOOLS, { request: req.request })
+    session = provider.start(buildPrompt(req, limits, options.digests ?? {}, options.tail ?? 'pointed'), TOOLS, { request: req.request })
     return session
   }
 
@@ -284,7 +294,15 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       progress({ type: 'status', text: t(lang, 'understanding') })
       const startedAt = performance.now()
       // the classifier's request goes out first (a recorded transcript keeps one file per run: classify, then start)
-      const classifying = viaGate(() => provider.classify({ request: req.request, context: classifierContext(req, options.digests ?? {}) }, signal))
+      // block 6 (DECISIONS 83): with the ensemble, Jev may decide before the classifier model answers; the model's
+      // answer then arrives here, is metered and gives the request its intent label, while the run is still going
+      const onLate = (late: Classification) => {
+        if (finished) return
+        if (late.usage && late.model) meter.add(late.model, late.usage)
+        if (!intent.intentLabel && late.intentLabel) intent.intentLabel = late.intentLabel
+        if (!intent.gist && late.gist) intent.gist = late.gist
+      }
+      const classifying = viaGate(() => provider.classify({ request: req.request, context: classifierContext(req, options.digests ?? {}), onLate }, signal))
       classifying.catch(() => undefined)
       timings.classifierMode = options.classifierMode === 'sequential' ? 'sequential' : 'parallel'
       if (timings.classifierMode === 'parallel') {
@@ -315,6 +333,8 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
       try {
         const c = await classifying
         if (c.usage && c.model) meter.add(c.model, c.usage)
+        for (const x of c.extraUsage ?? []) meter.add(x.model, x.usage)
+        if (c.ensemble) ensemble = c.ensemble
         classification = c.label
         if (c.intentLabel) intent.intentLabel = c.intentLabel
         if (c.gist) intent.gist = c.gist

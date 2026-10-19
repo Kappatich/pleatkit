@@ -65,7 +65,12 @@ describe('pleatkit labels export (DECISIONS 81)', () => {
   })
 
   it('names a probe by its request, plus the labeller when two people labelled it; drops unknown labels', () => {
-    const probes = toProbes([item('req_1', 'ui', 'minte'), item('req_1', 'clarify', 'arch itect'), item('req_2', 'restore'), item('req_3', 'declined')], 'tailadmin')
+    const probes = toProbes([item('req_1', 'ui', 'minte'), item('req_1', 'clarify', 'arch itect'), item('req_2', 'maybe'), item('req_3', 'declined')], 'tailadmin')
     expect(probes.map((p) => p.id)).toEqual(['human-req_1-minte', 'human-req_1-arch_itect', 'human-req_3'])
+  })
+
+  it('DECISIONS 84.2: a restore label is a probe that expects restore', () => {
+    const probes = toProbes([item('req_4', 'restore', 'minte', { suggested: 'ui' })], 'demo-crm')
+    expect(probes).toEqual([expect.objectContaining({ id: 'human-req_4', app: 'demo-crm', expected: 'restore', suggested: 'ui' })])
   })
 })

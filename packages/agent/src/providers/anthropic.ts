@@ -3,7 +3,7 @@ import type { PleatkitManifest, TokenUsage } from '@pleatkit/runtime/compiler'
 import type { PromptTokenCount } from '../prefix.js'
 import { CLASSIFIER_INSTRUCTIONS, INTENT_LABELS } from '../prompt.js'
 import { perCallMaxTokens } from './budget.js'
-import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
+import type { BackendQuote, Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
 import { CLUSTER_MAX_TOKENS, CLUSTER_SCHEMA, clusterMessage, parseClusters, WISHES_INSTRUCTIONS, type ClusterInput, type ClusterOutput } from '../wishes.js'
 
 type MessageParam = Anthropic.Beta.BetaMessageParam
@@ -38,6 +38,13 @@ export interface AnthropicProviderOptions {
    * tail as input on the first call and writes it on the second. PLEATKIT_CACHE_TAIL=always for the old behavior.
    */
   cacheTail?: 'always' | 'after-first'
+  /**
+   * Block 6 (brainstorm 17 §21): the TTL of the system prefix's cache entry (tools, instructions, the app's readonly
+   * context). `5m` (1.25× write) or `1h` (2× write, but an app with one edit every 20 minutes reads it instead of
+   * writing it again). PLEATKIT_CACHE_TTL; `1h` by default since block 6 (measured: 6 edits 20 minutes apart). The
+   * conversation tail stays 5-minute.
+   */
+  cacheTtl?: '5m' | '1h'
 }
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5'
@@ -51,16 +58,19 @@ interface WireUsage {
   cache_read_input_tokens?: number | null
   cache_creation_input_tokens?: number | null
   output_tokens_details?: { thinking_tokens?: number | null } | null
+  cache_creation?: { ephemeral_5m_input_tokens?: number | null; ephemeral_1h_input_tokens?: number | null } | null
 }
 
-function usageOf(u: WireUsage): TokenUsage {
+export function usageOf(u: WireUsage): TokenUsage {
   const thinking = u.output_tokens_details?.thinking_tokens
+  const write1h = u.cache_creation?.ephemeral_1h_input_tokens
   return {
     inputTokens: u.input_tokens ?? 0,
     outputTokens: u.output_tokens ?? 0,
     cacheReadTokens: u.cache_read_input_tokens ?? 0,
     cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
     ...(typeof thinking === 'number' ? { thinkingTokens: thinking } : {}),
+    ...(typeof write1h === 'number' && write1h > 0 ? { cacheWrite1hTokens: write1h } : {}),
   }
 }
 
@@ -78,6 +88,25 @@ const CLASSIFY_SCHEMA = {
   required: ['label', 'reason', 'question', 'options', 'intent_label', 'gist', 'backend_quote'],
   additionalProperties: false,
 } as const
+
+/** Block 6: the follow-up for a needs-backend request Jev routed alone (the text parts only). */
+const QUOTE_SCHEMA = {
+  type: 'object',
+  properties: {
+    reason: { type: 'string' },
+    intent_label: { type: 'string', enum: [...INTENT_LABELS] },
+    gist: { type: 'string' },
+    backend_quote: { type: 'string' },
+  },
+  required: ['reason', 'intent_label', 'gist', 'backend_quote'],
+  additionalProperties: false,
+} as const
+
+export const QUOTE_INSTRUCTIONS = `A user asked the AI agent of a web app for a change that needs work on the server (the agent can only edit the screen's frontend panels), so the request goes to the app's administrator. Give:
+- reason: one short plain-language sentence for the user, in the language of the request, saying this needs a change on the server and was passed to the administrator; no code or technical terms.
+- intent_label: the closest kind of change from the list.
+- gist: at most 12 English words saying what kind of change it is, without names, numbers, e-mails or any data from the request.
+- backend_quote: the request's own words that need the server, copied verbatim (a substring of the request).`
 
 /** The intent label (closed list) and a gist without digits (DECISIONS 44). */
 export function intentOf(p: { intent_label?: unknown; gist?: unknown }): { intentLabel?: string; gist?: string } {
@@ -103,6 +132,7 @@ export class AnthropicProvider implements ModelProvider {
   private readonly fallbacks: boolean
   private readonly stream: boolean
   private readonly cacheTail: 'always' | 'after-first'
+  private readonly cacheTtl: '5m' | '1h'
 
   constructor(options: AnthropicProviderOptions) {
     this.client = new Anthropic({
@@ -118,6 +148,30 @@ export class AnthropicProvider implements ModelProvider {
     this.fallbacks = options.fallbacks ?? true
     this.stream = options.stream ?? false
     this.cacheTail = options.cacheTail ?? 'after-first'
+    this.cacheTtl = options.cacheTtl ?? '1h'
+  }
+
+  /** Block 6 (DECISIONS 83): the text parts of a needs-backend answer that Jev routed alone. */
+  async quoteBackend(input: ClassifyInput, signal: AbortSignal): Promise<BackendQuote> {
+    const msg = await this.client.messages.create(
+      {
+        model: this.classifierModel,
+        max_tokens: 512,
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: QUOTE_SCHEMA } },
+        system: QUOTE_INSTRUCTIONS,
+        messages: [{ role: 'user', content: `<request>\n${input.request}\n</request>` }],
+      },
+      { signal },
+    )
+    const usage = usageOf(msg.usage)
+    if (msg.stop_reason === 'refusal') return { reason: '', usage, model: msg.model }
+    try {
+      const p = JSON.parse(msg.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) as { reason?: string; backend_quote?: string; intent_label?: string; gist?: string }
+      const quote = typeof p.backend_quote === 'string' && p.backend_quote.trim() ? p.backend_quote.trim().slice(0, 1000) : undefined
+      return { reason: typeof p.reason === 'string' ? p.reason.trim() : '', ...intentOf(p), ...(quote ? { backendQuote: quote } : {}), usage, model: msg.model }
+    } catch {
+      return { reason: '', usage, model: msg.model }
+    }
   }
 
   async classify(input: ClassifyInput, signal: AbortSignal): Promise<Classification> {
@@ -224,7 +278,7 @@ export class AnthropicProvider implements ModelProvider {
     // instructions + readonly sources + core types. The user message (dynamic files, request) varies.
     const system: Anthropic.Beta.BetaTextBlockParam[] = [
       { type: 'text', text: prompt.instructions },
-      { type: 'text', text: prompt.cached, cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: prompt.cached, cache_control: this.cacheTtl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' } },
     ]
     const toolDefs: Anthropic.Beta.BetaTool[] = tools.map((t) => ({
       name: t.name,

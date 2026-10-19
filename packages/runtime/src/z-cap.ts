@@ -5,7 +5,7 @@
  * full-screen element written into an edit can never hide the Undo the user needs to get rid of it. The static rules
  * keep an edit inside its panel's subtree (`no-portal`: no createPortal, nothing attached to document.body), so the
  * panel's subtree is the whole of what an edit renders. Applied only while the panel runs an edit; the release's own
- * code is the developer's and is left alone.
+ * code is the developer's and is left alone. DECISIONS 84.4 adds containment to the panel's box: `contain.ts`.
  */
 export const EDIT_Z_INDEX_CAP = 999
 
@@ -37,9 +37,17 @@ export function capZIndex(root: Element, cap: number = EDIT_Z_INDEX_CAP): number
  * edit can raise a z-index later, on hover or after a timer). Returns the function that stops watching.
  */
 export function watchZIndex(root: Element, cap: number = EDIT_Z_INDEX_CAP): () => void {
+  return watchPanel(root, () => capZIndex(root, cap))
+}
+
+/**
+ * Run `pass` now and again (once per frame at most) after any change of the elements, classes or styles under
+ * `root`. The z-index cap and the containment of an edited panel (`contain.ts`, DECISIONS 84.4) share it.
+ */
+export function watchPanel(root: Element, pass: () => void): () => void {
   const view = root.ownerDocument?.defaultView
   if (!view) return () => undefined
-  capZIndex(root, cap)
+  pass()
   if (typeof view.MutationObserver !== 'function') return () => undefined
   let queued = false
   const raf = typeof view.requestAnimationFrame === 'function' ? view.requestAnimationFrame.bind(view) : (f: () => void) => view.setTimeout(f, 16)
@@ -48,7 +56,7 @@ export function watchZIndex(root: Element, cap: number = EDIT_Z_INDEX_CAP): () =
     queued = true
     raf(() => {
       queued = false
-      capZIndex(root, cap)
+      pass()
     })
   })
   observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['style', 'class'] })

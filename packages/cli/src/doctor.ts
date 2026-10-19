@@ -411,13 +411,23 @@ export async function checkRelease(manifest: PleatkitManifest, agent: AgentModul
   const ws = new agent.Workspace({ ...req, protected: trusted.protected, base: trusted.base })
   const r = await ws.check()
   if (r.ok) return { id: 'release', status: 'ok', title: `the release's ${manifest.dynamic.length} dynamic file${manifest.dynamic.length === 1 ? ' passes' : 's pass'} the agent's check (compile and static rules)`, details: [] }
+  const text = agent.formatErrors(r.errors)
   return {
     id: 'release',
     status: 'fail',
     title: `the release's own panels do not pass the agent's check: every edit would be refused`,
-    details: agent.formatErrors(r.errors).split('\n').slice(0, 8),
-    fix: 'change these lines in the dynamic files (an image or link URL from data: build it from a relative path written in the code, e.g. src={`/images/${row.file}`}; see troubleshooting.md "Every edit fails")',
+    details: text.split('\n').slice(0, 8),
+    fix: releaseFix(text),
   }
+}
+
+/** Block 6 (blind install antd-6): the advice follows the rules that fired, not always the URL one. */
+export function releaseFix(errors: string): string {
+  const tips: string[] = []
+  if (/createElement|no-raw-html/.test(errors)) tips.push('write JSX instead of React.createElement: a component passed as a prop renders as const { icon: Icon } = props; <Icon />')
+  if (/url|href|src=|no-external|navigation/i.test(errors)) tips.push('an image or link URL from data: build it from a relative path written in the code, e.g. src={`/images/${row.file}`}')
+  if (/no-portal|createPortal|document\.body/.test(errors)) tips.push('render inside the panel instead of a portal (the UI kit\'s own popovers in readonly code are fine)')
+  return `change these lines in the dynamic files${tips.length ? ` (${tips.join('; ')})` : ''}; see troubleshooting.md "Every edit fails"`
 }
 
 // --- secure context (code review 06 item 4) ---

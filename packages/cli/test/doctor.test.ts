@@ -233,3 +233,13 @@ describe('stage 5 block 5: the externals count (found by a blind install)', () =
     expect(two).toMatchObject({ status: 'ok', title: '2 entries (3 modules) resolve' })
   })
 })
+
+describe('block 6 (blind install antd-6): the release fix follows the rule that fired', () => {
+  it('names JSX for createElement, the relative path for a URL, nothing extra otherwise', async () => {
+    const { releaseFix } = await import('../src/doctor.js')
+    expect(releaseFix('src/dynamic/x.tsx:19:10 createElement() is not allowed in edits; write JSX [no-raw-html]')).toContain('<Icon />')
+    expect(releaseFix('src/dynamic/x.tsx:19:10 createElement() is not allowed in edits; write JSX [no-raw-html]')).not.toContain('/images/')
+    expect(releaseFix('src/dynamic/x.tsx:3:5 an absolute URL to another site in src [no-external-url]')).toContain('/images/')
+    expect(releaseFix('src/dynamic/x.tsx:1:1 Cannot find name y')).toBe('change these lines in the dynamic files; see troubleshooting.md "Every edit fails"')
+  })
+})

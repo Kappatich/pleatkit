@@ -17,3 +17,5 @@ docs/.video/
 # eval harness: per-run results and Playwright output (the report and the baseline are committed)
 evals/results/
 evals/.out/
+# block 6: the weekly drift check's live sets (CI uploads them as artifacts; locally they are not committed)
+evals/recordings/weekly-*/

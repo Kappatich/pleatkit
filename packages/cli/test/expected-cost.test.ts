@@ -20,7 +20,8 @@ describe('DECISIONS 75 Р2: doctor prints the expected cost of an edit', () => {
     const counted = await measureContextBudget(manifest, { PLEATKIT_API_KEY: 'k' }, { ...agent, countPromptTokens: async () => ({ prefixTokens: 13_018, tailTokens: 10_343, model: 'claude-sonnet-5-5', promptVersion: 'x' }) })
     const e = agent.expectedEditCost({ prefixTokens: 13_018, tailTokens: 10_343 }, 'claude-sonnet-5-5', 'claude-haiku-5-5')
     expect(line(counted.details)).toBe(`Expected cost per edit on this app: ${agent.formatUsd(e.expectedUsd!)} (cold: ${agent.formatUsd(e.coldUsd!)}) with claude-sonnet-5-5 and the claude-haiku-5-5 classifier`)
-    expect(line(counted.details)).toMatch(/\$0\.03\d\d \(cold: \$0\.06\d\d\)/)
+    // block 6: a cold edit writes the prefix for an hour (2x input), so it costs more than with the 5-minute TTL
+    expect(line(counted.details)).toMatch(/\$0\.03\d\d \(cold: \$0\.0[78]\d\d\)/)
     expect(counted.details.join('\n')).toMatch(/from the counted prompt size: prefix read from the cache, tail written to it, 550 output tokens, a second call in 25 % of edits/)
   })
 

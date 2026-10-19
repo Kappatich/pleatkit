@@ -3,8 +3,11 @@ import path from 'node:path'
 
 /** The apps `pnpm eval:classify` knows (`APP_IDS` in evals/src/apps.ts): a probe is classified against one's data contract. */
 export const EVAL_APPS = ['demo-crm', 'shadcn-admin', 'tailadmin'] as const
-/** The labels of the /admin Labels screen; `eval:classify` scores each (clarify → unclear, declined → adversarial, mixed → ui). */
-export const PROBE_LABELS = ['ui', 'needs-backend', 'clarify', 'off-topic', 'declined', 'mixed'] as const
+/**
+ * The labels of the /admin Labels screen; `eval:classify` scores each (clarify → unclear, declined → adversarial, mixed → ui,
+ * restore → restore: DECISIONS 84.2).
+ */
+export const PROBE_LABELS = ['ui', 'needs-backend', 'clarify', 'off-topic', 'declined', 'mixed', 'restore'] as const
 export const DEFAULT_LABELS_OUT = path.join('evals', 'probes', 'human-disagreements.json')
 
 export interface LabelsExportOptions {

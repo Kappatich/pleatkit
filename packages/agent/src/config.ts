@@ -1,6 +1,8 @@
 import { AnthropicProvider } from './providers/anthropic.js'
 import { OpenAICompatibleProvider } from './providers/openai.js'
 import { ScriptedProvider } from './providers/scripted.js'
+import { TypeSafeClassifier } from './providers/typesafe.js'
+import { EnsembleProvider } from './classifier-ensemble.js'
 import { agentAuthFromEnv, type AgentAuth } from './auth.js'
 import type { AgentLimits } from './loop.js'
 import { alertsFromEnv, type AlertsOptions } from './alerts.js'
@@ -9,6 +11,7 @@ import { DEFAULT_MODEL_CONCURRENCY, DEFAULT_RATE_LIMIT_RETRIES } from './rate-li
 import { typecheckFromEnv } from './typecheck.js'
 import type { TypecheckFn } from './workspace.js'
 import type { ClassifierSetting } from './classifier-mode.js'
+import type { TailMode } from './prompt.js'
 import type { ModelProvider } from './types.js'
 import { wishLimitsFromEnv, type WishLimits } from './wishes.js'
 
@@ -34,6 +37,8 @@ export interface AgentConfig {
   warmTypecheckApps: string[]
   /** PLEATKIT_CLASSIFIER: auto (default, per app from the week's history, DECISIONS 75 Р5), parallel or sequential (73.3). */
   classifierMode: ClassifierSetting
+  /** PLEATKIT_TAIL: pointed (default, DECISIONS 84.5) or all. */
+  tail: TailMode
   /** PLEATKIT_ALERT_* and PLEATKIT_FREEZE (05 #5). */
   alerts: Pick<AlertsOptions, 'sinks' | 'freeze'>
   /** DECISIONS 70.3: PLEATKIT_WISHES_MAX_ITEMS (default 500) and PLEATKIT_WISHES_BUDGET_USD (default 0.50). */
@@ -62,6 +67,14 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * PLEATKIT_CACHE_TAIL  after-first (default): the first call of an edit writes only the system prefix to the prompt
  *                      cache, so a one-call edit and a cancelled early call do not pay the 1.25x tail write
  *                      (DECISIONS 76.1); always: every call writes the tail, as before block 4
+ * PLEATKIT_TAIL        pointed (default): a request that points at a panel sends that panel's files and their imports
+ *                      in full and lists the rest of the zone by name and exports (DECISIONS 84.5); all: every file
+ * PLEATKIT_CACHE_TTL   1h (default since block 6) or 5m: the TTL of the system prefix's prompt-cache entry (brainstorm
+ *                      17 §21: an app with one edit every 20 minutes reads the prefix instead of writing it each time)
+ * PLEATKIT_CLASSIFIER_ENSEMBLE  off or jev (DECISIONS 83): Jev (TypeSafe) and the classifier model start together and Jev
+ *                      decides ui / partial / needs-backend / restore alone when it is sure (classifier-ensemble.ts).
+ *                      Needs TYPESAFE_API_KEY; unset: `DEFAULT_CLASSIFIER_ENSEMBLE`, which runs Haiku alone without the key
+ * TYPESAFE_API_KEY     TypeSafe key for the ensemble (optional; without it the classifier is the model alone)
  * PLEATKIT_FIXTURES    directory of scripted fixtures (*.json)
  * PLEATKIT_SCRIPTED_DELAY_MS  pause before each scripted answer (recorded demos), default 0
  * PLEATKIT_STORE_URL   @pleatkit/store-server URL for the request log
@@ -125,6 +138,7 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
     warmTypecheckApps: warmApps,
     commitTypecheck: forced ? typecheck : null,
     classifierMode: classifierSettingFromEnv(env.PLEATKIT_CLASSIFIER),
+    tail: tailFromEnv(env.PLEATKIT_TAIL),
     alerts: alertsFromEnv(env),
     wishes: wishLimitsFromEnv(env),
     modelConcurrency: Math.max(1, Math.floor(num(env.PLEATKIT_MODEL_CONCURRENCY) ?? DEFAULT_MODEL_CONCURRENCY)),
@@ -151,6 +165,26 @@ export function classifierSettingFromEnv(value: string | undefined): ClassifierS
 }
 
 /**
+ * Block 6 (DECISIONS 83): the ensemble when PLEATKIT_CLASSIFIER_ENSEMBLE is unset. `jev` turns it on only where a
+ * TYPESAFE_API_KEY is set; an explicit `PLEATKIT_CLASSIFIER_ENSEMBLE=jev` without the key is a configuration error.
+ */
+export const DEFAULT_CLASSIFIER_ENSEMBLE: 'off' | 'jev' = 'off'
+
+/** PLEATKIT_CLASSIFIER_ENSEMBLE and TYPESAFE_API_KEY: the TypeSafe router to wrap the provider with, or null. */
+export function ensembleFromEnv(env: Env): TypeSafeClassifier | null {
+  const raw = (env.PLEATKIT_CLASSIFIER_ENSEMBLE ?? '').trim().toLowerCase()
+  if (raw !== '' && raw !== 'off' && raw !== 'jev') throw new Error(`PLEATKIT_CLASSIFIER_ENSEMBLE must be off or jev (got "${env.PLEATKIT_CLASSIFIER_ENSEMBLE}")`)
+  const setting = raw === '' ? DEFAULT_CLASSIFIER_ENSEMBLE : raw
+  if (setting === 'off') return null
+  const apiKey = env.TYPESAFE_API_KEY
+  if (!apiKey) {
+    if (raw === 'jev') throw new Error('PLEATKIT_CLASSIFIER_ENSEMBLE=jev needs TYPESAFE_API_KEY')
+    return null
+  }
+  return new TypeSafeClassifier({ apiKey, ...(env.TYPESAFE_URL ? { url: env.TYPESAFE_URL } : {}) })
+}
+
+/**
  * The model provider alone (PLEATKIT_PROVIDER, PLEATKIT_API_KEY, PLEATKIT_MODEL, PLEATKIT_CLASSIFIER_MODEL,
  * PLEATKIT_FIXTURES...): what `pleatkit digest` and `pleatkit carry-over` need, without the server's settings.
  */
@@ -170,6 +204,7 @@ export function providerFromEnv(env: Env = process.env): ModelProvider {
       fallbacks: env.PLEATKIT_FALLBACKS !== 'off',
       stream: env.PLEATKIT_STREAM === '1',
       ...(env.PLEATKIT_CACHE_TAIL === 'after-first' || env.PLEATKIT_CACHE_TAIL === 'always' ? { cacheTail: env.PLEATKIT_CACHE_TAIL } : {}),
+      ...(cacheTtlFromEnv(env.PLEATKIT_CACHE_TTL) ? { cacheTtl: cacheTtlFromEnv(env.PLEATKIT_CACHE_TTL)! } : {}),
     })
   } else if (kind === 'openai-compatible' || kind === 'openai' || kind === 'openrouter') {
     const apiKey = env.PLEATKIT_API_KEY ?? env.OPENAI_API_KEY ?? env.OPENROUTER_API_KEY
@@ -182,5 +217,24 @@ export function providerFromEnv(env: Env = process.env): ModelProvider {
   } else {
     throw new Error(`Unknown PLEATKIT_PROVIDER "${kind}"`)
   }
+  // DECISIONS 83: the classifier ensemble wraps a real model provider (never the scripted one)
+  const jev = kind === 'scripted' ? null : ensembleFromEnv(env)
+  if (jev) provider = new EnsembleProvider(provider, jev, { log: (line) => console.warn(line) })
   return provider
+}
+
+/** PLEATKIT_TAIL: pointed (unset or empty) or all. */
+export function tailFromEnv(value: string | undefined): TailMode {
+  const v = (value ?? '').trim().toLowerCase()
+  if (v === '' || v === 'pointed') return 'pointed'
+  if (v === 'all') return 'all'
+  throw new Error(`PLEATKIT_TAIL must be pointed or all (got "${value}")`)
+}
+
+/** PLEATKIT_CACHE_TTL: 5m or 1h; unset or empty is the provider's default. */
+export function cacheTtlFromEnv(value: string | undefined): '5m' | '1h' | undefined {
+  const v = (value ?? '').trim().toLowerCase()
+  if (v === '') return undefined
+  if (v === '5m' || v === '1h') return v
+  throw new Error(`PLEATKIT_CACHE_TTL must be 5m or 1h (got "${value}")`)
 }

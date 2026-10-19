@@ -6,10 +6,11 @@ import { TimeCell } from './AdminScreens'
 
 /**
  * DECISIONS 81: the Labels screen. One request at a time, the classifier's suggestion marked on its button; one tap
- * (or the digits 1–6) stores the label and moves on; ← → or K J move without labelling. The labels where the person
- * disagrees with the classifier go into the classifier eval (`pleatkit labels export`).
+ * (or the digits 1–7) stores the label and moves on; ← → or K J move without labelling. The labels where the person
+ * disagrees with the classifier go into the classifier eval (`pleatkit labels export`). DECISIONS 84.2: the seventh
+ * button is `restore` ("put it back like it was", the classifier label of 82.2).
  */
-const LABELS = ['ui', 'needs-backend', 'clarify', 'off-topic', 'declined', 'mixed'] as const
+const LABELS = ['ui', 'needs-backend', 'clarify', 'off-topic', 'declined', 'mixed', 'restore'] as const
 type Label = (typeof LABELS)[number]
 type Filter = 'unlabelled' | 'all' | 'disagreements'
 const FILTERS: Filter[] = ['unlabelled', 'all', 'disagreements']
@@ -217,11 +218,14 @@ export function LabelsScreen({ call, tr, locale }: { call: AdminCall; tr: AdminT
               <>
                 <span className="adm-lb-sq" aria-hidden="true" />
                 {tr('adm.l.suggests')}: <b>{tr(`adm.l.label.${item.suggested}` as K)}</b>
-                <span className="adm-dim">
-                  {' '}
-                  ({item.classification}
-                  {item.intentLabel ? ` / ${item.intentLabel}` : ''})
-                </span>
+                {/* a restore verdict is suggested without a classification (DECISIONS 84.2): no empty brackets */}
+                {item.classification && (
+                  <span className="adm-dim">
+                    {' '}
+                    ({item.classification}
+                    {item.intentLabel ? ` / ${item.intentLabel}` : ''})
+                  </span>
+                )}
               </>
             ) : (
               <span className="adm-dim">

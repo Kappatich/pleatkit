@@ -228,7 +228,7 @@ mark.adm-hit { background: var(--mk-red-wash); color: var(--mk-red-ink); font-we
 /* stage 5 block 5: the backend quote under a request (DECISIONS 82.5) */
 .adm-backend-quote { color: var(--mk-ink); border-left: 2px solid var(--mk-red); padding-left: 8px; margin-top: 6px; }
 
-/* the Labels screen (DECISIONS 81): one request between rules, six keys under it, the suggestion carries the red */
+/* the Labels screen (DECISIONS 81, 84.2): one request between rules, seven keys under it, the suggestion carries the red */
 .adm-lb-card { border-bottom: 1px solid var(--mk-ink); padding: 0 0 22px; margin-bottom: 40px; animation: adm-fade .18s var(--mk-ease); }
 .adm-lb-meta { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0; font: 12px/1.5 var(--mk-mono); color: var(--mk-ink-3); font-variant-numeric: tabular-nums; }
 .adm-lb-meta b { color: var(--mk-ink); }
@@ -236,7 +236,7 @@ mark.adm-hit { background: var(--mk-red-wash); color: var(--mk-red-ink); font-we
 .adm-lb-suggest { display: flex; align-items: center; flex-wrap: wrap; gap: 0 6px; margin: 0 0 14px; font-size: 13.5px; color: var(--mk-ink-2); cursor: help; width: max-content; max-width: 100%; }
 .adm-lb-suggest b { color: var(--mk-red-ink); }
 .adm-lb-sq { width: 8px; height: 8px; background: var(--mk-red); margin-right: 2px; }
-.adm-lb-btns { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--mk-ink); }
+.adm-lb-btns { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--mk-ink); }
 .adm-lb-btn { position: relative; display: grid; align-content: start; gap: 2px; min-height: 92px; padding: 10px 12px 12px; text-align: left; border: 0; border-left: 1px solid var(--mk-ink);
   background: var(--mk-paper); color: var(--mk-ink); cursor: pointer; transition: background .12s, color .12s; }
 .adm-lb-btn:first-child { border-left: 0; }
@@ -265,6 +265,6 @@ mark.adm-hit { background: var(--mk-red-wash); color: var(--mk-red-ink); font-we
 @media (max-width: 760px) {
   .adm-lb-text { font-size: 22px; }
   .adm-lb-btns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .adm-lb-btn:nth-child(4) { border-left: 0; }
+  .adm-lb-btn:nth-child(3n + 1) { border-left: 0; }
   .adm-lb-btn:nth-child(n + 4) { border-top: 1px solid var(--mk-ink); }
 }

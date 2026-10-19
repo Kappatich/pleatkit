@@ -166,6 +166,8 @@ interface JsxUse {
   line: number
   attributes: { name: string; value: string | null }[]
   spread: boolean
+  /** Block 6 (blind install antd-6): the spread expressions (`{...s}` → `s`), in order. */
+  spreads: string[]
   text: string
 }
 
@@ -352,11 +354,14 @@ class Project {
         const tag = opening.tagName.getText(sf)
         const attributes: JsxUse['attributes'] = []
         let spread = false
+        const spreads: string[] = []
         for (const a of opening.attributes.properties) {
-          if (ts.isJsxSpreadAttribute(a)) spread = true
-          else attributes.push({ name: a.name.getText(sf), value: a.initializer ? (ts.isJsxExpression(a.initializer) ? (a.initializer.expression?.getText(sf) ?? null) : a.initializer.getText(sf)) : null })
+          if (ts.isJsxSpreadAttribute(a)) {
+            spread = true
+            spreads.push(a.expression.getText(sf))
+          } else attributes.push({ name: a.name.getText(sf), value: a.initializer ? (ts.isJsxExpression(a.initializer) ? (a.initializer.expression?.getText(sf) ?? null) : a.initializer.getText(sf)) : null })
         }
-        mod.jsx.push({ tag, line: lineOf(opening), attributes, spread, text: opening.getText(sf).replace(/\s+/g, ' ') })
+        mod.jsx.push({ tag, line: lineOf(opening), attributes, spread, spreads, text: opening.getText(sf).replace(/\s+/g, ' ') })
       }
       // route tables: { path, component: Users } / { element: <X /> } / createFileRoute(…)({ component })
       if (ts.isPropertyAssignment(n) && /^(component|Component|element|pendingComponent)$/.test(n.name.getText(sf))) {
@@ -1236,11 +1241,12 @@ export function suggest(options: SuggestOptions): SuggestPlan {
           for (const line of h.setup) if (!pageHas(page, line) && !add.includes(line)) add.push(line)
           add.push(`const ${h.prop} = ${h.hook}`)
         }
-        const entries = props.map((p) => {
+        const entries = props.flatMap((p) => {
           const a = j.attributes.find((x) => x.name === p)
-          if (!a) return p
+          // a prop the site does not write comes from its spread ({...s}), when it has one
+          if (!a) return j.spreads.length ? [] : [p]
           const v = a.value === null ? 'true' : a.value
-          if (v === p) return p
+          if (v === p) return [p]
           if (v.includes('\n') || v.length > 80) {
             const name = new RegExp(`\\b(const|let|var|function)\\s+${p}\\b`).test(page) ? `${p}Prop` : p
             add.push(`const ${name} = ${v}`)
@@ -1248,7 +1254,10 @@ export function suggest(options: SuggestOptions): SuggestPlan {
           }
           return `${p}: ${v}`
         })
-        const replacement = `<Dynamic id=${JSON.stringify(choice.id)}${entries.length ? ` props={{ ${entries.join(', ')} }}` : ''}${j.spread ? ' /* spread props: list them */' : ''} />`
+        // block 6: a spread render site passes the same object: <X {...s} /> → props={s}, <X {...s} a={1} /> → props={{ ...s, a: 1 }}
+        const all = [...j.spreads.map((s) => `...${s}`), ...entries]
+        const propsText = j.spreads.length === 1 && !entries.length ? ` props={${j.spreads[0]}}` : all.length ? ` props={{ ${all.join(', ')} }}` : ''
+        const replacement = `<Dynamic id=${JSON.stringify(choice.id)}${propsText} />`
         sites.push({ file: m.path, line: j.line, element: j.text.length > 140 ? j.text.slice(0, 137) + '…' : j.text, attributes, props, add: [...new Set(add)], replacement })
       }
     }

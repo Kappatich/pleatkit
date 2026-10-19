@@ -404,3 +404,20 @@ describe('pleatkit init --suggest', () => {
     expect(() => suggest({ root, panels: parsePanels('src/components/ecommerce/RecentOrders.tsx:x,src/components/ecommerce/SalesChart.tsx:x') })).toThrow(/two panels would get the id "x"/)
   })
 })
+
+describe('block 6 (blind install antd-6): spread render sites', () => {
+  it('passes the spread object as props, alone or with the attributes the site writes', () => {
+    const root = app({
+      'tsconfig.json': tsconfigAt,
+      'tsconfig.app.json': tsconfigApp,
+      'vite.config.ts': `import { defineConfig } from 'vite'\nexport default defineConfig({ resolve: { alias: { '@': '/src' } } })\n`,
+      'src/components/StatCard.tsx': `export function StatCard({ title, value, icon }: { title: string; value: number; icon: () => null }) { return <div>{title}{value}{icon()}</div> }\n`,
+      'src/pages/Home.tsx': `import { StatCard } from '@/components/StatCard'\nconst stats = [{ title: 'a', value: 1, icon: () => null }]\nexport function Home() {\n  return <div>{stats.map((s) => <StatCard key={s.title} {...s} />)}<StatCard {...stats[0]!} title="Total" /></div>\n}\n`,
+    })
+    const plan = suggest({ root, panels: [{ file: 'src/components/StatCard.tsx', id: 'stat-card' }] })
+    const sites = plan.panels[0]!.renderSites.map((r) => r.replacement)
+    expect(sites).toContain('<Dynamic id="stat-card" props={s} />')
+    expect(sites).toContain('<Dynamic id="stat-card" props={{ ...stats[0]!, title: "Total" }} />')
+    expect(sites.join('\n')).not.toContain('list them')
+  })
+})

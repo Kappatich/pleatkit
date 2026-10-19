@@ -8,7 +8,7 @@ import { requestLabels, requests } from './schema.js'
  * DECISIONS 81: people label logged requests on the /admin Labels screen; the labels where a person disagrees with
  * the classifier go straight into the `eval:classify` probes (`pleatkit labels export`).
  */
-export const LABELS = ['ui', 'needs-backend', 'clarify', 'off-topic', 'declined', 'mixed'] as const
+export const LABELS = ['ui', 'needs-backend', 'clarify', 'off-topic', 'declined', 'mixed', 'restore'] as const
 export type RequestLabel = (typeof LABELS)[number]
 export const isLabel = (v: unknown): v is RequestLabel => typeof v === 'string' && (LABELS as readonly string[]).includes(v)
 
@@ -18,16 +18,20 @@ export type LabelFilter = (typeof LABEL_FILTERS)[number]
 
 /**
  * The classifier's suggestion, derived from what the request log already has:
+ * - the verdict `restore` (DECISIONS 82.2: the drawer answered with the version history): `restore`, with or without a
+ *   `classification`;
  * - no `classification` (the classifier did not run: a pointed panel, a clarification answer, `--no-classifier`): none;
  * - `intent_label` `adversarial`: `declined` (the classifier's intent wins over its label, as `eval:classify` scores it);
  * - `ui` with the verdict `partial` (the agent did the screen part and passed the rest on): `mixed`, otherwise `ui`;
- * - `needs-backend` → `needs-backend`, `unclear` → `clarify`, `off-topic` → `off-topic`;
- * - any other label (e.g. `restore`): none, until it has a button.
+ * - `needs-backend` → `needs-backend`, `unclear` → `clarify`, `off-topic` → `off-topic`, `restore` → `restore`
+ *   (DECISIONS 84.2: the seventh button);
+ * - any other label: none, until it has a button.
  * `suggestionSql` below is the same mapping in SQL (for the disagreements filter and its count); keep them in step.
  */
-const BY_CLASS: Record<string, RequestLabel> = { ui: 'ui', 'needs-backend': 'needs-backend', unclear: 'clarify', 'off-topic': 'off-topic' }
+const BY_CLASS: Record<string, RequestLabel> = { ui: 'ui', 'needs-backend': 'needs-backend', unclear: 'clarify', 'off-topic': 'off-topic', restore: 'restore' }
 
 export function suggestedLabel(r: { classification: string | null; intentLabel: string | null; verdict: string }): RequestLabel | null {
+  if (r.verdict === 'restore') return 'restore'
   if (!r.classification) return null
   if (r.intentLabel === 'adversarial') return 'declined'
   if (r.classification === 'ui' && r.verdict === 'partial') return 'mixed'
@@ -35,6 +39,7 @@ export function suggestedLabel(r: { classification: string | null; intentLabel: 
 }
 
 const suggestionSql: SQL = sql`(CASE
+  WHEN ${requests.verdict} = 'restore' THEN 'restore'
   WHEN ${requests.classification} IS NULL THEN NULL
   WHEN ${requests.intentLabel} = 'adversarial' THEN 'declined'
   WHEN ${requests.classification} = 'ui' AND ${requests.verdict} = 'partial' THEN 'mixed'
