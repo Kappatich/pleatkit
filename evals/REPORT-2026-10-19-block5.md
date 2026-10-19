@@ -199,7 +199,8 @@ median); the tools column is the clean comparison.
 ## DECISIONS 81: the labelling screen
 
 /admin → **Labels** (ru «Разметка»): one request at a time, the classifier's suggestion marked on its button, six
-buttons (ui, needs-backend, clarify, off-topic, declined, mixed) with keys 1–6, ←/→ (K/J) to move, counters (labelled
+buttons (ui, needs-backend, clarify, off-topic, declined, mixed) with keys 1–6 (seven since DECISIONS 84.2: + restore,
+key 7; a restore classification or verdict is suggested restore), ←/→ (K/J) to move, counters (labelled
 today, left, disagreements), filters (to label, all, disagreements), the labeller's recent labels. Labels are in a new
 table `request_labels` (who, when; one current label per request and labeller). The suggestion is derived from the
 request log: no classification → none; intent adversarial → declined; ui with a partial verdict → mixed; unclear →

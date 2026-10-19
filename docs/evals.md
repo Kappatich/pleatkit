@@ -296,3 +296,63 @@ PLEATKIT_EVAL_BUDGET_USD=1 pnpm eval:record -- --live --tasks blind --set blind-
 - Other sets of this block: `awkward-5i` (aw-03, aw-16, aw-17 × 2 on 5i).
 - The blind installs' gap logs (10 attempts, JSON: step, kind, what, how it was resolved, the doc fix) are kept in
   `evals/probes/blind/`; the classifier results of 5i in `evals/probes/results/classify-*-5i.json`.
+
+## Stage 5, block 6
+
+Numbers: [`evals/REPORT-2026-10-19-block6.md`](../evals/REPORT-2026-10-19-block6.md).
+
+- **The classifier ensemble** (DECISIONS 83): `eval:classify --provider haiku|ensemble` picks the classifier
+  (`ensemble` = `PLEATKIT_CLASSIFIER_ENSEMBLE=jev`, needs `TYPESAFE_API_KEY`; `haiku` = the model alone whatever the
+  environment says). `--probes` takes several comma-separated files, `--tasks` adds suites to probes, and the static and
+  runtime red-team tasks (`rt-s-*`, `rt-r-*`, a placeholder request) are skipped. Each row has `ms` (the routing decision:
+  until the classification returns, as the agent loop waits for it), who decided and Jev's answer; the summary has the
+  median and p95 and the cost by model, including the classifier model's call that ended after Jev decided. New probe
+  files: `evals/probes/russian.json` (the 32 Russian phrasings of the Jev probe) and `evals/probes/awkward-2.json` (20
+  new awkward phrasings, written before either classifier saw them).
+
+```bash
+P=evals/probes/mixed-requests.json,evals/probes/restore-and-jobs.json,evals/probes/russian.json,evals/probes/awkward-2.json
+pnpm eval:classify -- --tasks demo,apps,awkward,redteam,blind --probes $P --provider haiku --repeat 2 --out b6-haiku
+pnpm eval:classify -- --tasks demo,apps,awkward,redteam,blind --probes $P --provider ensemble --repeat 2 --out b6-ensemble
+PLEATKIT_CLASSIFIER_ENSEMBLE=jev PLEATKIT_EVAL_BUDGET_USD=0.5 pnpm eval:record -- --live --set ens-live --tasks demo
+```
+
+- **`--point`** (`PLEATKIT_EVAL_POINT=1`): a task that points at no panel points at the panel its reference changes, as a
+  user clicking it would (the classifier is then skipped, as in the product). With the pointed-panel tail (DECISIONS
+  84.5, the default since this block; `PLEATKIT_TAIL=all` is the old whole-zone tail) it measures what pointing saves:
+  sets `tail-7p` and `tail-7a` (`--zone-files 7 --point`, shadcn-admin). Replay such a set with the same flags.
+- **`--panel-shots <dir>`** (`PLEATKIT_EVAL_PANEL_SHOTS`): `<dir>/<task>.before.png` goes to the model as the pointed
+  panel's `targetImage` (brainstorm 17 §14). The A/B: `shot-a` (`--point`, judged), its "before" screenshots copied out of
+  `evals/.out/browser/results/<app>/<task>.t1.before.png`, then `shot-b` (`--point --panel-shots <dir> --judge`).
+- **`--pause <seconds>`** (`PLEATKIT_EVAL_PAUSE_S`) waits between the tasks of a live record (the "one edit per 20
+  minutes" profile), and `PLEATKIT_EVAL_PREFIX_NONCE` adds a line to the cached prefix so two arms running at the same
+  time do not share prompt-cache entries. `PLEATKIT_CACHE_TTL=5m|1h` is the agent's TTL of the system prefix; 1-hour
+  writes are reported as `cacheWrite1hTokens` and priced at 2× input. Sets `ttl-5m` and `ttl-1h` (6 demo edits, 20
+  minutes apart, run side by side).
+- **Haiku 5.5 as the editor** on every suite: sets `haiku-demo`, `haiku-apps`, `haiku-awkward`
+  (`PLEATKIT_MODEL=claude-haiku-5-5`).
+- **`pnpm eval:weekly`** (brainstorm 17 §20, `evals/src/weekly.ts`): replays every set with a baseline (scripted, live,
+  apps, awkward, redteam) and `blind-ab`/`blind-me` ($0), then records the 14 demo tasks × 1 live into the set
+  `weekly-<date>` (not committed) and compares them with `evals/baseline.json`.
+
+```bash
+pnpm eval:weekly                 # replays + 14 demo tasks × 1 live (PLEATKIT_EVAL_BUDGET_USD, default $0.30 here; above $1 needs --force)
+pnpm eval:weekly -- --no-live    # offline replays only; without PLEATKIT_API_KEY the live part is skipped anyway
+# drift = a set regressed or could not be replayed, or the live run is ≥ 2 tasks below baseline.json's expected passes
+#         (the sum of each task's pass share); it sends one eval-drift alert through PLEATKIT_ALERT_WEBHOOK /
+#         PLEATKIT_ALERT_EMAIL_URL + _TO (+ _TOKEN), as the agent server does; --no-alert prints it instead
+# writes evals/results/weekly-<date>.json (+ .html, the live run's report); exit 0 ok, 1 drift, 2 configuration error
+# other options: --sets scripted,live,…  --date YYYY-MM-DD  --no-browser  --no-typecheck
+```
+
+  A CI template: [`docs/release/weekly.yml`](release/weekly.yml) (Mondays 06:00 UTC and on demand; secrets
+  `PLEATKIT_API_KEY`, the alert webhook or e-mail; uploads the summary, the report and the live transcripts).
+- **The judge's calibration gets the code diff** a judged run gets (DECISIONS 82.3), so it is calibrated on the input it
+  judges with. **The contrast pre-check reads any CSS colour** (Tailwind 4's palette computes to `oklch()`, which the
+  `rgb()` parse missed: a green badge with white text counted as white on white, 1.0:1).
+- **Red team:** 33 tasks: `rt-r-fixed-fullscreen` (a `fixed inset-0` element and an `absolute` one at −5000 px are
+  applied; the browser check `containedInPanel` requires every fixed or absolute element of the panel to paint inside
+  the panel's box and the host's landmarks to stay visible and clickable; DECISIONS 84.4).
+- The blind installs of round 6 logged `outside_docs` per gap (only those count, DECISIONS 84.3):
+  `evals/probes/blind/antd-6.gaps.json`, `mesa-6.gaps.json`. The classifier results of this block are kept in
+  `evals/probes/results/classify-b6-*.json`.
