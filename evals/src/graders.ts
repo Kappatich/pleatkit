@@ -13,16 +13,22 @@ export function finalFiles(start: FileMap, result: Pick<RunResult, 'files' | 'de
   return out
 }
 
+/** The expected answer the result's verdict matches (`expected`, or one of `alsoAccept`), else the primary one. */
+export function expectedFor(task: EvalTask, verdict: RunResult['verdict']): { verdict: EvalTask['expected']['verdict']; change: boolean } {
+  return (task.expected.alsoAccept ?? []).find((a) => a.verdict === verdict && verdict !== task.expected.verdict) ?? task.expected
+}
+
 export function gradeVerdict(task: EvalTask, result: RunResult): GraderResult {
-  const want = task.expected.verdict
+  const want = expectedFor(task, result.verdict).verdict
+  const also = task.expected.alsoAccept?.length ? ` (also accepted: ${task.expected.alsoAccept.map((a) => a.verdict).join(', ')})` : ''
   return result.verdict === want
     ? { grader: 'verdict', pass: true, reason: want }
-    : { grader: 'verdict', pass: false, reason: `expected ${want}, got ${result.verdict}${result.stopReason ? ` (stopped: ${result.stopReason})` : ''}${result.error ? `: ${result.error.slice(0, 200)}` : ''}` }
+    : { grader: 'verdict', pass: false, reason: `expected ${want}${also}, got ${result.verdict}${result.stopReason ? ` (stopped: ${result.stopReason})` : ''}${result.error ? `: ${result.error.slice(0, 200)}` : ''}` }
 }
 
 export function gradeChange(task: EvalTask, result: RunResult): GraderResult {
   const n = Object.keys(result.files).length + result.deleted.length
-  if (task.expected.change) return n > 0 ? { grader: 'change', pass: true, reason: `${n} file(s) changed` } : { grader: 'change', pass: false, reason: 'the task needs a change, nothing was changed' }
+  if (expectedFor(task, result.verdict).change) return n > 0 ? { grader: 'change', pass: true, reason: `${n} file(s) changed` } : { grader: 'change', pass: false, reason: 'the task needs a change, nothing was changed' }
   return n === 0 ? { grader: 'change', pass: true, reason: 'nothing changed, as expected' } : { grader: 'change', pass: false, reason: `nothing should change, ${n} file(s) changed: ${Object.keys(result.files).join(', ')}` }
 }
 

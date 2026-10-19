@@ -1,0 +1,77 @@
+{
+  "id": "ch-03-demo-panels",
+  "app": "demo-crm",
+  "title": "Demo: three panels in turn; the first taken back (untouched since: a mechanical revert)",
+  "steps": [
+    {
+      "request": "Show the city in the customer card.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "anyMustMatch": [
+          "[.'\"`]city\\b"
+        ],
+        "browser": {
+          "checks": [
+            {
+              "testid": "city",
+              "within": "customer-card",
+              "contains": "Springfield"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": "Add a total row to the deals table.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "browser": {
+          "checks": [
+            {
+              "testid": "deals-table",
+              "contains": "$57,500"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": "Show the average deal size on the dashboard.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "browser": {
+          "checks": [
+            {
+              "testid": "dashboard-panels",
+              "contains": "$35,300"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "revert": {
+    "step": 1,
+    "anyMustNotMatch": [
+      "[.'\"`]city\\b"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "city",
+          "within": "customer-card",
+          "count": 0
+        }
+      ]
+    }
+  }
+}

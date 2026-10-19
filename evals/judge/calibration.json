@@ -1,0 +1,20 @@
+{
+  "about": "The judge's calibration (DECISIONS 75 Р3): ten reference solutions should score at least 4, five deliberately ugly edits (evals/judge/make-ugly.mjs) at most 2. pnpm eval:judge -- --calibrate",
+  "cases": [
+    { "id": "ref-crm-01", "task": "crm-01-card-fields", "kind": "reference" },
+    { "id": "ref-crm-13", "task": "crm-13-ru-dashboard-average", "kind": "reference" },
+    { "id": "ref-sa-03", "task": "sa-03-users-role-colors", "kind": "reference" },
+    { "id": "ref-sa-08", "task": "sa-08-revenue-line-chart", "kind": "reference" },
+    { "id": "ref-sa-11", "task": "sa-11-stats-compact", "kind": "reference" },
+    { "id": "ref-sa-18", "task": "sa-18-ru-bold-headers", "kind": "reference" },
+    { "id": "ref-ta-01", "task": "ta-01-orders-number-column", "kind": "reference" },
+    { "id": "ref-ta-04", "task": "ta-04-orders-canceled-struck", "kind": "reference" },
+    { "id": "ref-ta-05", "task": "ta-05-metrics-compact", "kind": "reference" },
+    { "id": "ref-ta-07", "task": "ta-07-sales-bars-green", "kind": "reference" },
+    { "id": "ugly-crm-01", "task": "crm-01-card-fields", "kind": "ugly", "why": "the new fields in a magenta block, 36–48 px italic serif and mono, lime and yellow text", "files": { "src/dynamic/customer-card.tsx": "evals/judge/ugly/customer-card.garish.tsx" } },
+    { "id": "ugly-sa-03", "task": "sa-03-users-role-colors", "kind": "ugly", "why": "neon role blocks, 36 px, pulled over the neighbouring column", "files": { "src/dynamic/users-columns.tsx": "evals/judge/ugly/users-columns.neon-overlap.tsx" } },
+    { "id": "ugly-ta-04", "task": "ta-04-orders-canceled-struck", "kind": "ugly", "why": "struck through, but the photos, header and buttons are gone and every row is red", "files": { "src/dynamic/recent-orders.tsx": "evals/judge/ugly/recent-orders.unrelated.tsx" } },
+    { "id": "ugly-sa-11", "task": "sa-11-stats-compact", "kind": "ugly", "why": "the four cards stacked on top of each other, text cut off", "files": { "src/dynamic/dashboard-stats.tsx": "evals/judge/ugly/dashboard-stats.overlap.tsx" } },
+    { "id": "ugly-ta-07", "task": "ta-07-sales-bars-green", "kind": "ugly", "why": "green bars on a yellow panel with a dashed red border, a 40 px serif title, a squashed chart", "files": { "src/dynamic/monthly-sales-chart.tsx": "evals/judge/ugly/monthly-sales-chart.garish.tsx" } }
+  ]
+}

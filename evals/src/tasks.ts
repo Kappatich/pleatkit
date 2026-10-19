@@ -10,7 +10,14 @@ export const EVALS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url
 export const REPO_ROOT = path.resolve(EVALS_DIR, '..')
 export const TASKS_DIR = path.join(EVALS_DIR, 'tasks')
 /** The task suites: the demo's 14 (`evals/tasks`) and the foreign apps' (`evals/tasks/apps`, DECISIONS 73.1). */
-export const SUITES = { demo: TASKS_DIR, apps: path.join(TASKS_DIR, 'apps') } as const
+export const SUITES = {
+  demo: TASKS_DIR,
+  apps: path.join(TASKS_DIR, 'apps'),
+  /** DECISIONS 75 Р3: requests as irritated users write them (typos, mixed languages, vague, two asks, …). */
+  awkward: path.join(TASKS_DIR, 'awkward'),
+  /** DECISIONS 75 Р3: 30 attacks, zero tolerance (static rules, the runtime guard and the model's judgement). */
+  redteam: path.join(TASKS_DIR, 'redteam'),
+} as const
 export type Suite = keyof typeof SUITES
 export const RECORDINGS_DIR = path.join(EVALS_DIR, 'recordings')
 export const RESULTS_DIR = path.join(EVALS_DIR, 'results')
@@ -45,6 +52,7 @@ export function validateTask(t: Partial<EvalTask>, file = '(task)'): string[] {
   if (!t.request || !t.request.trim()) at('request is required')
   if (!t.expected || !VERDICTS.includes(t.expected.verdict)) at(`expected.verdict must be one of ${VERDICTS.join(', ')}`)
   if (t.expected && typeof t.expected.change !== 'boolean') at('expected.change must be true or false')
+  for (const [i, a] of (t.expected?.alsoAccept ?? []).entries()) if (!VERDICTS.includes(a.verdict) || typeof a.change !== 'boolean') at(`expected.alsoAccept[${i}] needs a verdict and change`)
   if (t.expected?.change && !t.reference) at('a task that requires a change needs a reference solution')
   if (t.budgetUsd !== undefined && !(t.budgetUsd > 0)) at('budgetUsd must be a positive number')
   const refs: [string, FileRefMap | undefined][] = [
@@ -119,10 +127,11 @@ export interface PreparedTask {
  * The request the agent server would build for this task: everything the server trusts comes from the demo's
  * build manifest (`trustedInput`), exactly as `POST /agent/v1/run` does it.
  */
-export function prepareTask(task: EvalTask, manifest: PleatkitManifest): PreparedTask {
+export function prepareTask(task: EvalTask, manifest: PleatkitManifest, startFiles?: FileMap, revert?: AgentRunRequest['revert']): PreparedTask {
   const appId = `eval-${task.id}`
   const base = baseFiles(manifest)
-  const start = { ...base, ...readRefs(task.startFiles ?? {}) }
+  // an edit chain (DECISIONS 75 Р3) starts each step from the previous step's files, held in memory
+  const start = startFiles ? { ...startFiles } : { ...base, ...readRefs(task.startFiles ?? {}) }
   let migration: AgentRunRequest['migration']
   if (task.migration) {
     const oldBase = Object.fromEntries(Object.entries(base).map(([p, s]) => [p, s + task.migration!.oldBaseSuffix]))
@@ -143,6 +152,7 @@ export function prepareTask(task: EvalTask, manifest: PleatkitManifest): Prepare
     ...(task.images?.length ? { images: task.images.map((p) => ({ mediaType: imageType(p), data: fs.readFileSync(repoPath(p)).toString('base64'), name: path.basename(p) })) } : {}),
     ...(task.clarification ? { clarification: task.clarification } : {}),
     ...(migration ? { migration } : {}),
+    ...(revert ? { revert } : {}),
   }
   const trusted = trustedInput(manifest, appId, body)
   const request: AgentRunRequest = { ...body, context: trusted.context, readonly: trusted.readonly, coreTypes: trusted.coreTypes, components: trusted.components }

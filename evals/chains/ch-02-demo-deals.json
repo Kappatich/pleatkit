@@ -1,0 +1,78 @@
+{
+  "id": "ch-02-demo-deals",
+  "app": "demo-crm",
+  "title": "Demo: a total row, an average tile, then sort the deals; the total taken back (deals file changed again later)",
+  "steps": [
+    {
+      "request": "Add a total row to the deals table.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "anyMustMatch": [
+          "57,?500|reduce|total|Total"
+        ],
+        "browser": {
+          "checks": [
+            {
+              "testid": "deals-table",
+              "contains": "$57,500"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": "Show the average deal size on the dashboard.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "browser": {
+          "checks": [
+            {
+              "testid": "dashboard-panels",
+              "contains": "$35,300"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": "Sort the deals from the biggest amount to the smallest.",
+      "expected": {
+        "verdict": "ok",
+        "change": true
+      },
+      "invariants": {
+        "anyMustMatch": [
+          "sort"
+        ],
+        "browser": {
+          "checks": [
+            {
+              "testid": "deals-table",
+              "matches": "Annual licence[\\s\\S]*Support upgrade"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "revert": {
+    "step": 1,
+    "anyMustNotMatch": [
+      "57,?500"
+    ],
+    "browser": {
+      "checks": [
+        {
+          "testid": "deals-table",
+          "notContains": "$57,500"
+        }
+      ]
+    }
+  }
+}

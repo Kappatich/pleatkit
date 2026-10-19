@@ -14,12 +14,24 @@ const pct = (x: number | null): string => (x === null ? '—' : `${Math.round(x 
 const usd = (x: number | null): string => (x === null ? '—' : `$${x.toFixed(x > 0 && x < 0.01 ? 4 : 2)}`)
 const num = (x: number): string => x.toLocaleString('en-US')
 const secs = (ms: number): string => `${(ms / 1000).toFixed(1)} s`
-const GRADERS: GraderName[] = ['verdict', 'change', 'check', 'typecheck', 'invariants', 'predicates', 'budget', 'browser']
+const GRADERS: GraderName[] = ['verdict', 'change', 'check', 'typecheck', 'invariants', 'predicates', 'budget', 'browser', 'judge']
+
+/** DECISIONS 75 Р3: the judge's "designer would accept" share over the runs it scored. */
+export function designerAccepts(runs: Pick<TaskRun, 'judge'>[]): { judged: number; accepted: number; medianScore: number; costUsd: number; criteria: Record<string, number>; preCheckFails: number } {
+  const judged = runs.filter((r) => r.judge && r.judge.score > 0)
+  const crit = ['design_system', 'no_breakage', 'did_what_asked', 'nothing_unrelated'] as const
+  const withCrit = judged.filter((r) => r.judge!.criteria)
+  const criteria = Object.fromEntries(crit.map((c) => [c, withCrit.length ? Math.round((median(withCrit.map((r) => r.judge!.criteria![c])) ?? 0) * 10) / 10 : 0]))
+  return { judged: judged.length, accepted: judged.filter((r) => r.judge!.accept).length, medianScore: median(judged.map((r) => r.judge!.score)), costUsd: runs.reduce((t, r) => t + (r.judge?.costUsd ?? 0), 0), criteria, preCheckFails: runs.filter((r) => r.judge?.preCheck?.length).length }
+}
+const acceptText = (a: ReturnType<typeof designerAccepts>): string => (a.judged ? `${a.accepted} / ${a.judged} (${pct(a.accepted / a.judged)})` : '—')
 const STATUS_TEXT: Record<DiffStatus, string> = { pass: 'pass', fail: 'still failing', fixed: 'fixed', regressed: 'REGRESSED', new: 'new task' }
 
 function chip(r: TaskRun, name: GraderName): string {
   const g = r.graders.find((x) => x.grader === name)
   if (!g) return '<td class="g na">·</td>'
+  // the judge shows its score: 4 and 5 accepted, below that a designer would send it back
+  if (name === 'judge' && r.judge) return `<td class="g ${r.judge.accept ? 'ok' : 'bad'}" title="${esc(`judge: ${g.reason}`)}">${r.judge.score || '?'}</td>`
   const cls = g.skipped ? 'skip' : g.pass ? 'ok' : 'bad'
   const mark = g.skipped ? '–' : g.pass ? '✓' : '✗'
   return `<td class="g ${cls}" title="${esc(`${name}: ${g.reason}`)}">${mark}</td>`
@@ -55,6 +67,7 @@ export function renderReport(s: SuiteResult, baseline: Baseline | null, sanity: 
     ['Edit latency', m.editLatencyMs.runs ? `median ${secs(m.editLatencyMs.median)}` : '—', `p95 ${secs(m.editLatencyMs.p95)} over ${m.editLatencyMs.runs} runs that changed files; answered by the classifier alone: median ${secs(m.classifierOnlyMs.median)} (${m.classifierOnlyMs.runs})${m.overlapMs.runs ? `; parallel start saved median ${secs(m.overlapMs.median)} (${m.overlapMs.runs} runs)` : ''}`],
     ['Model calls', `median ${median(s.runs.filter((r) => r.modelCalls > 0).map((r) => r.modelCalls))}`, `${s.runs.reduce((t, r) => t + r.modelCalls, 0)} in total; H3: median ≤ 3`],
     ['First try', firstTries.length ? pct(firstTries.filter((r) => r.firstTry).length / firstTries.length) : '—', `of ${firstTries.length} runs that wrote files; H2: ≥ 70 %`],
+    ...(s.runs.some((r) => r.judge) ? (() => { const a = designerAccepts(s.runs); const crit = Object.entries(a.criteria).map(([k, v]) => `${k.split('_').map((w) => w[0]).join('')} ${v}`).join(' · '); return [['Designer would accept', acceptText(a), `overall ≥ 4 over the runs that changed files; median overall ${a.medianScore}; per-criterion medians ${crit}; ${a.preCheckFails} failed a pre-check; judging cost ${usd(a.costUsd)}, not in the cost above`] as [string, string, string]] })() : []),
     ['Prompt', s.prompt.version, `prefix ≈ ${num(s.prompt.prefixTokens)} tokens${d.prompt.prefixTokensBaseline !== null && d.prompt.prefixTokensBaseline !== s.prompt.prefixTokens ? ` (baseline ${num(d.prompt.prefixTokensBaseline)}, ${s.prompt.prefixTokens > d.prompt.prefixTokensBaseline ? '+' : ''}${num(s.prompt.prefixTokens - d.prompt.prefixTokensBaseline)})` : ''}`],
   ]
 
@@ -74,7 +87,7 @@ export function renderReport(s: SuiteResult, baseline: Baseline | null, sanity: 
       const runs = s.runs.filter((r) => (r.app ?? 'demo-crm') === a)
       const am = seriesMetrics({ runs })
       const prefix = s.prompt.byApp?.[a as keyof NonNullable<typeof s.prompt.byApp>]?.prefixTokens ?? (apps.length === 1 ? s.prompt.prefixTokens : null)
-      return `<tr><td><b>${esc(a)}</b></td><td class="n">${am.passed} / ${am.runs} (${pct(am.runs ? am.passed / am.runs : 0)})</td><td class="n">${am.tasksAllPass} / ${am.tasks.length}</td><td class="n">${am.firstTry.of ? `${am.firstTry.yes} / ${am.firstTry.of}` : '—'}</td><td class="n">${am.modelCalls.median}</td><td class="n">${am.costPerEdit.runs ? `$${am.costPerEdit.median.toFixed(4)}` : '—'}</td><td class="n">${am.editLatencyMs.runs ? secs(am.editLatencyMs.median) : '—'}</td><td class="n">${pct(am.mainCacheHitRate)}</td><td class="n">${prefix === null ? '—' : '≈ ' + num(prefix)}</td></tr>`
+      return `<tr><td><b>${esc(a)}</b></td><td class="n">${am.passed} / ${am.runs} (${pct(am.runs ? am.passed / am.runs : 0)})</td><td class="n">${am.tasksAllPass} / ${am.tasks.length}</td><td class="n">${am.firstTry.of ? `${am.firstTry.yes} / ${am.firstTry.of}` : '—'}</td><td class="n">${am.modelCalls.median}</td><td class="n">${am.costPerEdit.runs ? `$${am.costPerEdit.median.toFixed(4)}` : '—'}</td><td class="n">${am.editLatencyMs.runs ? secs(am.editLatencyMs.median) : '—'}</td><td class="n">${pct(am.mainCacheHitRate)}</td><td class="n">${prefix === null ? '—' : '≈ ' + num(prefix)}</td><td class="n">${acceptText(designerAccepts(runs))}</td></tr>`
     })
     .join('')
 
@@ -140,7 +153,7 @@ ${notes.join('\n')}
 <h2>Against the baseline</h2>
 ${baseline ? `<p>Pass rate ${pct(d.passRate.baseline)} → ${pct(d.passRate.now)}; prompt ${esc(d.prompt.baseline)} → ${esc(d.prompt.now)}; cost ${usd(d.cost.baseline)} → ${usd(d.cost.now)}. Regressed: ${d.regressions.length ? d.regressions.map(esc).join(', ') : 'none'}. Fixed: ${d.fixes.length ? d.fixes.map(esc).join(', ') : 'none'}. New tasks: ${d.added.length ? d.added.map(esc).join(', ') : 'none'}.${d.missing.length ? ` Not in this run: ${d.missing.map(esc).join(', ')}.` : ''}</p>` : '<p>No baseline pinned yet: <code>pnpm eval:pin</code> pins the current results.</p>'}
 ${apps.length > 1 || apps[0] !== 'demo-crm' ? `<h2>By app</h2>
-<div class="wrap"><table><thead><tr><th>App</th><th class="n">Passed</th><th class="n">Tasks, every trial</th><th class="n">First try</th><th class="n">Calls (median)</th><th class="n">Cost per edit (median)</th><th class="n">Edit latency (median)</th><th class="n">Cache, main model</th><th class="n">Prefix tokens</th></tr></thead><tbody>${appRows}</tbody></table></div>` : ''}
+<div class="wrap"><table><thead><tr><th>App</th><th class="n">Passed</th><th class="n">Tasks, every trial</th><th class="n">First try</th><th class="n">Calls (median)</th><th class="n">Cost per edit (median)</th><th class="n">Edit latency (median)</th><th class="n">Cache, main model</th><th class="n">Prefix tokens</th><th class="n">Designer would accept</th></tr></thead><tbody>${appRows}</tbody></table></div>` : ''}
 <h2>Graders</h2>
 <div class="wrap"><table><thead><tr><th>Grader</th><th class="n">Pass rate</th><th class="n">Passed</th><th class="n">Not applicable</th></tr></thead><tbody>${graderRows}</tbody></table></div>
 ${trials ? `<h2>Tasks across trials</h2>
@@ -153,7 +166,7 @@ ${trialRows}
 <tbody>
 ${taskRows}
 </tbody></table></div>
-<p class="dim">✓ passed · ✗ failed (the reason is under the row; hover a mark for its detail) · – not applicable.</p>
+<p class="dim">✓ passed · ✗ failed (the reason is under the row; hover a mark for its detail) · – not applicable. The judge column is the visual-quality score (1–5; 4 or more: a designer would accept it); it is advisory and does not decide pass or fail.</p>
 ${sanityHtml}
 </main></body></html>
 `

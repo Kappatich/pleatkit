@@ -113,6 +113,11 @@ export interface EvalTask {
     verdict: AgentVerdict
     /** The task requires a change to the dynamic files (verdicts ok and partial). */
     change: boolean
+    /**
+     * Other answers that are also right (an emoji-only request may be asked about or refused as off-topic): each with
+     * whether it changes files. The sanity check and the classifier probe use `verdict`.
+     */
+    alsoAccept?: { verdict: AgentVerdict; change: boolean }[]
   }
   invariants?: TaskInvariants
   /** A correct answer: must pass every grader (`pnpm eval:sanity`). Omit for tasks whose answer is no change. */
@@ -124,14 +129,38 @@ export interface EvalTask {
   tags?: string[]
 }
 
-export type GraderName = 'verdict' | 'change' | 'check' | 'typecheck' | 'invariants' | 'predicates' | 'budget' | 'browser'
+export type GraderName = 'verdict' | 'change' | 'check' | 'typecheck' | 'invariants' | 'predicates' | 'budget' | 'browser' | 'judge'
 
 export interface GraderResult {
   grader: GraderName
   pass: boolean
   /** Not applicable or switched off (counts as a pass, shown grey in the report). */
   skipped?: boolean
+  /**
+   * Advisory (the `judge`, DECISIONS 75 Р3): shown in the report and counted in its own column ("designer would
+   * accept"), but not part of the run's pass.
+   */
+  advisory?: boolean
   reason: string
+  /** The browser grader's screenshots of the changed panel before and after the commit (paths), for the judge. */
+  shots?: { before: string; after: string }
+  /** DECISIONS 80: deterministic visual problems on the "after" render (empty when none); the judge fails fast on them. */
+  visual?: string[]
+}
+
+/** The visual-quality judge's verdict on one run (DECISIONS 75 Р3, 80): per-criterion and overall 1–5 scores. */
+export interface JudgeResult {
+  /** The overall score (1–5); 0 when the judge gave no readable answer. */
+  score: number
+  /** score ≥ the threshold (4): a designer would accept the edit. */
+  accept: boolean
+  reason: string
+  model: string
+  costUsd: number
+  /** DECISIONS 80: the four criteria, each 1–5 (absent when the model gave no readable answer). */
+  criteria?: { design_system: number; no_breakage: number; did_what_asked: number; nothing_unrelated: number }
+  /** DECISIONS 80: the deterministic pre-checks that failed before the model was called (when any). */
+  preCheck?: string[]
 }
 
 /** Who answered: a replayed transcript, the reference solution, the null agent, a scripted fixture, a live model. */
@@ -157,6 +186,8 @@ export interface TaskRun {
   summary: string
   /** The administrator's note of a partial or needs-backend answer. */
   backendNote?: string
+  /** Block 4: the verbatim part of the request that needs the server (partial, needs-backend). */
+  backendQuote?: string
   changedFiles: string[]
   modelCalls: number
   /** null: no files were written; true: no failed check or finish on the way. */
@@ -177,6 +208,8 @@ export interface TaskRun {
   pass: boolean
   /** The runner stopped this task (per-task budget, error). */
   error?: string
+  /** The visual-quality judge (`--judge`): its score; its cost is not in `costUsd` (that is the edit's own). */
+  judge?: JudgeResult
   /** Transcript this run replayed or recorded, and the prompt version it was recorded with. */
   recording?: { file: string; promptVersion: string | null }
 }
@@ -197,6 +230,8 @@ export interface SuiteResult {
   finishedAt: string
   prompt: PromptInfo
   budget: { capUsd: number | null; spentUsd: number }
+  /** What the judge cost in this run (not in the runs' `costUsd`). */
+  judgeCostUsd?: number
   /** The run was stopped by the global budget (PLEATKIT_EVAL_BUDGET_USD) before these tasks. */
   aborted?: { reason: string; notRun: string[] }
   browser: 'ran' | 'skipped'
