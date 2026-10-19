@@ -34,7 +34,7 @@
 <main>
   <div class="wrap hero">
     <div class="copy">
-      <span class="label">Open source · MIT · React + Vite · <b>v0.1 early</b></span>
+      <span class="label">Open source · MIT · React + Vite · <b>v0.3 early</b></span>
       <h1>Your users ask for a different screen. <em>The agent builds it for them, and only for them.</em></h1>
     </div>
     <div class="aside">
@@ -235,7 +235,7 @@ pnpm add -D @pleatkit/vite-plugin @pleatkit/agent</pre></div></li>
         <div class="plan">
           <h3>Enterprise</h3>
           <div class="price">Talk to us</div>
-          <p class="for">self-hosted store, SSO, audit export, DPA</p>
+          <p class="for">private deployment, SSO, audit export, DPA</p>
           <ul>
             <li>We set up zones and connect the dashboard to your auth</li>
             <li>Private deployment or your cloud account</li>
@@ -258,7 +258,7 @@ pnpm add -D @pleatkit/vite-plugin @pleatkit/agent</pre></div></li>
         <details><summary>What if the agent breaks the UI?</summary><div><p>Code that doesn't compile never reaches the user. The agent must pass the check before it can finish, and the browser checks again before committing. If a panel compiles but crashes while rendering, the error stays inside that panel and the panel rolls back by itself after about 10 seconds. Undo and reset are one click.</p></div></details>
         <details><summary>What does one edit cost, and can it run away?</summary><div><p>A small model sorts each request first, so a backend request costs one cheap call. A full edit costs $0.01 to $0.03 on Sonnet 5.5 (measured, see the report in the repository). Each edit stops at 12 model calls, 90 seconds or 8,000 visible output tokens. You can change all three limits.</p></div></details>
         <details><summary>Am I locked in?</summary><div><p>The library is MIT. A snapshot is a plain copy of your dynamic files. With the browser store, pleatkit runs with no server of ours. Remove it and your panels go back to being your original files. When you ship a release, users with edits get three choices: keep them, have the agent port them, or reset.</p></div></details>
-        <details><summary>Can I self-host?</summary><div><p>Yes for the library and agent server, today. The hosted store and dashboard are the paid Cloud product. A self-hosted store comes with the Enterprise plan.</p></div></details>
+        <details><summary>Can I self-host?</summary><div><p>Yes, all of it: the library, the agent server, the store and the admin dashboard are MIT and run on your own servers. The Cloud is the same store hosted by us, with the parts that only make sense across many customers (the wish map across all your tenants, learning from requests after a DPA, SSO).</p></div></details>
         <details><summary>Which models and stacks?</summary><div><p>By default, Claude Sonnet 5.5 writes edits and Haiku 5.5 sorts requests. OpenAI, OpenRouter and any OpenAI-compatible endpoint also work. The stack today is Vite, React and TypeScript. Tailwind 4 classes work in edits, including arbitrary values. Next.js is next.</p></div></details>
       </div>
     </div>
