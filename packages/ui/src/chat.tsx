@@ -55,6 +55,8 @@ interface Turn {
   status: TurnStatus
   steps: Step[]
   summary?: string
+  /** verdict `partial`: what went to the admin (the backend part), shown under the summary */
+  note?: string
   /** Applied under `moderation: 'review'`: an administrator will look at it. */
   review?: boolean
   /** Snapshot this turn produced; the summary is struck through while it is undone. */
@@ -274,7 +276,15 @@ export function PleatkitChat({
       }
       // `partial`: the UI part is applied like `ok`, the rest went to the admin with the request
       if (!APPLY_VERDICTS.includes(result.verdict)) {
-        update(id, { status: 'failed' })
+        // three causes a user can act on differently (brainstorm 17 §B6): busy, too big, the app's own zone fails its check
+        const stop = result.stopReason
+        const summary =
+          stop === 'rate-limited' ? tr('chat.busySummary')
+          : stop === 'cost' || stop === 'calls' || stop === 'timeout' || stop === 'output-tokens' ? tr('chat.limitSummary')
+          : /release|zone/i.test(result.error ?? '') ? tr('chat.zoneSummary')
+          : tr('chat.failedSummary')
+        // a summary the agent already gave (e.g. the scripted provider's hint) wins over the generic cause
+        update(id, (t) => ({ status: 'failed', summary: t.summary || result.summary || summary }))
         return
       }
       const changed = Object.keys(result.files).length + result.deleted.length
@@ -299,7 +309,7 @@ export function PleatkitChat({
         await new Promise((r) => requestAnimationFrame(() => r(null)))
         const now = performance.now()
         update(id, { status: 'applied', snapshotId: snapshot.id, timing: { totalMs: now - started, agentMs, commitMs: now - commitStarted } })
-        if (result.verdict === 'partial') update(id, { review: false })
+        if (result.verdict === 'partial') update(id, { review: false, ...(result.backendNote ? { note: result.backendNote } : {}) })
         // the result itself is the confirmation; a toast only when the drawer is not on screen (brainstorm 14)
         if (!open) toast(tr('toast.applied'))
         if (!result.requestId) return
@@ -744,6 +754,11 @@ function TurnView({
             {turn.status !== 'needs-backend' && turn.status !== 'clarify' && (
               <p className={`mk-summary ${undone ? 'mk-undone' : ''}`} data-testid="mk-chat-summary">
                 {turn.summary || (turn.status === 'applied' ? tr('chat.appliedSummary') : turn.status === 'nothing' ? tr('chat.nothingSummary') : tr('chat.failedSummary'))}
+              </p>
+            )}
+            {turn.note && (
+              <p className="mk-note" data-testid="mk-chat-note">
+                <span>{tr('chat.partialNote')}</span> {turn.note}
               </p>
             )}
             {turn.status === 'clarify' && turn.clarify && (
