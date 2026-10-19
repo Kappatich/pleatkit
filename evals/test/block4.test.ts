@@ -10,15 +10,18 @@ import { loadTasks, SUITES } from '../src/tasks.js'
 import type { EvalTask } from '../src/types.js'
 
 describe('stage 5 block 4: suites, chains and the judge', () => {
-  it('the awkward suite has 20 valid tasks and the red team 32, zero of them expecting a change to ship an attack', () => {
+  it('the awkward suite has 20 valid tasks and the red team 33, zero of them expecting a change to ship an attack', () => {
     expect(loadTasks(SUITES.awkward)).toHaveLength(20)
     const rt = loadTasks(SUITES.redteam)
-    // block 5 (DECISIONS 82.4): + the overlay attached to document.body (static) and the z-index overlay (runtime)
-    expect(rt).toHaveLength(32)
+    // block 5 (DECISIONS 82.4): + the overlay attached to document.body (static) and the z-index overlay (runtime);
+    // block 6 (84.4): + the full-screen element under the cap (runtime, contained in its panel)
+    expect(rt).toHaveLength(33)
     expect(rt.filter((t) => t.tags?.includes('static'))).toHaveLength(21)
     expect(rt.filter((t) => t.tags?.includes('static')).every((t) => t.expected.verdict === 'failed' && !t.expected.change)).toBe(true)
     expect(rt.filter((t) => t.tags?.includes('judgement'))).toHaveLength(10)
-    expect(rt.filter((t) => t.tags?.includes('runtime')).map((t) => t.invariants?.browser?.checks.some((c) => c.launcherOnTop))).toEqual([true])
+    const runtime = rt.filter((t) => t.tags?.includes('runtime'))
+    expect(runtime.map((t) => t.invariants?.browser?.checks.some((c) => c.launcherOnTop))).toEqual([true, true])
+    expect(runtime.map((t) => t.invariants?.browser?.checks.find((c) => c.containedInPanel)?.containedInPanel)).toEqual(['customer-card', undefined])
   })
 
   it('alsoAccept: another right answer passes with its own change expectation', () => {

@@ -2,10 +2,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { EvalBudget } from './budget.js'
 import { APPS, routeOf } from './apps.js'
-import { designSystemOf, JUDGE_MODEL, JUDGE_THRESHOLD, readShot, type Judge } from './judge.js'
+import { codeDiff, designSystemOf, JUDGE_MODEL, JUDGE_THRESHOLD, readShot, type Judge } from './judge.js'
 import type { BrowserCase, BrowserGrader } from './runner.js'
 import { shotPanel } from './runner.js'
-import { EVALS_DIR, loadManifests, loadSuites, readRefs, REPO_ROOT, SUITES, type Suite } from './tasks.js'
+import { baseFiles, EVALS_DIR, loadManifests, loadSuites, readRefs, REPO_ROOT, SUITES, type Suite } from './tasks.js'
 
 /**
  * The judge's calibration (DECISIONS 75 Р3): reference solutions a designer would accept must score at least 4, and
@@ -69,7 +69,11 @@ export async function calibrateJudge(o: { judge: Judge; browser: BrowserGrader; 
       continue
     }
     o.budget.admit(c.id)
-    const j = await o.judge({ request: t.request, designSystem: designSystemOf(manifests[t.app]), before, after, ...(shots[`cal-${c.id}`]?.visual?.length ? { preCheck: shots[`cal-${c.id}`]!.visual } : {}) })
+    // block 6: the judge of a run gets the line diff of the change (DECISIONS 82.3); calibrated with the same input
+    const files = readRefs((c.kind === 'reference' ? t.reference?.files : c.files)!)
+    const base = baseFiles(manifests[t.app]!)
+    const diff = codeDiff(Object.fromEntries(Object.keys(files).filter((p) => p in base).map((p) => [p, base[p]!])), files)
+    const j = await o.judge({ request: t.request, designSystem: designSystemOf(manifests[t.app]), before, after, ...(shots[`cal-${c.id}`]?.visual?.length ? { preCheck: shots[`cal-${c.id}`]!.visual } : {}), ...(diff ? { diff } : {}) })
     o.budget.charge(j.costUsd)
     cost += j.costUsd
     const ok = c.kind === 'reference' ? j.score >= JUDGE_THRESHOLD : j.score > 0 && j.score <= 2

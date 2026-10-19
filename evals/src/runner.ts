@@ -72,7 +72,14 @@ export interface SuiteOptions {
 
 /** The manifest's digests in the cached prefix, as the agent server passes them. */
 type PromptDigests = NonNullable<Parameters<typeof buildPrompt>[2]>
-export const digestsOf = (m: PleatkitManifest): PromptDigests => digestsFromManifest(m)
+export const digestsOf = (m: PleatkitManifest): PromptDigests => {
+  const d = digestsFromManifest(m)
+  // block 6 (17 §21): two arms of a cache A/B running at the same time must not share prompt-cache entries; a nonce in
+  // the cached prefix (PLEATKIT_EVAL_PREFIX_NONCE) keeps them apart. Never set outside such a measurement
+  const nonce = process.env.PLEATKIT_EVAL_PREFIX_NONCE
+  if (!nonce) return d
+  return { ...d, designSystem: { digest: d.designSystem?.digest ?? '', docs: `${d.designSystem?.docs ?? ''}\n(eval run ${nonce})` } }
+}
 
 /** Size of the cached prompt prefix for the demo app: what a prompt change costs on every request. */
 export function promptInfo(manifest: PleatkitManifest, sample: PreparedTask): PromptInfo {
@@ -134,8 +141,14 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
   const envTypecheck = o.loopTypecheckFor ? null : typecheckFromEnv(process.env)
   const loopTypecheckOf = (app: AppId): TypecheckFn | null => (o.loopTypecheckFor ? o.loopTypecheckFor(app) : envTypecheck)
 
+  // block 6 (17 §21): `--pause <s>` (PLEATKIT_EVAL_PAUSE_S) waits between tasks, to measure an app with rare edits
+  const pauseMs = Math.max(0, Number(process.env.PLEATKIT_EVAL_PAUSE_S ?? 0) * 1000)
   for (const [i, { p, trial }] of queue.entries()) {
     const task = p.task
+    if (i > 0 && pauseMs > 0 && o.recordDir) {
+      log(`pausing ${Math.round(pauseMs / 1000)} s before ${task.id}`)
+      await new Promise((r) => setTimeout(r, pauseMs))
+    }
     const key = numbered ? runKey(task.id, trial) : task.id
     try {
       budget.admit(key, queue.slice(i).map((x) => (numbered ? runKey(x.p.task.id, x.trial) : x.p.task.id)))
@@ -169,6 +182,8 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
       digests: digestsOf(manifestOf(task)),
       ...(o.classify === false ? { classify: false } : {}),
       ...(o.classifierMode ? { classifierMode: o.classifierMode } : {}),
+      // DECISIONS 84.5: PLEATKIT_TAIL=all sends every dynamic file, as before block 6 (the agent server reads the same)
+      ...(process.env.PLEATKIT_TAIL === 'all' ? { tail: 'all' as const } : {}),
     })
     let recording: TaskRun['recording']
     if (o.recordDir && tmp) {

@@ -29,5 +29,8 @@ describe('eval:classify scores the labels of the /admin Labels screen (DECISIONS
   it('any other label is compared by name (e.g. restore)', () => {
     expect(score('restore', 'restore/undo-earlier-edit')).toBe(true)
     expect(score('restore', 'ui/')).toBe(false)
+    // DECISIONS 84.2: the Labels screen's seventh button; a restore changes nothing on the screen
+    expect(probeVerdict('restore')).toBe('restore')
+    expect(probeChanges('restore')).toBe(false)
   })
 })
