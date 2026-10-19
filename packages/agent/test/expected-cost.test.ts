@@ -34,10 +34,18 @@ describe('DECISIONS 75 Р2: the expected cost of an edit', () => {
     // about $0.030: within 25 %
     expect(Math.abs(e.expectedUsd! / 0.0300 - 1)).toBeLessThan(0.25)
     expect(e).toMatchObject({ model: SONNET, classifierModel: HAIKU, prefixTokens: 13_018, tailTokens: 10_343, unpriced: [], assumptions: EDIT_COST_ASSUMPTIONS })
+    expect(EDIT_COST_ASSUMPTIONS.prefixTtl).toBe('1h')
+  })
+
+  it('cold with the 1-hour TTL (the default since block 6): the prefix is written at 2x input', () => {
+    const e = expectedEditCost({ prefixTokens: 13_018, tailTokens: 10_343 }, SONNET, HAIKU)
+    const prefixDelta = 13_018 * (4e-6 - 0.2e-6)
+    const classifierDelta = 2_000 * (0.125e-6 - 0.01e-6)
+    expect(e.coldUsd! - e.expectedUsd!).toBeCloseTo(prefixDelta + classifierDelta, 10)
   })
 
   it('cold: after 5 minutes idle the prefix (and the classifier fixed part) is written instead of read', () => {
-    const e = expectedEditCost({ prefixTokens: 13_018, tailTokens: 10_343 }, SONNET, HAIKU)
+    const e = expectedEditCost({ prefixTokens: 13_018, tailTokens: 10_343 }, SONNET, HAIKU, { prefixTtl: '5m' })
     const prefixDelta = 13_018 * (2.5e-6 - 0.2e-6)
     const classifierDelta = 2_000 * (0.125e-6 - 0.01e-6)
     expect(e.coldUsd! - e.expectedUsd!).toBeCloseTo(prefixDelta + classifierDelta, 10)

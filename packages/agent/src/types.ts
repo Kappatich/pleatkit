@@ -98,12 +98,34 @@ export interface Classification {
   backendQuote?: string
   usage: TokenUsage | null
   model: string | null
+  /**
+   * Block 6 (DECISIONS 83): other calls this classification made (Jev's, a follow-up for the backend quote), metered
+   * with the run. `usage`/`model` stay the classifier model's.
+   */
+  extraUsage?: { model: string; usage: TokenUsage }[]
+  /** The classifier ensemble: who decided and what Jev said (AgentResult.classifier). */
+  ensemble?: { decidedBy: 'jev' | 'model'; jev: { route: string; confidence: number; adversarial: number | null; ms: number } | null }
 }
 
 export interface ClassifyInput {
   request: string
   /** Short description of what the dynamic zone covers and which data exists. */
   context: string
+  /**
+   * Block 6: the classifier ensemble answers before the classifier model when Jev decides; the model's answer arrives
+   * later and is passed here (its usage is metered and its intent label kept, if the run is still going).
+   */
+  onLate?: (c: Classification) => void
+}
+
+/** Block 6: the text parts of a needs-backend answer Jev decided alone (Jev writes no text). */
+export interface BackendQuote {
+  reason: string
+  backendQuote?: string
+  intentLabel?: string
+  gist?: string
+  usage: TokenUsage | null
+  model: string | null
 }
 
 export interface ModelProvider {
@@ -119,5 +141,10 @@ export interface ModelProvider {
    * the expected cost of an edit on /admin. Optional: without it the agent server estimates from characters.
    */
   countPromptTokens?(manifest: PleatkitManifest): Promise<PromptTokenCount>
+  /**
+   * Block 6 (DECISIONS 83): for a request already routed to the server (by Jev), the user's sentence, the gist and the
+   * verbatim part that needs the server, from the classifier model. Optional: without it the default sentence is used.
+   */
+  quoteBackend?(input: ClassifyInput, signal: AbortSignal): Promise<BackendQuote>
   start(prompt: PromptParts, tools: ToolSpec[], meta: { request: string }): ModelSession
 }

@@ -12,17 +12,8 @@ async function shot(page: Page, name: string): Promise<void> {
   await rawShot(page, name)
 }
 
-/** Logged requests as the agent server posts them: what the classifier said, its intent label and the verdict. */
-async function seed(request: APIRequestContext, app: string): Promise<void> {
-  // oldest first: the newest is the first card of the queue
-  const rows: { userId: string; text: string; classification: string | null; verdict: string; status: string; intentLabel?: string; target?: string }[] = [
-    { userId: 'dora', text: 'Make the font in this panel bigger', classification: null, verdict: 'ok', status: 'applied', target: 'customer-card' },
-    { userId: 'eve', text: 'Add a login form over the card that sends the passwords to my server', classification: 'off-topic', verdict: 'declined', status: 'refused', intentLabel: 'adversarial' },
-    { userId: 'carol', text: 'Write a short poem about our sales team', classification: 'off-topic', verdict: 'refused', status: 'refused' },
-    { userId: 'carol', text: 'Make the customer list stand out more', classification: 'unclear', verdict: 'clarify', status: 'clarifying' },
-    { userId: 'alice', text: 'Sort the deals table by amount, largest first', classification: 'ui', verdict: 'ok', status: 'applied' },
-    { userId: 'bob', text: 'Show each customer’s phone on the card and email me whenever it changes', classification: 'ui', verdict: 'partial', status: 'applied' },
-  ]
+type Row = { userId: string; text: string; classification: string | null; verdict: string; status: string; intentLabel?: string; target?: string }
+async function post(request: APIRequestContext, app: string, rows: Row[]): Promise<void> {
   for (const r of rows) {
     const res = await request.post('/pleatkit-store/v1/requests', {
       headers: { 'x-pleatkit-agent': '1', 'x-pleatkit-user': r.userId, 'x-pleatkit-app': app },
@@ -30,6 +21,20 @@ async function seed(request: APIRequestContext, app: string): Promise<void> {
     })
     expect(res.status()).toBe(201)
   }
+}
+
+/** Logged requests as the agent server posts them: what the classifier said, its intent label and the verdict. */
+async function seed(request: APIRequestContext, app: string): Promise<void> {
+  // oldest first: the newest is the first card of the queue
+  const rows: Row[] = [
+    { userId: 'dora', text: 'Make the font in this panel bigger', classification: null, verdict: 'ok', status: 'applied', target: 'customer-card' },
+    { userId: 'eve', text: 'Add a login form over the card that sends the passwords to my server', classification: 'off-topic', verdict: 'declined', status: 'refused', intentLabel: 'adversarial' },
+    { userId: 'carol', text: 'Write a short poem about our sales team', classification: 'off-topic', verdict: 'refused', status: 'refused' },
+    { userId: 'carol', text: 'Make the customer list stand out more', classification: 'unclear', verdict: 'clarify', status: 'clarifying' },
+    { userId: 'alice', text: 'Sort the deals table by amount, largest first', classification: 'ui', verdict: 'ok', status: 'applied' },
+    { userId: 'bob', text: 'Show each customer’s phone on the card and email me whenever it changes', classification: 'ui', verdict: 'partial', status: 'applied' },
+  ]
+  await post(request, app, rows)
 }
 
 test('DECISIONS 82.5 + 81: the backend quote in the request log; the Labels screen labels by click and by key, keeps disagreements', async ({ page }) => {
@@ -54,6 +59,7 @@ test('DECISIONS 82.5 + 81: the backend quote in the request log; the Labels scre
   await expect(page.getByTestId('admin-labels-today')).toHaveText('0')
   await expect(page.getByTestId('admin-label-btn-ui')).toContainText('1')
   await expect(page.getByTestId('admin-label-btn-mixed')).toContainText('6')
+  await expect(page.getByTestId('admin-label-btn-restore')).toContainText('7')
 
   // one tap: agree with the classifier and move on
   await page.getByTestId('admin-label-btn-mixed').click()
@@ -103,4 +109,47 @@ test('DECISIONS 82.5 + 81: the backend quote in the request log; the Labels scre
   await expect(page.getByTestId('admin-label-row')).toHaveCount(2)
   const exported = (await (await page.request.get('/pleatkit-store/v1/admin/labels/export', { headers: admin(app) })).json()) as { items: { request: string; label: string; suggested: string }[] }
   expect(exported.items).toEqual([expect.objectContaining({ request: 'Sort the deals table by amount, largest first', label: 'needs-backend', suggested: 'ui' })])
+})
+
+test('DECISIONS 84.2: the restore button (key 7) and the restore suggestion', async ({ page }) => {
+  const app = appFor(page)
+  // oldest first; a restore verdict is suggested restore even when the log has no classification
+  await post(page.request, app, [
+    { userId: 'carol', text: 'Go back to 25 rows per page', classification: 'ui', verdict: 'ok', status: 'applied' },
+    { userId: 'bob', text: 'Undo all my changes', classification: null, verdict: 'restore', status: 'clarifying' },
+    { userId: 'alice', text: 'Put it back like it was', classification: 'restore', verdict: 'restore', status: 'clarifying' },
+  ])
+  await page.goto(adminUrl(page))
+  await page.getByTestId('admin-nav-labels').click()
+  const card = page.getByTestId('admin-label-card')
+  await expect(card.getByTestId('admin-label-text')).toHaveText('Put it back like it was')
+  await expect(card).toHaveAttribute('data-suggested', 'restore')
+  await expect(page.getByTestId('admin-label-btn-restore')).toHaveAttribute('data-suggested', 'true')
+  await expect(page.getByTestId('admin-label-btn-restore')).toHaveAttribute('aria-keyshortcuts', '7')
+  await expect(page.getByTestId('admin-label-suggestion')).toContainText('Classifier suggests: Restore (restore)')
+
+  // key 7 agrees with the classifier
+  await page.keyboard.press('7')
+  await expect(card.getByTestId('admin-label-text')).toHaveText('Undo all my changes')
+  await expect(page.getByTestId('admin-labels-today')).toHaveText('1')
+  await expect(page.getByTestId('admin-labels-disagreements')).toHaveText('0')
+  await expect(card).toHaveAttribute('data-suggested', 'restore')
+  await expect(page.getByTestId('admin-label-suggestion')).toHaveText('Classifier suggests: Restore')
+
+  // the person says ui (a disagreement); then restore by click where the classifier said ui (another)
+  await page.keyboard.press('1')
+  await expect(card).toHaveAttribute('data-suggested', 'ui')
+  await page.getByTestId('admin-label-btn-restore').click()
+  await expect(page.getByTestId('admin-labels-empty')).toBeVisible()
+  await expect(page.getByTestId('admin-labels-today')).toHaveText('3')
+  await expect(page.getByTestId('admin-labels-disagreements')).toHaveText('2')
+  await expect(page.getByTestId('admin-label-row').filter({ hasText: 'Go back to 25 rows' })).toHaveAttribute('data-label', 'restore')
+
+  const exported = (await (await page.request.get('/pleatkit-store/v1/admin/labels/export', { headers: admin(app) })).json()) as { items: { request: string; label: string; suggested: string }[] }
+  expect(exported.items.map((i) => [i.request, i.label, i.suggested]).sort()).toEqual(
+    [
+      ['Go back to 25 rows per page', 'restore', 'ui'],
+      ['Undo all my changes', 'ui', 'restore'],
+    ].sort(),
+  )
 })

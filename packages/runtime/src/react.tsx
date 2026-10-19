@@ -17,7 +17,7 @@ import { PleatkitEngine, type CompilerLike, type EngineOptions, type EngineState
 import { IsolatedFrame } from './isolated.js'
 import type { BundleLoader } from './loader.js'
 import { capturePanel, restorePanel, type PanelState } from './preserve.js'
-import { watchZIndex } from './z-cap.js'
+import { watchEditedPanel } from './contain.js'
 import type { CompileMode, PleatkitConfig, SnapshotStore } from './types.js'
 
 interface ContextValue {
@@ -179,11 +179,12 @@ export function Dynamic({ id, props, loading = null, isolated = false }: Dynamic
   }, [panelVersion])
 
   // DECISIONS 82.4: while this panel runs an edit, its positioned elements stay below the host's overlays and pleatkit's
-  // launcher (an edit cannot cover the page above the Undo that removes it)
+  // launcher (an edit cannot cover the page above the Undo that removes it); 84.4: and what it renders cannot paint
+  // outside the panel's box (`contain: paint` on the panel's own root elements; the wrapper stays `display: contents`)
   const editing = state.status !== 'loading' && Boolean(state.head?.parentId && !state.usingFallback) && engine.diagnostics().modifiedPanels.includes(id)
   useEffect(() => {
     if (!editing || !container.current) return
-    return watchZIndex(container.current)
+    return watchEditedPanel(container.current)
   }, [editing, panelVersion])
 
   // Until the user's head is known, show the placeholder rather than flash the original version.

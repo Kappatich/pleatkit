@@ -22,7 +22,7 @@ export default tseslint.config(
   },
   {
     // Node scripts (and the evals' task/fixture generators, which run under Node)
-    files: ['**/scripts/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}', 'evals/**/*.mjs'],
+    files: ['**/scripts/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}', 'evals/**/*.mjs', 'docs/research/data/*.mjs'],
     languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', fetch: 'readonly', URL: 'readonly' } },
   },
   {

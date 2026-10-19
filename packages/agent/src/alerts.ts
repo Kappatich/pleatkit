@@ -10,9 +10,13 @@ import type { StoreClient } from './store-client.js'
  * - `budget`: the app crossed 50 %, 80 % or 100 % of its daily dollar budget (once per threshold per day);
  * - `freeze`: one user looked like abuse (rule violations, a burst of requests, a large share of the app's
  *   budget) and was frozen alone (`edits.enabled: false` for that user), instead of the whole app running out;
- * - `digest`: the weekly digest (C5, `pleatkit digest --week --send`), its markdown in `details.markdown`.
+ * - `digest`: the weekly digest (C5, `pleatkit digest --week --send`), its markdown in `details.markdown`;
+ * - `eval-drift`: the weekly eval check (`pnpm eval:weekly`, brainstorm 17 §20) found a regression or a live run
+ *   below the baseline; its short text in `details.text`.
+ *
+ * Any alert may carry a few lines of plain text in `details.text`: both sinks print them under the title.
  */
-export type AlertKind = 'static-rule' | 'budget' | 'freeze' | 'digest'
+export type AlertKind = 'static-rule' | 'budget' | 'freeze' | 'digest' | 'eval-drift'
 
 export interface Alert {
   kind: AlertKind
@@ -39,7 +43,7 @@ export class WebhookSink implements AlertSink {
     const res = await this.fetchFn(this.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: alert.kind === 'digest' ? `${alert.title}\n\n${String(alert.details.markdown ?? '')}` : `[pleatkit ${alert.severity}] ${alert.title}`, alert }),
+      body: JSON.stringify({ text: alert.kind === 'digest' ? `${alert.title}\n\n${String(alert.details.markdown ?? '')}` : `[pleatkit ${alert.severity}] ${alert.title}${typeof alert.details.text === 'string' ? `\n${alert.details.text}` : ''}`, alert }),
       signal: AbortSignal.timeout(5_000),
     })
     if (!res.ok) throw new Error(`alert webhook answered ${res.status}`)
@@ -61,7 +65,14 @@ export class EmailSink implements AlertSink {
     const text =
       alert.kind === 'digest'
         ? String(alert.details.markdown ?? '')
-        : [alert.title, '', ...Object.entries(alert.details).map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`), '', `app ${alert.appId}${alert.userId ? `, user ${alert.userId}` : ''}, ${alert.at}`].join('\n')
+        : [
+            alert.title,
+            '',
+            ...(typeof alert.details.text === 'string' ? [alert.details.text, ''] : []),
+            ...Object.entries(alert.details).flatMap(([k, v]) => (k === 'text' && typeof v === 'string' ? [] : [`${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`])),
+            '',
+            `app ${alert.appId}${alert.userId ? `, user ${alert.userId}` : ''}, ${alert.at}`,
+          ].join('\n')
     const res = await this.fetchFn(this.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...(this.token ? { authorization: `Bearer ${this.token}` } : {}) },
@@ -70,6 +81,27 @@ export class EmailSink implements AlertSink {
     })
     if (!res.ok) throw new Error(`alert e-mail API answered ${res.status}`)
   }
+}
+
+/**
+ * Send one alert outside an agent server (a CLI, a cron job such as `pnpm eval:weekly`) through every sink. A sink
+ * that fails is logged and skipped, so one dead channel does not hide the others. Returns how many sinks took it.
+ */
+export async function sendAlert(
+  alert: Omit<Alert, 'at'> & { at?: string },
+  sinks: AlertSink[],
+  log: (line: string) => void = (l) => console.error(l),
+): Promise<number> {
+  const full: Alert = { ...alert, at: alert.at ?? new Date().toISOString() }
+  const ok = await Promise.all(
+    sinks.map((s) =>
+      s.send(full).then(
+        () => true,
+        (e: Error) => (log(`[pleatkit] could not send the ${full.kind} alert: ${e.message}`), false),
+      ),
+    ),
+  )
+  return ok.filter(Boolean).length
 }
 
 export interface FreezePolicy {

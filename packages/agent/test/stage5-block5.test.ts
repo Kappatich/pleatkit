@@ -41,7 +41,7 @@ describe('stage 5 block 5: the restore label (DECISIONS 82.2)', () => {
 
 describe('stage 5 block 5: prompt 5i', () => {
   it('bumps the prompt version', () => {
-    expect(PROMPT_VERSION).toBe('2026-10-19.5i')
+    expect(PROMPT_VERSION).toBe('2026-10-19.5j') // 5j (block 6) keeps every 5i rule below
   })
 
   it('the classifier has the restore label, the scheduled-job example and the integration rule', () => {

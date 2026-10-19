@@ -12,7 +12,8 @@ describe('DECISIONS 75: the model price table lives in the runtime (agent, store
   })
 
   it('cache writes cost 1.25x input and cache reads 0.1x for every model in the table', () => {
-    for (const p of Object.values(MODEL_PRICES)) {
+    // block 6: Jev (TypeSafe) has no prompt cache and free output
+    for (const p of Object.values(MODEL_PRICES).filter((x) => x.cacheWrite > 0)) {
       expect(p.cacheWrite).toBeCloseTo(p.input * 1.25, 10)
       expect(p.cacheRead).toBeLessThanOrEqual(p.input * 0.1 + 1e-9)
     }

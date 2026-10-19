@@ -36,7 +36,7 @@ describe('DECISIONS 76.1: where the first call puts its cache breakpoints', () =
     const r = await runAgent(request('show the phone'), new AnthropicProvider({ apiKey: 'k', baseURL: 'http://anthropic.test', fetch }), { classify: false })
     expect(r.verdict).toBe('ok')
     expect(bodies[0]!.cache_control).toBeUndefined()
-    expect(bodies[0]!.system[1].cache_control).toEqual({ type: 'ephemeral' })
+    expect(bodies[0]!.system[1].cache_control).toEqual({ type: 'ephemeral', ttl: '1h' })
     expect(bodies[1]!.cache_control).toEqual({ type: 'ephemeral' })
   })
 
@@ -52,5 +52,20 @@ describe('DECISIONS 76.1: where the first call puts its cache breakpoints', () =
     const p = configFromEnv({ PLEATKIT_API_KEY: 'k', PLEATKIT_CACHE_TAIL: 'always' }).provider as unknown as { cacheTail: string }
     expect(p.cacheTail).toBe('always')
     expect((configFromEnv({ PLEATKIT_API_KEY: 'k' }).provider as unknown as { cacheTail: string }).cacheTail).toBe('after-first')
+  })
+})
+
+describe('block 6 (17 §21): the TTL of the system prefix', () => {
+  const turns = () => [
+    message([{ type: 'tool_use', id: 't1', name: 'write_file', input: { path: CARD, content: GOOD_CARD } }]),
+    message([{ type: 'tool_use', id: 't2', name: 'finish', input: { verdict: 'ok', summary: 'Done.' } }]),
+  ]
+  it('is an hour by default and 5 minutes with cacheTtl 5m; the tail stays 5-minute', async () => {
+    for (const [ttl, want] of [[undefined, { type: 'ephemeral', ttl: '1h' }], ['5m', { type: 'ephemeral' }]] as const) {
+      const { fetch, bodies } = fakeFetch(turns())
+      await runAgent(request('show the phone'), new AnthropicProvider({ apiKey: 'k', baseURL: 'http://anthropic.test', fetch, ...(ttl ? { cacheTtl: ttl } : {}) }), { classify: false })
+      expect(bodies[0]!.system[1].cache_control).toEqual(want)
+      expect(bodies[1]!.cache_control).toEqual({ type: 'ephemeral' })
+    }
   })
 })

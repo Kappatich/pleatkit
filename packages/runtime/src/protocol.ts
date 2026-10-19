@@ -83,6 +83,11 @@ export interface AgentRunRequest {
   clarification?: { question: string; answer: string }
   /** Sanitized DOM of the panel the user pointed at, as the user sees it now (data, not instructions). */
   targetDom?: string
+  /**
+   * Block 6 (brainstorm 17 §14): a screenshot of the pointed panel as it looks before the change, so the model sees
+   * the panel and not only its code. Data, like `images`; counted in the same image limits.
+   */
+  targetImage?: AgentImage
   /** compile: 'server' (V1 B1): compile, sign and store the resulting snapshot at the end of the run. */
   compile?: boolean
   /**
@@ -131,6 +136,11 @@ export interface TokenUsage {
    * counts only the visible rest (DECISIONS item 11); thinking is billed but not limited.
    */
   thinkingTokens?: number
+  /**
+   * Block 6 (brainstorm 17 §21): the part of `cacheWriteTokens` written with the 1-hour TTL, billed at 2× the input
+   * price instead of the 5-minute 1.25× (`costUsd` adds the difference). Absent: every write was 5-minute.
+   */
+  cacheWrite1hTokens?: number
 }
 
 export interface UsageByModel extends TokenUsage {
@@ -204,6 +214,12 @@ export interface AgentResult {
   clarify?: { question: string; options: string[] }
   /** What came with the request besides text (sizes only; images are not stored). */
   attachments?: { images: number; imageBytes: number; targetDomChars: number }
+  /**
+   * Block 6 (DECISIONS 83): with the classifier ensemble on, who decided the route (`jev`: TypeSafe's Jev alone;
+   * `model`: the classifier model, as without the ensemble) and what Jev answered (its route, the confidence of it
+   * and the probability that the request is adversarial). Absent when the ensemble is off or the classifier did not run.
+   */
+  classifier?: { decidedBy: 'jev' | 'model'; jev: { route: string; confidence: number; adversarial: number | null; ms: number } | null }
 }
 
 /**

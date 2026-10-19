@@ -81,7 +81,8 @@ describe('AnthropicProvider (wire format, fake fetch)', () => {
     expect((JSON.stringify(second.body).match(/cache_control/g) ?? [])).toHaveLength(2)
     expect(second.body.cache_control).toEqual({ type: 'ephemeral' })
     expect(first.body.tools.some((t: { eager_input_streaming?: boolean }) => t.eager_input_streaming)).toBe(false)
-    expect(first.body.system[1].cache_control).toEqual({ type: 'ephemeral' })
+    // block 6 (17 §21): the system prefix is cached for an hour by default; the tail stays 5-minute
+    expect(first.body.system[1].cache_control).toEqual({ type: 'ephemeral', ttl: '1h' })
     expect(first.body.system[1].text).toContain('<readonly_sources>')
     expect(first.body.messages[0].content).toContain('<user_request>')
     expect(first.body.fallbacks).toBe('default')

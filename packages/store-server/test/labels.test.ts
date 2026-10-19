@@ -78,7 +78,29 @@ describe('DECISIONS 81: request labels', () => {
     expect(s('off-topic', 'refused')).toBe('off-topic')
     expect(s('off-topic', 'declined', 'adversarial')).toBe('declined')
     expect(s('ui', 'declined', 'adversarial')).toBe('declined')
-    expect(s('restore', 'restore')).toBeNull()
+    // DECISIONS 84.2: restore has its button; the verdict is enough (the drawer opened the history)
+    expect(s('restore', 'restore')).toBe('restore')
+    expect(s('restore', 'ok')).toBe('restore')
+    expect(s(null, 'restore')).toBe('restore')
+    expect(s('restore', 'declined', 'adversarial')).toBe('declined')
+  })
+
+  it('DECISIONS 84.2: a restore request is suggested restore, takes the restore label and counts its disagreements', async () => {
+    const t = setup()
+    const a = await t.log('alice', 'Put it back like it was', { classification: 'restore', verdict: 'restore', status: 'clarifying' })
+    const b = await t.log('bob', 'Undo all my changes', { classification: null, verdict: 'restore', status: 'clarifying' })
+    const c = await t.log('carol', 'Go back to 25 rows per page', { classification: 'ui' })
+    const page = (await t.call<Page>('/v1/admin/labels', t.admin('minte'))).body
+    expect(page.items.map((i) => [i.id, i.suggested])).toEqual([[c, 'ui'], [b, 'restore'], [a, 'restore']])
+    const post = (requestId: string, label: string) => t.call<{ disagreement: boolean }>('/v1/admin/labels', t.admin('minte'), { method: 'POST', body: JSON.stringify({ requestId, label }) })
+    expect((await post(a, 'restore')).body.disagreement).toBe(false)
+    expect((await post(b, 'ui')).body.disagreement).toBe(true)
+    expect((await post(c, 'restore')).body.disagreement).toBe(true)
+    const d = (await t.call<Page>('/v1/admin/labels?filter=disagreements', t.admin('minte'))).body
+    expect(d.items.map((i) => [i.id, i.label, i.suggested])).toEqual([[c, 'restore', 'ui'], [b, 'ui', 'restore']])
+    expect(d.counts.disagreements).toBe(2)
+    const ex = (await t.call<{ items: { requestId: string; label: string; suggested: string }[] }>('/v1/admin/labels/export', t.admin())).body
+    expect(ex.items.map((i) => [i.requestId, i.label, i.suggested]).sort()).toEqual([[b, 'ui', 'restore'], [c, 'restore', 'ui']].sort())
   })
 
   it('lists requests newest first with the suggestion, stores one label per labeller, counts and filters disagreements', async () => {

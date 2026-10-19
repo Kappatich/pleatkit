@@ -28,7 +28,8 @@
     "eval:classify": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals classify",
     "eval:cancel": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals cancel",
     "eval:judge": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals judge",
-    "eval:chains": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals chains"
+    "eval:chains": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals chains",
+    "eval:weekly": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals weekly"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

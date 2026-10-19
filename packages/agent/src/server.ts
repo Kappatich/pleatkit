@@ -9,7 +9,7 @@ import { t, type MessageKey } from './i18n.js'
 import { loopRunner, validateRequest, type AgentLimits, type AgentRunner } from './loop.js'
 import { Alerts, type AlertsOptions } from './alerts.js'
 import { manifestPanels, resolveManifest, trustedInput, type ManifestSource } from './manifest.js'
-import { digestsFromManifest } from './prompt.js'
+import { digestsFromManifest, type TailMode } from './prompt.js'
 import { buildWishMap, type WishLimits } from './wishes.js'
 import { appExpectedCost } from './expected-cost.js'
 import type { PromptTokenCount } from './prefix.js'
@@ -73,6 +73,8 @@ export interface AgentServerOptions {
   classifierMode?: ClassifierSetting
   /** The per-app history behind `auto` (default: one per server, seeded from store-server). */
   classifierModes?: ClassifierModes
+  /** DECISIONS 84.5: `pointed` (default) or `all` dynamic files in the first message (PLEATKIT_TAIL). */
+  tail?: TailMode
   /** Stage 5 block 3: model calls at a time in this process (the process-wide gate; default 8). */
   modelConcurrency?: number
   /** Retries of a model call refused with 429 / overloaded (default 3). */
@@ -349,7 +351,7 @@ export function createAgentApp(options: AgentServerOptions) {
           // the classifier is skipped for a pointed-at panel, an answered question and a migration: no history needed
           const classifies = !req.migration && !req.target && !req.clarification
           const classifierMode = classifierSetting === 'auto' ? (classifierModes && classifies ? await classifierModes.modeFor(who.appId) : 'parallel') : classifierSetting
-          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null, classifierMode, ...(options.rateLimitRetries !== undefined ? { rateLimitRetries: options.rateLimitRetries } : {}),
+          result = await runner.run(req, { limits, signal: abort.signal, onProgress: (p) => void send('progress', p), protected: trusted.protected, base: trusted.base, typecheck: options.typecheck ?? null, classifierMode, ...(options.rateLimitRetries !== undefined ? { rateLimitRetries: options.rateLimitRetries } : {}), ...(options.tail ? { tail: options.tail } : {}),
             digests: digestsFromManifest(trusted.manifest) })
           classifierModes?.record(who.appId, result)
         }
