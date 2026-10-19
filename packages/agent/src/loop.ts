@@ -320,7 +320,7 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
         if (c.gist) intent.gist = c.gist
         timings.classifyMs = performance.now() - startedAt
         const ask = c.label === 'unclear' && c.question && c.options && c.options.length >= 2
-        if (c.label !== 'off-topic') progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : ask ? 'classifiedUnclear' : 'classifiedUi') })
+        if (c.label !== 'off-topic') progress({ type: 'classified', label: c.label, text: t(lang, c.label === 'needs-backend' ? 'classifiedBackend' : c.label === 'restore' ? 'classifiedRestore' : ask ? 'classifiedUnclear' : 'classifiedUi') })
         if (c.label === 'off-topic') {
           await cancelEarly()
           // stage 5: the classifier has no label of its own for a deceptive request and calls it off-topic, while its
@@ -336,6 +336,12 @@ export async function runAgent(req: AgentRunRequest, provider: ModelProvider, op
           // model, whose instructions decline them too)
           await cancelEarly()
           return done('declined', t(lang, 'declined'))
+        }
+        if (c.label === 'restore') {
+          // DECISIONS 82.2: "put it back like it was" is answered by the version history, not by an edit: the chat
+          // opens it with Restore on each version; nothing is changed and the big model's answer is not used
+          await cancelEarly()
+          return done('restore', t(lang, 'restore'))
         }
         if (c.label === 'needs-backend') {
           await cancelEarly()

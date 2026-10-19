@@ -62,8 +62,12 @@ export function layeredCss(css: string): string {
   // registrations and imports stay at the top level
   const top: string[] = []
   const inner: string[] = []
-  for (const block of topLevelBlocks(css)) (/^@(property|import|charset)\b/i.test(block) ? top : inner).push(block)
-  return [...top, `@layer pleatkit-edits {\n${inner.join('\n')}\n}`].join('\n') + '\n'
+  // stage 5 block 5 (found by a blind install): the zone's own stylesheets (its .css files and CSS modules, confined to
+  // the panels with `@scope ([data-pleatkit-id])` at compile) stay unlayered, as they are in the release: inside the
+  // layer the host's unlayered reset (`* { margin: 0 }`) beat them, and every panel lost its margins after any edit
+  const own = /^@scope\s*\(\[data-pleatkit-id\]\)/
+  for (const block of topLevelBlocks(css)) (/^@(property|import|charset)\b/i.test(block) || own.test(block) ? top : inner).push(block)
+  return [...top, ...(inner.length ? [`@layer pleatkit-edits {\n${inner.join('\n')}\n}`] : [])].join('\n') + '\n'
 }
 
 // --- Stage 5 block 4: utilities the page already styles are not emitted again ---

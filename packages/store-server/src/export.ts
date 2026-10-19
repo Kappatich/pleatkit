@@ -1,7 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema.js'
-import { appPlans, appSettings, audit, events, flags, heads, requests, snapshots } from './schema.js'
+import { appPlans, appSettings, audit, events, flags, heads, requestLabels, requests, snapshots } from './schema.js'
 
 type Db = BetterSQLite3Database<typeof schema>
 
@@ -10,7 +10,7 @@ export const EXPORT_FORMAT = 1
 
 /**
  * F9. Everything store-server keeps for one app, or for one user of it: snapshots (with files), heads, the request
- * log, usage events; for a whole app also its audit chain, flags, settings and plan. Bundles are left out: they
+ * log, usage events; for a whole app also its audit chain, flags, settings, plan and request labels. Bundles are left out: they
  * are derived from snapshots and are rebuilt on demand.
  */
 export function buildExport(db: Db, appId: string, userId?: string | null) {
@@ -33,5 +33,6 @@ export function buildExport(db: Db, appId: string, userId?: string | null) {
     flags: db.select().from(flags).where(eq(flags.appId, appId)).all(),
     settings: db.select().from(appSettings).where(eq(appSettings.appId, appId)).get() ?? null,
     plan: db.select().from(appPlans).where(eq(appPlans.appId, appId)).get() ?? null,
+    labels: db.select().from(requestLabels).where(eq(requestLabels.appId, appId)).orderBy(asc(requestLabels.updatedAtMs)).all(),
   }
 }

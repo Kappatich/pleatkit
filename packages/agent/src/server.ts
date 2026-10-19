@@ -14,6 +14,7 @@ import { buildWishMap, type WishLimits } from './wishes.js'
 import { appExpectedCost } from './expected-cost.js'
 import type { PromptTokenCount } from './prefix.js'
 import type { TypecheckFn } from './workspace.js'
+import { warmTypecheck } from './typecheck.js'
 import { MemoryQuotaBackend, Quotas, resolvePlan, StoreQuotaBackend, type PlanLimits } from './quota.js'
 import { modelGate } from './rate-limit.js'
 import { StoreClient } from './store-client.js'
@@ -59,6 +60,12 @@ export interface AgentServerOptions {
   /** Type check server compiles (commits) too; default none (only an explicit PLEATKIT_TYPECHECK=1 sets it). */
   commitTypecheck?: TypecheckFn | null
   /**
+   * Stage 5 block 5 (brainstorm 17 §4): apps whose type check is warmed at start (their release's panels checked once,
+   * so the packages' declarations are parsed and resolved before the first edit). Default none; the agent's CLI warms
+   * every app it has a manifest for (`PLEATKIT_TYPECHECK_WARM=0` turns it off).
+   */
+  warmTypecheckApps?: string[]
+  /**
    * PLEATKIT_CLASSIFIER (DECISIONS 73.3, 75 Р5): `auto` (default) picks parallel or sequential per app from the week's
    * share of requests the classifier answered alone (`ClassifierModes`, seeded from store-server's request log when
    * `storeUrl` is set); `parallel` or `sequential` fixes it for every app.
@@ -81,7 +88,8 @@ function statusFor(result: Omit<AgentResult, 'requestId'>): RequestStatus {
   if (result.verdict === 'needs-backend') return 'pending-admin'
   if (result.verdict === 'not-editable' || result.verdict === 'declined') return 'refused'
   if (result.verdict === 'failed') return 'failed'
-  if (result.verdict === 'clarify') return 'clarifying'
+  // the user picks an earlier version in the history next (DECISIONS 82.2): a follow-up like a question's answer
+  if (result.verdict === 'clarify' || result.verdict === 'restore') return 'clarifying'
   if (result.verdict === 'refused') return 'refused'
   return Object.keys(result.files).length > 0 || result.deleted.length > 0 ? 'proposed' : 'applied'
 }
@@ -189,6 +197,19 @@ export function createAgentApp(options: AgentServerOptions) {
   if (!runner) throw new Error('createAgentApp needs a provider or a runner')
   const auth: AgentAuth = options.auth ?? { credentials: null, production: false }
   const store = options.storeUrl ? new StoreClient(options.storeUrl, auth.credentials, options.fetch) : null
+  if (options.typecheck && options.manifest && options.warmTypecheckApps?.length) {
+    const typecheck = options.typecheck
+    const warmed = (async () => {
+      for (const appId of options.warmTypecheckApps!) {
+        const manifest = await resolveManifest(options.manifest, appId).catch(() => null)
+        if (!manifest) continue
+        const t = trustedInput(manifest, appId, { context: { dynamicRoots: [], externals: [], externalPatterns: [], alias: {} }, readonly: {}, coreTypes: {}, components: [] })
+        const ms = await warmTypecheck(typecheck, { files: t.base, readonly: t.readonly, coreTypes: t.coreTypes, context: t.context, components: t.components })
+        log(`type check of ${appId} warmed in ${Math.round(ms)} ms`)
+      }
+    })()
+    warmed.catch(() => undefined)
+  }
   const fallbackPlan = (): PlanLimits => resolvePlan(options.plan?.name, options.plan?.limits)
   const quotas =
     options.quotas === false
@@ -247,7 +268,9 @@ export function createAgentApp(options: AgentServerOptions) {
     }
   }
 
-  const health = (c: Context) => c.json({ ok: true, provider: runner.name, model: runner.model, store: Boolean(store), auth: Boolean(auth.credentials), modelCalls: { ...modelGate.load, limit: modelGate.limit }, classifier: { setting: classifierSetting, ...(classifierModes ? { apps: classifierModes.snapshot() } : {}) } })
+  // DECISIONS 82.5: health is unauthenticated, so it says how many apps the automatic mode tracks, not their shares;
+  // the per-app numbers are behind admin auth (GET /agent/v1/classifier-modes)
+  const health = (c: Context) => c.json({ ok: true, provider: runner.name, model: runner.model, store: Boolean(store), auth: Boolean(auth.credentials), modelCalls: { ...modelGate.load, limit: modelGate.limit }, classifier: { setting: classifierSetting, ...(classifierModes ? { apps: Object.keys(classifierModes.snapshot()).length } : {}) } })
   app.get('/health', health)
   app.get('/v1/health', health)
 
@@ -471,6 +494,18 @@ export function createAgentApp(options: AgentServerOptions) {
     if (!manifest) return c.json({ error: 'the expected cost needs the app manifest (PLEATKIT_MANIFEST)' }, 400)
     const provider = options.provider ?? { name: runner.name, model: runner.model }
     return c.json(await appExpectedCost(manifest, provider, promptCounts))
+  })
+
+  /**
+   * DECISIONS 75 Р5 and 82.5: the automatic classifier mode per app (mode, classified requests, share answered by the
+   * classifier alone). An admin's token sees its own app; in development the admin header sees every app.
+   */
+  app.get('/v1/classifier-modes', async (c) => {
+    const appId = await adminApp(c, { appId: c.req.query('appId') })
+    if (appId instanceof Response) return appId
+    const all = classifierModes ? classifierModes.snapshot() : {}
+    const apps = c.req.header('authorization') ? Object.fromEntries(Object.entries(all).filter(([id]) => id === appId)) : all
+    return c.json({ setting: classifierSetting, apps })
   })
 
   /** Signed bundles this process compiled (or store-server has), for apps that proxy `/pleatkit/b` to the agent. */

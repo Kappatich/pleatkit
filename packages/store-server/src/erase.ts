@@ -6,7 +6,7 @@ import { rawDb, type ErasureSubject, type StoreDb, type StoreExtension } from '.
  * DECISIONS 70.2, the right to erasure of the DPA: everything the store keeps about one user of an app, or about
  * the whole app, is deleted in one transaction: snapshots and heads, the request log, usage events (metering),
  * cached and signed bundles made from the user's files, run records, idempotency replies, quota buckets,
- * user flags, carry-over rows, references in wish maps, and the extensions' rows (the cloud's L1 facts). What
+ * user flags, request labels, carry-over rows, references in wish maps, and the extensions' rows (the cloud's L1 facts). What
  * stays is one audit row, the tombstone, with the counts and a random id but no personal data. A user's erasure
  * keeps the app's audit chain (other users' rows are hash-linked to it); an app's erasure deletes the chain too
  * and the tombstone starts a new one. `DELETE /v1/admin/users/:id`, `DELETE /v1/admin/apps/:id`, `pleatkit erase`.
@@ -26,6 +26,8 @@ function userParts(appId: string, userId: string): Part[] {
   const prefix = `user:${userId}:`
   return [
     { name: 'events', from: `events WHERE app_id = ? AND (user_id = ? OR request_id IN (${reqs}))`, params: [appId, userId, appId, userId] },
+    // DECISIONS 81: labels of the user's requests, and the labels the user gave as a labeller
+    { name: 'request_labels', from: `request_labels WHERE app_id = ? AND (labeler = ? OR request_id IN (${reqs}))`, params: [appId, userId, appId, userId] },
     { name: 'requests', from: 'requests WHERE app_id = ? AND user_id = ?', params: [appId, userId] },
     { name: 'heads', from: 'heads WHERE app_id = ? AND user_id = ?', params: [appId, userId] },
     { name: 'snapshots', from: 'snapshots WHERE app_id = ? AND user_id = ?', params: [appId, userId] },
@@ -38,7 +40,7 @@ function userParts(appId: string, userId: string): Part[] {
   ]
 }
 
-const APP_TABLES = ['events', 'requests', 'heads', 'snapshots', 'bundle_files', 'bundles', 'agent_runs', 'idempotency', 'quota_buckets', 'flags', 'releases', 'release_items', 'wish_maps', 'app_plans', 'app_settings', 'audit']
+const APP_TABLES = ['events', 'request_labels', 'requests', 'heads', 'snapshots', 'bundle_files', 'bundles', 'agent_runs', 'idempotency', 'quota_buckets', 'flags', 'releases', 'release_items', 'wish_maps', 'app_plans', 'app_settings', 'audit']
 
 function appParts(appId: string): Part[] {
   return APP_TABLES.map((t) => ({ name: t, from: `${t} WHERE app_id = ?`, params: [appId] }))

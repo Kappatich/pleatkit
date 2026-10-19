@@ -118,7 +118,7 @@ describe('pleatkit doctor', () => {
   it('passes on the demo app (loads its real vite.config)', async () => {
     const demo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../apps/demo-crm')
     const findings = await doctor({ root: demo, env: {} })
-    expect(findings.map((f) => f.id)).toEqual(['config', 'react', 'panels', 'release', 'externals', 'context-budget', 'csp', 'secure-context', 'secrets'])
+    expect(findings.map((f) => f.id)).toEqual(['config', 'react', 'panels', 'release', 'externals', 'context-budget', 'zone-size', 'csp', 'secure-context', 'secrets'])
     expect(findings.find((f) => f.id === 'release')).toMatchObject({ status: 'ok' })
     expect(findings.filter((f) => f.status === 'fail')).toEqual([])
     expect(findings.find((f) => f.id === 'panels')?.details).toContain('<Dynamic id="customer-card">')
@@ -193,5 +193,43 @@ export default function Orders() { return <div>{rows.map((r) => <img key={r.imag
     expect(estimated.details.join(' ')).toMatch(/estimated .*PLEATKIT_API_KEY/)
     const failing = await measureContextBudget(m, { PLEATKIT_API_KEY: 'k' }, { ...agent, countPromptTokens: async () => { throw new Error('401 invalid x-api-key') } })
     expect(failing.details.join(' ')).toMatch(/token counter failed \(401 invalid x-api-key\)/)
+  })
+})
+
+describe('stage 5 block 5: zone size (brainstorm 17 §3)', () => {
+  it('warns over 450 lines of zone or a panel over 300, with the expected one-call cost from the measured curve', async () => {
+    const { checkZoneSize } = await import('../src/doctor.js')
+    const file = (path: string, lines: number) => ({ path, source: Array.from({ length: lines }, (_, i) => `// ${i}`).join('\n') })
+    const small = checkZoneSize({ dynamic: [file('src/dynamic/a.tsx', 100), file('src/dynamic/b.tsx', 70)] })
+    expect(small.status).toBe('ok')
+    expect(small.title).toMatch(/170 lines: a one-call edit ≈ \$0\.0129/)
+    const big = checkZoneSize({ dynamic: [file('src/dynamic/a.tsx', 200), file('src/dynamic/b.tsx', 200), file('src/dynamic/c.tsx', 200)] })
+    expect(big.status).toBe('warn')
+    expect(big.title).toMatch(/600 lines/)
+    const panel = checkZoneSize({ dynamic: [file('src/dynamic/table.tsx', 320)] })
+    expect(panel.status).toBe('warn')
+    expect(panel.title).toMatch(/1 panel is over 300 lines/)
+  })
+})
+
+describe('stage 5 block 5: the externals count (found by a blind install)', () => {
+  it('counts entries and modules apart and warns about a /* entry that matches nothing', async () => {
+    const { checkExternals } = await import('../src/doctor.js')
+    const os = await import('node:os')
+    const fsm = await import('node:fs')
+    const pathm = await import('node:path')
+    const root = fsm.mkdtempSync(pathm.join(os.tmpdir(), 'pk-ext-'))
+    fsm.mkdirSync(pathm.join(root, 'node_modules', 'react'), { recursive: true })
+    fsm.writeFileSync(pathm.join(root, 'node_modules', 'react', 'package.json'), '{"name":"react","main":"index.js"}')
+    fsm.writeFileSync(pathm.join(root, 'node_modules', 'react', 'index.js'), '')
+    const base = { alias: { '@': 'src' }, externalPatterns: ['react', '@/readonly/*'] } as never
+    const none = checkExternals(root, { ...(base as object), externals: ['react'] } as never)
+    expect(none.status).toBe('warn')
+    expect(none.title).toBe('1 externals entry matches no module: @/readonly/*')
+    fsm.mkdirSync(pathm.join(root, 'src', 'readonly'), { recursive: true })
+    fsm.writeFileSync(pathm.join(root, 'src', 'readonly', 'ui.ts'), 'export {}')
+    fsm.writeFileSync(pathm.join(root, 'src', 'readonly', 'format.ts'), 'export {}')
+    const two = checkExternals(root, { ...(base as object), externals: ['react', '@/readonly/format', '@/readonly/ui'] } as never)
+    expect(two).toMatchObject({ status: 'ok', title: '2 entries (3 modules) resolve' })
   })
 })

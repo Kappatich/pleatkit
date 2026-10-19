@@ -9,6 +9,7 @@ export { recordEvent, appendAudit, verifyAuditChain, sweepAlive24h, markEditorAc
 export { resolveFlags, setFlag, deleteFlag, DEFAULT_FLAGS, type FlagScope } from './flags.js'
 export { idempotencyMiddleware, IDEMPOTENCY_TTL_MS } from './idempotency.js'
 export { buildExport, EXPORT_FORMAT } from './export.js'
+export { LABELS, LABEL_FILTERS, isLabel, suggestedLabel, labelerOf, type RequestLabel, type LabelFilter, type LabelItem, type LabelExportItem } from './labels.js'
 export * as schema from './schema.js'
 export { buildReport, reportCsv, parseRange, parseMinutesPerEdit, csvField, REPORT_COLUMNS, CARRY_OVER_PREFIX, DEFAULT_MINUTES_PER_EDIT, MAX_MINUTES_PER_EDIT, type Report, type ReportRow, type ReportColumn, type ReportOptions } from './report.js'
 export { grepSnapshots, planSelectionRollback, matchesOf, GREP_MIN, GREP_MAX, type GrepRow, type GrepMatch, type SelectionRollback } from './selection.js'

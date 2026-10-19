@@ -39,7 +39,7 @@ export const AUTO_CLASSIFIER_RULE: AutoClassifierRule = {
 }
 
 /** Verdicts the classifier gives on its own (loop.ts, the `cancelEarly()` paths). */
-export const CLASSIFIER_ONLY_VERDICTS: readonly AgentResult['verdict'][] = ['needs-backend', 'clarify', 'refused', 'declined']
+export const CLASSIFIER_ONLY_VERDICTS: readonly AgentResult['verdict'][] = ['needs-backend', 'clarify', 'refused', 'declined', 'restore']
 
 /** The classifier ran on this request (not a pointed-at panel, a clarification answer, a migration or a refusal before the run). */
 export function classifierRan(r: Pick<AgentResult, 'timings'>): boolean {

@@ -14,14 +14,15 @@ export const DEFAULT_RETENTION: RetentionPolicy = { textDays: 90, logDays: 30 }
 const DAY_MS = 86_400_000
 
 /**
- * The core's retention job (DECISIONS 44): blank request text, targets and gists after `textDays`, tool logs and
+ * The core's retention job (DECISIONS 44): blank request text, targets, gists and backend quotes (the request's own
+ * words, DECISIONS 82.5) after `textDays`, tool logs and
  * the proposed files after `logDays`, and finished run records after a day. Snapshots live as long as the user's
  * history; deleting them is the erasure path (`DELETE /v1/admin/users/:id`, DECISIONS 70.2). Idempotent.
  */
 export function applyRetention(db: StoreDb, now = Date.now(), policy: RetentionPolicy = DEFAULT_RETENTION): { text: number; logs: number; runs: number } {
   const text = db
     .update(requests)
-    .set({ text: '', target: null, gist: null, retainedAt: new Date(now).toISOString() })
+    .set({ text: '', target: null, gist: null, backendQuote: null, retainedAt: new Date(now).toISOString() })
     .where(and(lt(requests.createdAtMs, now - policy.textDays * DAY_MS), sql`${requests.text} <> ''`))
     .run().changes
   const logs = db

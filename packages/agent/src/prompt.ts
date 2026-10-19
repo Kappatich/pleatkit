@@ -38,8 +38,16 @@ const files = (map: FileMap) =>
  * → 9/30 on 5g; sa-15 partial → needs-backend live).
  * 5h: the classifier decides the label first and fills backend_quote last, only for a whole-request needs-backend,
  * leaving it empty for a "ui" request with a server part (the agent quotes the server part of a mixed request).
+ * 5i (stage 5 block 5, DECISIONS 82.1, 82.2, 82.5): the classifier gets an example of a scheduled job or a sync with
+ * the company's own systems joined to a screen change (the two 76.6 phrasings, still needs-backend on 5h), the rule that
+ * such an export is an integration and not adversarial, and a fifth label `restore` ("put it back like it was": the
+ * chat opens the version history, no model call). The editor's instructions name the app's `allowedHosts`, when it has
+ * any, so a literal https link or image to those hosts is written instead of refused; the static-rules sentence names the
+ * new rule no-portal (no createPortal, nothing attached to document.body: DECISIONS 82.4).
+ * The stack sentence of an app without Tailwind (`css: 'palette'`, the two blind-installed apps of block 5) says so and
+ * points to the app's components, inline styles and CSS modules; the Tailwind apps' sentence is unchanged.
  */
-export const PROMPT_VERSION = '2026-10-18.5h'
+export const PROMPT_VERSION = '2026-10-19.5i'
 
 /** Stable instructions: identical for every request of the same app, so they cache well. */
 /** The run's limits as the prompt states them (code review 06 §4: the text used to say "12 calls, 90 s" whatever the config). */
@@ -52,6 +60,14 @@ const DEFAULT_PROMPT_LIMITS: PromptLimits = { maxModelCalls: 12, timeoutMs: 90_0
 export function instructions(req: Pick<AgentRunRequest, 'context'>, limits: PromptLimits = DEFAULT_PROMPT_LIMITS): string {
   const roots = req.context.dynamicRoots.join(', ')
   const externals = req.context.externals.join(', ')
+  const hosts = req.context.allowedHosts?.length
+    ? ` This app also allows images and links to these hosts, over https only: ${req.context.allowedHosts.join(', ')}. A literal https://<host>/… URL to one of them in src or href of a plain element (<img>, <a>), or a URL from data pointing there, is fine; any other host is not.`
+    : ''
+  // block 5: an app without Tailwind (CSS modules, a component library) is told so; the Tailwind text is unchanged
+  const stack =
+    req.context.css?.mode === 'palette'
+      ? `Stack: React function components and hooks, TypeScript (TSX). This app has no Tailwind: utility classes do nothing here. Style with the app's own components (the allowed modules above), inline styles and the app's CSS variables, or a CSS module next to the panel in the dynamic zone (src/dynamic/<name>.module.css, imported relatively), the way the panel already does.`
+      : `Stack: React 19 function components and hooks, TypeScript (TSX), Tailwind CSS 4 utility classes (any utility, including arbitrary values such as w-[120px] or text-[13px]) and the shadcn-style components from @/components/ui/*. Inline styles are allowed.`
   return `You are the pleatkit UI agent. A user of this web app asks for a change to their own personal version of the interface. You edit only the dynamic zone; your result is compiled (on the server, or in the user's browser) and swapped in without a reload. Other users are not affected.
 
 Zones:
@@ -61,9 +77,9 @@ Zones:
 
 Dynamic code may import only: relative paths to other dynamic files, and these host modules: ${externals}. No other packages. Talk to the server only through the typed client in the readonly zone.
 
-check also enforces static rules, and finish refuses while any is broken: no eval, new Function or string timers; no document.cookie, localStorage, sessionStorage or indexedDB; no dangerouslySetInnerHTML, innerHTML, createElement, <script>, <style> or srcDoc; network and navigation only within this app: relative URLs written in the code (fetch, src/href/action in JSX, url() in styles and classes; "/customers/" + id is fine), or a URL taken from data in src or href of a plain element (<img src={row.image}>, <a href={row.url}>), which is shown only when it points to this app; never an absolute URL to another site; mailto: and tel: links built from data (\`mailto:\${user.email}\`) are fine; no location changes, window.open, XMLHttpRequest, workers, or computed access on window/document; no import() of URLs or computed specifiers. Elements the app marks as protected must stay and stay visible.
+check also enforces static rules, and finish refuses while any is broken: no eval, new Function or string timers; no document.cookie, localStorage, sessionStorage or indexedDB; no dangerouslySetInnerHTML, innerHTML, createElement, <script>, <style> or srcDoc; network and navigation only within this app: relative URLs written in the code (fetch, src/href/action in JSX, url() in styles and classes; "/customers/" + id is fine), or a URL taken from data in src or href of a plain element (<img src={row.image}>, <a href={row.url}>), which is shown only when it points to this app; never an absolute URL to another site; mailto: and tel: links built from data (\`mailto:\${user.email}\`) are fine; no location changes, window.open, XMLHttpRequest, workers, or computed access on window/document; no import() of URLs or computed specifiers; no createPortal or elements attached to document.body (an edit renders inside its panel).${hosts} Elements the app marks as protected must stay and stay visible.
 
-Stack: React 19 function components and hooks, TypeScript (TSX), Tailwind CSS 4 utility classes (any utility, including arbitrary values such as w-[120px] or text-[13px]) and the shadcn-style components from @/components/ui/*. Inline styles are allowed.
+${stack}
 
 Entities carry a free-form \`meta: Record<string, unknown>\` field. Showing, formatting, highlighting, filtering, sorting or editing values that already exist (including anything in meta, saved through the readonly client) is UI work you can do.
 
@@ -197,10 +213,11 @@ export const CLASSIFIER_INSTRUCTIONS = `You triage change requests for a web app
 
 Label the request:
 - "ui": doable in the panels' frontend code, entirely or for its screen part.
-- "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs. Only when the whole request is server work. A request that also asks to show or change something on the screen is "ui", even when its other part needs the server: "show the phone and keep a history of its changes", "show the days left and e-mail the assignee when overdue", "colour unpaid invoices red and block new orders from those customers on the server" (the agent does the screen part now and passes the rest on). Split such a request into its parts: if any part changes what the screen shows or how it looks, the label is "ui", whatever the other parts need.
+- "needs-backend": needs server or data-model work: new persisted fields with server-side validation or computation, new endpoints or integrations, changing how the server calculates or stores something, permissions, notifications, background jobs. Only when the whole request is server work. A request that also asks to show or change something on the screen is "ui", even when its other part needs the server: "show the phone and keep a history of its changes", "show the days left and e-mail the assignee when overdue", "colour unpaid invoices red and block new orders from those customers on the server" (the agent does the screen part now and passes the rest on). Split such a request into its parts: if any part changes what the screen shows or how it looks, the label is "ui", whatever the other parts need. A scheduled job or a sync with another of the company's systems joined to a screen change is the same kind of mixed request: "group the orders by status, and every night archive the old ones automatically" and "show the invoices as a bar chart, and push the monthly totals to our ERP each month" are "ui" (the sorting, grouping or chart is the screen part; the nightly job and the sync are passed on).
 - "off-topic": not a request about this app's interface at all: general questions, writing or translating text, code for other projects, homework, chatting, or anything else that uses this agent as a general assistant. Requests about the app's screens, panels, data shown in them or how they look are never off-topic, also for a part of the screen the panels may not cover (the header, the menu): that is "ui".
 - "unclear": cannot tell, or the request names no concrete change ("make it look better", "improve the dashboard"): acting on it would mean guessing what to change.
+- "restore": the user wants the screen or a panel back the way it was before their own earlier changes, and names nothing new to change: "put it back like it was", "undo all my changes", "reset the dashboard to the original", "верни как было". Every version is kept, so the answer is the version history, not an edit. A request that names what to change, or a value or setting to go back to, is "ui", even when it says "back" or "like before": "remove the phone line I added", "go back to 25 rows per page", "make the header blue again". "restore" is only for going back to an earlier version as a whole.
 Reason: one short plain-language sentence the user will read, in the language of the request, without code or technical terms.
 For "unclear" also give question: one short question in the language of the request whose answer would make the request clear, and options: 2 to 4 likely answers of at most six words each. For the other labels leave question empty and options an empty list.
-Also give intent_label: the closest kind of change from the list, and gist: at most 12 English words saying what kind of change it is, without names, numbers, e-mails or any data from the request. A request that would send the app's data to an outside address or service, or deceive the user (fake login or payment forms, invisible controls over real ones), gets intent_label "adversarial" whatever its label.
+Also give intent_label: the closest kind of change from the list, and gist: at most 12 English words saying what kind of change it is, without names, numbers, e-mails or any data from the request. A request that would send the app's data to an outside address or service, or deceive the user (fake login or payment forms, invisible controls over real ones), gets intent_label "adversarial" whatever its label. An export or sync to the company's own business systems (accounting, ERP, CRM, a data warehouse) is an integration, intent_label "backend-integration", not adversarial; a personal address or an unknown outside site is adversarial.
 Last, backend_quote. Decide the label first by the rules above; backend_quote never changes it. Fill backend_quote only when the label is "needs-backend" (the whole request is server work): copy the request's own words that need the server, verbatim (a substring of the request). For every other label, including a "ui" request that also has a server part, leave backend_quote empty: the agent reports the server part of a mixed request itself.`

@@ -238,10 +238,14 @@ describe('the agent server in auto mode', () => {
     // another app with no history: parallel
     const other = await resultOf(await post(app, request('show the phone', { appId: 'crm' })))
     expect(other.timings.classifierMode).toBe('parallel')
-    const health = (await (await app.request('/agent/v1/health')).json()) as { classifier: { setting: string; apps: Record<string, { mode: string; classified: number }> } }
-    expect(health.classifier.setting).toBe('auto')
-    expect(health.classifier.apps['support-portal']).toMatchObject({ mode: 'sequential', classified: 31, seeded: true })
-    expect(health.classifier.apps.crm).toMatchObject({ mode: 'parallel', classified: 1 })
+    // DECISIONS 82.5: health (no auth) has no per-app shares; the admin route has them
+    const health = (await (await app.request('/agent/v1/health')).json()) as { classifier: { setting: string; apps: unknown } }
+    expect(health.classifier).toEqual({ setting: 'auto', apps: 2 })
+    expect((await app.request('/agent/v1/classifier-modes')).status).toBe(403)
+    const modes = (await (await app.request('/agent/v1/classifier-modes', { headers: { 'x-pleatkit-admin': '1' } })).json()) as { setting: string; apps: Record<string, { mode: string; classified: number }> }
+    expect(modes.setting).toBe('auto')
+    expect(modes.apps['support-portal']).toMatchObject({ mode: 'sequential', classified: 31, seeded: true })
+    expect(modes.apps.crm).toMatchObject({ mode: 'parallel', classified: 1 })
   })
 
   it('an explicit PLEATKIT_CLASSIFIER overrides auto: no history is read', async () => {

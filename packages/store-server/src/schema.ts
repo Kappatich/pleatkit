@@ -69,6 +69,8 @@ export const requests = sqliteTable(
     /** Screenshots and panel DOM that came with the request: sizes only, the images are not stored. */
     attachments: text('attachments', { mode: 'json' }).$type<{ images: number; imageBytes: number; targetDomChars: number }>(),
     adminNote: text('admin_note'),
+    /** DECISIONS 82.5: the verbatim words of the request that need the server (the agent's backendQuote). */
+    backendQuote: text('backend_quote'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
     createdAtMs: integer('created_at_ms').notNull(),
@@ -84,6 +86,27 @@ export const requests = sqliteTable(
     retainedAt: text('retained_at'),
   },
   (t) => [index('requests_by_app').on(t.appId, t.createdAtMs)],
+)
+
+/**
+ * DECISIONS 81: a person's label for a logged request (the /admin Labels screen). One current label per request and
+ * labeller: a re-tap replaces it and keeps `created_at`. The classifier's suggestion is not stored: it is derived from
+ * the request row (`labels.ts`).
+ */
+export const requestLabels = sqliteTable(
+  'request_labels',
+  {
+    appId: text('app_id').notNull(),
+    requestId: text('request_id').notNull(),
+    /** The admin's user id from the auth context (`admin` for the app key or the development header). */
+    labeler: text('labeler').notNull(),
+    /** ui | needs-backend | clarify | off-topic | declined | mixed */
+    label: text('label').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    updatedAtMs: integer('updated_at_ms').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.appId, t.requestId, t.labeler] }), index('request_labels_by_labeler').on(t.appId, t.labeler, t.updatedAtMs)],
 )
 
 /** Compiled bundles by content hash; shared by the users of one app. */
@@ -325,6 +348,8 @@ export const ADDED_COLUMNS: { table: string; column: string; type: string }[] = 
   { table: 'requests', column: 'intent_label', type: 'TEXT' },
   { table: 'requests', column: 'gist', type: 'TEXT' },
   { table: 'requests', column: 'retained_at', type: 'TEXT' },
+  // Stage 5 block 5 (DECISIONS 82.5)
+  { table: 'requests', column: 'backend_quote', type: 'TEXT' },
 ]
 
 // Plain DDL so the demo needs no migration tool; keep in sync with the tables above.
@@ -345,9 +370,14 @@ CREATE TABLE IF NOT EXISTS requests (
   summary TEXT NOT NULL, status TEXT NOT NULL, classification TEXT, provider TEXT, model TEXT, usage TEXT, timings TEXT,
   log TEXT NOT NULL, files TEXT, snapshot_id TEXT, error TEXT, attachments TEXT, admin_note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
   created_at_ms INTEGER NOT NULL, org_id TEXT NOT NULL DEFAULT 'default', region TEXT NOT NULL DEFAULT 'local',
-  environment TEXT NOT NULL DEFAULT 'development', prompt_version TEXT, intent_label TEXT, gist TEXT, retained_at TEXT
+  environment TEXT NOT NULL DEFAULT 'development', prompt_version TEXT, intent_label TEXT, gist TEXT, retained_at TEXT, backend_quote TEXT
 );
 CREATE INDEX IF NOT EXISTS requests_by_app ON requests (app_id, created_at_ms);
+CREATE TABLE IF NOT EXISTS request_labels (
+  app_id TEXT NOT NULL, request_id TEXT NOT NULL, labeler TEXT NOT NULL, label TEXT NOT NULL, created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL, updated_at_ms INTEGER NOT NULL, PRIMARY KEY (app_id, request_id, labeler)
+);
+CREATE INDEX IF NOT EXISTS request_labels_by_labeler ON request_labels (app_id, labeler, updated_at_ms);
 CREATE TABLE IF NOT EXISTS app_settings (
   app_id TEXT PRIMARY KEY, moderation TEXT NOT NULL, updated_at TEXT NOT NULL
 );
