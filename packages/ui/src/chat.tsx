@@ -57,6 +57,8 @@ interface Turn {
   summary?: string
   /** verdict `partial`: what went to the admin (the backend part), shown under the summary */
   note?: string
+  /** the words of the request that went to the admin (verbatim), shown as a quote */
+  quote?: string
   /** Applied under `moderation: 'review'`: an administrator will look at it. */
   review?: boolean
   /** Snapshot this turn produced; the summary is struck through while it is undone. */
@@ -265,7 +267,7 @@ export function PleatkitChat({
         return
       }
       if (result.verdict === 'needs-backend') {
-        update(id, { status: 'needs-backend' })
+        update(id, { status: 'needs-backend', ...(result.backendQuote ? { quote: result.backendQuote } : {}), ...(result.backendNote ? { note: result.backendNote } : {}) })
         if (!open) toast(tr('toast.admin'), 'admin')
         return
       }
@@ -309,7 +311,7 @@ export function PleatkitChat({
         await new Promise((r) => requestAnimationFrame(() => r(null)))
         const now = performance.now()
         update(id, { status: 'applied', snapshotId: snapshot.id, timing: { totalMs: now - started, agentMs, commitMs: now - commitStarted } })
-        if (result.verdict === 'partial') update(id, { review: false, ...(result.backendNote ? { note: result.backendNote } : {}) })
+        if (result.verdict === 'partial') update(id, { review: false, ...(result.backendQuote ? { quote: result.backendQuote } : {}), ...(result.backendNote ? { note: result.backendNote } : {}) })
         // the result itself is the confirmation; a toast only when the drawer is not on screen (brainstorm 14)
         if (!open) toast(tr('toast.applied'))
         if (!result.requestId) return
@@ -756,9 +758,11 @@ function TurnView({
                 {turn.summary || (turn.status === 'applied' ? tr('chat.appliedSummary') : turn.status === 'nothing' ? tr('chat.nothingSummary') : tr('chat.failedSummary'))}
               </p>
             )}
-            {turn.note && (
+            {(turn.quote || turn.note) && (
               <p className="mk-note" data-testid="mk-chat-note">
-                <span>{tr('chat.partialNote')}</span> {turn.note}
+                <span>{tr('chat.partialNote')}</span>
+                {turn.quote && <q data-testid="mk-chat-quote">{turn.quote}</q>}
+                {turn.note && <small>{turn.note}</small>}
               </p>
             )}
             {turn.status === 'clarify' && turn.clarify && (

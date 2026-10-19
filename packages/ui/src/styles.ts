@@ -99,6 +99,8 @@ const CSS = `
 .mk-mark.mk-warn { color: var(--mk-bad); } .mk-mark.mk-info { color: var(--mk-ink-3); }
 @keyframes mk-pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
 .mk-note { margin: 6px 0 0; font: 13px/1.45 var(--mk-sans); color: var(--mk-ink-2); border-left: 2px solid var(--mk-red); padding-left: 10px; }
+.mk-note q { quotes: 'C' 'D'; font-weight: 500; color: var(--mk-ink); display: block; }
+.mk-note small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--mk-ink-3); }
 .mk-note span { font: 500 11px var(--mk-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mk-ink-3); display: block; margin-bottom: 2px; }
 .mk-summary { margin: 0; animation: mk-fade .2s var(--mk-ease); }
 .mk-summary.mk-undone { color: var(--mk-ink-3); text-decoration: line-through; }
