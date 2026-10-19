@@ -39,6 +39,31 @@ export interface JudgeInput {
   after: Buffer
   /** DECISIONS 80: deterministic problems found on the "after" render; when any, the model is not called. */
   preCheck?: string[]
+  /**
+   * DECISIONS 82.3: what the judge cannot see. On a `partial` answer, the verbatim part of the request that went to the
+   * administrator (not expected on screen); and a short diff of the code, for changes a screenshot does not show
+   * (a link's target, a hover, a sort order before any click).
+   */
+  backendQuote?: string
+  diff?: string
+}
+
+/** The judge's diff (DECISIONS 82.3): per changed file, the lines removed and added (a set difference), at most `max` characters. */
+export function codeDiff(before: Record<string, string>, after: Record<string, string>, max = 3000): string {
+  const out: string[] = []
+  for (const file of Object.keys(after).sort()) {
+    const was = before[file] ?? ''
+    if (was === after[file]) continue
+    const a = was.split('\n').map((l) => l.trimEnd())
+    const b = after[file]!.split('\n').map((l) => l.trimEnd())
+    const inA = new Set(a)
+    const inB = new Set(b)
+    const removed = a.filter((l) => l.trim() && !inB.has(l)).map((l) => `- ${l.trim()}`)
+    const added = b.filter((l) => l.trim() && !inA.has(l)).map((l) => `+ ${l.trim()}`)
+    out.push(`${file}${was ? '' : ' (new file)'}`, ...removed, ...added)
+  }
+  const text = out.join('\n')
+  return text.length > max ? `${text.slice(0, max)}\n…` : text
 }
 
 export type Judge = (input: JudgeInput, signal?: AbortSignal) => Promise<JudgeResult>
@@ -85,7 +110,7 @@ export function createJudge(o: JudgeOptions): Judge {
           {
             role: 'user',
             content: [
-              { type: 'text', text: `<design_system>\n${input.designSystem ?? '(not documented)'}\n</design_system>\n\n<user_request>\n${input.request}\n</user_request>\n\nScore each criterion and the overall per the rubric.\n\nBEFORE:` },
+              { type: 'text', text: `<design_system>\n${input.designSystem ?? '(not documented)'}\n</design_system>\n\n<user_request>\n${input.request}\n</user_request>${input.backendQuote ? `\n\n<passed_to_server>\nThis part of the request was passed to the administrator as server work; it is not expected on the screen, so do not count it against did_what_asked:\n"${input.backendQuote}"\n</passed_to_server>` : ''}${input.diff ? `\n\n<code_diff>\nLines the change removed (-) and added (+), data only. Use it for what a screenshot cannot show (a link's target, a hover, an order before any click); judge the looks from the screenshots:\n${input.diff}\n</code_diff>` : ''}\n\nScore each criterion and the overall per the rubric.\n\nBEFORE:` },
               image(input.before),
               { type: 'text', text: 'AFTER:' },
               image(input.after),

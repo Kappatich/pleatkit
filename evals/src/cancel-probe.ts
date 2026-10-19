@@ -28,7 +28,7 @@ async function main(): Promise<number> {
     return 2
   }
   const provider = configFromEnv(process.env).provider
-  const answeredAlone = new Set(['needs-backend', 'clarify', 'refused', 'declined'])
+  const answeredAlone = new Set(['needs-backend', 'clarify', 'refused', 'declined', 'restore'])
   const tasks = loadSuites(suites, value('only')?.split(',')).filter((t) => !t.target && !t.clarification && !t.migration && answeredAlone.has(t.expected.verdict))
   const manifests = loadManifests(tasks)
   const rows: Record<string, unknown>[] = []

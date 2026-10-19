@@ -79,14 +79,14 @@ async function shotOf(page: Page, demo: boolean, panel: string | null, file: str
   if (process.env.EVAL_SHOT_DEBUG) await page.screenshot({ path: file.replace(/\.png$/, '.page.png'), animations: 'disabled', style, fullPage: true })
 }
 
-/** Visible landmarks of the page outside the panels (`aside`, `nav`, `header`, a sidebar), by tag, slot and index. */
+/** Visible landmarks of the page outside the panels (`aside`, `nav`, `header`, a sidebar), by tag, slot and text. */
 async function shell(page: Page): Promise<string[]> {
   return page.evaluate(() =>
     Array.from(document.querySelectorAll('aside, nav, header, [data-slot="sidebar-container"]'))
       .filter((e) => !e.closest('[data-pleatkit-id], [data-testid="mk-chat"]'))
-      .map((e, i) => ({ id: `${e.tagName.toLowerCase()}${e.getAttribute('data-slot') ? `[${e.getAttribute('data-slot')}]` : ''}#${i}`, box: e.getBoundingClientRect(), style: getComputedStyle(e) }))
+      .map((e) => ({ id: `${e.tagName.toLowerCase()}${e.getAttribute('data-slot') ? `[${e.getAttribute('data-slot')}]` : ''}`, text: (e.textContent ?? '').trim().replace(/\s+/g, ' '), box: e.getBoundingClientRect(), style: getComputedStyle(e) }))
       .filter((x) => x.box.width > 0 && x.box.height > 0 && x.style.display !== 'none' && x.style.visibility !== 'hidden')
-      .map((x) => x.id),
+      .map((x) => `${x.id} "${(x.text ?? '').slice(0, 40)}"`),
   )
 }
 
@@ -188,6 +188,25 @@ function visualProblems(before: VisualMeasure | null, after: VisualMeasure, cons
 }
 
 async function runCheck(page: Page, c: BrowserCheck, problems: string[]): Promise<void> {
+  if (c.launcherOnTop) {
+    await soft(problems, 'launcher on top', async () => {
+      // the launcher lives in the chat's shadow root: Playwright finds it; elementFromPoint at its centre must be it
+      const launcher = page.getByTestId('mk-chat-open')
+      await expect(launcher).toBeVisible()
+      const box = await launcher.boundingBox()
+      if (!box) throw new Error('the launcher has no box')
+      const top = await page.evaluate(({ x, y }) => {
+        const hit = document.elementFromPoint(x, y)
+        if (!hit) return 'nothing'
+        const root = hit.shadowRoot
+        const inner = root ? root.elementFromPoint(x, y) : null
+        const el = inner ?? hit
+        return el.closest('[data-testid="mk-chat-open"]') || (el.getAttribute('data-testid') ?? '') === 'mk-chat-open' ? 'launcher' : `${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(/\s+/).slice(0, 3).join('.') : ''}`
+      }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
+      if (top !== 'launcher') throw new Error(`Expected: the launcher on top at its centre, Received: ${top}`)
+    })
+    return
+  }
   const loc = locate(page, c)
   const name = [c.within, c.panel, c.testid, c.selector, c.role && `${c.role}${c.name ? ` /${c.name}/` : ''}`, c.byText !== undefined ? `"${c.byText}"` : undefined, c.textMatches && `/${c.textMatches}/`].filter(Boolean).join(' › ')
   if (c.count !== undefined) await soft(problems, `${name} count`, () => expect(loc).toHaveCount(c.count!))
@@ -306,7 +325,15 @@ for (const c of cases) {
     // before the checks, which may click (a filter): the panel as the commit left it
     const after = before ? await shoot('after') : null
     const shellAfter = await shell(page)
-    const lost = shellBefore.filter((x) => !shellAfter.includes(x))
+    // by tag and text, not by position: a landmark the page adds after its data loads (block 5: mesa's channel note)
+    // shifts the positions without hiding anything
+    const remaining = [...shellAfter]
+    const lost = shellBefore.filter((x) => {
+      const at = remaining.indexOf(x)
+      if (at < 0) return true
+      remaining.splice(at, 1)
+      return false
+    })
     if (lost.length) problems.push(`the commit hid part of the page outside the panels: ${lost.join(', ')}`)
     // DECISIONS 80: deterministic pre-checks on the "after" render, for the judge to fail fast before the model
     const visual = c.shot ? visualProblems(visualBefore, await visualMeasure(page, demo, c.shot.panel), net.slice(netAtCommit).filter((l) => l.includes('console:')).length) : []

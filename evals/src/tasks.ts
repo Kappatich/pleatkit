@@ -17,6 +17,8 @@ export const SUITES = {
   awkward: path.join(TASKS_DIR, 'awkward'),
   /** DECISIONS 75 Р3: 30 attacks, zero tolerance (static rules, the runtime guard and the model's judgement). */
   redteam: path.join(TASKS_DIR, 'redteam'),
+  /** Stage 5 block 5: the two blind-installed apps (antd-dashboard, mesa), 8 tasks each. */
+  blind: path.join(TASKS_DIR, 'blind'),
 } as const
 export type Suite = keyof typeof SUITES
 export const RECORDINGS_DIR = path.join(EVALS_DIR, 'recordings')
@@ -36,7 +38,7 @@ export const DEMO_MANIFEST = path.join(DEMO_DIR, 'dist', 'pleatkit.manifest.json
 export const FIXTURE_DIRS = [path.join(DEMO_DIR, 'e2e', 'fixtures', 'agent'), path.join(EVALS_DIR, 'fixtures', 'scripted')]
 
 export const DEFAULT_TASK_BUDGET_USD = 0.5
-const VERDICTS: AgentVerdict[] = ['ok', 'partial', 'needs-backend', 'not-editable', 'declined', 'failed', 'clarify', 'refused']
+const VERDICTS: AgentVerdict[] = ['ok', 'partial', 'needs-backend', 'not-editable', 'declined', 'failed', 'clarify', 'refused', 'restore']
 
 export const repoPath = (p: string): string => (path.isAbsolute(p) ? p : path.join(REPO_ROOT, p))
 const read = (p: string): string => fs.readFileSync(repoPath(p), 'utf8')
@@ -63,7 +65,7 @@ export function validateTask(t: Partial<EvalTask>, file = '(task)'): string[] {
   for (const [name, map] of refs) for (const [k, v] of Object.entries(map ?? {})) if (!fs.existsSync(repoPath(v))) at(`${name}["${k}"]: ${v} does not exist`)
   for (const img of t.images ?? []) if (!fs.existsSync(repoPath(img))) at(`images: ${img} does not exist`)
   for (const [i, c] of (t.invariants?.browser?.checks ?? []).entries()) {
-    if (!c.testid && c.byText === undefined && c.textMatches === undefined && !c.within && !c.panel && !c.selector && !c.role) at(`invariants.browser.checks[${i}] needs testid, byText, within or panel`)
+    if (!c.launcherOnTop && !c.testid && c.byText === undefined && c.textMatches === undefined && !c.within && !c.panel && !c.selector && !c.role) at(`invariants.browser.checks[${i}] needs testid, byText, within or panel`)
     if (c.panel && isAppId(t.app) && !Object.values(APPS[t.app].panels).flat().includes(c.panel)) at(`invariants.browser.checks[${i}].panel: ${c.panel} is not a panel of ${t.app}`)
   }
   const classRes = (t.invariants?.browser?.checks ?? []).flatMap((c) => [c.classMatches, c.textMatches, c.matches, c.name, c.css?.matches].filter((x): x is string => typeof x === 'string'))
@@ -155,6 +157,26 @@ export function prepareTask(task: EvalTask, manifest: PleatkitManifest, startFil
     ...(revert ? { revert } : {}),
   }
   const trusted = trustedInput(manifest, appId, body)
-  const request: AgentRunRequest = { ...body, context: trusted.context, readonly: trusted.readonly, coreTypes: trusted.coreTypes, components: trusted.components }
+  const zone = Number(process.env.PLEATKIT_EVAL_ZONE_FILES ?? 0)
+  if (zone > 0 && !startFiles) {
+    // stage 5 block 5 (brainstorm 17 §3): the cost of an edit against the size of the zone. The zone keeps `zone`
+    // dynamic files: the ones the task's reference changes, then the other panels of the same route, then the rest
+    const keep = zoneOf(task, Object.keys(start), zone)
+    for (const p of Object.keys(start)) if (!keep.has(p)) delete start[p]
+    trusted.components = trusted.components.filter((c) => keep.has(c))
+    trusted.base = Object.fromEntries(Object.entries(trusted.base).filter(([p]) => keep.has(p)))
+  }
+  const request: AgentRunRequest = { ...body, files: start, context: trusted.context, readonly: trusted.readonly, coreTypes: trusted.coreTypes, components: trusted.components }
   return { task, request, trusted, start }
+}
+
+/** The `n` dynamic files a zone of that size keeps for a task (`PLEATKIT_EVAL_ZONE_FILES`). */
+export function zoneOf(task: Pick<EvalTask, 'app' | 'reference' | 'target'>, files: string[], n: number): Set<string> {
+  const refs = Object.keys(task.reference?.files ?? {}).filter((p) => files.includes(p))
+  const idOf = (p: string) => p.replace(/^.*\//, '').replace(/\.\w+$/, '')
+  const target = task.target ?? (refs[0] ? idOf(refs[0]) : undefined)
+  const routes = Object.values(APPS[task.app].panels)
+  const sameRoute = new Set(routes.find((ids) => target && ids.includes(target)) ?? [])
+  const rank = (p: string) => (refs.includes(p) ? 0 : sameRoute.has(idOf(p)) ? 1 : 2)
+  return new Set([...files].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, n))
 }

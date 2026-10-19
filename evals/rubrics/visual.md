@@ -22,6 +22,10 @@ These catch the breakage a screenshot can hide.
 - **did_what_asked** — compare before and after: is the requested change present and does it do what the request says?
   Some asks are subtle (a heavier header weight, slightly smaller padding): compare the same spot closely before
   deciding a change is missing. 5: exactly what was asked; 3: partly; 1: not what was asked at all.
+  When the input names a part of the request that was **passed to the server** (`<passed_to_server>`), that part is
+  not expected on the screen: judge the screen part only. A **code diff** (`<code_diff>`) may confirm a change the
+  screenshots cannot show (a link's target, a hover, an order before any click); a change neither the screenshots nor
+  the diff show is missing.
 - **nothing_unrelated** — did only what was asked change? 5: nothing else moved, was removed or restyled (content the
   request asked for, such as a new column, is not unrelated); 3: a small unrelated change; 1: something unrelated was
   removed or broken.

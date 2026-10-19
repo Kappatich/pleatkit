@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" font-size="12">
+<rect width="640" height="360" fill="#fff"/>
+<text x="64" y="16" font-weight="600">Cost of an edit against the size of the dynamic zone (shadcn-admin, Sonnet 5.5, prompt 5i)</text>
+<line x1="64" x2="616" y1="312" y2="312" stroke="#eee"/><text x="58" y="316" text-anchor="end" fill="#555">$0.00</text>
+<line x1="64" x2="616" y1="270.8571428571429" y2="270.8571428571429" stroke="#eee"/><text x="58" y="274.8571428571429" text-anchor="end" fill="#555">$0.01</text>
+<line x1="64" x2="616" y1="229.71428571428572" y2="229.71428571428572" stroke="#eee"/><text x="58" y="233.71428571428572" text-anchor="end" fill="#555">$0.02</text>
+<line x1="64" x2="616" y1="188.5714285714286" y2="188.5714285714286" stroke="#eee"/><text x="58" y="192.5714285714286" text-anchor="end" fill="#555">$0.03</text>
+<line x1="64" x2="616" y1="147.42857142857144" y2="147.42857142857144" stroke="#eee"/><text x="58" y="151.42857142857144" text-anchor="end" fill="#555">$0.04</text>
+<line x1="64" x2="616" y1="106.28571428571428" y2="106.28571428571428" stroke="#eee"/><text x="58" y="110.28571428571428" text-anchor="end" fill="#555">$0.05</text>
+<line x1="64" x2="616" y1="65.1428571428572" y2="65.1428571428572" stroke="#eee"/><text x="58" y="69.1428571428572" text-anchor="end" fill="#555">$0.06</text>
+<line x1="64" x2="616" y1="24" y2="24" stroke="#eee"/><text x="58" y="28" text-anchor="end" fill="#555">$0.07</text>
+<text x="64" y="328" text-anchor="middle" fill="#555">0</text>
+<text x="156" y="328" text-anchor="middle" fill="#555">150</text>
+<text x="248" y="328" text-anchor="middle" fill="#555">300</text>
+<text x="340" y="328" text-anchor="middle" fill="#555">450</text>
+<text x="432" y="328" text-anchor="middle" fill="#555">600</text>
+<text x="524" y="328" text-anchor="middle" fill="#555">750</text>
+<text x="616" y="328" text-anchor="middle" fill="#555">900</text>
+<text x="340" y="350" text-anchor="middle" fill="#333">lines of code in the dynamic zone (every edit sends all of them)</text>
+<line x1="340" x2="340" y1="24" y2="312" stroke="#c00" stroke-dasharray="4 3"/><text x="344" y="36" fill="#c00">doctor warns over 450 lines</text>
+<line x1="64" y1="277.0285714285714" x2="616" y2="182.2354285714286" stroke="#333" stroke-width="1.5"/>
+<text x="352.2666666666667" y="215.5254857142857" fill="#333">$0.0085 + $0.026 per 1,000 lines</text>
+<circle cx="84.24" cy="269.81005714285715" r="4" fill="#2563eb" fill-opacity="0.75"><title>zone 1: 33 lines, $0.0103, 1 call(s)</title></circle>
+<circle cx="82.4" cy="237.68376" r="6" fill="#2563eb" fill-opacity="0.75"><title>zone 1: 30 lines, $0.0181, 2 call(s)</title></circle>
+<circle cx="82.4" cy="282.61021714285715" r="4" fill="#2563eb" fill-opacity="0.75"><title>zone 1: 30 lines, $0.0071, 1 call(s)</title></circle>
+<circle cx="131.46666666666667" cy="236.83282285714287" r="4" fill="#2563eb" fill-opacity="0.75"><title>zone 1: 110 lines, $0.0183, 1 call(s)</title></circle>
+<circle cx="82.4" cy="279.01309714285713" r="4" fill="#2563eb" fill-opacity="0.75"><title>zone 1: 30 lines, $0.0080, 1 call(s)</title></circle>
+<circle cx="170.10666666666665" cy="253.21817142857142" r="4" fill="#16a34a" fill-opacity="0.75"><title>zone 3: 173 lines, $0.0143, 1 call(s)</title></circle>
+<circle cx="170.10666666666665" cy="247.53366857142856" r="4" fill="#16a34a" fill-opacity="0.75"><title>zone 3: 173 lines, $0.0157, 1 call(s)</title></circle>
+<circle cx="170.10666666666665" cy="266.5042285714286" r="4" fill="#16a34a" fill-opacity="0.75"><title>zone 3: 173 lines, $0.0111, 1 call(s)</title></circle>
+<circle cx="170.10666666666665" cy="231.01522285714287" r="4" fill="#16a34a" fill-opacity="0.75"><title>zone 3: 173 lines, $0.0197, 1 call(s)</title></circle>
+<circle cx="170.10666666666665" cy="263.16630857142854" r="4" fill="#16a34a" fill-opacity="0.75"><title>zone 3: 173 lines, $0.0119, 1 call(s)</title></circle>
+<circle cx="566.9333333333334" cy="188.71872000000002" r="4" fill="#ea580c" fill-opacity="0.75"><title>zone 7: 820 lines, $0.0300, 1 call(s)</title></circle>
+<circle cx="566.9333333333334" cy="184.8048" r="4" fill="#ea580c" fill-opacity="0.75"><title>zone 7: 820 lines, $0.0309, 1 call(s)</title></circle>
+<circle cx="566.9333333333334" cy="202.38473142857146" r="4" fill="#ea580c" fill-opacity="0.75"><title>zone 7: 820 lines, $0.0266, 1 call(s)</title></circle>
+<circle cx="566.9333333333334" cy="36.55844571428571" r="6" fill="#ea580c" fill-opacity="0.75"><title>zone 7: 820 lines, $0.0669, 2 call(s)</title></circle>
+<circle cx="566.9333333333334" cy="198.98304000000002" r="4" fill="#ea580c" fill-opacity="0.75"><title>zone 7: 820 lines, $0.0275, 1 call(s)</title></circle>
+<g transform="translate(74,54)"><circle r="4" fill="#2563eb"/><text x="8" y="4">1 file</text><circle cy="16" r="4" fill="#16a34a"/><text x="8" y="20">3 files</text><circle cy="32" r="4" fill="#ea580c"/><text x="8" y="36">7 files</text><circle cy="48" r="6" fill="#999"/><text x="8" y="52">two model calls</text></g>
+</svg>

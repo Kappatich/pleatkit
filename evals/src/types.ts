@@ -61,6 +61,11 @@ export interface BrowserCheck {
   attr?: { name: string; value: string }
   /** Click the first match after its checks; later checks see the result (a filter button, a tab). */
   click?: boolean
+  /**
+   * Red team (DECISIONS 82.4): pleatkit's launcher is the topmost element at its own position (nothing an edit renders
+   * covers it, so Undo stays reachable). Takes no locator fields.
+   */
+  launcherOnTop?: boolean
 }
 
 export interface BrowserInvariants {

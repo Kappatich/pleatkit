@@ -31,7 +31,7 @@ describe('task format', () => {
   it('validateTask names each problem', () => {
     const problems = validateTask({ id: 'Bad Id', app: 'other' as never, request: '', expected: { verdict: 'ok', change: true }, images: ['nope.png'], invariants: { forbidden: ['('] } }, 'x.json')
     expect(problems.join('\n')).toMatch(/x\.json: id must be/)
-    expect(problems.join('\n')).toMatch(/app must be one of demo-crm, shadcn-admin, tailadmin/)
+    expect(problems.join('\n')).toMatch(/app must be one of demo-crm, shadcn-admin, tailadmin, antd-dashboard, mesa/)
     expect(problems.join('\n')).toMatch(/request is required/)
     expect(problems.join('\n')).toMatch(/needs a reference solution/)
     expect(problems.join('\n')).toMatch(/images: nope\.png does not exist/)

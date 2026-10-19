@@ -6,6 +6,7 @@ import { loadManifests, loadSuites, prepareTask, REPO_ROOT, RESULTS_DIR, setDir,
 import type { AppId } from './apps.js'
 import type { EvalTask } from './types.js'
 import { recordingFile, trialsIn } from './providers.js'
+import { classifiedRight, probeChanges, probeVerdict } from './probe-labels.js'
 
 /**
  * `pnpm eval:classify -- --tasks apps --against <set>`: the classifier alone on every task it would see (no target,
@@ -16,6 +17,10 @@ import { recordingFile, trialsIn } from './providers.js'
  * Stage 5 block 3 (DECISIONS 74.5): `--probes <file>` adds requests that are not tasks (`evals/probes/*.json`: id, app,
  * request, expected label), `--only` picks tasks, `--repeat n` asks the classifier n times per request (Haiku is noisy
  * on mixed requests: one answer per request says little), `--out <name>` names the result file.
+ *
+ * Stage 5 block 5 (DECISIONS 81): probes may carry the labels of the /admin Labels screen (`pleatkit labels export`):
+ * `clarify`, `declined` and `mixed` are scored as `probe-labels.ts` says; their extra fields (suggested, labeledBy,
+ * labeledAt) are ignored.
  */
 async function main(): Promise<number> {
   const args = process.argv.slice(2)
@@ -36,7 +41,7 @@ async function main(): Promise<number> {
     const file = path.resolve(process.env.INIT_CWD ?? REPO_ROOT, probesFile)
     const probes = (JSON.parse(fs.readFileSync(file, 'utf8')) as { probes: { id: string; app: AppId; request: string; expected: string }[] }).probes
     // a probe is a task with only a request: the label it should get is its expected "verdict" (ui → the main model)
-    for (const p of probes) tasks.push({ id: p.id, app: p.app, title: p.id, scenario: 'classifier probe', request: p.request, expected: { verdict: p.expected === 'ui' ? 'ok' : (p.expected as 'needs-backend'), change: p.expected === 'ui' } } as EvalTask)
+    for (const p of probes) tasks.push({ id: p.id, app: p.app, title: p.id, scenario: 'classifier probe', request: p.request, expected: { verdict: probeVerdict(p.expected) as 'needs-backend', change: probeChanges(p.expected) } } as EvalTask)
   }
   const manifests = loadManifests(tasks)
   const rows: Record<string, unknown>[] = []
@@ -68,12 +73,7 @@ async function main(): Promise<number> {
   fs.mkdirSync(RESULTS_DIR, { recursive: true })
   const out = path.join(RESULTS_DIR, `classify-${value('out') ?? against ?? suites.join('-')}.json`)
   // right when the label sends the request where its expected verdict needs it (ok/partial → ui, the others by name)
-  const want = (v: string) => (v === 'ok' || v === 'partial' || v === 'not-editable' ? 'ui' : v === 'clarify' ? 'unclear' : v === 'declined' ? 'adversarial' : v === 'refused' ? 'off-topic' : v)
-  const right = rows.filter((r) => {
-    const [label, intent] = String(r.now).split('/')
-    const w = want(String(r.expected))
-    return w === 'adversarial' ? intent === 'adversarial' : label === w
-  }).length
+  const right = rows.filter((r) => classifiedRight(String(r.expected), String(r.now))).length
   const all = tokens.input + tokens.cacheRead + tokens.cacheWrite
   console.log(`right: ${right} of ${rows.length}; classifier input ${all} tokens: cache read ${tokens.cacheRead} (${all ? Math.round((tokens.cacheRead / all) * 1000) / 10 : 0} %), cache write ${tokens.cacheWrite}, uncached ${tokens.input}`)
   fs.writeFileSync(out, JSON.stringify({ promptVersion: PROMPT_VERSION, at: new Date().toISOString(), costUsd: cost, repeat, right, tokens, rows }, null, 2) + '\n')

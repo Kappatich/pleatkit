@@ -39,6 +39,8 @@ const value = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined
 }
 const only = value('only')?.split(',').filter(Boolean)
+/** Block 5 (brainstorm 17 §3): `--zone-files n` keeps n dynamic files in the zone (cost against zone size); replay a set with the same n. */
+if (value('zone-files')) process.env.PLEATKIT_EVAL_ZONE_FILES = value('zone-files')
 const log = (line: string) => console.log(line)
 const rel = (p: string) => path.relative(REPO_ROOT, p).replace(/\\/g, '/')
 /** A path the user typed: relative to where pnpm was run (INIT_CWD), not to evals/ where the script runs. */
