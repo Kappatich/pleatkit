@@ -56,6 +56,15 @@ seven), and `pleatkit doctor` warns over 450 lines. A warm type check cut shadcn
 median**. `pleatkit init --suggest` drafts the zones, externals and readonly modules from the import graph: 0 manual
 edits left to the configuration on all four foreign apps.
 
+Stage 5 block 6 ([report](evals/REPORT-2026-10-19-block6.md)): when the user points at a panel, an edit now sends only
+that panel's files and what they import: on a 7-file zone **$0.030 → $0.012 median** per edit, 5 of 5 passing either way.
+The system prefix is cached for an hour, which made six demo edits 20 minutes apart 18 % cheaper ($0.164 → $0.135).
+Claude Haiku 5.5 as the editor passed **68 of 69** tasks at $0.001 to $0.003 per edit, the editor for a free tier.
+An optional classifier ensemble with TypeSafe's Jev routes as accurately as Haiku alone (304 and 305 of 318) and
+decides 46 % of requests in 0.3 s; it stays off by default because an edit's latency is the main model's.
+Edits are now contained in their panel's box (33 of 33 attacks refused), and `pnpm eval:weekly` replays every set and
+14 live tasks with an alert on drift.
+
 ## Packages
 
 | Package | What it does | Repo |

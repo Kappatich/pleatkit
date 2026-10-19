@@ -1,0 +1,76 @@
+# The weekly drift check (brainstorm 17 §20, stage 5 block 6): replays every set with a baseline and the blind sets
+# offline, then records the 14 demo tasks × 1 with the live model (about $0.15, capped at $0.30) and compares them
+# with evals/baseline.json; a regression or a live run 2+ tasks below the baseline sends one alert through the agent
+# server's channel (webhook and/or e-mail API). A template: copy it to .github/workflows/weekly.yml when Minte
+# wants it on, and set the secrets below in the repository settings. Nothing here publishes or commits.
+#
+# Exit codes of `pnpm eval:weekly`: 0 no drift, 1 drift (alert sent), 2 configuration error (the job fails either way
+# on 1 and 2, so GitHub's own failure e-mail is a second channel).
+name: weekly-evals
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Monday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      live:
+        description: 'Also record the 14 demo tasks with the live model (spends about $0.15)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-evals
+  cancel-in-progress: false
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PLEATKIT_API_KEY: ${{ secrets.PLEATKIT_API_KEY }}
+      PLEATKIT_ALERT_WEBHOOK: ${{ secrets.PLEATKIT_ALERT_WEBHOOK }}
+      PLEATKIT_ALERT_EMAIL_URL: ${{ secrets.PLEATKIT_ALERT_EMAIL_URL }}
+      PLEATKIT_ALERT_EMAIL_TO: ${{ secrets.PLEATKIT_ALERT_EMAIL_TO }}
+      PLEATKIT_ALERT_EMAIL_TOKEN: ${{ secrets.PLEATKIT_ALERT_EMAIL_TOKEN }}
+      PLEATKIT_EVAL_BUDGET_USD: '0.3'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # the demo's build and manifest (the demo tasks and the live run), the packages the evals import
+      - run: pnpm build
+      # the foreign apps the replayed sets run against (apps, awkward; blind-ab, blind-me)
+      - name: Build the eval apps
+        run: |
+          (cd evals/apps/shadcn-admin && pnpm install --ignore-workspace && pnpm build)
+          (cd evals/apps/tailadmin && npm ci && npm run build)
+          (cd evals/apps/antd-dashboard && pnpm install --ignore-workspace --ignore-scripts && pnpm build)
+          (cd evals/apps/mesa && npm ci && npm run build)
+      # the browser grader (headless)
+      - run: pnpm --filter @pleatkit/evals exec playwright install --with-deps chromium
+      - name: pnpm eval:weekly
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.live }}" != "true" ]; then
+            pnpm eval:weekly -- --no-live
+          else
+            pnpm eval:weekly
+          fi
+      - name: Upload the summary, the report and the live transcripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-evals-${{ github.run_id }}
+          path: |
+            evals/results/weekly-*.json
+            evals/results/weekly-*.html
+            evals/results/replay*.json
+            evals/recordings/weekly-*/
+          if-no-files-found: warn
+          retention-days: 90
