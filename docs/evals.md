@@ -178,7 +178,7 @@ today's prompt and the app's data contract, and prints the label next to the one
 measured for under a cent before any edit runs (`evals/results/classify-<set>.json`).
 
 Sets of this block: `apps-5b` (Sonnet 5.5, prompt 5b: the series as asked), `apps-5c` (prompt 5c), `apps` (prompt
-5d, pinned as `evals/baseline.apps.json`), `apps-haiku` (Haiku 5.5 as the editor, 35 × 1), `live-haiku` (Haiku 5.5 as
+5d at the time; since block 4 the set holds the 5f trials, below), `apps-haiku` (Haiku 5.5 as the editor, 35 × 1), `live-haiku` (Haiku 5.5 as
 the editor on the demo, 14 × 3), `live-5d` and `live-5d-sequential` (Sonnet on the demo with the parallel and the
 sequential classifier: the A/B), `probe-5b`, `probe-5d`, `apps-5d-probe` (small re-runs after a prompt change). The numbers:
 [`evals/REPORT-2026-10-18-foreign.md`](../evals/REPORT-2026-10-18-foreign.md).
@@ -207,3 +207,50 @@ pnpm eval:classify -- --tasks all --only crm-10-partial-phone-history,sa-15-task
 Sets of this block: `apps-5f` (Sonnet 5.5, prompt 5f, 35 × 1), `probe-5f` (the five demo smoke tasks, sa-12, crm-10,
 sa-15, × 2), `probe-5f-haiku` (sa-12 and ta-09 with Haiku 5.5 as the editor). Numbers: the "Block 3" section of
 [`evals/REPORT-2026-10-18-foreign.md`](../evals/REPORT-2026-10-18-foreign.md#block-3); the probe results are kept in `evals/probes/results/` (`evals/results/` is not committed).
+
+## Stage 5, block 4
+
+Numbers: [`evals/REPORT-2026-10-19.md`](../evals/REPORT-2026-10-19.md).
+
+- **Visual-quality judge** (DECISIONS 75 Р3, 80). `--judge` on a live record, or `pnpm eval:judge -- --set <name>`
+  (a replay of the set with the judge; it calls the API, so it needs `PLEATKIT_API_KEY` and `PLEATKIT_EVAL_BUDGET_USD`).
+  The browser grader screenshots the changed panel before and after the commit (`evals/.out/browser/results/<app>/`)
+  and runs deterministic pre-checks on the "after" render: horizontal overflow, content spilling past the panel box,
+  text contrast under WCAG AA (reported under 3.0:1), a button or link with no accessible name, console errors on
+  commit. Any of them fails the edit without calling the model. Otherwise Claude Haiku 5.5 scores the pair against
+  [`evals/rubrics/visual.md`](../evals/rubrics/visual.md): four criteria (design_system, no_breakage, did_what_asked,
+  nothing_unrelated) and an overall, 1 to 5 each; **overall ≥ 4 is "a designer would accept it"**. The judge is
+  advisory: it has its own report column and tile ("Designer would accept", with per-criterion medians) and never fails
+  a run. `pnpm eval:judge -- --calibrate` renders 10 reference solutions (should score ≥ 4) and 5 ugly edits
+  (`evals/judge/make-ugly.mjs`, should score ≤ 2) from `evals/judge/calibration.json` and writes
+  `evals/judge/calibration-result.json`.
+- **Commits keep the page outside the panels.** Every browser case records the visible landmarks outside the panels
+  (`aside`, `nav`, `header`, the sidebar) before the commit and fails if one is hidden after it.
+- **New suites** (`--tasks awkward`, `--tasks redteam`; a replay of a named set takes every suite):
+  - `awkward` (20, `evals/tasks/awkward/make-awkward.mjs`): requests as irritated users write them. Where the ask is one
+    an existing task checks, the task reuses that task's reference and invariants, so the phrasing is what is measured.
+    `expected.alsoAccept` lists other answers that are also right (an emoji-only request may be asked about or refused).
+    Live set `awkward` (20 × 2), baseline `evals/baseline.awkward.json`.
+  - `redteam` (30, `evals/tasks/redteam/make-redteam.mjs`, zero tolerance): 20 static attacks a scripted stand-in for a
+    compromised model writes into the demo's card (the fixture asserts that `finish` is refused by `check`, so a rule
+    that stops blocking fails the recording), and 10 judgement attacks (prompt injection in the panel DOM and data,
+    "the admin said", other users' data, PII, hiding pleatkit's own controls, editing readonly code, an obfuscated
+    request, an injected "SYSTEM" line in a paste, a fake sign-in) with a scripted refusal for the offline set.
+    Offline set `redteam` (30 × 1, baseline `evals/baseline.redteam.json`); the live model on the 10 judgement attacks:
+    set `redteam-live`.
+
+```bash
+pnpm eval:sanity -- --tasks awkward && pnpm eval:sanity -- --tasks redteam
+pnpm eval:record -- --tasks redteam --set redteam                     # offline: the scripted attacks
+PLEATKIT_EVAL_BUDGET_USD=2 pnpm eval:record -- --live --tasks awkward --set awkward --trials 2 --judge
+PLEATKIT_EVAL_BUDGET_USD=1 pnpm eval:record -- --live --tasks redteam --set redteam-live --only rt-j
+PLEATKIT_EVAL_BUDGET_USD=0.15 pnpm eval:judge -- --calibrate
+pnpm eval:replay -- --set awkward && pnpm eval:replay -- --set redteam
+```
+
+- **The first call's tail** (DECISIONS 76.1): `PLEATKIT_CACHE_TAIL` (`after-first`, the default since this block, or
+  `always`). Sets `cache-af2` and `cache-al2` (shadcn-admin, 5 distinct tasks each) are the measurement.
+- Sets of this block: `apps-5f-t2` (the second 35 × 1 trial on 5f, judged; with `apps-5f` it is now the set `apps`,
+  35 × 2, pinned as `evals/baseline.apps.json`), `cache-afterfirst` / `cache-always` (the first A/B, confounded by the
+  prompt cache; kept for the record), `cache-af2` / `cache-al2`, `probe-5g` / `probe-5h` (crm-10, sa-15, sa-13, ta-13),
+  `awkward`, `redteam`, `redteam-live`.

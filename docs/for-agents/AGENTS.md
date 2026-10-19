@@ -29,7 +29,7 @@ Zones, set by globs in the Vite plugin:
 - Dynamic code imports only: other dynamic files (relative paths) and the `externals` list. Anything a panel needs from the app goes into `readonly` and is listed in `externals` (for example `@/readonly/*`).
 - The app resolves `@` to `src` in both Vite (`resolve.alias`) and TypeScript (`paths`). The plugin assumes `{ '@': 'src' }` unless you pass `alias`.
 - One React (18 or 19) for the app and `@pleatkit/runtime`. When pleatkit is linked from a local checkout, `resolve.dedupe: ['react', 'react-dom']` is required.
-- Content-Security-Policy: with the default `compile: 'server'` it needs only `script-src 'self'` (and `connect-src 'self'`, `style-src 'self' 'unsafe-inline'`). With `compile: 'browser'` it must also allow `blob:` and `'wasm-unsafe-eval'` in `script-src` and `worker-src blob:`.
+- Content-Security-Policy: with the default `compile: 'server'` it needs only `script-src 'self'` (and `connect-src 'self'`, `style-src 'self' 'unsafe-inline'`). With `compile: 'browser'` it must also allow `blob:` and `'wasm-unsafe-eval'` in `script-src` and `worker-src blob:`. With the plugin option `allowedHosts`, `img-src` lists each of those hosts (`img-src 'self' https://images.example-cdn.com`) and nothing else is widened.
 - In production the servers need `PLEATKIT_APP_KEY` and `PLEATKIT_JWT_SECRET` (`pleatkit keys new`), and the browser sends a user token minted by the app's backend; the demo headers work only in development.
 
 ## Decide the zones (before step 4 of install.md)
