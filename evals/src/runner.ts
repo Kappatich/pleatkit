@@ -1,13 +1,13 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { buildPrompt, digestsFromManifest, PROMPT_VERSION, readTranscript, RecordingProvider, runAgent, typecheckFromEnv, type ModelProvider, type TypecheckFn } from '@pleatkit/agent'
+import { buildPrompt, digestsFromManifest, PROMPT_VERSION, readTranscript, RecordingProvider, runAgent, typecheckFromEnv, warmTypecheck, type ModelProvider, type TypecheckFn } from '@pleatkit/agent'
 import type { PleatkitManifest } from '@pleatkit/runtime/compiler'
 import { APPS, routeOf, type AppId } from './apps.js'
 import { BudgetExceededError, EvalBudget, gradeBudget } from './budget.js'
 import { gradeRun, type RunResult } from './graders.js'
 import { recordingFile } from './providers.js'
-import { designSystemOf, judgeGrader, readShot, type Judge } from './judge.js'
+import { codeDiff, designSystemOf, judgeGrader, readShot, type Judge } from './judge.js'
 import { DEFAULT_TASK_BUDGET_USD, prepareTask, type PreparedTask } from './tasks.js'
 import type { AgentKind, BrowserInvariants, EvalTask, GraderResult, PromptInfo, SuiteResult, TaskRun, Tokens } from './types.js'
 
@@ -129,6 +129,8 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
   const queue = prepared.flatMap((p) => Array.from({ length: trialsOf(p.task) }, (_, i) => ({ p, trial: i + 1 })))
   let aborted: SuiteResult['aborted']
   const results = new Map<string, RunResult>()
+  const diffs = new Map<string, string>()
+  const warmed = new Set<AppId>()
   const envTypecheck = o.loopTypecheckFor ? null : typecheckFromEnv(process.env)
   const loopTypecheckOf = (app: AppId): TypecheckFn | null => (o.loopTypecheckFor ? o.loopTypecheckFor(app) : envTypecheck)
 
@@ -145,6 +147,14 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
     }
     const cap = task.budgetUsd ?? DEFAULT_TASK_BUDGET_USD
     const limit = budget.limitFor(cap)
+    // block 5 (brainstorm 17 §4): as the agent server does at start, warm the app's type check once before its first
+    // task, outside every timing (PLEATKIT_TYPECHECK_WARM=0: the cold path, for the before/after measurement)
+    const tc = loopTypecheckOf(task.app)
+    if (tc && !warmed.has(task.app) && !['0', 'off', 'false'].includes((process.env.PLEATKIT_TYPECHECK_WARM ?? '').toLowerCase())) {
+      warmed.add(task.app)
+      const ms = await warmTypecheck(tc, { files: p.trusted.base, readonly: p.request.readonly, coreTypes: p.request.coreTypes, context: p.request.context, components: p.request.components })
+      log(`type check of ${task.app} warmed in ${Math.round(ms)} ms`)
+    }
     let provider = o.providerFor(task, trial)
     let tmp: string | null = null
     if (o.recordDir) {
@@ -176,6 +186,8 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
       if (file) recording = { file: path.basename(file), promptVersion: promptVersionOf(file) }
     }
     results.set(key, result)
+    // DECISIONS 82.3: what the edit changed in the code, for the judge
+    diffs.set(key, codeDiff(p.request.files, { ...p.request.files, ...result.files }))
     const costUsd = result.usage.reduce((s, u) => s + (u.costUsd ?? 0), 0)
     // `eval:judge -- --set`: the replayed transcripts' money was spent when they were recorded; only the judge counts
     if (!(o.agent === 'replay' && o.chargeReplay === false)) budget.charge(costUsd)
@@ -255,7 +267,8 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
         continue
       }
       try {
-        const j = await o.judge({ request: task.request, designSystem: designSystemOf(manifestOf(task)), before, after, ...(shots && browserResults[keyOf(r)]?.visual?.length ? { preCheck: browserResults[keyOf(r)]!.visual } : {}) })
+        const diff = diffs.get(keyOf(r))
+        const j = await o.judge({ request: task.request, designSystem: designSystemOf(manifestOf(task)), before, after, ...(shots && browserResults[keyOf(r)]?.visual?.length ? { preCheck: browserResults[keyOf(r)]!.visual } : {}), ...(r.verdict === 'partial' && r.backendQuote ? { backendQuote: r.backendQuote } : {}), ...(diff ? { diff } : {}) })
         budget.charge(j.costUsd)
         judgeCostUsd += j.costUsd
         r.judge = j

@@ -10,12 +10,15 @@ import { loadTasks, SUITES } from '../src/tasks.js'
 import type { EvalTask } from '../src/types.js'
 
 describe('stage 5 block 4: suites, chains and the judge', () => {
-  it('the awkward suite has 20 valid tasks and the red team 30, zero of them expecting a change to ship an attack', () => {
+  it('the awkward suite has 20 valid tasks and the red team 32, zero of them expecting a change to ship an attack', () => {
     expect(loadTasks(SUITES.awkward)).toHaveLength(20)
     const rt = loadTasks(SUITES.redteam)
-    expect(rt).toHaveLength(30)
+    // block 5 (DECISIONS 82.4): + the overlay attached to document.body (static) and the z-index overlay (runtime)
+    expect(rt).toHaveLength(32)
+    expect(rt.filter((t) => t.tags?.includes('static'))).toHaveLength(21)
     expect(rt.filter((t) => t.tags?.includes('static')).every((t) => t.expected.verdict === 'failed' && !t.expected.change)).toBe(true)
     expect(rt.filter((t) => t.tags?.includes('judgement'))).toHaveLength(10)
+    expect(rt.filter((t) => t.tags?.includes('runtime')).map((t) => t.invariants?.browser?.checks.some((c) => c.launcherOnTop))).toEqual([true])
   })
 
   it('alsoAccept: another right answer passes with its own change expectation', () => {

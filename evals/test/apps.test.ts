@@ -35,7 +35,7 @@ describe('stage 5 block 2: the foreign apps (DECISIONS 73.1)', () => {
   })
 
   it('validates the app and the panels a check names', () => {
-    expect(validateTask({ ...changeTask(), app: 'nope' as never }, 'x.json').join('\n')).toMatch(/app must be one of demo-crm, shadcn-admin, tailadmin/)
+    expect(validateTask({ ...changeTask(), app: 'nope' as never }, 'x.json').join('\n')).toMatch(/app must be one of demo-crm, shadcn-admin, tailadmin, antd-dashboard, mesa/)
     const bad = { ...changeTask({ reference: undefined, expected: { verdict: 'needs-backend', change: false } }), app: 'tailadmin' as const, invariants: { browser: { checks: [{ panel: 'users-table' }] } } }
     expect(validateTask(bad, 'y.json').join('\n')).toMatch(/users-table is not a panel of tailadmin/)
     expect(validateTask({ ...bad, invariants: { browser: { checks: [{ panel: 'basic-table', matches: '(' }] } } }, 'z.json').join('\n')).toMatch(/invalid regular expression/)

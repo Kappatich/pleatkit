@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 const EVALS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const REPO = path.resolve(EVALS, '..')
 
-/** The apps eval tasks run against: the demo CRM and two foreign admin templates (DECISIONS 73.1). */
-export const APP_IDS = ['demo-crm', 'shadcn-admin', 'tailadmin'] as const
+/** The apps eval tasks run against: the demo CRM, two foreign admin templates (DECISIONS 73.1) and the two blind installs of block 5. */
+export const APP_IDS = ['demo-crm', 'shadcn-admin', 'tailadmin', 'antd-dashboard', 'mesa'] as const
 export type AppId = (typeof APP_IDS)[number]
 
 export interface EvalApp {
@@ -55,6 +55,25 @@ export const APPS: Record<AppId, EvalApp> = {
     panels: { '/': ['ecommerce-metrics', 'monthly-sales-chart', 'recent-orders'], '/basic-tables': ['basic-table'] },
     suite: 'apps',
     build: 'cd evals/apps/tailadmin && npm ci && npm run build',
+  },
+  // stage 5 block 5: the two apps installed blind by a fresh agent from docs/for-agents (brainstorm 17 §2)
+  'antd-dashboard': {
+    id: 'antd-dashboard',
+    dir: path.join(EVALS, 'apps', 'antd-dashboard'),
+    kind: 'static',
+    defaultPath: '/dashboards/default',
+    panels: { '/dashboards/default': ['stat-cards', 'tasks-list'], '/dashboards/ecommerce': ['orders-status-chart', 'recent-orders'] },
+    suite: 'apps',
+    build: 'cd evals/apps/antd-dashboard && pnpm install --ignore-workspace --ignore-scripts && pnpm build',
+  },
+  mesa: {
+    id: 'mesa',
+    dir: path.join(EVALS, 'apps', 'mesa'),
+    kind: 'static',
+    defaultPath: '/',
+    panels: { '/': ['overview-stats'], '/channels': ['channel-comparison'], '/menu': ['menu-items-table'] },
+    suite: 'apps',
+    build: 'cd evals/apps/mesa && npm ci && npm run build',
   },
 }
 

@@ -24,6 +24,7 @@ export function oracleProvider(task: EvalTask, o: { write: boolean }): ModelProv
     async classify(): Promise<Classification> {
       const base = { usage: zero(), model: 'oracle-classifier' }
       if (v === 'refused') return { ...base, label: 'off-topic', reason: '' }
+      if (v === 'restore') return { ...base, label: 'restore', reason: '' }
       if (v === 'needs-backend') return { ...base, label: 'needs-backend', reason: 'This needs a change on the server, so it went to the administrator.' }
       if (v === 'clarify') return { ...base, label: 'unclear', reason: 'Two readings are possible.', question: 'Which part do you mean?', options: ['The first one', 'The second one'] }
       return { ...base, label: 'ui', reason: '' }

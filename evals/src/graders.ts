@@ -50,7 +50,7 @@ export async function gradeTypecheck(p: PreparedTask, result: RunResult, typeche
 
 export function typecheckerFromEnv(env: Record<string, string | undefined> = process.env): TypecheckFn | null {
   const root = env.PLEATKIT_TYPECHECK_ROOT
-  return root ? createTypechecker({ root }) : null
+  return root ? createTypechecker({ root, warm: !['0', 'off', 'false'].includes((env.PLEATKIT_TYPECHECK_WARM ?? '').toLowerCase()) }) : null
 }
 
 /** Text invariants: files that must keep testids and props, forbidden patterns, files that must stay as they were. */
@@ -59,7 +59,10 @@ export function gradeInvariants(p: PreparedTask, result: RunResult): GraderResul
   if (!inv || (!inv.files?.length && !inv.forbidden?.length && !inv.unchanged?.length && !inv.anyMustMatch?.length)) return { grader: 'invariants', pass: true, skipped: true, reason: 'no text invariants' }
   const final = finalFiles(p.start, result)
   const problems: string[] = []
-  for (const f of inv.files ?? []) {
+  // block 5: an answer the task also accepts without a change (`alsoAccept`, e.g. restore: the version history instead
+  // of an edit) leaves the files as they were; the per-file invariants describe the change and do not apply to it
+  const noChangeAnswer = result.verdict !== p.task.expected.verdict && !expectedFor(p.task, result.verdict).change
+  for (const f of noChangeAnswer ? [] : inv.files ?? []) {
     const src = final[f.path]
     if (src === undefined) {
       problems.push(`${f.path} does not exist`)
