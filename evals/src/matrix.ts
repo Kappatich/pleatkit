@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { median, percentile, seriesMetrics } from './metrics.js'
-import { RECORDINGS_DIR } from './tasks.js'
+import { SETS_DIR } from './tasks.js'
 import type { SuiteResult, TaskRun } from './types.js'
 
 /**
@@ -208,7 +208,7 @@ export function mergeSuites(parts: SuiteResult[]): SuiteResult {
 }
 
 /** The rows of the named sets: `<set>/record.json` and, when there, `<set>/graded.json`; `a+b` is one row of both. */
-export function loadMatrix(sets: string[], dir = RECORDINGS_DIR): MatrixRow[] {
+export function loadMatrix(sets: string[], dir = SETS_DIR): MatrixRow[] {
   return sets.map((name) => {
     const parts = name.split('+')
     const records = parts.map((set) => readJson(path.join(dir, set, 'record.json')))

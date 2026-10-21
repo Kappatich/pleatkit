@@ -1,9 +1,14 @@
 # Eval report 2026-10-18 (2): stage 5 block 2, the foreign apps
 
+> The transcripts, the private suites and the HTML reports this report names (`evals/recordings/...`,
+> `evals/tasks/{apps,awkward,redteam,blind}`, `evals/apps`, `evals/probes`, `evals/report/*.html` other than the demo's,
+> the live baselines) are kept in the maintainers' private evals since the repository went public; transcripts
+> available on request. The numbers here are as published.
+
 DECISIONS 73. Executor: Claude Opus 5.5. Editor models: Claude Sonnet 5.5 (default effort `medium`) and Claude Haiku
 5.5; classifier Claude Haiku 5.5. Prompts `2026-10-18.5b` → `5c` → `5d` (below). Apps: the demo CRM and two
-open-source admin templates installed by the customer docs ([`evals/apps/README.md`](apps/README.md)). All
-transcripts are committed under `evals/recordings/<set>/`, each set with its `record.json` (the real latencies); the
+open-source admin templates installed by the customer docs (`evals/apps/README.md`, private evals). All
+transcripts were committed under `evals/recordings/<set>/` (now private; available on request), each set with its `record.json` (the real latencies); the
 HTML reports are under `evals/report/`.
 
 | Set | What | Report |

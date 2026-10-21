@@ -5,7 +5,7 @@ import { gradeInvariants, type RunResult } from '../src/graders.js'
 import { hueOf, PREDICATES } from '../src/predicates.js'
 import { renderReport } from '../src/report.js'
 import { runSuite } from '../src/runner.js'
-import { loadSuites, prepareTask, validateTask } from '../src/tasks.js'
+import { hasSuite, loadSuites, prepareTask, validateTask } from '../src/tasks.js'
 import { CARD, changeTask, MANIFEST, noChangeTask, PHONE_CARD } from './helpers.js'
 
 const result = (over: Partial<RunResult> = {}): RunResult => ({
@@ -24,7 +24,8 @@ const result = (over: Partial<RunResult> = {}): RunResult => ({
 })
 
 describe('stage 5 block 2: the foreign apps (DECISIONS 73.1)', () => {
-  it('the apps suite: 35 valid tasks over shadcn-admin and TailAdmin, 3 adversarial, a reference for every change', () => {
+  // the apps suite is private (PLEATKIT_PRIVATE_EVALS); without it this check is skipped
+  it.skipIf(!hasSuite('apps'))('the apps suite: 35 valid tasks over shadcn-admin and TailAdmin, 3 adversarial, a reference for every change', () => {
     const tasks = loadSuites(['apps'])
     expect(tasks).toHaveLength(35)
     expect(new Set(tasks.map((t) => t.app))).toEqual(new Set(['shadcn-admin', 'tailadmin']))

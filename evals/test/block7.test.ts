@@ -1,9 +1,8 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { cheapestPerFamily, FAMILY_OF, familyOf, markdown, matrixRow, mergeSuites, suiteOf } from '../src/matrix.js'
 import { belowMinPass } from '../src/runner.js'
-import { EVALS_DIR } from '../src/tasks.js'
+import { hasSuite, SUITES } from '../src/tasks.js'
 import type { SuiteResult, TaskRun } from '../src/types.js'
 
 const run = (taskId: string, pass: boolean, o: Partial<TaskRun> = {}): TaskRun => ({
@@ -30,13 +29,14 @@ const suite = (runs: TaskRun[], aborted?: SuiteResult['aborted']): SuiteResult =
 
 describe('stage 5 block 7: the model matrix', () => {
   it('every task of demo, apps and awkward has exactly one family', () => {
-    const ids = ['tasks', 'tasks/apps', 'tasks/awkward'].flatMap((d) =>
+    const ids = (['demo', 'apps', 'awkward'] as const).filter(hasSuite).flatMap((s) =>
       fs
-        .readdirSync(path.join(EVALS_DIR, d))
+        .readdirSync(SUITES[s])
         .filter((f) => f.endsWith('.json'))
         .map((f) => f.replace(/\.json$/, '')),
     )
-    expect(ids).toHaveLength(69)
+    // the apps and awkward suites are private (PLEATKIT_PRIVATE_EVALS): the demo's 14 alone without them
+    expect(ids).toHaveLength(hasSuite('apps') && hasSuite('awkward') ? 69 : 14)
     for (const id of ids) expect(familyOf(id), id).toBeDefined()
     expect(Object.keys(FAMILY_OF)).toHaveLength(69)
     expect(suiteOf('crm-01-card-fields')).toBe('demo')

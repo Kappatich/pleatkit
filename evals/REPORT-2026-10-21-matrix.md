@@ -1,11 +1,16 @@
 # Eval report 2026-10-21: stage 5 block 7, the model matrix
 
+> The transcripts, the private suites and the HTML reports this report names (`evals/recordings/...`,
+> `evals/tasks/{apps,awkward,redteam,blind}`, `evals/apps`, `evals/probes`, `evals/report/*.html` other than the demo's,
+> the live baselines) are kept in the maintainers' private evals since the repository went public; transcripts
+> available on request. The numbers here are as published.
+
 DECISIONS 78 and 80: which models can do pleatkit's two model jobs (the **editor**, which writes the panel code
 through tools, and the **classifier**, which routes a request before any edit) and where a cheap one is enough.
 Executor: Claude Opus 5.5. Prompt `2026-10-19.5j` (unchanged; no prompt change in this block). All editors ran the same
 69 tasks once (demo 14, apps 35, awkward 20) with Claude Haiku 5.5 as the classifier, so only the editor differs.
 Non-Anthropic models went through OpenRouter (`PLEATKIT_PROVIDER=openrouter`, default routing, each model's default
-reasoning effort). Every transcript is committed under `evals/recordings/matrix-<model>/` with `record.json` (the live
+reasoning effort). Every transcript was committed under `evals/recordings/matrix-<model>/` (now private; available on request) with `record.json` (the live
 run: real latencies and costs) and `graded.json` (the same transcripts replayed with the browser grader and the
 visual judge); the tables come from `pnpm --filter @pleatkit/evals matrix` (`evals/recordings/matrix-summary.json`).
 

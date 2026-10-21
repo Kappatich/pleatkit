@@ -43,6 +43,10 @@ export async function calibrateJudge(o: { judge: Judge; browser: BrowserGrader; 
   const only = o.only?.length ? o.only : null
   const cases = (JSON.parse(fs.readFileSync(CALIBRATION_FILE, 'utf8')) as { cases: CalibrationCase[] }).cases.filter((c) => !only || only.some((x) => c.id.startsWith(x)))
   const tasks = loadSuites(Object.keys(SUITES) as Suite[]).filter((t) => cases.some((c) => c.task === t.id))
+  // without PLEATKIT_PRIVATE_EVALS only the demo's cases can run: the others are skipped, not failed
+  const skipped = cases.filter((c) => !tasks.some((t) => t.id === c.task))
+  if (skipped.length) o.log(`judge calibration: ${skipped.length} cases skipped (their tasks are in the private sets: PLEATKIT_PRIVATE_EVALS)`)
+  for (const s of skipped) cases.splice(cases.indexOf(s), 1)
   const manifests = loadManifests(tasks)
   const browserCases: BrowserCase[] = cases.map((c) => {
     const t = tasks.find((x) => x.id === c.task)

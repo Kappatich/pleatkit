@@ -1,7 +1,8 @@
 // Writes the five deliberately ugly edits the judge's calibration expects to score at most 2 (DECISIONS 75 Р3).
 // Each starts from the task's reference solution (so it compiles and does roughly what was asked) and then breaks
 // what a designer would not accept: garish colours and fonts, overlapping or oversized elements, unrelated removals.
-// Run: node evals/judge/make-ugly.mjs (after a reference changes).
+// Run: node evals/judge/make-ugly.mjs (after a reference changes). The foreign apps' references (`evals/references/apps`)
+// are read from the private clone (`PLEATKIT_PRIVATE_EVALS=<clone>/evals`).
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,7 +13,9 @@ const out = path.join(here, 'ugly')
 fs.mkdirSync(out, { recursive: true })
 
 function make(name, from, edits) {
-  let src = fs.readFileSync(path.join(repo, from), 'utf8')
+  const privRoot = process.env.PLEATKIT_PRIVATE_EVALS ? path.dirname(path.resolve(process.env.PLEATKIT_PRIVATE_EVALS)) : null
+  const file = !fs.existsSync(path.join(repo, from)) && privRoot ? path.join(privRoot, from) : path.join(repo, from)
+  let src = fs.readFileSync(file, 'utf8')
   for (const [a, b] of edits) {
     if (!src.includes(a)) throw new Error(`${name}: "${a.slice(0, 60)}" not found in ${from}`)
     src = src.split(a).join(b)

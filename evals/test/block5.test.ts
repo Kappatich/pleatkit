@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { codeDiff, createJudge } from '../src/judge.js'
-import { loadTasks, SUITES } from '../src/tasks.js'
+import { hasSuite, loadTasks, SUITES } from '../src/tasks.js'
 
 describe('stage 5 block 5: the judge sees what a screenshot cannot (DECISIONS 82.3)', () => {
   it('codeDiff lists removed and added lines per changed file, marks new files, skips unchanged ones and caps the size', () => {
@@ -33,7 +33,7 @@ describe('stage 5 block 5: the judge sees what a screenshot cannot (DECISIONS 82
 })
 
 describe('stage 5 block 5: restore in the awkward suite (DECISIONS 82.2)', () => {
-  it('"put the card back like it was before" also accepts the restore answer', () => {
+  it.skipIf(!hasSuite('awkward'))('"put the card back like it was before" also accepts the restore answer', () => {
     const t = loadTasks(SUITES.awkward).find((x) => x.id === 'aw-03-like-before')!
     expect(t.expected.alsoAccept).toContainEqual({ verdict: 'restore', change: false })
   })

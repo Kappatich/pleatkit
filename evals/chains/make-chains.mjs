@@ -2,14 +2,17 @@
 // Writes the 5 edit chains (DECISIONS 75 Р3): 3 to 5 edits on the demo and on shadcn-admin, each on top of the
 // previous one, then one edit from the middle taken back. Each step reuses the browser checks of the single-edit task
 // that asks the same thing (proven by eval:sanity), plus a text pattern that must stay in the files while later
-// steps land. Run from the repository root: `node evals/chains/make-chains.mjs`.
+// steps land. Run from the repository root: `node evals/chains/make-chains.mjs`. The shadcn-admin chains (ch-04, ch-05)
+// use the private apps suite: they are written to `$PLEATKIT_PRIVATE_EVALS/chains` and skipped without it.
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const tasks = path.resolve(here, '..', 'tasks')
-const task = (id) => JSON.parse(fs.readFileSync(path.join(tasks, id.startsWith('crm-') ? '' : 'apps', `${id}.json`), 'utf8'))
+const priv = process.env.PLEATKIT_PRIVATE_EVALS ? path.resolve(process.env.PLEATKIT_PRIVATE_EVALS) : null
+// without the private clone the shadcn-admin chains are built empty and not written (below)
+const task = (id) => (id.startsWith('crm-') ? JSON.parse(fs.readFileSync(path.join(tasks, `${id}.json`), 'utf8')) : priv ? JSON.parse(fs.readFileSync(path.join(priv, 'tasks', 'apps', `${id}.json`), 'utf8')) : {})
 const checks = (id, pick) => (task(id).invariants?.browser?.checks ?? []).filter((c, i) => !pick || pick.includes(i))
 
 const PHONE = "[.'\"`]phone\\b"
@@ -75,5 +78,8 @@ const chains = [
   },
 ]
 
-for (const c of chains) fs.writeFileSync(path.join(here, `${c.id}.json`), JSON.stringify(c, null, 2) + '\n')
-console.log(`wrote ${chains.length} chains to evals/chains`)
+for (const c of chains) {
+  if (c.app !== 'demo-crm' && !priv) continue
+  fs.writeFileSync(path.join(c.app === 'demo-crm' ? here : path.join(priv, 'chains'), `${c.id}.json`), JSON.stringify(c, null, 2) + '\n')
+}
+console.log(`wrote ${chains.filter((c) => c.app === 'demo-crm' || priv).length} chains (the demo's to evals/chains${priv ? ', the others to the private evals' : ''})`)
