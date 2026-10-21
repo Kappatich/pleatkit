@@ -81,7 +81,17 @@ async function main(): Promise<number> {
   for (const t of tasks) for (let n = 1; n <= repeat; n++) {
     const p = prepareTask(t, manifests[t.app]!)
     const t0 = performance.now()
-    const c = await provider.classify({ request: p.request.request, context: classifierContext(p.request, digestsOf(manifests[t.app]!)) }, AbortSignal.timeout(30_000))
+    let c: Classification
+    try {
+      c = await provider.classify({ request: p.request.request, context: classifierContext(p.request, digestsOf(manifests[t.app]!)) }, AbortSignal.timeout(30_000))
+    } catch (e) {
+      // block 7: a classifier that times out or errors counts as a wrong label (the run goes on); its cost is unknown
+      const ms = Math.round(performance.now() - t0)
+      latencies.push(ms)
+      rows.push({ task: t.id, ...(repeat > 1 ? { n } : {}), expected: t.expected.verdict, before: null, now: 'error/', ms, usd: 0, error: (e as Error).message.slice(0, 300) })
+      console.log(`${t.id.padEnd(44)} expected ${t.expected.verdict.padEnd(13)} ERROR ${(e as Error).message.slice(0, 120)}`)
+      continue
+    }
     const ms = Math.round(performance.now() - t0)
     latencies.push(ms)
     let usd = add(c.model, c.usage)

@@ -1,5 +1,6 @@
 import { AnthropicProvider } from './providers/anthropic.js'
-import { OpenAICompatibleProvider } from './providers/openai.js'
+import { isOpenRouter, OpenAICompatibleProvider, type ReasoningEffort } from './providers/openai.js'
+import { SplitProvider } from './providers/split.js'
 import { ScriptedProvider } from './providers/scripted.js'
 import { TypeSafeClassifier } from './providers/typesafe.js'
 import { EnsembleProvider } from './classifier-ensemble.js'
@@ -60,8 +61,14 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * PLEATKIT_API_KEY     model API key (anthropic also accepts POLYMORPH_API_KEY / ANTHROPIC_API_KEY when PLEATKIT_PROVIDER=anthropic)
  * PLEATKIT_MODEL       main model (default claude-sonnet-5-5)
  * PLEATKIT_CLASSIFIER_MODEL  classifier (default claude-haiku-5-5)
- * PLEATKIT_BASE_URL    API base URL (required for openai-compatible, e.g. https://openrouter.ai/api/v1)
- * PLEATKIT_EFFORT      low | medium | high | xhigh | max (anthropic, default medium)
+ * PLEATKIT_BASE_URL    API base URL (openai-compatible: default https://api.openai.com/v1, or https://openrouter.ai/api/v1
+ *                      with PLEATKIT_PROVIDER=openrouter); for OpenRouter the key is OPENROUTER_API_KEY when set
+ * PLEATKIT_CLASSIFIER_PROVIDER  anthropic | openai-compatible | openrouter | openai: the classifier from its own provider
+ *                      (stage 5 block 7), with PLEATKIT_CLASSIFIER_API_KEY and PLEATKIT_CLASSIFIER_BASE_URL; unset: the
+ *                      main provider classifies
+ * PLEATKIT_OPENROUTER_REFERER, PLEATKIT_OPENROUTER_TITLE  OpenRouter's attribution headers (default the repo and "pleatkit")
+ * PLEATKIT_EFFORT      low | medium | high | xhigh | max (anthropic, default medium); openai-compatible: minimal | low |
+ *                      medium | high as the reasoning effort (unset: the model's default)
  * PLEATKIT_FALLBACKS   off disables Anthropic server-side refusal fallback
  * PLEATKIT_STREAM      1: stream model calls with eager_input_streaming on the tools
  * PLEATKIT_CACHE_TAIL  after-first (default): the first call of an edit writes only the system prefix to the prompt
@@ -184,13 +191,74 @@ export function ensembleFromEnv(env: Env): TypeSafeClassifier | null {
   return new TypeSafeClassifier({ apiKey, ...(env.TYPESAFE_URL ? { url: env.TYPESAFE_URL } : {}) })
 }
 
+type ProviderKind = 'anthropic' | 'openai-compatible' | 'scripted'
+
+/** `openai` and `openrouter` are spellings of `openai-compatible` (with OpenAI's or OpenRouter's default base URL). */
+function kindOf(raw: string, variable: string): { kind: ProviderKind; flavour: 'openai' | 'openrouter' | null } {
+  if (raw === 'anthropic' || raw === 'scripted') return { kind: raw, flavour: null }
+  if (raw === 'openai-compatible') return { kind: 'openai-compatible', flavour: null }
+  if (raw === 'openai' || raw === 'openrouter') return { kind: 'openai-compatible', flavour: raw }
+  throw new Error(`Unknown ${variable} "${raw}"`)
+}
+
+const effortOf = (v: string | undefined): ReasoningEffort | undefined => {
+  const e = (v ?? '').trim().toLowerCase()
+  return e === 'minimal' || e === 'low' || e === 'medium' || e === 'high' ? e : undefined
+}
+
+/**
+ * An OpenAI-compatible provider. Stage 5 block 7: for an OpenRouter base URL (or `openrouter`) the key is
+ * OPENROUTER_API_KEY when it is set, so PLEATKIT_API_KEY can stay the Anthropic key of a split classifier.
+ */
+function openAICompatible(env: Env, o: { flavour: 'openai' | 'openrouter' | null; apiKey?: string; baseURL?: string; model?: string; classifierModel?: string; what: string }): OpenAICompatibleProvider {
+  const baseURL = o.baseURL ?? (o.flavour === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1')
+  const openRouter = o.flavour === 'openrouter' || isOpenRouter(baseURL)
+  const apiKey = o.apiKey ?? (openRouter ? (env.OPENROUTER_API_KEY ?? env.PLEATKIT_API_KEY) : (env.PLEATKIT_API_KEY ?? env.OPENAI_API_KEY ?? env.OPENROUTER_API_KEY))
+  if (!apiKey) throw new Error(`${o.what}=openai-compatible needs PLEATKIT_API_KEY (or OPENROUTER_API_KEY for OpenRouter)`)
+  if (!o.model) throw new Error(`${o.what}=openai-compatible needs PLEATKIT_MODEL`)
+  const effort = effortOf(env.PLEATKIT_EFFORT)
+  const headers = { ...(env.PLEATKIT_OPENROUTER_REFERER ? { 'HTTP-Referer': env.PLEATKIT_OPENROUTER_REFERER } : {}), ...(env.PLEATKIT_OPENROUTER_TITLE ? { 'X-Title': env.PLEATKIT_OPENROUTER_TITLE } : {}) }
+  return new OpenAICompatibleProvider({
+    apiKey,
+    baseURL,
+    model: o.model,
+    ...(openRouter ? { openRouter } : {}),
+    ...(o.classifierModel ? { classifierModel: o.classifierModel } : {}),
+    ...(effort ? { reasoningEffort: effort } : {}),
+    ...(Object.keys(headers).length ? { headers } : {}),
+  })
+}
+
+/**
+ * Stage 5 block 7: PLEATKIT_CLASSIFIER_PROVIDER (anthropic | openai-compatible | openrouter | openai) gives the
+ * classifier its own provider, with PLEATKIT_CLASSIFIER_MODEL, PLEATKIT_CLASSIFIER_API_KEY (default: the vendor's
+ * own variable, ANTHROPIC_API_KEY or OPENROUTER_API_KEY, then PLEATKIT_API_KEY) and PLEATKIT_CLASSIFIER_BASE_URL.
+ * Unset: the main provider classifies, as before.
+ */
+export function classifierProviderFromEnv(env: Env): ModelProvider | null {
+  const raw = (env.PLEATKIT_CLASSIFIER_PROVIDER ?? '').trim().toLowerCase()
+  if (raw === '') return null
+  const { kind, flavour } = kindOf(raw, 'PLEATKIT_CLASSIFIER_PROVIDER')
+  if (kind === 'scripted') throw new Error('PLEATKIT_CLASSIFIER_PROVIDER cannot be scripted')
+  const baseURL = env.PLEATKIT_CLASSIFIER_BASE_URL || undefined
+  if (kind === 'anthropic') {
+    const apiKey = env.PLEATKIT_CLASSIFIER_API_KEY ?? env.ANTHROPIC_API_KEY ?? env.PLEATKIT_API_KEY
+    if (!apiKey) throw new Error('PLEATKIT_CLASSIFIER_PROVIDER=anthropic needs PLEATKIT_CLASSIFIER_API_KEY (or ANTHROPIC_API_KEY)')
+    return new AnthropicProvider({ apiKey, ...(baseURL ? { baseURL } : {}), classifierModel: env.PLEATKIT_CLASSIFIER_MODEL })
+  }
+  const model = env.PLEATKIT_CLASSIFIER_MODEL
+  if (!model) throw new Error(`PLEATKIT_CLASSIFIER_PROVIDER=${raw} needs PLEATKIT_CLASSIFIER_MODEL`)
+  return openAICompatible(env, { flavour, apiKey: env.PLEATKIT_CLASSIFIER_API_KEY, baseURL, model, classifierModel: model, what: 'PLEATKIT_CLASSIFIER_PROVIDER' })
+}
+
 /**
  * The model provider alone (PLEATKIT_PROVIDER, PLEATKIT_API_KEY, PLEATKIT_MODEL, PLEATKIT_CLASSIFIER_MODEL,
- * PLEATKIT_FIXTURES...): what `pleatkit digest` and `pleatkit carry-over` need, without the server's settings.
+ * PLEATKIT_CLASSIFIER_PROVIDER, PLEATKIT_FIXTURES...): what `pleatkit digest` and `pleatkit carry-over` need, without
+ * the server's settings.
  */
 export function providerFromEnv(env: Env = process.env): ModelProvider {
   const explicit = env.PLEATKIT_PROVIDER
-  const kind = explicit ?? (env.PLEATKIT_API_KEY ? 'anthropic' : 'scripted')
+  const { kind, flavour } = kindOf(explicit ?? (env.PLEATKIT_API_KEY ? 'anthropic' : 'scripted'), 'PLEATKIT_PROVIDER')
   let provider: ModelProvider
   if (kind === 'anthropic') {
     const apiKey = env.PLEATKIT_API_KEY ?? env.POLYMORPH_API_KEY ?? env.ANTHROPIC_API_KEY
@@ -206,17 +274,14 @@ export function providerFromEnv(env: Env = process.env): ModelProvider {
       ...(env.PLEATKIT_CACHE_TAIL === 'after-first' || env.PLEATKIT_CACHE_TAIL === 'always' ? { cacheTail: env.PLEATKIT_CACHE_TAIL } : {}),
       ...(cacheTtlFromEnv(env.PLEATKIT_CACHE_TTL) ? { cacheTtl: cacheTtlFromEnv(env.PLEATKIT_CACHE_TTL)! } : {}),
     })
-  } else if (kind === 'openai-compatible' || kind === 'openai' || kind === 'openrouter') {
-    const apiKey = env.PLEATKIT_API_KEY ?? env.OPENAI_API_KEY ?? env.OPENROUTER_API_KEY
-    if (!apiKey) throw new Error('PLEATKIT_PROVIDER=openai-compatible needs PLEATKIT_API_KEY')
-    const baseURL = env.PLEATKIT_BASE_URL ?? (kind === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1')
-    if (!env.PLEATKIT_MODEL) throw new Error('PLEATKIT_PROVIDER=openai-compatible needs PLEATKIT_MODEL')
-    provider = new OpenAICompatibleProvider({ apiKey, baseURL, model: env.PLEATKIT_MODEL, classifierModel: env.PLEATKIT_CLASSIFIER_MODEL })
-  } else if (kind === 'scripted') {
-    provider = new ScriptedProvider(env.PLEATKIT_FIXTURES ?? 'fixtures', { delayMs: num(env.PLEATKIT_SCRIPTED_DELAY_MS) ?? 0 })
+  } else if (kind === 'openai-compatible') {
+    provider = openAICompatible(env, { flavour, baseURL: env.PLEATKIT_BASE_URL || undefined, model: env.PLEATKIT_MODEL, classifierModel: env.PLEATKIT_CLASSIFIER_MODEL, what: 'PLEATKIT_PROVIDER' })
   } else {
-    throw new Error(`Unknown PLEATKIT_PROVIDER "${kind}"`)
+    provider = new ScriptedProvider(env.PLEATKIT_FIXTURES ?? 'fixtures', { delayMs: num(env.PLEATKIT_SCRIPTED_DELAY_MS) ?? 0 })
   }
+  // block 7: the classifier from its own provider (never around the scripted one: its fixtures classify too)
+  const classifier = kind === 'scripted' ? null : classifierProviderFromEnv(env)
+  if (classifier) provider = new SplitProvider(provider, classifier)
   // DECISIONS 83: the classifier ensemble wraps a real model provider (never the scripted one)
   const jev = kind === 'scripted' ? null : ensembleFromEnv(env)
   if (jev) provider = new EnsembleProvider(provider, jev, { log: (line) => console.warn(line) })

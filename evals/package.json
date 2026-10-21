@@ -18,7 +18,8 @@
     "cancel": "tsx src/cancel-probe.ts",
     "judge": "tsx src/cli.ts judge",
     "chains": "tsx src/cli.ts chains",
-    "weekly": "tsx src/weekly.ts"
+    "weekly": "tsx src/weekly.ts",
+    "matrix": "tsx src/matrix.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

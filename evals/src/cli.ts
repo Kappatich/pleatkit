@@ -101,7 +101,9 @@ const browser = () => (flag('no-browser') || process.env.PLEATKIT_EVAL_BROWSER =
 function judgeFromEnv(): Judge | null | 'refused' {
   if (!flag('judge') && command !== 'judge') return null
   if (!process.env.PLEATKIT_API_KEY || budgetFromEnv() === null) return 'refused'
-  return createJudge({ apiKey: process.env.PLEATKIT_API_KEY, ...(process.env.PLEATKIT_BASE_URL ? { baseURL: process.env.PLEATKIT_BASE_URL } : {}), ...(process.env.PLEATKIT_JUDGE_MODEL ? { model: process.env.PLEATKIT_JUDGE_MODEL } : {}), ...(process.env.PLEATKIT_JUDGE_EFFORT ? { effort: process.env.PLEATKIT_JUDGE_EFFORT as 'low' | 'medium' | 'high' } : {}) })
+  // block 7: the judge is Claude; PLEATKIT_BASE_URL is the editor's endpoint only when the editor is Anthropic too
+  const anthropicBase = process.env.PLEATKIT_BASE_URL && (process.env.PLEATKIT_PROVIDER ?? 'anthropic') === 'anthropic' ? process.env.PLEATKIT_BASE_URL : undefined
+  return createJudge({ apiKey: process.env.PLEATKIT_API_KEY, ...(anthropicBase ? { baseURL: anthropicBase } : {}), ...(process.env.PLEATKIT_JUDGE_MODEL ? { model: process.env.PLEATKIT_JUDGE_MODEL } : {}), ...(process.env.PLEATKIT_JUDGE_EFFORT ? { effort: process.env.PLEATKIT_JUDGE_EFFORT as 'low' | 'medium' | 'high' } : {}) })
 }
 
 function summary(s: SuiteResult): string {
@@ -152,6 +154,13 @@ async function main(): Promise<number> {
         console.error(`--trials must be a positive whole number, got "${value('trials')}"`)
         return 2
       }
+      // block 7: `--min-pass 0.7@20` stops a live record whose first 20 runs pass under 70 % (the model matrix)
+      const mp = value('min-pass')?.match(/^(0?\.\d+|1)@(\d+)$/)
+      if (value('min-pass') && !mp) {
+        console.error(`--min-pass takes <rate>@<runs>, e.g. 0.7@20; got "${value('min-pass')}"`)
+        return 2
+      }
+      const minPass = mp ? { rate: Number(mp[1]), after: Number(mp[2]) } : undefined
       const provider = live ? configFromEnv(process.env).provider : null
       const run = live ? tasks : tasks.filter((t) => t.record?.fixture)
       // a named set is rewritten task by task: no stale trials of an earlier, longer run
@@ -175,6 +184,7 @@ async function main(): Promise<number> {
         judge: live ? judge : null,
         recordDir: dir,
         log,
+        ...(minPass ? { minPass } : {}),
       })
       save(resultName('record'), s)
       // the record results of a named set stay next to its transcripts: the only place with real latencies
