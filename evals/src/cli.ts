@@ -14,11 +14,11 @@ import { chainRecording, loadChains, runChains, type ChainRun } from './chains.j
 import { ReplayProvider } from '@pleatkit/agent'
 import { createJudge, type Judge } from './judge.js'
 import { typecheckRootOf, type AppId } from './apps.js'
-import { BASELINE_FILE, baselineFileOf, loadManifests, loadSuites, REPO_ROOT, REPORT_FILE, RESULTS_DIR, SCRIPTED_BASELINE_FILE, setDir, SUITES, type Suite } from './tasks.js'
+import { BASELINE_FILE, baselineFileOf, hasSuite, loadManifests, loadSuites, REPO_ROOT, REPORT_FILE, RESULTS_DIR, SCRIPTED_BASELINE_FILE, setDir, SUITES, type Suite } from './tasks.js'
 import type { Baseline, EvalTask, SuiteResult, TaskRun } from './types.js'
 
 /**
- * pnpm eval:record   produce the transcripts under evals/recordings from the scripted fixtures (offline)
+ * pnpm eval:record   produce the transcripts under evals/transcripts from the scripted fixtures (offline)
  *                    (--live: from the configured model into the set `live`; needs PLEATKIT_API_KEY and
  *                    PLEATKIT_EVAL_BUDGET_USD; --trials n runs each task n times; --no-classifier skips the classifier)
  * pnpm eval:replay   run every task against its transcript (ReplayProvider), grade, compare with the baseline
@@ -27,6 +27,8 @@ import type { Baseline, EvalTask, SuiteResult, TaskRun } from './types.js'
  * pnpm eval:sanity   reference solutions pass every grader; the null agent fails every task that needs a change
  * pnpm eval:pin      pin the last replay results as evals/baseline.json
  * pnpm eval:report   write evals/report/index.html from the last replay (and sanity) results
+ * The demo set is public; apps, awkward, redteam, blind, the live sets and their baselines are private and are read from
+ * PLEATKIT_PRIVATE_EVALS (the private clone's evals folder); without it they are skipped.
  * Options: --tasks demo|apps|awkward|redteam|all (default demo; a replay of a named set takes every task it has transcripts for),
  * --only <id,id>, --set <name>, --no-browser (skip Playwright), --no-typecheck (skip tsc); report: --from
  * record|replay, --baseline scripted|live|<file>, --out <file>.
@@ -57,7 +59,7 @@ const tasksArg = value('tasks') ?? 'demo'
 const suites: Suite[] = tasksArg === 'all' ? ['demo', 'apps'] : (tasksArg.split(',') as Suite[])
 /** The live set a record writes by default: `live` for the demo, else the suite's own name (`apps`, `awkward`, `redteam`). */
 const defaultSet = suites.length === 1 && suites[0] !== 'demo' ? suites[0]! : 'live'
-/** `--set <name>`: a named set of transcripts under evals/recordings/<name>/ (a live record defaults to `live`, or `apps` for the apps suite). */
+/** `--set <name>`: a named set of transcripts under `recordings/<name>/` of the private clone, else evals/recordings (git-ignored). */
 const set = value('set') ?? (command === 'record' && flag('live') ? defaultSet : undefined)
 const resultName = (kind: string) => (set ? `${kind}-${set}` : kind)
 /** The sanity results of a suite: `sanity` (demo), `sanity-apps`, `sanity-all`. */
@@ -126,11 +128,15 @@ async function main(): Promise<number> {
     console.error(`--tasks must be ${Object.keys(SUITES).join(', ')} (comma-separated) or all, got "${tasksArg}"`)
     return 2
   }
+  const absent = suites.filter((su) => !hasSuite(su))
+  if (absent.length) log(`skipped ${absent.join(', ')}: a private set (set PLEATKIT_PRIVATE_EVALS to the private clone's evals folder)`)
   // a replay of a named set runs every task it holds transcripts for, whatever its suite
   const replaying = command === 'replay' || command === 'judge'
   const loadFrom: Suite[] = replaying && set && !value('tasks') ? (Object.keys(SUITES) as Suite[]) : suites
   const tasks = command === 'pin' || command === 'report' || flag('calibrate') ? [] : loadSuites(loadFrom, only)
   if (replaying && set) for (let i = tasks.length - 1; i >= 0; i--) if (!trialsIn(tasks[i]!.id, setDir(set)).length) tasks.splice(i, 1)
+  // only private suites asked for and none present: nothing to run, which is not an error
+  if (!tasks.length && absent.length && absent.length === suites.length && command !== 'pin' && command !== 'report' && !flag('calibrate')) return 0
   const manifests = command === 'pin' || command === 'report' ? {} : loadManifests(tasks)
   const budget = new EvalBudget(budgetFromEnv())
   const dir = setDir(set)
@@ -293,7 +299,7 @@ async function main(): Promise<number> {
       return 0
     }
     case 'chains': {
-      // DECISIONS 75 Р3: edit chains. --live records into evals/recordings/<set> (default `chains`); else a replay
+      // DECISIONS 75 Р3: edit chains. --live records into the sets folder's <set> (default `chains`); else a replay
       const chains = loadChains(only)
       if (!chains.length) {
         console.error('No chains in evals/chains.')

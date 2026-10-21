@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Alert, AlertSink } from '@pleatkit/agent'
+import { PRIVATE_EVALS_DIR } from '../src/apps.js'
 import { BASELINE_FILE } from '../src/tasks.js'
 import type { Baseline, SuiteResult, TaskRun } from '../src/types.js'
 import {
@@ -81,8 +82,21 @@ describe('eval:weekly: replayed sets (brainstorm 17 §20)', () => {
       ['redteam', 'redteam', 'baseline.redteam.json'],
     ])
     fs.rmSync(dir, { recursive: true, force: true })
-    // the repository's own baselines
-    expect(discoverSets().map((s) => s.name)).toEqual(expect.arrayContaining(['scripted', 'live', 'apps', 'awkward', 'redteam', 'blind-ab', 'blind-me']))
+    // the repository's own baselines: the scripted demo set; the others come from the private clone
+    expect(discoverSets().map((s) => s.name)).toEqual(
+      expect.arrayContaining(PRIVATE_EVALS_DIR ? ['scripted', 'live', 'apps', 'awkward', 'redteam', 'blind-ab', 'blind-me'] : ['scripted']),
+    )
+    // a name found in the first folder is not taken again from the second
+    const a = fs.mkdtempSync(path.join(os.tmpdir(), 'weekly-a-'))
+    const b = fs.mkdtempSync(path.join(os.tmpdir(), 'weekly-b-'))
+    for (const f of ['baseline.scripted.json']) fs.writeFileSync(path.join(a, f), '{}')
+    for (const f of ['baseline.scripted.json', 'baseline.awkward.json']) fs.writeFileSync(path.join(b, f), '{}')
+    expect(discoverSets([a, b], []).map((s) => [s.name, path.dirname(s.baselineFile!)])).toEqual([
+      ['scripted', a],
+      ['awkward', b],
+    ])
+    fs.rmSync(a, { recursive: true, force: true })
+    fs.rmSync(b, { recursive: true, force: true })
   })
 })
 

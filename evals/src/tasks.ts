@@ -3,44 +3,70 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { manifestPanels, trustedInput, type TrustedInput } from '@pleatkit/agent'
 import type { AgentImage, AgentRunRequest, AgentVerdict, FileMap, PleatkitManifest } from '@pleatkit/runtime/compiler'
-import { APPS, isAppId, manifestFile, type AppId } from './apps.js'
+import { APPS, isAppId, manifestFile, PRIVATE_EVALS_DIR, PRIVATE_OR_LOCAL, PRIVATE_ROOT, type AppId } from './apps.js'
 import type { EvalTask, FileRefMap } from './types.js'
 
 export const EVALS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const REPO_ROOT = path.resolve(EVALS_DIR, '..')
 export const TASKS_DIR = path.join(EVALS_DIR, 'tasks')
-/** The task suites: the demo's 14 (`evals/tasks`) and the foreign apps' (`evals/tasks/apps`, DECISIONS 73.1). */
+const PRIVATE_TASKS_DIR = path.join(PRIVATE_OR_LOCAL, 'tasks')
+/**
+ * The task suites: the demo's 14 (`evals/tasks`, public) and the private ones under `PLEATKIT_PRIVATE_EVALS`
+ * (`tasks/apps`, `tasks/awkward`, `tasks/redteam`, `tasks/blind`); a suite whose folder is absent loads no tasks.
+ */
 export const SUITES = {
   demo: TASKS_DIR,
-  apps: path.join(TASKS_DIR, 'apps'),
-  /** DECISIONS 75 Р3: requests as irritated users write them (typos, mixed languages, vague, two asks, …). */
-  awkward: path.join(TASKS_DIR, 'awkward'),
-  /** DECISIONS 75 Р3: 30 attacks, zero tolerance (static rules, the runtime guard and the model's judgement). */
-  redteam: path.join(TASKS_DIR, 'redteam'),
-  /** Stage 5 block 5: the two blind-installed apps (antd-dashboard, mesa), 8 tasks each. */
-  blind: path.join(TASKS_DIR, 'blind'),
+  /** DECISIONS 73.1: the foreign apps (private). */
+  apps: path.join(PRIVATE_TASKS_DIR, 'apps'),
+  /** DECISIONS 75 Р3: requests as irritated users write them (typos, mixed languages, vague, two asks, …). Private. */
+  awkward: path.join(PRIVATE_TASKS_DIR, 'awkward'),
+  /** DECISIONS 75 Р3: 30 attacks, zero tolerance (static rules, the runtime guard and the model's judgement). Private. */
+  redteam: path.join(PRIVATE_TASKS_DIR, 'redteam'),
+  /** Stage 5 block 5: the two blind-installed apps (antd-dashboard, mesa), 8 tasks each. Private. */
+  blind: path.join(PRIVATE_TASKS_DIR, 'blind'),
 } as const
 export type Suite = keyof typeof SUITES
-export const RECORDINGS_DIR = path.join(EVALS_DIR, 'recordings')
+/** True when a suite's tasks are present (the demo always; the others only with `PLEATKIT_PRIVATE_EVALS`). */
+export const hasSuite = (s: Suite): boolean => fs.existsSync(SUITES[s])
+/** The scripted transcripts of the demo set (`evals/transcripts/*.jsonl`, made offline by `pnpm eval:record`). */
+export const TRANSCRIPTS_DIR = path.join(EVALS_DIR, 'transcripts')
+/** The default directory of a replay: the scripted transcripts. */
+export const RECORDINGS_DIR = TRANSCRIPTS_DIR
+/** Named sets of transcripts (`--set <name>`): `recordings/<set>/` of the private clone, else `evals/recordings` (git-ignored). */
+export const SETS_DIR = path.join(PRIVATE_OR_LOCAL, 'recordings')
 export const RESULTS_DIR = path.join(EVALS_DIR, 'results')
-/** The baseline of the live series (DECISIONS 67.1: pinned on the first live run). */
-export const BASELINE_FILE = path.join(EVALS_DIR, 'baseline.json')
-/** The baseline of the scripted transcripts (`evals/recordings/*.jsonl`): what plain `pnpm eval:replay` checks. */
+/** The baseline of the live series (DECISIONS 67.1: pinned on the first live run). Private, like the live transcripts. */
+export const BASELINE_FILE = path.join(PRIVATE_OR_LOCAL, 'baseline.json')
+/** The baseline of the scripted transcripts (`evals/transcripts/*.jsonl`): what plain `pnpm eval:replay` checks. */
 export const SCRIPTED_BASELINE_FILE = path.join(EVALS_DIR, 'baseline.scripted.json')
-/** A named set of transcripts: `evals/recordings/<set>/`; no set is the scripted transcripts. */
-export const setDir = (set?: string): string => (set ? path.join(RECORDINGS_DIR, set) : RECORDINGS_DIR)
-/** The baseline a set is compared with: `live` → baseline.json, none → baseline.scripted.json, other → baseline.<set>.json. */
-export const baselineFileOf = (set?: string): string => (!set ? SCRIPTED_BASELINE_FILE : set === 'live' ? BASELINE_FILE : path.join(EVALS_DIR, `baseline.${set}.json`))
+/** A named set of transcripts: `<SETS_DIR>/<set>/`; no set is the scripted transcripts. */
+export const setDir = (set?: string): string => (set ? path.join(SETS_DIR, set) : TRANSCRIPTS_DIR)
+/** The baseline a set is compared with: `live` → baseline.json, none → baseline.scripted.json, other → baseline.<set>.json (private). */
+export const baselineFileOf = (set?: string): string => (!set ? SCRIPTED_BASELINE_FILE : set === 'live' ? BASELINE_FILE : path.join(PRIVATE_OR_LOCAL, `baseline.${set}.json`))
 export const REPORT_FILE = path.join(EVALS_DIR, 'report', 'index.html')
 export const DEMO_DIR = path.join(REPO_ROOT, 'apps', 'demo-crm')
 export const DEMO_MANIFEST = path.join(DEMO_DIR, 'dist', 'pleatkit.manifest.json')
 /** Scripted fixtures that play the agent for offline recordings: the demo's e2e fixtures and the eval-only ones. */
-export const FIXTURE_DIRS = [path.join(DEMO_DIR, 'e2e', 'fixtures', 'agent'), path.join(EVALS_DIR, 'fixtures', 'scripted')]
+export const FIXTURE_DIRS = [
+  path.join(DEMO_DIR, 'e2e', 'fixtures', 'agent'),
+  path.join(EVALS_DIR, 'fixtures', 'scripted'),
+  // the red team's scripted attacks live with the private suites
+  ...(PRIVATE_EVALS_DIR && fs.existsSync(path.join(PRIVATE_EVALS_DIR, 'fixtures', 'scripted')) ? [path.join(PRIVATE_EVALS_DIR, 'fixtures', 'scripted')] : []),
+]
 
 export const DEFAULT_TASK_BUDGET_USD = 0.5
 const VERDICTS: AgentVerdict[] = ['ok', 'partial', 'needs-backend', 'not-editable', 'declined', 'failed', 'clarify', 'refused', 'restore']
 
-export const repoPath = (p: string): string => (path.isAbsolute(p) ? p : path.join(REPO_ROOT, p))
+/** A task's path (`evals/references/...`): this repository first, then the private clone (its private references). */
+export const repoPath = (p: string): string => {
+  if (path.isAbsolute(p)) return p
+  const here = path.join(REPO_ROOT, p)
+  if (PRIVATE_ROOT && !fs.existsSync(here)) {
+    const there = path.join(PRIVATE_ROOT, p)
+    if (fs.existsSync(there)) return there
+  }
+  return here
+}
 const read = (p: string): string => fs.readFileSync(repoPath(p), 'utf8')
 export const readRefs = (refs: FileRefMap): FileMap => Object.fromEntries(Object.entries(refs).map(([k, v]) => [k, read(v)]))
 

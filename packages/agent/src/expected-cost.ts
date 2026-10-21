@@ -17,7 +17,7 @@ import type { ModelProvider } from './types.js'
  *                  an hour since block 6, 5 minutes before; a 1-hour write costs 2× input, a 5-minute one 1.25×) and
  *                  the classifier's fixed part written (5 minutes)
  *
- * The constants below were calibrated on the recorded live runs of prompt 5f and 5d (evals/recordings/apps-5f,
+ * The constants below were calibrated on the recorded live runs of prompt 5f and 5d (private evals: recordings/apps-5f,
  * probe-5f, live-5d, live-5d-sequential: 90 applied edits on the demo, shadcn-admin and TailAdmin):
  * - output of the first call: median output of one-call edits, 539 (shadcn-admin), 569 (TailAdmin), 475 (demo,
  *   5f), 597 (demo, 5d): 550;

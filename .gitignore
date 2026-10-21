@@ -19,5 +19,8 @@ docs/.video/
 # eval harness: per-run results and Playwright output (the report and the baseline are committed)
 evals/results/
 evals/.out/
-# block 6: the weekly drift check's live sets (CI uploads them as artifacts; locally they are not committed)
-evals/recordings/weekly-*/
+# live transcript sets: they belong to the private evals (PLEATKIT_PRIVATE_EVALS); without it they land here and
+# are never committed (the weekly drift check's sets too: CI uploads them as artifacts)
+evals/recordings/
+# the foreign apps' local installs, if a pre-0.3 checkout left them (the apps now live in the private evals)
+evals/apps/

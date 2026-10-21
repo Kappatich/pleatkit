@@ -8,13 +8,30 @@ Everything below runs offline on recorded answers; no command here needs `PLEATK
 the tasks run against the demo's build manifest (`apps/demo-crm/dist/pleatkit.manifest.json`), and the browser grader
 uses the demo's production build.
 
+## Public and private sets
+
+This repository holds the harness (`evals/src`, `evals/browser`, `evals/test`), the demo set (`evals/tasks/crm-*.json`,
+their references in `evals/references/*.tsx`, their scripted fixtures, the scripted transcripts in
+`evals/transcripts/` and `evals/baseline.scripted.json`), the chains and the judge calibration of the demo, the rubric
+and the published reports (`evals/REPORT-*.md`). The rest is kept in the maintainers' private evals, with the same
+layout: the foreign apps (`apps/`), the `apps`, `awkward`, `redteam` and `blind` suites (`tasks/<suite>`, their
+references, the red team's fixtures), the probes, every live transcript set (`recordings/<set>/`), the live and
+per-suite baselines and the HTML reports of the live runs. Transcripts are available on request.
+
+Point the harness at a private clone with `PLEATKIT_PRIVATE_EVALS=<clone>/evals`: the private suites, sets, baselines,
+apps and chains are then found there, and the paths below (`evals/apps/...`, `evals/tasks/apps/...`,
+`evals/recordings/<set>/`, `evals/baseline.json`, `evals/probes/...`) are read relative to that clone. Without it
+`eval:sanity` and `eval:replay` run the demo set alone, `eval:weekly` replays the scripted set only, and a request for a
+private suite is skipped with a one-line note; tests that count the private suites are skipped. A live record without
+the variable writes its set to `evals/recordings/` here, which git ignores.
+
 ```bash
 pnpm eval:sanity    # reference solutions pass every grader; the null agent fails every task that needs a change
 pnpm eval:replay    # every task against its scripted transcript; exit 1 on a regression vs evals/baseline.scripted.json
-pnpm eval:replay -- --set live   # every trial of the live series (evals/recordings/live/) vs evals/baseline.json
+pnpm eval:replay -- --set live   # every trial of the live series (recordings/live/ and baseline.json, private evals)
 pnpm eval:report    # evals/report/index.html from the last replay (and sanity) results
 pnpm eval:pin       # the last replay becomes the baseline of its set (with its PROMPT_VERSION)
-pnpm eval:record    # re-record evals/recordings from the scripted fixtures (after changing a task or a fixture)
+pnpm eval:record    # re-record evals/transcripts from the scripted fixtures (after changing a task or a fixture)
 # options: -- --only crm-01,crm-04   -- --tasks demo|apps|all   -- --set <name>   -- --no-browser   -- --no-typecheck
 #          -- --no-classifier   -- --sequential-classifier
 pnpm eval:classify -- --tasks apps --against apps   # the classifier alone on every task (Haiku, ≈ $0.008), next to a set's labels
@@ -24,8 +41,8 @@ Two sets of transcripts, two baselines:
 
 | Set | Transcripts | Baseline | What its replay tests |
 |---|---|---|---|
-| scripted (no `--set`) | `evals/recordings/<task>.jsonl`, from the scripted fixtures | `evals/baseline.scripted.json` | the harness, the tools and the graders on fixed answers; `crm-04` fails on purpose |
-| `live` | `evals/recordings/live/<task>.t<n>.jsonl`, three trials per task, recorded from the model | `evals/baseline.json` (DECISIONS 67.1: pinned on the first live run) | that the graders, tools and check still agree with what the model answered under the pinned prompt |
+| scripted (no `--set`) | `evals/transcripts/<task>.jsonl`, from the scripted fixtures | `evals/baseline.scripted.json` | the harness, the tools and the graders on fixed answers; `crm-04` fails on purpose |
+| `live` (private) | `recordings/live/<task>.t<n>.jsonl`, three trials per task, recorded from the model | `baseline.json` (DECISIONS 67.1: pinned on the first live run) | that the graders, tools and check still agree with what the model answered under the pinned prompt |
 
 Other named sets (`smoke-4c1`, `matrix-haiku`, `matrix-no-classifier`, …) live next to them with the same file
 names and no baseline. Each named set keeps the record results of its live run in `<set>/record.json`: the only
@@ -35,7 +52,7 @@ place with real latencies (a replay's timings are the harness's, not the model's
 
 Each task runs through `runAgent` in-process: the same loop, tools, automatic check and limits as `POST /agent/v1/run`,
 with the input the agent server trusts (context, readonly sources, core types, protected elements, digests) taken
-from the demo's manifest by `trustedInput`. The model is a `ReplayProvider` over `evals/recordings/<task>.jsonl`
+from the demo's manifest by `trustedInput`. The model is a `ReplayProvider` over `evals/transcripts/<task>.jsonl`
 (replay), the reference or null agent (sanity), a `ScriptedProvider` fixture (record), or later a live model.
 
 Then the graders run on the result. Each returns pass or fail and a reason; "skipped" means not applicable.
@@ -141,8 +158,7 @@ refuses transcripts recorded with another `PROMPT_VERSION`.
 
 ## Stage 5, block 2: the foreign apps (`--tasks apps`)
 
-Two open-source admin templates with pleatkit installed by the customer docs live in `evals/apps`
-([`evals/apps/README.md`](../evals/apps/README.md)): shadcn-admin (pnpm) and TailAdmin (npm), both Vite 8. Their 35
+Two open-source admin templates with pleatkit installed by the customer docs live in `evals/apps` of the private evals: shadcn-admin (pnpm) and TailAdmin (npm), both Vite 8. Their 35
 tasks are `evals/tasks/apps/*.json` (`sa-*`, `ta-*`): fields to add, reorder or remove, colours, filters the user
 clicks, sorting, a chart from a list, compact layouts, i18n labels, server work, a partial request, ambiguous requests
 that need a question, a part of the screen outside the zone, and three adversarial requests. Each change task has a

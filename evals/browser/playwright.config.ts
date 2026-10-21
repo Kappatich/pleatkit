@@ -7,13 +7,14 @@ import { defineConfig, devices } from '@playwright/test'
  * Strictly headless. `EVAL_APP` picks the app:
  * - `demo-crm` (default): the demo's production build with its data server, agent server (scripted provider: it
  *   only compiles and signs here, the answers come from the eval run) and an in-memory store-server;
- * - a foreign app (`evals/apps/<app>`, DECISIONS 73.1): its production build under `vite preview`, the same agent
+ * - a foreign app (`apps/<app>` of the private evals, DECISIONS 73.1): its production build under `vite preview`, the same agent
  *   server with the app's build manifest, and an in-memory store-server. These apps keep their data in code.
  */
 const here = path.dirname(fileURLToPath(import.meta.url))
 const APP = process.env.EVAL_APP ?? 'demo-crm'
 const demo = path.resolve(here, '../../apps/demo-crm')
-const appDir = APP === 'demo-crm' ? demo : path.resolve(here, '../apps', APP)
+// a foreign app lives in the private clone (`PLEATKIT_PRIVATE_EVALS`, the same `apps/<app>` layout)
+const appDir = APP === 'demo-crm' ? demo : path.resolve(process.env.PLEATKIT_PRIVATE_EVALS ?? path.resolve(here, '..'), 'apps', APP)
 const repo = path.resolve(here, '../..')
 const DATA_PORT = process.env.EVAL_DATA_PORT ?? '8898'
 const AGENT_PORT = process.env.EVAL_AGENT_PORT ?? '8899'

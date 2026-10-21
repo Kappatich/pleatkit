@@ -1,9 +1,14 @@
 # Eval report 2026-10-19: stage 5 block 5
 
+> The transcripts, the private suites and the HTML reports this report names (`evals/recordings/...`,
+> `evals/tasks/{apps,awkward,redteam,blind}`, `evals/apps`, `evals/probes`, `evals/report/*.html` other than the demo's,
+> the live baselines) are kept in the maintainers' private evals since the repository went public; transcripts
+> available on request. The numbers here are as published.
+
 Brainstorm 17 §2, §3, §4, §10, §12 and DECISIONS 81 and 82. Executor: Claude Opus 5.5 with sub-agents: one for the
 labelling screen and the `backendQuote` column, one for `pleatkit init --suggest`, and one fresh general-purpose agent
 per blind install attempt (10 in all). Editor Claude Sonnet 5.5; classifier Claude Haiku 5.5. Prompt
-`2026-10-18.5h` → **`2026-10-19.5i`**. All transcripts are committed under `evals/recordings/<set>/` with their
+`2026-10-18.5h` → **`2026-10-19.5i`**. All transcripts were committed under `evals/recordings/<set>/` (now private; available on request) with their
 `record.json`.
 
 | Set | What | Prompt |

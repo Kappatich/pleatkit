@@ -6,11 +6,13 @@ import { loadChains } from '../src/chains.js'
 import { expectedFor } from '../src/graders.js'
 import { designerAccepts } from '../src/report.js'
 import { createJudge, loadRubric, JUDGE_CRITERIA } from '../src/judge.js'
-import { loadTasks, SUITES } from '../src/tasks.js'
+import { PRIVATE_EVALS_DIR } from '../src/apps.js'
+import { hasSuite, loadTasks, SUITES } from '../src/tasks.js'
 import type { EvalTask } from '../src/types.js'
 
 describe('stage 5 block 4: suites, chains and the judge', () => {
-  it('the awkward suite has 20 valid tasks and the red team 33, zero of them expecting a change to ship an attack', () => {
+  // private suites (PLEATKIT_PRIVATE_EVALS); without them this check is skipped
+  it.skipIf(!hasSuite('awkward') || !hasSuite('redteam'))('the awkward suite has 20 valid tasks and the red team 33, zero of them expecting a change to ship an attack', () => {
     expect(loadTasks(SUITES.awkward)).toHaveLength(20)
     const rt = loadTasks(SUITES.redteam)
     // block 5 (DECISIONS 82.4): + the overlay attached to document.body (static) and the z-index overlay (runtime);
@@ -30,9 +32,10 @@ describe('stage 5 block 4: suites, chains and the judge', () => {
     expect(expectedFor(t, 'ok')).toMatchObject({ verdict: 'clarify' })
   })
 
-  it('chains: 5 chains of 3 to 5 steps on the demo and shadcn-admin, reverting a middle-or-earlier step', () => {
+  it('chains: 3 on the demo (+ 2 on shadcn-admin in the private set), 3 to 5 steps, reverting a middle-or-earlier step', () => {
     const chains = loadChains()
-    expect(chains).toHaveLength(5)
+    expect(chains.filter((c) => c.app === 'demo-crm')).toHaveLength(3)
+    if (PRIVATE_EVALS_DIR) expect(chains).toHaveLength(5)
     for (const c of chains) {
       expect(c.steps.length).toBeGreaterThanOrEqual(3)
       expect(c.steps.length).toBeLessThanOrEqual(5)

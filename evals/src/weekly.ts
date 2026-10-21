@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { alertsFromEnv, PROMPT_VERSION, sendAlert, type Alert, type AlertSink } from '@pleatkit/agent'
 import { diffBaseline } from './baseline.js'
 import { budgetFromEnv } from './budget.js'
+import { PRIVATE_EVALS_DIR } from './apps.js'
 import { BASELINE_FILE, EVALS_DIR, REPO_ROOT, RESULTS_DIR, setDir } from './tasks.js'
 import type { Baseline, SuiteResult } from './types.js'
 
@@ -50,16 +51,26 @@ export interface SetSpec {
   baselineFile: string | null
 }
 
-/** Every set with a baseline in `evalsDir`, then the extra sets (once each). */
-export function discoverSets(evalsDir = EVALS_DIR, extra = EXTRA_SETS): SetSpec[] {
+/** The folders whose baselines `eval:weekly` replays: this one, and the private clone's when `PLEATKIT_PRIVATE_EVALS` is set. */
+export const BASELINE_DIRS = [EVALS_DIR, ...(PRIVATE_EVALS_DIR ? [PRIVATE_EVALS_DIR] : [])]
+
+/**
+ * Every set with a baseline in `evalsDirs` (the first folder wins a name), then the extra sets (once each). Without
+ * the private clone only the scripted demo set is found and the blind sets are left out: they are skipped quietly.
+ */
+export function discoverSets(evalsDirs: string | string[] = BASELINE_DIRS, extra = PRIVATE_EVALS_DIR ? EXTRA_SETS : []): SetSpec[] {
   const out: SetSpec[] = []
-  const files = fs.existsSync(evalsDir) ? fs.readdirSync(evalsDir).filter((f) => /^baseline(\.[a-z0-9][a-z0-9.-]*)?\.json$/.test(f)).sort() : []
-  for (const f of files) {
-    const mid = f.slice('baseline'.length, -'.json'.length).replace(/^\./, '')
-    const file = path.join(evalsDir, f)
-    if (!mid) out.push({ name: 'live', set: 'live', baselineFile: file })
-    else if (mid === SCRIPTED) out.push({ name: SCRIPTED, baselineFile: file })
-    else out.push({ name: mid, set: mid, baselineFile: file })
+  for (const evalsDir of typeof evalsDirs === 'string' ? [evalsDirs] : evalsDirs) {
+    const files = fs.existsSync(evalsDir) ? fs.readdirSync(evalsDir).filter((f) => /^baseline(\.[a-z0-9][a-z0-9.-]*)?\.json$/.test(f)).sort() : []
+    for (const f of files) {
+      const mid = f.slice('baseline'.length, -'.json'.length).replace(/^\./, '')
+      const file = path.join(evalsDir, f)
+      const name = mid || 'live'
+      if (out.some((s) => s.name === name)) continue
+      if (!mid) out.push({ name: 'live', set: 'live', baselineFile: file })
+      else if (mid === SCRIPTED) out.push({ name: SCRIPTED, baselineFile: file })
+      else out.push({ name: mid, set: mid, baselineFile: file })
+    }
   }
   for (const e of extra) if (!out.some((s) => s.name === e)) out.push({ name: e, set: e, baselineFile: null })
   // scripted first, then live, then the rest by name: the order a reader expects

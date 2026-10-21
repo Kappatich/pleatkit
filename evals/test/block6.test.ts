@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { digestsOf } from '../src/runner.js'
 import { loadManifest, loadTasks, prepareTask, SUITES } from '../src/tasks.js'
 import { classifiedRight, probeVerdict } from '../src/probe-labels.js'
+import { PRIVATE_OR_LOCAL } from '../src/apps.js'
 
 const env = { ...process.env }
 afterEach(() => {
@@ -44,8 +45,10 @@ describe.skipIf(!demo)('stage 5 block 6: pointing and the panel screenshot in th
   })
 })
 
-describe('stage 5 block 6: the new probe sets', () => {
-  const read = (f: string) => (JSON.parse(fs.readFileSync(path.join(SUITES.demo, '..', 'probes', f), 'utf8')) as { probes: { id: string; app: string; request: string; expected: string }[] }).probes
+// the probe sets are private (PLEATKIT_PRIVATE_EVALS); without them this check is skipped
+const PROBES = path.join(PRIVATE_OR_LOCAL, 'probes')
+describe.skipIf(!fs.existsSync(PROBES))('stage 5 block 6: the new probe sets', () => {
+  const read = (f: string) => (JSON.parse(fs.readFileSync(path.join(PROBES, f), 'utf8')) as { probes: { id: string; app: string; request: string; expected: string }[] }).probes
   it('has 32 Russian and 20 new awkward probes with labels eval:classify knows', () => {
     const ru = read('russian.json')
     const aw = read('awkward-2.json')

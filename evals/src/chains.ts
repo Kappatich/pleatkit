@@ -4,7 +4,7 @@ import path from 'node:path'
 import { PROMPT_VERSION, RecordingProvider, runAgent, type ModelProvider, type TypecheckFn } from '@pleatkit/agent'
 import { MemoryStore, PleatkitEngine } from '@pleatkit/runtime'
 import type { AgentRunRequest, FileMap, PleatkitManifest } from '@pleatkit/runtime/compiler'
-import { APPS, routeOf, type AppId } from './apps.js'
+import { APPS, PRIVATE_EVALS_DIR, routeOf, type AppId } from './apps.js'
 import type { EvalBudget } from './budget.js'
 import { finalFiles, gradeCheck, gradeInvariants, gradeRun, type RunResult } from './graders.js'
 import type { BrowserCase, BrowserGrader } from './runner.js'
@@ -21,6 +21,8 @@ import type { BrowserInvariants, EvalTask, GraderResult, TaskInvariants } from '
  * step stays. The final and the reverted states are rendered by the browser grader.
  */
 export const CHAINS_DIR = path.join(EVALS_DIR, 'chains')
+/** The chains on the private apps (shadcn-admin), with `PLEATKIT_PRIVATE_EVALS`. */
+export const PRIVATE_CHAINS_DIR = PRIVATE_EVALS_DIR ? path.join(PRIVATE_EVALS_DIR, 'chains') : null
 
 export interface ChainStep {
   request: string
@@ -64,13 +66,14 @@ export interface ChainRun {
   costUsd: number
 }
 
-export function loadChains(only?: string[]): Chain[] {
-  if (!fs.existsSync(CHAINS_DIR)) return []
-  return fs
-    .readdirSync(CHAINS_DIR)
-    .filter((f) => f.endsWith('.json'))
-    .sort()
-    .map((f) => JSON.parse(fs.readFileSync(path.join(CHAINS_DIR, f), 'utf8')) as Chain)
+/** The demo's chains (public), then the private ones when `PLEATKIT_PRIVATE_EVALS` is set. */
+export function loadChains(only?: string[], dirs: (string | null)[] = [CHAINS_DIR, PRIVATE_CHAINS_DIR]): Chain[] {
+  const files = dirs
+    .filter((d): d is string => !!d && fs.existsSync(d))
+    .flatMap((d) => fs.readdirSync(d).filter((f) => f.endsWith('.json')).map((f) => path.join(d, f)))
+  return files
+    .sort((a, b) => path.basename(a).localeCompare(path.basename(b)))
+    .map((f) => JSON.parse(fs.readFileSync(f, 'utf8')) as Chain)
     .filter((c) => !only?.length || only.some((o) => c.id.startsWith(o)))
 }
 
