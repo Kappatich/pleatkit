@@ -356,3 +356,36 @@ pnpm eval:weekly -- --no-live    # offline replays only; without PLEATKIT_API_KE
 - The blind installs of round 6 logged `outside_docs` per gap (only those count, DECISIONS 84.3):
   `evals/probes/blind/antd-6.gaps.json`, `mesa-6.gaps.json`. The classifier results of this block are kept in
   `evals/probes/results/classify-b6-*.json`.
+
+## Stage 5, block 7: the model matrix
+
+Numbers: [`evals/REPORT-2026-10-21-matrix.md`](../evals/REPORT-2026-10-21-matrix.md).
+
+- **Editors through OpenRouter.** `PLEATKIT_PROVIDER=openrouter` (or `openai-compatible` with
+  `PLEATKIT_BASE_URL=https://openrouter.ai/api/v1`) takes `OPENROUTER_API_KEY`, so `PLEATKIT_API_KEY` stays the
+  Anthropic key; `PLEATKIT_CLASSIFIER_PROVIDER=anthropic` keeps Haiku as the classifier (a fair editor comparison). Every
+  call OpenRouter bills carries its own price (`usage.cost` → `TokenUsage.billedUsd`), which `costUsd` and the run's cap
+  use instead of the table. The judge stays Claude: `PLEATKIT_BASE_URL` reaches it only when the editor is Anthropic too.
+- **`--min-pass <rate>@<runs>`** stops a live record when fewer than `rate` of its first `runs` pass the in-process
+  graders (the browser grader runs later and can only fail more).
+- **Recorded without the browser, graded after.** The eight editor sets ran side by side with `--no-browser` (the
+  browser grader has fixed ports); each was then replayed with the browser and the judge (`pnpm eval:judge -- --set
+  <set> --tasks demo,apps,awkward`), and that result is kept as `<set>/graded.json` next to `record.json` (the real
+  latencies and costs).
+- **`pnpm --filter @pleatkit/evals matrix -- --sets a,b,… --reference matrix-sonnet`** (`evals/src/matrix.ts`) prints the
+  tables: pass per suite, per grader and per task family, first try, calls, edit latency and cost per edit (median and
+  p95), the judge, and the decision table (per family, the cheapest model at ≥ 97 % of the reference's pass share on the
+  same tasks).
+- **Classifiers through OpenRouter**: `PLEATKIT_CLASSIFIER_PROVIDER=openrouter PLEATKIT_CLASSIFIER_MODEL=<id>` with
+  `eval:classify` (no `--provider`: the environment decides). The OpenAI-compatible classifier asks for the same strict
+  JSON schema as Haiku, at reasoning effort `low`. A classifier call that errors or times out (30 s) counts as a wrong
+  label and the run goes on.
+
+```bash
+P=evals/probes/mixed-requests.json,evals/probes/restore-and-jobs.json,evals/probes/russian.json,evals/probes/awkward-2.json
+PLEATKIT_PROVIDER=openrouter PLEATKIT_MODEL=openai/gpt-5-mini PLEATKIT_CLASSIFIER_PROVIDER=anthropic PLEATKIT_EVAL_BUDGET_USD=2 \
+  pnpm eval:record -- --live --tasks demo,apps,awkward --set matrix-gpt-5-mini --no-browser --min-pass 0.7@20
+PLEATKIT_EVAL_BUDGET_USD=0.2 pnpm eval:judge -- --set matrix-gpt-5-mini --tasks demo,apps,awkward
+PLEATKIT_CLASSIFIER_PROVIDER=openrouter PLEATKIT_CLASSIFIER_MODEL=openai/gpt-5-nano \
+  pnpm eval:classify -- --tasks demo,apps,awkward,redteam,blind --probes $P --repeat 2 --out b7-gpt-5-nano
+```

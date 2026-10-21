@@ -64,6 +64,22 @@ It refuses to start in production without the credentials or `PLEATKIT_MANIFEST`
 
 **A cheaper editor.** `PLEATKIT_MODEL=claude-haiku-5-5` passed 68 of 69 eval tasks (98.6 %; Sonnet 5.5 misses the same one) at $0.001 to $0.003 per edit, about a tenth of Sonnet's, 1 to 2 s slower median and with a long tail (p95 up to 25 s). Use it for a free tier or a try-it stand with a dollar limit per org; keep Sonnet 5.5 for paying users.
 
+**Choosing a model** (measured 2026-10-21 on the same 69 tasks, one trial each, Haiku 5.5 as the classifier: [the matrix report](../../evals/REPORT-2026-10-21-matrix.md)). The agent has two model jobs: the editor (`PLEATKIT_MODEL`, writes the panel code through tools) and the classifier (`PLEATKIT_CLASSIFIER_MODEL`, routes each request first).
+
+| You want | Editor | Classifier | Measured |
+|---|---|---|---|
+| The default (your Anthropic key) | `claude-sonnet-5-5` | `claude-haiku-5-5` | 68/69, 5.8 s median edit (p95 11 s), $0.027 per edit |
+| A free tier or a try-it stand | `claude-haiku-5-5` | `claude-haiku-5-5` | 68/69, 6.4 s (p95 14 s), $0.0026 per edit |
+| No Anthropic at all (plan B) | `deepseek/deepseek-v4.1-flash` through OpenRouter | `z-ai/glm-5.3-flash` (or `deepseek/deepseek-v4.1-flash`) through OpenRouter | editor 66/69 (two apps edits short), 4.7 s (p95 14 s), $0.001 per edit; classifier 303 of 318 right against Haiku's 305, 1.7 s against 1.4 s, more attacks routed to the editor (8 of 64 against 3) |
+
+Plan B, with an OpenRouter key and no Anthropic key:
+
+```bash
+PLEATKIT_PROVIDER=openrouter OPENROUTER_API_KEY=sk-or-… PLEATKIT_MODEL=deepseek/deepseek-v4.1-flash PLEATKIT_CLASSIFIER_MODEL=z-ai/glm-5.3-flash npx pleatkit-agent
+```
+
+Mixed: keep Claude as the classifier with an OpenRouter editor (`PLEATKIT_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, `PLEATKIT_CLASSIFIER_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`), or a cheap classifier with Sonnet (`PLEATKIT_CLASSIFIER_PROVIDER=openrouter`, `PLEATKIT_CLASSIFIER_MODEL=…`). OpenRouter's own bill per call (`usage.cost`) is what the agent meters and caps. What plan B loses: about 3 points of pass on large foreign panels, Anthropic's cache control (the 1-hour prefix) and the exact token count behind doctor's price, the refusal fallback, and a routing layer you must list in your DPA (OpenRouter picks the host per call). Not recommended, measured: GPT-5 mini (90 %, 19 s median), Kimi K2.6 and GLM-5.3 Flash as editors (90–91 %, edits cut by the 90 s deadline on slow hosts), Gemini 3.7 Flash (88 % on 41 tasks at Sonnet's price), Qwen3-Coder-Next (84 %, no image input), GPT-5 nano (77 %, 45 s); GPT-5 nano and Qwen3-Coder 30B as classifiers (273 and 189 of 318; nano routes attacks as edits).
+
 **Model rate limits and the Anthropic tier.** The agent runs at most `PLEATKIT_MODEL_CONCURRENCY` model calls at a time per process (default 8; the rest wait in a FIFO queue), and retries a call refused with 429 or `overloaded_error` after its `retry-after` (else 1, 2, 4 s), at most `PLEATKIT_RATE_LIMIT_RETRIES` times (default 3). The user sees "The AI service is busy, retrying"; if it still fails, the run ends with a plain message, `rateLimited: true` in the result and an `edit.rate_limited` event (the /admin Plan screen counts them per day). A retry that could not finish before the run's 90 s deadline is not started. Sizing: Anthropic's Start tier allows, per model, 2M input tokens, 400K output tokens and 1,000 requests a minute, and cache reads do not count toward the input limit. One edit reads the cached prefix (about 8k tokens on a small app, 15k on shadcn-admin after the block-3 trimming, 34k before) from the cache, and spends about 1.5 to 3k uncached input tokens on a small app (up to 10k where the panels in the request are large, as on shadcn-admin), 0.5 to 2k output tokens (thinking included) and 2 to 3 requests (the classifier runs on Haiku, which has its own limits). At one edit per user per minute, which is a busy editor, the Start tier holds about 150 concurrent editing users on large panels and several hundred on small ones; the output limit (400K / 2k) is usually the first one reached. Above that, ask Anthropic for a higher tier, or run several agent processes only if the tier allows their sum. Check the real numbers in the Console's usage page and in `pleatkit report`.
 
 Proxies must not buffer SSE: the agent sends a keepalive comment every 15 s; for nginx add `proxy_buffering off; proxy_read_timeout 120s;` on `/agent/`.
