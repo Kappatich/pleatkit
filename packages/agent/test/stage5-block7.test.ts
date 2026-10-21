@@ -211,3 +211,24 @@ describe('stage 5 block 7: billed cost', () => {
     expect(m.rows().find((r) => r.model === 'unknown/model')!.costUsd).toBeNull()
   })
 })
+
+describe('stage 5 block 8: OpenRouter host choice (PLEATKIT_OPENROUTER_SORT)', () => {
+  it('sends provider.sort on every OpenRouter call, editor and classifier; nothing when unset or off OpenRouter', async () => {
+    const or = await fakeServer(editorAnswers(classification('ui')))
+    const env = { PLEATKIT_PROVIDER: 'openrouter', PLEATKIT_BASE_URL: `${or.url}/api/v1`, PLEATKIT_MODEL: 'z-ai/glm-5.3-flash', OPENROUTER_API_KEY: 'or-key' }
+    const r = await runAgent(request('show the phone'), providerFromEnv({ ...env, PLEATKIT_OPENROUTER_SORT: 'Throughput' }), { classifierMode: 'sequential' })
+    expect(r.verdict).toBe('ok')
+    expect(or.seen).toHaveLength(3)
+    for (const s of or.seen) expect(s.body.provider).toEqual({ sort: 'throughput' })
+
+    or.seen.length = 0
+    await runAgent(request('show the phone'), providerFromEnv({ ...env, PLEATKIT_OPENROUTER_SORT: 'fastest' }), { classifierMode: 'sequential' })
+    for (const s of or.seen) expect(s.body.provider).toBeUndefined()
+
+    // an OpenAI endpoint never gets OpenRouter's routing field
+    const oa = await fakeServer(editorAnswers(classification('ui')))
+    await runAgent(request('show the phone'), providerFromEnv({ PLEATKIT_PROVIDER: 'openai-compatible', PLEATKIT_BASE_URL: `${oa.url}/v1`, PLEATKIT_MODEL: 'gpt-5-mini', PLEATKIT_API_KEY: 'k', PLEATKIT_OPENROUTER_SORT: 'throughput' }), { classifierMode: 'sequential' })
+    expect(oa.seen.length).toBeGreaterThan(0)
+    for (const s of oa.seen) expect(s.body.provider).toBeUndefined()
+  })
+})

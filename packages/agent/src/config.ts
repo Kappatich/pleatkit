@@ -1,5 +1,5 @@
 import { AnthropicProvider } from './providers/anthropic.js'
-import { isOpenRouter, OpenAICompatibleProvider, type ReasoningEffort } from './providers/openai.js'
+import { isOpenRouter, OpenAICompatibleProvider, type OpenRouterSort, type ReasoningEffort } from './providers/openai.js'
 import { SplitProvider } from './providers/split.js'
 import { ScriptedProvider } from './providers/scripted.js'
 import { TypeSafeClassifier } from './providers/typesafe.js'
@@ -67,6 +67,7 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  *                      (stage 5 block 7), with PLEATKIT_CLASSIFIER_API_KEY and PLEATKIT_CLASSIFIER_BASE_URL; unset: the
  *                      main provider classifies
  * PLEATKIT_OPENROUTER_REFERER, PLEATKIT_OPENROUTER_TITLE  OpenRouter's attribution headers (default the repo and "pleatkit")
+ * PLEATKIT_OPENROUTER_SORT  OpenRouter's host choice: throughput | latency | price (sent as provider.sort; unset: its default)
  * PLEATKIT_EFFORT      low | medium | high | xhigh | max (anthropic, default medium); openai-compatible: minimal | low |
  *                      medium | high as the reasoning effort (unset: the model's default)
  * PLEATKIT_FALLBACKS   off disables Anthropic server-side refusal fallback
@@ -201,6 +202,11 @@ function kindOf(raw: string, variable: string): { kind: ProviderKind; flavour: '
   throw new Error(`Unknown ${variable} "${raw}"`)
 }
 
+const sortOf = (v: string | undefined): OpenRouterSort | undefined => {
+  const e = (v ?? '').trim().toLowerCase()
+  return e === 'price' || e === 'throughput' || e === 'latency' ? e : undefined
+}
+
 const effortOf = (v: string | undefined): ReasoningEffort | undefined => {
   const e = (v ?? '').trim().toLowerCase()
   return e === 'minimal' || e === 'low' || e === 'medium' || e === 'high' ? e : undefined
@@ -217,6 +223,7 @@ function openAICompatible(env: Env, o: { flavour: 'openai' | 'openrouter' | null
   if (!apiKey) throw new Error(`${o.what}=openai-compatible needs PLEATKIT_API_KEY (or OPENROUTER_API_KEY for OpenRouter)`)
   if (!o.model) throw new Error(`${o.what}=openai-compatible needs PLEATKIT_MODEL`)
   const effort = effortOf(env.PLEATKIT_EFFORT)
+  const sort = openRouter ? sortOf(env.PLEATKIT_OPENROUTER_SORT) : undefined
   const headers = { ...(env.PLEATKIT_OPENROUTER_REFERER ? { 'HTTP-Referer': env.PLEATKIT_OPENROUTER_REFERER } : {}), ...(env.PLEATKIT_OPENROUTER_TITLE ? { 'X-Title': env.PLEATKIT_OPENROUTER_TITLE } : {}) }
   return new OpenAICompatibleProvider({
     apiKey,
@@ -225,6 +232,7 @@ function openAICompatible(env: Env, o: { flavour: 'openai' | 'openrouter' | null
     ...(openRouter ? { openRouter } : {}),
     ...(o.classifierModel ? { classifierModel: o.classifierModel } : {}),
     ...(effort ? { reasoningEffort: effort } : {}),
+    ...(sort ? { providerSort: sort } : {}),
     ...(Object.keys(headers).length ? { headers } : {}),
   })
 }

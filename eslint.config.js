@@ -9,7 +9,7 @@ const browserGlobals = Object.fromEntries(
 export default tseslint.config(
   // examples/* and evals/apps/* are standalone apps with their own lint config (evals/apps: vendored templates);
   // evals/references are reference solutions in an app's zone (like the e2e fixtures), compiled by the eval graders
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/playwright-report/**', '**/test-results/**', 'apps/*/e2e/fixtures/**', 'examples/**', 'evals/apps/**', 'evals/references/**', 'evals/.out/**'] },
+  { ignores: ['**/dist/**', '**/dist.build-*/**', '**/dist.old-*/**', '**/node_modules/**', '**/playwright-report/**', '**/test-results/**', 'apps/*/e2e/fixtures/**', 'examples/**', 'evals/apps/**', 'evals/references/**', 'evals/.out/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
