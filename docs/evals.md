@@ -389,3 +389,24 @@ PLEATKIT_EVAL_BUDGET_USD=0.2 pnpm eval:judge -- --set matrix-gpt-5-mini --tasks 
 PLEATKIT_CLASSIFIER_PROVIDER=openrouter PLEATKIT_CLASSIFIER_MODEL=openai/gpt-5-nano \
   pnpm eval:classify -- --tasks demo,apps,awkward,redteam,blind --probes $P --repeat 2 --out b7-gpt-5-nano
 ```
+
+## Stage 5, block 8: Sonnet against Haiku on one day, a fast OpenRouter host
+
+Numbers: [`evals/REPORT-2026-10-21-block8.md`](../evals/REPORT-2026-10-21-block8.md).
+
+- **Two editors on the same day.** Both sets recorded side by side with `--trials 3 --no-browser`, then graded with the
+  browser and the judge (`eval:judge`, copied to `<set>/graded.json`) as in block 7.
+- **`--compare <reference>,<candidate>`** on `matrix` prints the tasks the two sets pass a different number of times
+  and the BYOK default rule (DECISIONS 73.2, 86.1: within 1 point on every set, first try within 3 points, edit
+  latency p95 under 12 s; `byokDefaultRule` in `evals/src/matrix.ts`).
+- **`PLEATKIT_OPENROUTER_SORT=throughput`** (or `latency`, `price`) sends OpenRouter's `provider: { sort }` on every
+  call: the fastest host instead of the default routing.
+
+```bash
+PLEATKIT_MODEL=claude-sonnet-5-5 PLEATKIT_EVAL_BUDGET_USD=5 pnpm eval:record -- --live --tasks demo,apps,awkward --set b8-sonnet --trials 3 --no-browser
+PLEATKIT_MODEL=claude-haiku-5-5 PLEATKIT_EVAL_BUDGET_USD=0.8 pnpm eval:record -- --live --tasks demo,apps,awkward --set b8-haiku --trials 3 --no-browser
+PLEATKIT_EVAL_BUDGET_USD=0.15 pnpm eval:judge -- --set b8-haiku --tasks demo,apps,awkward   # then copy evals/results/replay-b8-haiku.json to the set's graded.json
+pnpm --filter @pleatkit/evals matrix -- --sets b8-sonnet,b8-haiku --compare b8-sonnet,b8-haiku
+PLEATKIT_PROVIDER=openrouter PLEATKIT_MODEL=z-ai/glm-5.3-flash PLEATKIT_CLASSIFIER_PROVIDER=anthropic PLEATKIT_OPENROUTER_SORT=throughput \
+  PLEATKIT_EVAL_BUDGET_USD=0.35 pnpm eval:record -- --live --tasks apps,demo,awkward --set b8-glm-5.3-flash --no-browser
+```
