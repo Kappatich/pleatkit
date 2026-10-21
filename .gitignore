@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist.build-*/
+dist.old-*/
 playwright-report/
 test-results/
 blob-report/

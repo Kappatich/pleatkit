@@ -61,6 +61,8 @@ export interface MatrixRow {
   /** Judge: accepted (score ≥ 4) of judged edits, and the mean score. */
   judge: { accept: number; judged: number; mean: number | null }
   failures: { taskId: string; verdict: string | null; graders: string[] }[]
+  /** Block 8: per task (short id), the passes of its runs (trials). */
+  perTask: Record<string, [number, number]>
 }
 
 const pair = (runs: TaskRun[]): [number, number] => [runs.filter((r) => r.pass).length, runs.length]
@@ -85,6 +87,11 @@ export function matrixRow(set: string, record: SuiteResult, graded: SuiteResult 
     const [p, n] = graders[g.grader] ?? [0, 0]
     graders[g.grader] = [p + (g.pass ? 1 : 0), n + 1]
   }
+  const perTask: Record<string, [number, number]> = {}
+  for (const r of passRuns) {
+    const [p, n] = perTask[shortId(r.taskId)] ?? [0, 0]
+    perTask[shortId(r.taskId)] = [p + (r.pass ? 1 : 0), n + 1]
+  }
   const edits = live.filter((r) => r.changedFiles.length > 0)
   const judged = passRuns.filter((r) => r.judge)
   const wrote = live.filter((r) => r.firstTry !== null)
@@ -104,7 +111,40 @@ export function matrixRow(set: string, record: SuiteResult, graded: SuiteResult 
     costTotal: live.reduce((s, r) => s + r.costUsd, 0),
     judge: { accept: judged.filter((r) => r.judge!.accept).length, judged: judged.length, mean: judged.length ? judged.reduce((s, r) => s + r.judge!.score, 0) / judged.length : null },
     failures: passRuns.filter((r) => !r.pass).map((r) => ({ taskId: r.taskId, verdict: r.verdict, graders: r.graders.filter((g) => !g.pass && !g.skipped && !g.advisory).map((g) => g.grader) })),
+    perTask,
   }
+}
+
+/** Block 8: the tasks two sets do not pass equally often (by pass share of their trials), in task order. */
+export function disagreements(a: MatrixRow, b: MatrixRow): { task: string; a: [number, number]; b: [number, number] }[] {
+  const rate = ([p, n]: [number, number]) => (n ? p / n : 0)
+  return Object.keys(a.perTask)
+    .filter((t) => b.perTask[t] && rate(a.perTask[t]!) !== rate(b.perTask[t]!))
+    .sort()
+    .map((task) => ({ task, a: a.perTask[task]!, b: b.perTask[task]! }))
+}
+
+export interface DefaultRuleCheck {
+  what: string
+  reference: number
+  candidate: number
+  ok: boolean
+}
+
+/**
+ * DECISIONS 73.2 and 86.1 (block 8): a cheaper editor becomes the BYOK default only if its pass rate is within
+ * `passPoints` (1) percentage points of the reference's on every set, its first-try rate within `firstTryPoints` (3),
+ * and its edit latency p95 is under `p95Ms` (12 s). "Within" is one-sided: a candidate better than the reference passes.
+ */
+export function byokDefaultRule(ref: MatrixRow, cand: MatrixRow, o: { passPoints?: number; firstTryPoints?: number; p95Ms?: number } = {}): { switch: boolean; checks: DefaultRuleCheck[] } {
+  const passPoints = o.passPoints ?? 1
+  const firstTryPoints = o.firstTryPoints ?? 3
+  const p95Ms = o.p95Ms ?? 12_000
+  const pts = ([p, n]: [number, number]) => (n ? (p / n) * 100 : 0)
+  const checks: DefaultRuleCheck[] = (['demo', 'apps', 'awkward'] as const).map((s) => ({ what: `pass ${s} (points)`, reference: pts(ref.pass[s]), candidate: pts(cand.pass[s]), ok: pts(cand.pass[s]) >= pts(ref.pass[s]) - passPoints }))
+  checks.push({ what: 'first try (points)', reference: pts(ref.firstTry), candidate: pts(cand.firstTry), ok: pts(cand.firstTry) >= pts(ref.firstTry) - firstTryPoints })
+  checks.push({ what: 'edit latency p95 (ms)', reference: ref.editLatencyMs.p95, candidate: cand.editLatencyMs.p95, ok: cand.editLatencyMs.p95 < p95Ms })
+  return { switch: checks.every((c) => c.ok), checks }
 }
 
 /**
@@ -184,11 +224,25 @@ if (process.argv[1] && path.resolve(process.argv[1]).replace(/\.ts$/, '') === pa
   const value = (n: string) => (args.includes(`--${n}`) ? args[args.indexOf(`--${n}`) + 1] : undefined)
   const sets = (value('sets') ?? '').split(',').filter(Boolean)
   if (!sets.length) {
-    console.error('usage: tsx src/matrix.ts --sets a,b,c [--reference set] [--json file]')
+    console.error('usage: tsx src/matrix.ts --sets a,b,c [--reference set] [--compare reference,candidate] [--json file]')
     process.exit(2)
   }
   const rows = loadMatrix(sets)
   console.log(markdown(rows, value('reference')))
+  // block 8: `--compare reference,candidate` prints the per-task disagreements and the BYOK default rule
+  const compare = value('compare')?.split(',')
+  if (compare?.length === 2) {
+    const [a, b] = compare.map((name) => rows.find((r) => r.set === name) ?? loadMatrix([name])[0]!) as [MatrixRow, MatrixRow]
+    const d = disagreements(a, b)
+    console.log(`
+| Task | ${a.model} | ${b.model} |
+|---|---|---|`)
+    for (const x of d) console.log(`| ${x.task} | ${x.a[0]}/${x.a[1]} | ${x.b[0]}/${x.b[1]} |`)
+    const rule = byokDefaultRule(a, b)
+    console.log(`
+Rule (DECISIONS 73.2, 86.1), ${b.model} against ${a.model}: ${rule.switch ? 'SWITCH' : 'KEEP the reference'}`)
+    for (const c of rule.checks) console.log(`- ${c.what}: ${c.reference.toFixed(1)} → ${c.candidate.toFixed(1)} ${c.ok ? 'ok' : 'FAILS'}`)
+  }
   const json = value('json')
   if (json) fs.writeFileSync(path.resolve(process.env.INIT_CWD ?? process.cwd(), json), JSON.stringify({ at: new Date().toISOString(), reference: value('reference') ?? null, rows }, null, 2) + '\n')
 }

@@ -6,6 +6,7 @@ import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelT
 import { clusterMessage, parseClusters, WISHES_INSTRUCTIONS, type ClusterInput, type ClusterOutput } from '../wishes.js'
 
 export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high'
+export type OpenRouterSort = 'price' | 'throughput' | 'latency'
 
 export interface OpenAICompatibleOptions {
   apiKey: string
@@ -29,6 +30,12 @@ export interface OpenAICompatibleOptions {
   classifierReasoningEffort?: ReasoningEffort
   /** OpenRouter's behaviour (its headers, `max_tokens`, billed cost); default: from the base URL's host. */
   openRouter?: boolean
+  /**
+   * Stage 5 block 8: OpenRouter's host choice, sent as `provider: { sort }` on every call (`throughput`: the fastest
+   * host in tokens per second, `latency`: the quickest first token, `price`: the cheapest). Unset: OpenRouter's default
+   * routing. Ignored off OpenRouter.
+   */
+  providerSort?: OpenRouterSort
   fetch?: typeof fetch
 }
 
@@ -119,7 +126,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${this.options.apiKey}`, ...(this.openRouter ? OPENROUTER_HEADERS : {}), ...this.options.headers },
       // OpenRouter reports what each call was billed (usage.cost) when asked
-      body: JSON.stringify(this.openRouter ? { ...body, usage: { include: true } } : body),
+      body: JSON.stringify(this.openRouter ? { ...body, usage: { include: true }, ...(this.options.providerSort ? { provider: { sort: this.options.providerSort } } : {}) } : body),
       signal,
     })
     if (!res.ok) {

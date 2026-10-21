@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { costUsd } from '@pleatkit/runtime/compiler'
 import { EnsembleProvider, jevDecides, labelOfRoute, settledOf } from '../src/classifier-ensemble.js'
 import { cacheTtlFromEnv, ensembleFromEnv, providerFromEnv, tailFromEnv } from '../src/config.js'
@@ -17,8 +17,8 @@ function jevAnswer(route: JevAnswer['route'], confidence: number, adversarial: n
   return { route, confidence, probabilities: route ? { [route]: confidence } : {}, adversarial, usage: jevUsage, model: 'jev-1.13.0', ms: 5 }
 }
 
-/** An inner provider whose classifier takes `ms`, and which can quote a backend request. */
-function inner(c: Partial<Classification>, ms = 30, quote?: Partial<BackendQuote>) {
+/** An inner provider whose classifier takes `ms` (its model turn `turnMs`), and which can quote a backend request. */
+function inner(c: Partial<Classification>, ms = 30, quote?: Partial<BackendQuote>, turnMs = 60) {
   const calls = { classify: 0, quote: 0, start: 0 }
   const p: ModelProvider = {
     name: 'fake',
@@ -39,7 +39,7 @@ function inner(c: Partial<Classification>, ms = 30, quote?: Partial<BackendQuote
         say: () => undefined,
         next: async (): Promise<ModelTurn> => {
           n++
-          await sleep(60)
+          await sleep(turnMs)
           const toolCalls = n === 1 ? [{ id: 'w', name: 'write_file', input: { path: CARD, content: GOOD_CARD } }, { id: 'f', name: 'finish', input: { verdict: 'ok', summary: 'Done.' } }] : []
           return { text: '', toolCalls, stop: 'tool_use', usage, model: 'big-model' }
         },
@@ -81,12 +81,14 @@ describe('block 6: the Jev rule (DECISIONS 83)', () => {
 
 describe('block 6: the ensemble provider', () => {
   it('answers with Jev before the classifier model and hands the model answer to onLate', async () => {
-    const { p } = inner({ label: 'ui', intentLabel: 'fields-add' }, 40)
+    // block 8: the classifier model takes 300 ms and Jev 1 ms; an answer before 300 ms is Jev's (a loaded machine
+    // fires the 1 ms timer late, so the bound is the model's time, not a few milliseconds)
+    const { p } = inner({ label: 'ui', intentLabel: 'fields-add' }, 300)
     const e = new EnsembleProvider(p, router(jevAnswer('partial', 0.97)))
     const late: Classification[] = []
     const t0 = performance.now()
-    const c = await e.classify({ ...input, onLate: (m) => late.push(m) }, AbortSignal.timeout(1000))
-    expect(performance.now() - t0).toBeLessThan(35)
+    const c = await e.classify({ ...input, onLate: (m) => late.push(m) }, AbortSignal.timeout(5000))
+    expect(performance.now() - t0).toBeLessThan(300)
     expect(c.label).toBe('ui')
     expect(c.ensemble).toEqual({ decidedBy: 'jev', jev: { route: 'partial', confidence: 0.97, adversarial: 0.02, ms: 5 } })
     expect(c.usage).toBeNull()
@@ -112,11 +114,12 @@ describe('block 6: the ensemble provider', () => {
     const { p } = inner({ label: 'ui', intentLabel: 'fields-add' }, 5)
     const late: Classification[] = []
     const t0 = performance.now()
-    const c = await new EnsembleProvider(p, router(jevAnswer('ui', 0.99), 400), { graceMs: 20 }).classify({ ...input, onLate: (m) => late.push(m) }, AbortSignal.timeout(2000))
-    expect(performance.now() - t0).toBeLessThan(200)
+    // block 8: Jev takes 800 ms; an answer in under 400 ms did not wait for it (the model's 5 ms + the 20 ms grace,
+    // with room for a loaded machine), and Jev's late answer still arrives
+    const c = await new EnsembleProvider(p, router(jevAnswer('ui', 0.99), 800), { graceMs: 20 }).classify({ ...input, onLate: (m) => late.push(m) }, AbortSignal.timeout(5000))
+    expect(performance.now() - t0).toBeLessThan(400)
     expect(c.ensemble).toEqual({ decidedBy: 'model', jev: null })
-    await sleep(450)
-    expect(late.map((m) => m.model)).toEqual(['jev-1.13.0'])
+    await vi.waitFor(() => expect(late.map((m) => m.model)).toEqual(['jev-1.13.0']), { timeout: 5000, interval: 20 })
   })
 
   it('skips Jev when the classifier model already answered adversarial', async () => {
@@ -141,14 +144,18 @@ describe('block 6: the ensemble provider', () => {
   })
 
   it('runs an edit: Jev decides, the early call is used, Jev and the late classifier are metered', async () => {
-    const { p } = inner({ label: 'ui', intentLabel: 'fields-add', gist: 'show an existing field' }, 20)
+    // block 8: timings relative to each other, not to the wall clock. The classifier model answers after 300 ms and the
+    // edit turn after 600 ms (so the late classifier still lands inside the run and is metered); a classifyMs under
+    // 300 ms can only be Jev's decision (1 ms). The old bound (20 ms against a 20 ms classifier) failed when the whole
+    // repository's tests ran beside a build: a busy event loop fires the 1 ms timer late.
+    const { p } = inner({ label: 'ui', intentLabel: 'fields-add', gist: 'show an existing field' }, 300, undefined, 600)
     const e = new EnsembleProvider(p, router(jevAnswer('ui', 0.98)))
     const r = await runAgent(request('Show the phone in the card'), e)
     expect(r.verdict).toBe('ok')
     expect(r.classifier).toEqual({ decidedBy: 'jev', jev: { route: 'ui', confidence: 0.98, adversarial: 0.02, ms: 5 } })
     expect(r.usage.map((u) => u.model).sort()).toEqual(['big-model', 'claude-haiku-5-5', 'jev-1.13.0'])
     expect(r.intentLabel).toBe('fields-add')
-    expect(r.timings.classifyMs).toBeLessThan(20)
+    expect(r.timings.classifyMs).toBeLessThan(300)
   })
 
   it('answers restore without a model call when Jev is sure', async () => {
