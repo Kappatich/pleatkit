@@ -31,6 +31,14 @@ the classifier, trimmed context), [block 4](evals/REPORT-2026-10-19.md) (judge, 
 [block 6](evals/REPORT-2026-10-19-block6.md) (pointed-panel tail, cache TTL, Haiku, the optional Jev ensemble, the
 weekly drift check).
 
+**Other models.** The agent also runs on any OpenAI-compatible API, OpenRouter included (`PLEATKIT_PROVIDER=openrouter`;
+the classifier can come from another vendor with `PLEATKIT_CLASSIFIER_PROVIDER`). On the same 69 tasks
+([the model matrix](evals/REPORT-2026-10-21-matrix.md), 2026-10-21) Claude Sonnet 5.5 and Haiku 5.5 pass 68, DeepSeek
+V4.1 Flash 66 at $0.001 per edit and 4.7 s median (the non-Anthropic plan B), Kimi K2.6 63, GLM-5.3 Flash and GPT-5 mini
+62, Qwen3-Coder-Next 58, GPT-5 nano 53 (Gemini 3.7 Flash 36 of the 41 it ran). As the classifier DeepSeek and GLM-5.3
+Flash match Haiku (306 and 303 of 318 against 305) but are slower and dearer per request through OpenRouter. Sonnet 5.5
+stays the default; [choosing a model](docs/for-agents/production.md#4-deploy-the-agent-server).
+
 ## Packages
 
 | Package | What it does | Repo |
@@ -174,8 +182,10 @@ keep their `mk_live_` prefix: existing keys stay valid.
 | `PLEATKIT_CLASSIFIER_MODEL` | `claude-haiku-5-5` | request classifier (ui / needs-backend / unclear) |
 | `PLEATKIT_CACHE_TAIL` | `after-first` | `after-first`: the first call of an edit caches only the system prompt (a one-call edit and a cancelled early call do not pay the 1.25× write of the request's tail); `always`: every call writes the tail, as before |
 | `PLEATKIT_CLASSIFIER` | `auto` | `parallel`: the classifier and the main model start together (an edit is ~1.3 s faster, the main call is cancelled when the classifier answers alone); `sequential`: the main model waits for the classifier; `auto`: per app, `sequential` while the classifier answered more than 50 % of the app's classified requests alone in the last 7 days (at least 20 of them; back to `parallel` at 45 %), history from store-server's request log when `PLEATKIT_STORE_URL` is set |
-| `PLEATKIT_BASE_URL` | SDK default | API base URL; for OpenRouter `https://openrouter.ai/api/v1` |
-| `PLEATKIT_EFFORT` | `medium` | Anthropic effort (`low` … `max`) |
+| `PLEATKIT_BASE_URL` | SDK default | API base URL; `PLEATKIT_PROVIDER=openrouter` defaults to `https://openrouter.ai/api/v1`, where `OPENROUTER_API_KEY` is used when set (so `PLEATKIT_API_KEY` can stay the Anthropic key of the classifier) |
+| `PLEATKIT_CLASSIFIER_PROVIDER` | the main provider | `anthropic`, `openai-compatible`, `openrouter`, `openai`: the classifier from its own provider, with `PLEATKIT_CLASSIFIER_MODEL`, `PLEATKIT_CLASSIFIER_API_KEY` (default `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY`, then `PLEATKIT_API_KEY`) and `PLEATKIT_CLASSIFIER_BASE_URL` |
+| `PLEATKIT_OPENROUTER_REFERER` / `PLEATKIT_OPENROUTER_TITLE` | the repo / `pleatkit` | OpenRouter's attribution headers |
+| `PLEATKIT_EFFORT` | `medium` | Anthropic effort (`low` … `max`); for `openai-compatible` the reasoning effort (`minimal` … `high`; unset: the model's default) |
 | `PLEATKIT_FALLBACKS` | on | `off` disables Anthropic server-side refusal fallback (`fallbacks: "default"`) |
 | `PLEATKIT_STORE_URL` | | store-server URL; each run (request, verdict, tool log, usage) is logged there |
 | `PLEATKIT_FIXTURES` | `fixtures` | directory of scripted answers (`*.json`) |
