@@ -118,17 +118,25 @@ describe('brainstorm 04 §8 items 2 and 11: recorded transcripts replay without 
   })
 })
 
-describe('DECISIONS 42 and 44: runs by Idempotency-Key in store-server; L1 facts (the cloud module), HMAC keys, retention', async () => {
+describe('DECISIONS 42 and 44: runs by Idempotency-Key in store-server; what a store extension sees, retention', async () => {
   const { createStoreApp, openStore } = await import('../../store-server/src/app.js')
   const { applyRetention } = await import('../../store-server/src/retention.js')
-  const { learningExtension, applyFactsRetention, cloudSchema } = await import('../../store-cloud/src/index.js')
   const { createAgentApp } = await import('../src/server.js')
   const { schema } = await import('../../store-server/src/index.js')
+  type StoreExtension = import('../../store-server/src/extension.js').StoreExtension
+  type LoggedRequest = import('../../store-server/src/extension.js').LoggedRequest
+  // a fake extension on the hook the managed cloud's modules use: it only records what the core hands it
+  const recorder = () => {
+    const logged: LoggedRequest[] = []
+    const ext: StoreExtension = { name: 'recorder', onRequestLogged: (_db, r) => void logged.push(r) }
+    return { ext, logged }
+  }
   const setup = () => {
     const opened = openStore()
-    const store = createStoreApp(opened.db, { extensions: [learningExtension({ learning: 'aggregate' })] })
+    const rec = recorder()
+    const store = createStoreApp(opened.db, { extensions: [rec.ext] })
     const fetchVia = ((input: string | URL | Request, init?: RequestInit) => store.request(String(input), init)) as typeof fetch
-    return { ...opened, store, fetchVia }
+    return { ...opened, store, fetchVia, logged: rec.logged }
   }
   const run = async (app: ReturnType<typeof createAgentApp>, key: string) => {
     const res = await app.request('/agent/v1/run', { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': key }, body: JSON.stringify(request('facts', { appId: 'crm' })) })
@@ -148,30 +156,31 @@ describe('DECISIONS 42 and 44: runs by Idempotency-Key in store-server; L1 facts
     expect(second.requestId).toBe(first.requestId)
     expect(p1.received).toHaveLength(1)
     expect(p2.received).toHaveLength(0)
+    expect(t.logged).toHaveLength(1)
   })
 
-  it('writes a fingerprint without text, with HMAC keys; retention blanks text and deletes old facts', async () => {
+  it('the extension gets the logged run with its label and verdict, not the text; retention blanks text and logs', async () => {
     const t = setup()
     const app = createAgentApp({ provider: provider(), log: () => undefined, storeUrl: 'http://store.test', fetch: t.fetchVia })
     const { requestId } = await run(app, 'k-2')
-    const fact = t.db.select().from(cloudSchema.requestFacts).all()[0]!
-    expect(fact).toMatchObject({ requestId, intentLabel: 'fields-add', verdict: 'ok', learning: 'aggregate', staticRuleHits: [] })
-    expect(fact.userKey).not.toContain('alice')
-    expect(JSON.stringify(fact)).not.toMatch(/alice|customer-card|phone/)
+    expect(t.logged).toHaveLength(1)
+    expect(t.logged[0]).toMatchObject({ id: requestId, appId: 'crm', intentLabel: 'fields-add', verdict: 'ok' })
+    expect(t.logged[0]).not.toHaveProperty('text')
+    expect(t.logged[0]).not.toHaveProperty('gist')
     const req = t.db.select().from(schema.requests).all()[0]!
     expect(req).toMatchObject({ intentLabel: 'fields-add', gist: 'add phone to card #' })
     const later = Date.now() + 600 * 86_400_000
     expect(applyRetention(t.db, later)).toMatchObject({ text: 1, logs: 1 })
-    expect(applyFactsRetention(t.db, later)).toEqual({ facts: 1 })
     expect(t.db.select().from(schema.requests).all()[0]).toMatchObject({ text: '', target: null, gist: null, log: [] })
   })
 
-  it('learning off (the default, and the only mode of the open core) writes no facts', async () => {
+  it('the open core runs the same request without any extension', async () => {
     const opened = openStore()
-    const store = createStoreApp(opened.db, { extensions: [learningExtension()] })
+    const store = createStoreApp(opened.db)
     const fetchVia = ((input: string | URL | Request, init?: RequestInit) => store.request(String(input), init)) as typeof fetch
-    await run(createAgentApp({ provider: provider(), log: () => undefined, storeUrl: 'http://store.test', fetch: fetchVia }), 'k-3')
-    expect(opened.db.select().from(cloudSchema.requestFacts).all()).toHaveLength(0)
+    const { verdict } = await run(createAgentApp({ provider: provider(), log: () => undefined, storeUrl: 'http://store.test', fetch: fetchVia }), 'k-3')
+    expect(verdict).toBe('ok')
+    expect(opened.db.select().from(schema.requests).all()).toHaveLength(1)
   })
 })
 

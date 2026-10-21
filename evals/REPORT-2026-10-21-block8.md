@@ -1,5 +1,10 @@
 # Eval report 2026-10-21: stage 5 block 8, Sonnet against Haiku on one day, GLM and Kimi on a fast host
 
+> The transcripts, the private suites and the HTML reports this report names (`evals/recordings/...`,
+> `evals/tasks/{apps,awkward,redteam,blind}`, `evals/apps`, `evals/probes`, `evals/report/*.html` other than the demo's,
+> the live baselines) are kept in the maintainers' private evals since the repository went public; transcripts
+> available on request. The numbers here are as published.
+
 DECISIONS 86 (1), (3) and the flaky tests. Executor: Claude Opus 5.5. Prompt `2026-10-19.5j` (unchanged; no prompt
 change in this block). The same 69 tasks as the matrix (demo 14, apps 35, awkward 20), Claude Haiku 5.5 as the
 classifier in every run. Each set was recorded live without the browser (`<set>/record.json`: the real latencies and
@@ -142,7 +147,7 @@ had no `dist`; the CLI tests import the agent through it. The timing assertions 
 
 Proof: a `pnpm build` loop ran the whole time (4 full builds) while `pnpm test` ran three times in a row: **3 of 3
 green**, 42 s, 42 s and 47 s (runtime 289, agent 255, evals 77, store-server 63, cli 53, vite-plugin 37, ui 16,
-store-cloud 7, react18-smoke 2). Before the build change the same setup failed at the first run.
+store-cloud 7 (private package), react18-smoke 2). Before the build change the same setup failed at the first run.
 
 ## What changed in the code
 

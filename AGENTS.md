@@ -1,15 +1,18 @@
 # AGENTS.md
 
-For coding agents working in this repository (DECISIONS 43: under 200 lines). For agents installing pleatkit into
-another app, read [`docs/for-agents/AGENTS.md`](docs/for-agents/AGENTS.md) instead.
+For coding agents (and people) working in this repository; keep it under 200 lines. For agents installing pleatkit
+into another app, read [`docs/for-agents/AGENTS.md`](docs/for-agents/AGENTS.md) instead.
 
 ## Read first, in this order
 
-1. `docs/V1.md`: what is in scope now (the frozen v1) and what is not.
-2. `docs/DECISIONS.md`: numbered decisions; later ones override earlier ones.
-3. `docs/ARCHITECTURE.md`: how it works today. If your change deviates, edit ARCHITECTURE.md in the same commit.
-4. `docs/DEVLOG.md`: what each stage did, its numbers and its open questions (newest at the end).
-5. The brainstorm your task cites (`docs/brainstorm/NN-*.md`).
+1. `docs/ARCHITECTURE.md`: how it works today. If your change deviates, edit ARCHITECTURE.md in the same commit.
+2. `docs/evals.md`: how the agent is measured (suites, graders, replay, the eval rule for prompt and model changes).
+3. `CHANGELOG.md`: what changed and what broke, newest first; `docs/ROADMAP.md` for what comes next.
+4. The latest report of the area you touch: `evals/REPORT-*.md` for the agent, prompts and models; the package's
+   `README.md` and its tests otherwise.
+
+Comments cite internal numbering such as "DECISIONS 70.1" or "brainstorm 05 #4": those are the maintainers' design
+notes, kept private; the code, the tests and the docs above are the source of truth.
 
 ## The monorepo
 
@@ -18,7 +21,6 @@ another app, read [`docs/for-agents/AGENTS.md`](docs/for-agents/AGENTS.md) inste
 | `packages/runtime` | browser runtime: engine, `check` (shared with the server), loader, stores, React bindings | MIT; no Node APIs in `src/` |
 | `packages/agent` | agent server: model loop, tools, providers, bundle signing, alerts | MIT |
 | `packages/store-server` | the open store: snapshots, heads, request log, quotas, audit, roles, releases, erasure; `StoreExtension` | MIT, published |
-| `packages/store-cloud` | cloud-only store modules (learning layer, `request_facts`) on the extension hook | private, never published |
 | `packages/vite-plugin` | zones, manifest, digests, externals | MIT |
 | `packages/ui` | chat drawer | the architect owns the look; ask before touching |
 | `packages/cli` | doctor, ping, keys, export, check-snapshots, report, digest, carry-over | MIT |
@@ -49,7 +51,8 @@ No model key is needed: the agent runs the `scripted` provider (recorded answers
   keep those diffs small and explain them.
 - A prompt or model change comes with an eval report (`pnpm eval:replay && pnpm eval:report`, `docs/evals.md`), and bumps `PROMPT_VERSION`.
 - Headless browsers only; never play sound; stop only processes you started.
-- Write the DEVLOG section of your stage with numbers, deviations and open questions; record cost and model.
+- Add a `CHANGELOG.md` entry for user-visible changes (mark breaks **Breaking** with the migration step); a change
+  measured with a model records its numbers, cost and model in an eval report.
 
 ## Where things are
 

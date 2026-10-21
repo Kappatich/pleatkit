@@ -3,7 +3,7 @@ import { useInsertionEffect } from 'react'
 // Self-contained styles: the host app may not use Tailwind, so the UI ships plain CSS with an `mk-` prefix.
 // Visual language v3 (docs/DESIGN.md): Swiss grid poster + SBB timetable. One neutral face from the system,
 // one red, hairlines instead of cards, zero radius. The drawer never loads web fonts into someone else's app.
-// Motion is short and explanatory only (docs/brainstorm/14-usability.md, DESIGN §4); reduced motion turns it off.
+// Motion is short and explanatory only (the usability review, DESIGN §4); reduced motion turns it off.
 const CSS = `
 .mk-root, .mk-root * { box-sizing: border-box; }
 .mk-root {

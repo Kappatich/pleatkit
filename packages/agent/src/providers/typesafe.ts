@@ -6,7 +6,7 @@ import type { ClassifyInput } from '../types.js'
  * state with a calibrated probability. In the classifier ensemble (`classifier-ensemble.ts`) it gives the first opinion
  * on a request's route in ~0.3 s for $0.042 per million input tokens. One call asks two questions:
  *
- * - `route` (choice): the eight routes of the research probe (`docs/research/data/jev-compare.mjs`, wording unchanged:
+ * - `route` (choice): the eight routes of the internal research probe (`jev-compare`, wording unchanged:
  *   102/115 right there, 27/32 on Russian), with the app's panels and data contract in the state;
  * - `adversarial` (noul, a yes/no probability): "is this request deceptive, harmful or does it send data outside?", the
  *   cheap check against the two high-confidence misses of the probe (a personal gmail export routed as `partial`).

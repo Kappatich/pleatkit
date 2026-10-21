@@ -12,10 +12,12 @@ and kept as that user's personal version, with undo, history and an admin who ca
   user sees it, a panel that crashes while rendering is rolled back automatically.
 - **Keys stay on your server.** The browser talks to the agent server; the model key is only in its environment.
 
-Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Progress and measurements: [`docs/DEVLOG.md`](docs/DEVLOG.md).
+Design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Measurements: the eval reports in [`evals/`](evals/)
+(how they are made: [`docs/evals.md`](docs/evals.md)); changes: [`CHANGELOG.md`](CHANGELOG.md).
+Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 **Measured numbers, not estimates** (Claude Sonnet 5.5 at medium effort with prompt caching, stage 5, 2026-10-18/19;
-every run, transcript and report is in [`evals/`](evals/)). pleatkit was installed into four open-source admin
+every report is in [`evals/`](evals/); the run transcripts are available on request). pleatkit was installed into four open-source admin
 templates that are not ours (shadcn-admin, TailAdmin, an Ant Design dashboard, a CSS-modules app without Tailwind), two
 of them blind by fresh coding agents that saw only [`docs/for-agents/`](docs/for-agents/). Across 450+ live runs on
 these apps and the demo, **98–100 %** of the requests pass every check, the rendered result in a headless browser
@@ -49,17 +51,14 @@ stays the default; [choosing a model](docs/for-agents/production.md#4-deploy-the
 | `@pleatkit/agent` | Node agent server: model loop with zone-checked tools, server-side check, SSE progress, providers `anthropic` / `openai-compatible` / `scripted` | pleatkit (public, MIT) |
 | `@pleatkit/cli` | `pleatkit doctor` (setup checks with fixes), `init --suggest` (zones from the import graph), `ping`, `keys new`, `keys public`, `export`, `labels export` | pleatkit (public, MIT) |
 | `@pleatkit/store-server` | the open store: snapshots, heads, bundles, the request log, quotas, usage events, the audit chain, roles, flags, releases, code search, export and erasure; Hono + Drizzle + SQLite | pleatkit (public, MIT) |
-| `@pleatkit/store-cloud` | the managed cloud's modules on top of the store (the learning layer; later billing, region routing) | **pleatkit-cloud** (private) |
 | `apps/demo-crm` | demo CRM with two users, three dynamic panels and an `/admin` dashboard | pleatkit (public) |
 
 ### Two repositories
 
 - **pleatkit** (public, MIT): everything you need to self-host: vite-plugin, runtime, ui, agent, cli, **the store**
   (`@pleatkit/store-server`) and the demo. Bring your own model key; no backend of ours is involved.
-- **pleatkit-cloud** (private): the managed service = the same open store core plus `@pleatkit/store-cloud`, a
-  private package of modules only the managed cloud needs (the learning layer with its `request_facts`; billing and
-  region routing when they exist). It plugs into the core through `StoreExtension` (routes, tables, jobs, hooks),
-  lives in this monorepo for now (`private`, `UNLICENSED`, never published) and moves to the cloud repository as it is.
+- **pleatkit-cloud** (private): the managed service, the same open store core plus a private extension package that
+  plugs into it through `StoreExtension`.
 
 **Self-host: the open store. Cloud: the same core plus the cloud package** (DECISIONS 70.1). Nothing in the open
 packages imports the cloud package; the store binary loads it only for a deployment whose `package.json` depends on it.
@@ -413,8 +412,8 @@ sent prints a one-line notice.
 - `packages/store-server`: MIT and published since 0.2 (DECISIONS 70.1): the store you self-host. The open
   packages know it only through the HTTP contract (`HttpStore`, the agent's `StoreClient`), so any store with the
   same `/v1` API is a drop-in replacement.
-- `packages/store-cloud`: `private`, `UNLICENSED`, never published; the managed cloud's modules on top of the store
-  core (`StoreExtension`). It moves to the pleatkit-cloud repository with the first cloud commit.
+- The managed cloud's extension package (`@pleatkit/store-cloud`) is private and lives in the pleatkit-cloud
+  repository; nothing in this repository depends on it.
 
 ### Changelog and breaking changes (F11)
 
