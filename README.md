@@ -185,6 +185,7 @@ keep their `mk_live_` prefix: existing keys stay valid.
 | `PLEATKIT_BASE_URL` | SDK default | API base URL; `PLEATKIT_PROVIDER=openrouter` defaults to `https://openrouter.ai/api/v1`, where `OPENROUTER_API_KEY` is used when set (so `PLEATKIT_API_KEY` can stay the Anthropic key of the classifier) |
 | `PLEATKIT_CLASSIFIER_PROVIDER` | the main provider | `anthropic`, `openai-compatible`, `openrouter`, `openai`: the classifier from its own provider, with `PLEATKIT_CLASSIFIER_MODEL`, `PLEATKIT_CLASSIFIER_API_KEY` (default `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY`, then `PLEATKIT_API_KEY`) and `PLEATKIT_CLASSIFIER_BASE_URL` |
 | `PLEATKIT_OPENROUTER_REFERER` / `PLEATKIT_OPENROUTER_TITLE` | the repo / `pleatkit` | OpenRouter's attribution headers |
+| `PLEATKIT_OPENROUTER_SORT` | OpenRouter's routing | `throughput`, `latency` or `price`: which host OpenRouter picks for each call (`provider.sort`) |
 | `PLEATKIT_EFFORT` | `medium` | Anthropic effort (`low` … `max`); for `openai-compatible` the reasoning effort (`minimal` … `high`; unset: the model's default) |
 | `PLEATKIT_FALLBACKS` | on | `off` disables Anthropic server-side refusal fallback (`fallbacks: "default"`) |
 | `PLEATKIT_STORE_URL` | | store-server URL; each run (request, verdict, tool log, usage) is logged there |
