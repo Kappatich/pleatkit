@@ -48,8 +48,7 @@ page is the prepared path, so the first release is a checklist, not a project.
 ## 0.3.0, the first public release (prepared 2026-10-18, not published)
 
 - Versions: runtime, vite-plugin, agent, cli, store-server at 0.3.0, ui included
-  until the architect applies [`release/ui-0.2.patch`](release/ui-0.2.patch) (version, README, LICENSE, `files`,
-  the `Morphkit*` aliases removed; `git apply docs/release/ui-0.2.patch`): packages/ui is the architect's.
+  (applied on 2026-10-18: version, README, LICENSE, `files`, the `Morphkit*` aliases removed).
   `node scripts/release-check.mjs` fails on exactly that until then.
 - Removed for 0.2 (DECISIONS 69): the `Morphkit*` aliases, the `morphkit` and `morphkit-agent` binaries,
   `virtual:morphkit/*`, `x-morphkit-*`, the `MORPHKIT_*` fallback and `@pleatkit/runtime/env` (CHANGELOG, Removed).
