@@ -7,7 +7,7 @@ urgent thing we get.
 
 **Do not open a public issue.** Use GitHub's private vulnerability reporting:
 [Report a vulnerability](https://github.com/Kappatich/pleatkit/security/advisories/new) (repository → Security →
-Advisories → "Report a vulnerability"). If you cannot use GitHub, e-mail [[security@ address]].
+Advisories → "Report a vulnerability"). If you cannot use GitHub, e-mail security@pleatkit.com.
 
 Please include what you can of: the affected package and version (`pleatkit report` prints them and redacts
 secrets), the steps or a proof of concept, and the impact you see. A bypass of the static rules is a vulnerability
