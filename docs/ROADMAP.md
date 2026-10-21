@@ -1,7 +1,7 @@
 # Roadmap
 
-What we are building, in order, without dates. Derived from the frozen v1 scope ([V1.md](V1.md)) and the decisions
-log ([DECISIONS.md](DECISIONS.md)); when they change, this page changes with them. "Now" is in the current stage,
+What we are building, in order, without dates. Derived from the internal decisions log (the frozen v1 scope and the
+numbered decisions); when they change, this page changes with them. "Now" is in the current stage,
 "Next" follows it, "Later" is after v1. Ask for something with a feature request issue: the votes there move items
 between columns.
 

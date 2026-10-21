@@ -13,7 +13,8 @@ page is the prepared path, so the first release is a checklist, not a project.
 - **2FA on the npm account** (auth and writes) and on the GitHub account that owns the repository.
 - Only the MIT packages are published: `@pleatkit/runtime`, `@pleatkit/vite-plugin`, `@pleatkit/ui`,
   `@pleatkit/agent`, `@pleatkit/cli` and, since 0.2, `@pleatkit/store-server` (the open store, DECISIONS 70.1).
-  `@pleatkit/store-cloud`, the demo, the evals and the smoke apps are `private` and never published (F12).
+  The managed cloud's extension package lives in a private repository; the demo, the evals and the smoke apps are
+  `private` and never published (F12).
 
 ## One-time setup (Minte)
 

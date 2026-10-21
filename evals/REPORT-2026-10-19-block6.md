@@ -1,12 +1,17 @@
 # Eval report 2026-10-19: stage 5 block 6
 
+> The transcripts, the private suites and the HTML reports this report names (`evals/recordings/...`,
+> `evals/tasks/{apps,awkward,redteam,blind}`, `evals/apps`, `evals/probes`, `evals/report/*.html` other than the demo's,
+> the live baselines) are kept in the maintainers' private evals since the repository went public; transcripts
+> available on request. The numbers here are as published.
+
 DECISIONS 83 and 84 and brainstorm 17 §5, §14, §20, §21, without the OpenRouter matrix (no key yet). Executor: Claude
 Opus 5.5 with sub-agents: one for the `restore` button of the labelling screen, one for the containment of an edit in
 its panel, one for the weekly drift check, and one fresh general-purpose agent per blind install of round 6 (2). Editor
 Claude Sonnet 5.5 (and Haiku 5.5 where named); classifier Claude Haiku 5.5, with TypeSafe's Jev (`jev-latest` =
 jev-1.13.0) in the ensemble. Prompt `2026-10-19.5i` → **`2026-10-19.5j`** (the pointed-panel tail and the panel
 screenshot; the instructions and the classifier prompt are unchanged). All transcripts are committed under
-`evals/recordings/<set>/` with their `record.json`.
+`evals/recordings/<set>/` with their `record.json` (now private; available on request).
 
 | Set | What | Prompt |
 |---|---|---|
@@ -53,7 +58,7 @@ Limits: Anthropic $8, TypeSafe $1 (of the $5 TypeSafe budget for everything).
 | Blind installs round 6 (doc-only criterion) | antd-dashboard **2** gaps (6 entries), mesa **1** (3 entries); all fixed in the docs, plus `init --suggest` and doctor fixes |
 | Edit contained in its panel (84.4) | `contain: paint` on the edited panel's roots; red team **33/33** with `rt-r-fixed-fullscreen` |
 | Judge re-calibrated | without the diff (as before) refs 8/10, ugly 5/5; **with the diff a run gets: refs 10/10, ugly 5/5** ($0.0003 per judgement) |
-| Definition of done | build, unit tests (runtime 288, agent 244, store-server 63, cli 53, vite-plugin 37, store-cloud 7, ui 16, evals 70, react18-smoke 2), e2e 50 (+2 skipped), lint, typecheck; eval:sanity on 5 suites and eval:replay on 7 baseline sets green; smoke of the four foreign apps and t1-vite green |
+| Definition of done | build, unit tests (runtime 288, agent 244, store-server 63, cli 53, vite-plugin 37, store-cloud 7 (private package), ui 16, evals 70, react18-smoke 2), e2e 50 (+2 skipped), lint, typecheck; eval:sanity on 5 suites and eval:replay on 7 baseline sets green; smoke of the four foreign apps and t1-vite green |
 
 ## 1. The classifier ensemble (DECISIONS 83)
 

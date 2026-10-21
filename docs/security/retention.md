@@ -4,8 +4,8 @@
 # Retention
 
 What store-server keeps, for how long, and what deletes it. The retention job runs inside store-server every hour
-(`applyRetention` in `packages/store-server/src/retention.ts`; L1 facts: the cloud module's `facts-retention` job in
-`packages/store-cloud/src/learning.ts`); its periods are configuration
+(`applyRetention` in `packages/store-server/src/retention.ts`; L1 facts: the `facts-retention` job of the private
+`@pleatkit/store-cloud` module); its periods are configuration
 (`PLEATKIT_RETENTION='{"textDays": 90, "logDays": 30, "factsDays": 548}'`), the defaults below. Since 0.2 the store
 is open source (MIT); L1 facts exist only in the managed cloud (the `@pleatkit/store-cloud` module), and only for
 apps whose `learning` flag is on.

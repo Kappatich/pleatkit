@@ -83,7 +83,7 @@ changes". Nothing is published to npm yet. 0.3.0 is the first public release; it
 - `pleatkit digest --week` (markdown; `--send` through `PLEATKIT_ALERT_WEBHOOK` / `PLEATKIT_ALERT_EMAIL_*`),
   `pleatkit report` (a bug report with secrets redacted). Alert kind `digest`.
 - `providerFromEnv` in `@pleatkit/agent`. `SECURITY.md`, `SUPPORTED.md`, `docs/ROADMAP.md`, issue templates,
-  `docs/security/*` and `docs/pilot/*` (drafts for counsel).
+  `docs/security/*` and the pilot agreement drafts for counsel (internal drafts, not in this repository).
 
 ### Changed
 - **Breaking (docs and the example, not the API):** the install guide and `examples/t1-vite` use `HttpStore` with
@@ -184,4 +184,4 @@ pnpm build && pnpm exec pleatkit doctor   # no [FAIL]; the agent prints no depre
 First working version: zones and manifest (Vite plugin), runtime with snapshots, undo/redo and esbuild-wasm,
 agent server with Anthropic / OpenAI-compatible / scripted providers and static rules, chat UI (screenshots,
 clarifying question, en/ru), store-server with request log, moderation and admin dashboard, `pleatkit doctor`
-and `ping`, docs for coding agents. Details: `docs/DEVLOG.md`.
+and `ping`, docs for coding agents. Details: the internal development log (not in this repository).

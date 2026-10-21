@@ -16,7 +16,7 @@ Version 0.1.0 (2026-10-18). Not on npm yet: install from a local checkout with `
 
 - [README.md](README.md): packages, running the demo, environment variables, CSP, security model
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): design (in Russian)
-- [docs/DEVLOG.md](docs/DEVLOG.md): what was built, measurements, open questions (in Russian)
+- [docs/evals.md](docs/evals.md): how the agent is measured; reports in [evals/](evals/)
 - [CHANGELOG.md](CHANGELOG.md): changes per version, breaking changes marked
 - [docs/RELEASING.md](docs/RELEASING.md): npm trusted publishing with provenance (prepared, not used yet)
 
@@ -30,5 +30,4 @@ Version 0.1.0 (2026-10-18). Not on npm yet: install from a local checkout with `
 
 ## Optional
 
-- [docs/pitch](docs/pitch): positioning and launch texts
 - [site/index.html](site/index.html): landing page

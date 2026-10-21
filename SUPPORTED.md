@@ -31,7 +31,7 @@ Electron and Tauri. See [docs/ROADMAP.md](docs/ROADMAP.md).
 | Browser | Status |
 |---|---|
 | Chrome / Edge (Chromium), current versions | supported; every e2e test runs on Chromium headless (156 at the time of writing) |
-| Safari, Firefox, current versions | expected to work (standard ES modules, `import()`, SRI, Web Crypto); **not yet tested** (DEVLOG 4a, "not done") |
+| Safari, Firefox, current versions | expected to work (standard ES modules, `import()`, SRI, Web Crypto); **not yet tested** |
 | Mobile Safari, Chrome on Android | not yet tested; the drawer is being redesigned for small screens (C12) |
 
 Requirements: a secure context (https or localhost) for Web Crypto (`pleatkit doctor` warns; without it signed edits

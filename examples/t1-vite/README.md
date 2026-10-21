@@ -2,7 +2,7 @@
 
 A `pnpm create vite@7 t1-vite --template react-ts` app with pleatkit installed by following
 [`docs/for-agents/install.md`](../../docs/for-agents/install.md) step by step. It is the test of those docs:
-where following them failed, the docs (or pleatkit) were fixed. See the DEVLOG, stage 3b.
+where following them failed, the docs (or pleatkit) were fixed.
 
 - `src/dynamic/orders-table.tsx`: the one dynamic panel, mounted as `<Dynamic id="orders-table">` in `src/App.tsx`
 - `src/readonly/api.ts`: data and helpers the panel imports as `@/readonly/api`
