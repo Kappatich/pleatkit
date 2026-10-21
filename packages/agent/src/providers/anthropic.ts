@@ -74,7 +74,7 @@ export function usageOf(u: WireUsage): TokenUsage {
   }
 }
 
-const CLASSIFY_SCHEMA = {
+export const CLASSIFY_SCHEMA = {
   type: 'object',
   properties: {
     label: { type: 'string', enum: ['ui', 'needs-backend', 'unclear', 'off-topic', 'restore'] },

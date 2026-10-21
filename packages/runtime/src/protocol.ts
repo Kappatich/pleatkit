@@ -141,6 +141,11 @@ export interface TokenUsage {
    * price instead of the 5-minute 1.25× (`costUsd` adds the difference). Absent: every write was 5-minute.
    */
   cacheWrite1hTokens?: number
+  /**
+   * Stage 5 block 7: what the API billed for this call in USD, when it says (OpenRouter's `usage.cost`: the routed
+   * host's own price, which the published list price does not always match). `costUsd` takes it over the table.
+   */
+  billedUsd?: number
 }
 
 export interface UsageByModel extends TokenUsage {

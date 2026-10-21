@@ -68,6 +68,17 @@ export interface SuiteOptions {
   /** Transcript each run replays, for the report (replay runs). */
   recordingOf?: (task: EvalTask, trial: number) => string | null
   log?: (line: string) => void
+  /**
+   * Stage 5 block 7 (the model matrix): stop the run after `after` runs when fewer than `rate` of them passed every
+   * in-process grader. The browser grader runs later and can only fail more, so a run stopped here was below the bar.
+   */
+  minPass?: { rate: number; after: number }
+}
+
+/** Block 7: the early stop of `minPass`, or null to go on. */
+export function belowMinPass(minPass: SuiteOptions['minPass'], passed: number, done: number): string | null {
+  if (!minPass || done !== minPass.after) return null
+  return passed / done < minPass.rate ? `${passed} of the first ${done} runs passed the in-process graders, below ${Math.round(minPass.rate * 100)} %: stopped (--min-pass)` : null
 }
 
 /** The manifest's digests in the cached prefix, as the agent server passes them. */
@@ -143,6 +154,7 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
 
   // block 6 (17 §21): `--pause <s>` (PLEATKIT_EVAL_PAUSE_S) waits between tasks, to measure an app with rare edits
   const pauseMs = Math.max(0, Number(process.env.PLEATKIT_EVAL_PAUSE_S ?? 0) * 1000)
+  let inProcessPasses = 0
   for (const [i, { p, trial }] of queue.entries()) {
     const task = p.task
     if (i > 0 && pauseMs > 0 && o.recordDir) {
@@ -235,6 +247,13 @@ export async function runSuite(o: SuiteOptions): Promise<SuiteResult> {
       ...(recording ? { recording } : {}),
     })
     log(`${key}: ${result.verdict} (${graders.filter((g) => !g.pass).map((g) => g.grader).join(', ') || 'all in-process graders pass'})`)
+    if (graders.every((g) => g.pass)) inProcessPasses++
+    const stop = belowMinPass(o.minPass, inProcessPasses, i + 1)
+    if (stop) {
+      aborted = { reason: stop, notRun: queue.slice(i + 1).map((x) => (numbered ? runKey(x.p.task.id, x.trial) : x.p.task.id)) }
+      log(`ABORT ${stop}`)
+      break
+    }
   }
 
   const keyOf = (r: TaskRun) => (numbered ? runKey(r.taskId, r.trial) : r.taskId)

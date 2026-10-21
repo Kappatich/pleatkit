@@ -30,7 +30,9 @@ export class UsageMeter {
     row.cacheWriteTokens += u.cacheWriteTokens
     if (u.cacheWrite1hTokens) row.cacheWrite1hTokens = (row.cacheWrite1hTokens ?? 0) + u.cacheWrite1hTokens
     if (u.thinkingTokens !== undefined) row.thinkingTokens = (row.thinkingTokens ?? 0) + u.thinkingTokens
-    row.costUsd = costUsd(model, row)
+    // block 7: priced call by call (a call may carry the API's own bill, `billedUsd`); one unpriced call makes the row unpriced
+    const call = costUsd(model, u)
+    row.costUsd = call === null || (row.calls > 1 && row.costUsd === null) ? null : (row.costUsd ?? 0) + call
     this.byModel.set(model, row)
   }
 
