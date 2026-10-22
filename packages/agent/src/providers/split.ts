@@ -1,20 +1,18 @@
 import type { PleatkitManifest } from '@pleatkit/runtime/compiler'
 import type { PromptTokenCount } from '../prefix.js'
-import type { BackendQuote, Classification, ClassifyInput, ModelProvider, ModelSession, PromptParts, ToolSpec } from '../types.js'
-import type { ClusterInput, ClusterOutput } from '../wishes.js'
+import type { BackendQuote, Classification, ClassifyInput, JsonCall, JsonOutput, ModelProvider, ModelSession, PromptParts, ToolSpec } from '../types.js'
 
 /**
  * Stage 5 block 7 (DECISIONS 78): the main model from one provider, the classifier from another
  * (`PLEATKIT_CLASSIFIER_PROVIDER`): e.g. an editor through OpenRouter with Haiku as the classifier, or Sonnet as the
  * editor with a cheap classifier through OpenRouter. The edit loop and the prompt's token count go to `main`; the
- * classification, the backend quote and the wish map go to `classifier`.
+ * classification, the backend quote and JSON calls go to `classifier`.
  */
 export class SplitProvider implements ModelProvider {
   readonly name: string
   readonly model: string
   readonly classifierModel: string | undefined
-  readonly cluster?: (input: ClusterInput, signal: AbortSignal) => Promise<ClusterOutput>
-  readonly clusterModel?: string
+  readonly completeJson?: (call: JsonCall, signal: AbortSignal) => Promise<JsonOutput>
   readonly quoteBackend?: (input: ClassifyInput, signal: AbortSignal) => Promise<BackendQuote>
   readonly countPromptTokens?: (manifest: PleatkitManifest) => Promise<PromptTokenCount>
 
@@ -24,9 +22,8 @@ export class SplitProvider implements ModelProvider {
   ) {
     this.name = main.name
     this.model = main.model
-    this.classifierModel = (classifier as { classifierModel?: string }).classifierModel
-    if (classifier.cluster) this.cluster = (input, signal) => classifier.cluster!(input, signal)
-    if (classifier.clusterModel) this.clusterModel = classifier.clusterModel
+    this.classifierModel = classifier.classifierModel
+    if (classifier.completeJson) this.completeJson = (call, signal) => classifier.completeJson!(call, signal)
     if (classifier.quoteBackend) this.quoteBackend = (input, signal) => classifier.quoteBackend!(input, signal)
     if (main.countPromptTokens) this.countPromptTokens = (manifest) => main.countPromptTokens!(manifest)
   }

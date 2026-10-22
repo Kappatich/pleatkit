@@ -2,8 +2,7 @@ import type { TokenUsage } from '@pleatkit/runtime/compiler'
 import { perCallMaxTokens } from './budget.js'
 import { CLASSIFIER_INSTRUCTIONS } from '../prompt.js'
 import { CLASSIFY_SCHEMA, clarifyOf, intentOf } from './anthropic.js'
-import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
-import { clusterMessage, parseClusters, WISHES_INSTRUCTIONS, type ClusterInput, type ClusterOutput } from '../wishes.js'
+import type { Classification, ClassifyInput, JsonCall, JsonOutput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
 
 export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high'
 export type OpenRouterSort = 'price' | 'throughput' | 'latency'
@@ -171,24 +170,20 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
   }
 
-  get clusterModel(): string {
-    return this.classifierModel
-  }
-
-  /** C9: the wish-list map in one classifier call (JSON mode). */
-  async cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
+  /** A structured JSON call on the classifier model (JSON mode), for agent server extensions. */
+  async completeJson(call: JsonCall, signal: AbortSignal): Promise<JsonOutput> {
     const r = await this.chat(
       {
         model: this.classifierModel,
         messages: [
-          { role: 'system', content: WISHES_INSTRUCTIONS },
-          { role: 'user', content: clusterMessage(input) },
+          { role: 'system', content: call.instructions },
+          { role: 'user', content: call.message },
         ],
         response_format: { type: 'json_object' },
       },
       signal,
     )
-    return { clusters: parseClusters(textOf(r.choices[0]?.message.content)), usage: openAIUsageOf(r.usage), model: r.model ?? this.classifierModel }
+    return { text: textOf(r.choices[0]?.message.content), usage: openAIUsageOf(r.usage), model: r.model ?? this.classifierModel }
   }
 
   start(prompt: PromptParts, tools: ToolSpec[]): ModelSession {

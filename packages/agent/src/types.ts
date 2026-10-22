@@ -1,6 +1,5 @@
 import type { AgentImage, PleatkitManifest, RequestClass, TokenUsage } from '@pleatkit/runtime/compiler'
 import type { PromptTokenCount } from './prefix.js'
-import type { ClusterInput, ClusterOutput } from './wishes.js'
 
 /** JSON schema of a tool's input. Every tool is strict: all properties required, no extra ones. */
 export interface ToolSpec {
@@ -128,14 +127,44 @@ export interface BackendQuote {
   model: string | null
 }
 
+/** A structured JSON call (`ModelProvider.completeJson`). */
+export interface JsonCall {
+  /** What the call is for (a label in transcripts and logs). */
+  name: string
+  /** The system instructions. */
+  instructions: string
+  /** The user message. */
+  message: string
+  /** JSON schema of the answer: structured output where the provider supports it, JSON mode otherwise. */
+  schema: Record<string, unknown>
+  maxTokens: number
+  /**
+   * The answer of the `scripted` provider (tests and demos, no model): called with the loaded fixture files, whose
+   * extra keys the caller may read. Without it the scripted provider answers `null`.
+   */
+  scripted?: (fixtures: readonly Record<string, unknown>[]) => unknown
+}
+
+export interface JsonOutput {
+  /** The model's text (JSON when the call went well). */
+  text: string
+  usage: TokenUsage | null
+  model: string | null
+  /** The model refused to answer. */
+  refused?: boolean
+}
+
 export interface ModelProvider {
   readonly name: 'anthropic' | 'openai-compatible' | 'scripted' | (string & {})
   readonly model: string
   classify(input: ClassifyInput, signal: AbortSignal): Promise<Classification>
-  /** C9: group the week's unserved requests into themes, one classifier call (the wish-list map). Optional. */
-  cluster?(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput>
-  /** The model `cluster` calls, so its cost can be estimated before the call (DECISIONS 70.3). */
-  readonly clusterModel?: string
+  /**
+   * One structured call outside the edit loop, on the classifier model: instructions, one user message, an answer as
+   * JSON matching `call.schema`. The open agent makes no such call itself; agent server extensions do. Optional.
+   */
+  completeJson?(call: JsonCall, signal: AbortSignal): Promise<JsonOutput>
+  /** The model `completeJson` (and the classifier) calls, so a caller can price a call before making it. */
+  readonly classifierModel?: string
   /**
    * DECISIONS 75 Р2: the app's prompt counted by the provider's token counter (Anthropic's `count_tokens`, free), for
    * the expected cost of an edit on /admin. Optional: without it the agent server estimates from characters.

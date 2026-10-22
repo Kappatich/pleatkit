@@ -6,8 +6,11 @@ as the browser, compiles and signs it, and streams progress over SSE.
 
 - Providers: `anthropic` (default with a key), `openai-compatible`, `scripted` (recorded answers, no key).
 - Server compile and ed25519-signed bundles, quotas per edit/user/app, alerts and automatic freezes.
-- Operator tools: the wish map (one classifier call, at most 500 requests and $0.50 by default), the weekly digest,
-  bulk carry-over after a release (per-user cap from the app's plan), `check-snapshots`.
+- `check-snapshots` before a release; the expected cost of an edit for the admin.
+- Extensions: `createAgentApp({ extensions })` mounts `AgentExtension` routes (provider, store client, admin rule,
+  usage events in their context); the binary loads `PLEATKIT_AGENT_EXTENSIONS` (`none`, a module list, or the
+  pleatkit cloud's `@pleatkit/agent-cloud` when the deployment depends on it). The wish map, the weekly digest and
+  bulk carry-over after a release are pleatkit cloud features in that package.
 
 ```bash
 pnpm add -D @pleatkit/agent

@@ -14,7 +14,6 @@ import type { TypecheckFn } from './workspace.js'
 import type { ClassifierSetting } from './classifier-mode.js'
 import type { TailMode } from './prompt.js'
 import type { ModelProvider } from './types.js'
-import { wishLimitsFromEnv, type WishLimits } from './wishes.js'
 
 export interface AgentConfig {
   provider: ModelProvider
@@ -42,8 +41,6 @@ export interface AgentConfig {
   tail: TailMode
   /** PLEATKIT_ALERT_* and PLEATKIT_FREEZE (05 #5). */
   alerts: Pick<AlertsOptions, 'sinks' | 'freeze'>
-  /** DECISIONS 70.3: PLEATKIT_WISHES_MAX_ITEMS (default 500) and PLEATKIT_WISHES_BUDGET_USD (default 0.50). */
-  wishes: WishLimits
   /** Stage 5 block 3: PLEATKIT_MODEL_CONCURRENCY (default 8) model calls at a time in this process, the rest queue. */
   modelConcurrency: number
   /** PLEATKIT_RATE_LIMIT_RETRIES (default 3): retries of a model call refused with 429 / overloaded. */
@@ -103,7 +100,6 @@ const num = (v: string | undefined): number | undefined => (v && Number.isFinite
  * PLEATKIT_ALERT_WEBHOOK  URL that gets a JSON POST for every alert (Slack-compatible `text`)
  * PLEATKIT_ALERT_EMAIL_URL, PLEATKIT_ALERT_EMAIL_TO, PLEATKIT_ALERT_EMAIL_TOKEN  e-mail through an HTTP e-mail API
  * PLEATKIT_FREEZE      off, or JSON {"violationsPerHour": 3, "requestsPerMinute": 12, "userShareOfAppBudget": 0.3}
- * PLEATKIT_WISHES_MAX_ITEMS, PLEATKIT_WISHES_BUDGET_USD  the wish map's one call: at most 500 requests and $0.50 by default
  * PLEATKIT_MODEL_CONCURRENCY  model calls at a time in this process (default 8; the rest wait in a FIFO queue)
  * PLEATKIT_RATE_LIMIT_RETRIES  retries of a call refused with 429 / overloaded (default 3; retry-after, else 1, 2, 4 s)
  * PLEATKIT_MANIFEST    path or URL of the app's dist/pleatkit.manifest.json: the static rules, readonly sources and core
@@ -148,7 +144,6 @@ export function configFromEnv(env: Env = process.env): AgentConfig {
     classifierMode: classifierSettingFromEnv(env.PLEATKIT_CLASSIFIER),
     tail: tailFromEnv(env.PLEATKIT_TAIL),
     alerts: alertsFromEnv(env),
-    wishes: wishLimitsFromEnv(env),
     modelConcurrency: Math.max(1, Math.floor(num(env.PLEATKIT_MODEL_CONCURRENCY) ?? DEFAULT_MODEL_CONCURRENCY)),
     rateLimitRetries: Math.max(0, Math.floor(num(env.PLEATKIT_RATE_LIMIT_RETRIES) ?? DEFAULT_RATE_LIMIT_RETRIES)),
     plan: { ...(env.PLEATKIT_PLAN ? { name: env.PLEATKIT_PLAN } : {}), ...(planLimits ? { limits: planLimits } : {}) },
@@ -261,8 +256,8 @@ export function classifierProviderFromEnv(env: Env): ModelProvider | null {
 
 /**
  * The model provider alone (PLEATKIT_PROVIDER, PLEATKIT_API_KEY, PLEATKIT_MODEL, PLEATKIT_CLASSIFIER_MODEL,
- * PLEATKIT_CLASSIFIER_PROVIDER, PLEATKIT_FIXTURES...): what `pleatkit digest` and `pleatkit carry-over` need, without
- * the server's settings.
+ * PLEATKIT_CLASSIFIER_PROVIDER, PLEATKIT_FIXTURES...): what a command line tool that calls the model needs,
+ * without the server's settings.
  */
 export function providerFromEnv(env: Env = process.env): ModelProvider {
   const explicit = env.PLEATKIT_PROVIDER

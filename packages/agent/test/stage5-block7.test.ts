@@ -170,7 +170,7 @@ describe('stage 5 block 7: PLEATKIT_CLASSIFIER_PROVIDER (the classifier from its
     expect(provider.name).toBe('anthropic')
     expect(provider.model).toBe('claude-sonnet-5-5')
     expect(provider.classifierModel).toBe('openai/gpt-5-nano')
-    expect(provider.clusterModel).toBe('openai/gpt-5-nano')
+    expect(typeof provider.completeJson).toBe('function')
     expect(typeof provider.countPromptTokens).toBe('function')
     const c = await provider.classify({ request: 'write me a poem', context: 'ctx' }, AbortSignal.timeout(5000))
     expect(c.label).toBe('off-topic')

@@ -140,10 +140,10 @@ export interface AppExpectedCost extends ExpectedEditCost {
  * with the provider's `count_tokens` (Anthropic with a key; free) and cached per release and model in `cache`, else
  * estimated. The scripted demo provider has no prices: its numbers are those of the default models.
  */
-export async function appExpectedCost(manifest: PleatkitManifest, provider: Pick<ModelProvider, 'name' | 'model' | 'clusterModel' | 'countPromptTokens'> | null, cache: Map<string, PromptTokenCount>): Promise<AppExpectedCost> {
+export async function appExpectedCost(manifest: PleatkitManifest, provider: Pick<ModelProvider, 'name' | 'model' | 'classifierModel' | 'countPromptTokens'> | null, cache: Map<string, PromptTokenCount>): Promise<AppExpectedCost> {
   const scripted = !provider || provider.name === 'scripted'
   const main = scripted ? DEFAULT_MODEL : provider.model
-  const classifier = scripted ? DEFAULT_CLASSIFIER_MODEL : (provider.clusterModel ?? null)
+  const classifier = scripted ? DEFAULT_CLASSIFIER_MODEL : (provider.classifierModel ?? null)
   let count: PromptTokenCount | null = null
   let note: string | undefined = scripted ? `no model provider with prices (${provider?.name ?? 'none'}): priced as ${DEFAULT_MODEL} with the ${DEFAULT_CLASSIFIER_MODEL} classifier` : undefined
   if (provider?.countPromptTokens) {

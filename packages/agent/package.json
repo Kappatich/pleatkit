@@ -1,6 +1,6 @@
 {
   "name": "@pleatkit/agent",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Agent server for pleatkit: model loop with zone-checked file tools, server-side esbuild check, SSE progress",
   "license": "MIT",
   "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/agent#readme",

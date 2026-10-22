@@ -8,9 +8,8 @@ import { BundleService, type CompileInput } from './bundle.js'
 import { t, type MessageKey } from './i18n.js'
 import { loopRunner, validateRequest, type AgentLimits, type AgentRunner } from './loop.js'
 import { Alerts, type AlertsOptions } from './alerts.js'
-import { manifestPanels, resolveManifest, trustedInput, type ManifestSource } from './manifest.js'
+import { resolveManifest, trustedInput, type ManifestSource } from './manifest.js'
 import { digestsFromManifest, type TailMode } from './prompt.js'
-import { buildWishMap, type WishLimits } from './wishes.js'
 import { appExpectedCost } from './expected-cost.js'
 import type { PromptTokenCount } from './prefix.js'
 import type { TypecheckFn } from './workspace.js'
@@ -20,10 +19,9 @@ import { modelGate } from './rate-limit.js'
 import { StoreClient } from './store-client.js'
 import { ClassifierModes, type ClassifierSetting } from './classifier-mode.js'
 import type { ModelProvider } from './types.js'
+import type { AgentExtension, AgentExtensionContext } from './extension.js'
 
 export interface AgentServerOptions {
-  /** DECISIONS 70.3: the wish map's cap per call and its budget (PLEATKIT_WISHES_MAX_ITEMS, PLEATKIT_WISHES_BUDGET_USD). */
-  wishes?: Partial<WishLimits>
   /** The built-in loop over a model provider... */
   provider?: ModelProvider
   /** ...or any other harness (takes precedence). */
@@ -81,6 +79,11 @@ export interface AgentServerOptions {
   rateLimitRetries?: number
   /** Alerts and automatic freezes (brainstorm 05 #5). Default: freezes on, no sinks (log only). */
   alerts?: Pick<AlertsOptions, 'sinks' | 'freeze'> | Alerts | false
+  /**
+   * DECISIONS 89: modules on top of the open server (the managed cloud's `@pleatkit/agent-cloud`): their routes.
+   * None by default; the `pleatkit-agent` binary loads PLEATKIT_AGENT_EXTENSIONS.
+   */
+  extensions?: readonly AgentExtension[]
 }
 
 export const SSE_HEARTBEAT_MS = 15_000
@@ -461,30 +464,6 @@ export function createAgentApp(options: AgentServerOptions) {
   }
 
   /**
-   * C9: rebuild the wish-list map of the last 7 days (`{ days? }`): one classifier call over the requests the zone
-   * could not serve, stored in store-server for /admin. An admin's token; in development the admin header.
-   */
-  app.post('/v1/wishes', async (c) => {
-    if (!store) return c.json({ error: 'the wish map needs store-server (PLEATKIT_STORE_URL)' }, 400)
-    if (!options.provider) return c.json({ error: 'the wish map needs a model provider' }, 501)
-    const body = (await c.req.json().catch(() => ({}))) as { appId?: string; days?: number }
-    const appId = await adminApp(c, body)
-    if (appId instanceof Response) return appId
-    const days = typeof body.days === 'number' && body.days > 0 && body.days <= 90 ? body.days : 7
-    const manifest = await resolveManifest(options.manifest, appId).catch(() => null)
-    const panels = manifest ? manifestPanels(manifest).map((p) => p.replace(/^.*\//, '').replace(/\.(tsx|ts|jsx|js)$/, '')) : []
-    try {
-      const to = Date.now()
-      const map = await buildWishMap({ provider: options.provider, storeUrl: store.base, appId, appKey: auth.credentials?.appId === appId ? auth.credentials.appKey : null, panels, fromMs: to - days * 86_400_000, toMs: to, ...(options.wishes ? { limits: options.wishes } : {}), ...(options.fetch ? { fetch: options.fetch } : {}) })
-      log(`[pleatkit-agent] ${appId}: wish map of ${map.items} of ${map.total} requests in ${map.clusters.length} themes (${map.calls} model call, ${map.clustered} by the model, estimate $${map.estimatedUsd?.toFixed(4) ?? '?'} of $${map.limits.budgetUsd})`)
-      return c.json(map)
-    } catch (e) {
-      log(`[pleatkit-agent] wish map failed: ${(e as Error).message}`)
-      return c.json({ error: (e as Error).message }, 502)
-    }
-  })
-
-  /**
    * DECISIONS 75 Р2: the expected cost of one edit on this app (`{ appId }`), for the /admin Plan screen: the app's
    * prompt counted with the provider's free `count_tokens` (cached per release and model) or estimated. Admin only.
    */
@@ -521,6 +500,20 @@ export function createAgentApp(options: AgentServerOptions) {
       'access-control-allow-origin': '*',
     })
   })
+
+  // extensions add their routes under the same base path, CORS and body limit
+  const extensionCtx: AgentExtensionContext = {
+    provider: options.provider ?? null,
+    storeUrl: options.storeUrl ?? null,
+    store,
+    fetch: options.fetch ?? ((...a) => globalThis.fetch(...a)),
+    log,
+    manifest: (appId) => resolveManifest(options.manifest, appId).catch(() => null),
+    adminApp,
+    appKey: (appId) => (auth.credentials?.appId === appId ? auth.credentials.appKey : null),
+    reportUsage: async (appId, events) => (store && events.length ? (await store.events({ appId, userId: '', orgId: 'default', environment: null }, events)).stored : 0),
+  }
+  for (const e of options.extensions ?? []) e.routes?.(app, extensionCtx)
 
   return app
 }
