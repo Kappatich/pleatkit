@@ -24,15 +24,18 @@ export interface AuthOptions {
 export interface Caller {
   appId: string
   orgId: string
-  /** The user whose data the call reads and writes (the impersonated user when `viewer` is set). */
+  /** The user whose data the call reads and writes (the user acted as when `viewer` is set). */
   userId: string | null
   /** `role === 'admin'`: may use every /admin route. */
   admin: boolean
-  /** C8: `support` reads /admin and may act as a user; `admin` may do everything; the app key is `admin`. */
+  /**
+   * `user` or `admin` in the open core (the app key is `admin`); another role only when a store extension declares it
+   * (`StoreExtension.roles`, the cloud's `support`).
+   */
   role: UserRole
   /**
-   * C8 impersonation: the support person or admin acting as `userId` (`x-pleatkit-act-as`). Every call made this
-   * way is written to the audit chain with both ids.
+   * Who is acting as `userId` (`x-pleatkit-act-as`), set only by a store extension's `actAs` (the cloud); null in the
+   * open core. The audit chain names both ids.
    */
   viewer: string | null
   /** Server to server (the agent with the app key). */
@@ -45,10 +48,23 @@ export class AuthError extends Error {
   constructor(
     readonly status: 401 | 403,
     message: string,
+    /** Machine-readable reason in the JSON answer (`cloud-feature`: the open core does not have this). */
+    readonly code?: string,
   ) {
     super(message)
     this.name = 'AuthError'
   }
+}
+
+/** The JSON `code` of a 403 for what only a store extension (the pleatkit cloud) provides: other roles, acting as a user. */
+export const CLOUD_FEATURE = 'cloud-feature'
+
+/** What the loaded store extensions add to caller resolution (DECISIONS 89). */
+export interface CallerAccess {
+  /** Roles beyond `user` and `admin` that an extension declares. */
+  roles?: readonly string[]
+  /** Acting as another user, when an extension provides it. */
+  actAs?: (who: Caller, target: string) => Caller
 }
 
 type Headers = (name: string) => string | undefined
@@ -63,11 +79,13 @@ const bearer = (h: Headers): string | null => {
  * Resolve the caller:
  * - `Authorization: Bearer mk_live_…`: the app key; full authority over that app (agent + admin). The user it
  *   acts for comes from `x-pleatkit-user`.
- * - `Authorization: Bearer <jwt>`: a user token minted by the customer's backend (`mintUserToken`); `role: admin` (or `support`, read-only)
+ * - `Authorization: Bearer <jwt>`: a user token minted by the customer's backend (`mintUserToken`); `role: admin`
  *   for /admin routes.
  * - demo headers, only when enabled and not in production.
+ * A role other than `user` and `admin`, or `x-pleatkit-act-as`, is refused with 403 `cloud-feature` unless a store
+ * extension provides it (`access`).
  */
-export async function resolveCaller(h: Headers, auth: AuthOptions): Promise<Caller> {
+export async function resolveCaller(h: Headers, auth: AuthOptions, access: CallerAccess = {}): Promise<Caller> {
   const headerApp = h('x-pleatkit-app') || null
   const token = bearer(h)
   const apps = auth.apps ?? {}
@@ -95,8 +113,8 @@ export async function resolveCaller(h: Headers, auth: AuthOptions): Promise<Call
     try {
       const claims = await verifyUserToken(token, creds.jwtSecret)
       if (claims.app !== appId) throw new AuthError(403, 'the token belongs to another app')
-      const role = claims.role ?? 'user'
-      return { appId, orgId: claims.org ?? 'default', ...actingAs(h, claims.sub, role), admin: role === 'admin', role, agent: false, environment: claims.env ?? null, via: 'jwt' }
+      const role = knownRole(claims.role ?? 'user', access)
+      return actingAs(h, { appId, orgId: claims.org ?? 'default', userId: claims.sub, viewer: null, admin: role === 'admin', role, agent: false, environment: claims.env ?? null, via: 'jwt' }, access)
     } catch (e) {
       if (e instanceof TokenError) throw new AuthError(401, e.message)
       throw e
@@ -105,32 +123,30 @@ export async function resolveCaller(h: Headers, auth: AuthOptions): Promise<Call
   if (auth.demoHeaders && !auth.production) {
     const appId = headerApp || 'default'
     if (apps[appId]) throw new AuthError(401, 'this app has credentials configured: send a user token or the app key')
-    const role: UserRole = h('x-pleatkit-admin') === '1' || h('x-pleatkit-role') === 'admin' ? 'admin' : h('x-pleatkit-role') === 'support' ? 'support' : 'user'
-    const acting = h('x-pleatkit-act-as') ? actingAs(h, h('x-pleatkit-user') || role, role) : { userId: h('x-pleatkit-user') || null, viewer: null }
-    return {
-      appId,
-      orgId: h('x-pleatkit-org') || 'default',
-      ...acting,
-      admin: role === 'admin',
-      role,
-      agent: h('x-pleatkit-agent') === '1',
-      environment: h('x-pleatkit-env') || null,
-      via: 'demo',
-    }
+    const role = knownRole(h('x-pleatkit-admin') === '1' ? 'admin' : h('x-pleatkit-role') || 'user', access)
+    // acting as a user, the one acting is the demo user (or, without one, the role's name)
+    const self = h('x-pleatkit-act-as') ? h('x-pleatkit-user') || role : h('x-pleatkit-user') || null
+    return actingAs(
+      h,
+      { appId, orgId: h('x-pleatkit-org') || 'default', userId: self, viewer: null, admin: role === 'admin', role, agent: h('x-pleatkit-agent') === '1', environment: h('x-pleatkit-env') || null, via: 'demo' },
+      access,
+    )
   }
   throw new AuthError(401, 'authentication required: Authorization: Bearer <user token or app key>')
 }
 
-/**
- * C8: `x-pleatkit-act-as: <user>` makes a support person or an admin act as that user (their version, their
- * history); anyone else gets 403. Without the header the caller acts as themselves.
- */
-function actingAs(h: Headers, self: string, role: UserRole): { userId: string; viewer: string | null } {
+/** `user` and `admin`, or a role a store extension declares; anything else is a cloud feature (403). */
+function knownRole(role: string, access: CallerAccess): UserRole {
+  if (role === 'user' || role === 'admin' || access.roles?.includes(role)) return role
+  throw new AuthError(403, `the role "${role.slice(0, 32)}" is a pleatkit cloud feature; the open store knows the roles user and admin`, CLOUD_FEATURE)
+}
+
+/** `x-pleatkit-act-as: <user>`: only through a store extension (the cloud); without one, 403 `cloud-feature`. */
+function actingAs(h: Headers, who: Caller, access: CallerAccess): Caller {
   const target = h('x-pleatkit-act-as')
-  if (!target) return { userId: self, viewer: null }
-  if (role !== 'support' && role !== 'admin') throw new AuthError(403, 'only support and admin may act as another user')
-  if (target.length > 200) throw new AuthError(403, 'bad act-as user')
-  return { userId: target, viewer: self }
+  if (!target) return who
+  if (!access.actAs) throw new AuthError(403, 'acting as another user (x-pleatkit-act-as) is a pleatkit cloud feature', CLOUD_FEATURE)
+  return access.actAs(who, target)
 }
 
 /** The `app` claim, read without verification only to pick the secret to verify with. */

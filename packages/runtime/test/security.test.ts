@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { applyQuotaOps, daily } from '../src/quota.js'
 import {
@@ -26,11 +27,17 @@ describe('user tokens (V1 A1)', () => {
     expect(claims.exp - claims.iat).toBe(900)
   })
 
-  it('C8: the support role verifies; an unknown role is refused', async () => {
+  it('a role is a lowercase word: the token verifies it, the store decides whether it knows it; a malformed role is refused', async () => {
+    // the open store knows user and admin; another role (the cloud's support) verifies here and is refused by the store
     const support = await mintUserToken({ secret: SECRET, userId: 'carol', appId: 'crm', role: 'support' })
     expect((await verifyUserToken(support, SECRET)).role).toBe('support')
-    const owner = await mintUserToken({ secret: SECRET, userId: 'carol', appId: 'crm', role: 'owner' as never })
-    await expect(verifyUserToken(owner, SECRET)).rejects.toThrow('bad role')
+    await expect(mintUserToken({ secret: SECRET, userId: 'carol', appId: 'crm', role: 'Owner!' })).rejects.toThrow(/role/)
+    // a token signed by hand with a malformed role
+    const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url')
+    const now = Math.floor(Date.now() / 1000)
+    const unsigned = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: 'carol', app: 'crm', role: 'x'.repeat(40), iat: now, exp: now + 60 })}`
+    const forged = `${unsigned}.${createHmac('sha256', SECRET).update(unsigned).digest('base64url')}`
+    await expect(verifyUserToken(forged, SECRET)).rejects.toThrow('bad role')
   })
 
   it('refuses a wrong secret, a tampered body, alg none, expired and long-lived tokens', async () => {
@@ -105,20 +112,19 @@ describe('quota token buckets (V1 A4)', () => {
   })
 })
 
-describe('C8: HttpStore acting as a user', () => {
-  it('sends x-pleatkit-act-as with the viewer as the development user, or with the viewer’s token', async () => {
+describe('HttpStore extra headers', () => {
+  it('sends the extra headers with every request; they win over the development user header', async () => {
     const { HttpStore } = await import('../src/store/http.js')
     const seen: Record<string, string>[] = []
     const fetchFn = (async (_url: string, init?: RequestInit) => {
       seen.push(init?.headers as Record<string, string>)
       return new Response(JSON.stringify({ snapshot: null }), { status: 200 })
     }) as unknown as typeof fetch
-    await new HttpStore({ baseUrl: '/s', userId: 'alice', viewer: 'carol', fetch: fetchFn }).head('alice')
-    expect(seen[0]).toMatchObject({ 'x-pleatkit-user': 'carol', 'x-pleatkit-act-as': 'alice' })
-    await new HttpStore({ baseUrl: '/s', userId: 'alice', viewer: 'carol', token: 'tok', fetch: fetchFn }).head('alice')
-    expect(seen[1]).toMatchObject({ 'x-pleatkit-act-as': 'alice', authorization: 'Bearer tok' })
+    await new HttpStore({ baseUrl: '/s', userId: 'alice', headers: { 'x-pleatkit-user': 'carol', 'x-extra': '1' }, fetch: fetchFn }).head('alice')
+    expect(seen[0]).toMatchObject({ 'x-pleatkit-user': 'carol', 'x-extra': '1', 'x-pleatkit-app': 'default' })
+    await new HttpStore({ baseUrl: '/s', userId: 'alice', token: 'tok', fetch: fetchFn }).head('alice')
+    expect(seen[1]).toMatchObject({ authorization: 'Bearer tok' })
     expect(seen[1]!['x-pleatkit-user']).toBeUndefined()
-    await new HttpStore({ baseUrl: '/s', userId: 'alice', fetch: fetchFn }).head('alice')
-    expect(seen[2]!['x-pleatkit-act-as']).toBeUndefined()
+    expect(seen[1]!['x-pleatkit-act-as']).toBeUndefined()
   })
 })

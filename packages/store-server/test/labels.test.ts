@@ -13,7 +13,6 @@ function setup() {
     return { status: res.status, body: (await res.json().catch(() => null)) as T }
   }
   const admin = (user?: string) => ({ 'x-pleatkit-admin': '1', 'x-pleatkit-app': 'crm', ...(user ? { 'x-pleatkit-user': user } : {}) })
-  const support = { 'x-pleatkit-role': 'support', 'x-pleatkit-user': 'carol', 'x-pleatkit-app': 'crm' }
   const log = async (userId: string, text: string, extra: Record<string, unknown> = {}) => {
     const r = await call<{ id: string }>('/v1/requests', { 'x-pleatkit-agent': '1', 'x-pleatkit-user': userId, 'x-pleatkit-app': 'crm' }, {
       method: 'POST',
@@ -22,7 +21,7 @@ function setup() {
     expect(r.status).toBe(201)
     return r.body.id
   }
-  return { store, call, admin, support, log }
+  return { store, call, admin, log }
 }
 
 interface Page {
@@ -154,7 +153,7 @@ describe('DECISIONS 81: request labels', () => {
     expect((await t.call<Page>('/v1/admin/labels?filter=disagreements', t.admin('minte'))).body.items).toHaveLength(0)
   })
 
-  it('validates the label and the request; support reads but cannot label; erasure takes the labels', async () => {
+  it('validates the label and the request; only an admin labels; erasure takes the labels', async () => {
     const t = setup()
     const a = await t.log('alice', 'Sort it', { classification: 'ui' })
     const post = (body: unknown, headers: Record<string, string> = t.admin('minte')) => t.call('/v1/admin/labels', headers, { method: 'POST', body: JSON.stringify(body) })
@@ -162,8 +161,7 @@ describe('DECISIONS 81: request labels', () => {
     expect((await post({ label: 'ui' })).status).toBe(400)
     expect((await post({ requestId: 'req_nope', label: 'ui' })).status).toBe(404)
     expect((await t.call('/v1/admin/labels?filter=odd', t.admin())).status).toBe(400)
-    expect((await post({ requestId: a, label: 'ui' }, t.support)).status).toBe(403)
-    expect((await t.call('/v1/admin/labels', t.support)).status).toBe(200)
+    expect((await post({ requestId: a, label: 'ui' }, { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'crm' })).status).toBe(403)
     expect((await t.call('/v1/admin/labels', { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'crm' })).status).toBe(403)
     expect((await post({ requestId: a, label: 'clarify' })).status).toBe(200)
     // the app's export carries the labels

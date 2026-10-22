@@ -61,11 +61,14 @@ export const USER_TOKEN_MAX_TTL_S = 15 * 60
 export const CLOCK_SKEW_S = 60
 
 /**
- * `user`: their own version. `support` (C8): reads the app's request log and may view one user at a time
- * (`x-pleatkit-act-as`), every call audited; no admin writes and no writes as the user (DECISIONS 70.5).
- * `admin`: everything in /admin, and writes as a user.
+ * The open core knows two roles: `user` (their own version) and `admin` (everything in /admin). Any other role (the
+ * pleatkit cloud's `support`) needs a store extension that declares it; without one the open store answers 403
+ * `cloud-feature`. A role is a short lowercase word (`ROLE_RE`).
  */
-export type UserRole = 'user' | 'support' | 'admin'
+export type UserRole = 'user' | 'admin' | (string & {})
+
+/** What a role claim may look like: a lowercase word of at most 32 characters. */
+export const ROLE_RE = /^[a-z][a-z0-9-]{0,31}$/
 
 export interface UserTokenClaims {
   /** The signed-in user (the same id the runtime uses). */
@@ -74,7 +77,7 @@ export interface UserTokenClaims {
   app: string
   /** Customer organization (tenant) of the user; `default` when the app has no organizations. */
   org?: string
-  /** `admin` may use /admin routes of the app; `support` may read them and view a user's version (read only). Default `user`. */
+  /** `admin` may use /admin routes of the app; other roles need a store extension (see `UserRole`). Default `user`. */
   role?: UserRole
   /** Environment of the app (`production`, `staging`, ...), recorded on every row. */
   env?: string
@@ -108,6 +111,7 @@ async function hmacKey(secret: string, usage: 'sign' | 'verify'): Promise<Crypto
 export async function mintUserToken(o: MintUserTokenOptions): Promise<string> {
   if (!o.secret || o.secret.length < 32) throw new Error('mintUserToken: the secret must be at least 32 characters')
   if (!o.userId || !o.appId) throw new Error('mintUserToken: userId and appId are required')
+  if (o.role !== undefined && !ROLE_RE.test(o.role)) throw new Error('mintUserToken: the role must be a lowercase word (a-z, 0-9, -), at most 32 characters')
   const ttl = o.ttlSeconds ?? USER_TOKEN_MAX_TTL_S
   if (!(ttl > 0 && ttl <= USER_TOKEN_MAX_TTL_S)) throw new Error(`mintUserToken: ttlSeconds must be between 1 and ${USER_TOKEN_MAX_TTL_S}`)
   const iat = Math.floor(o.now ?? Date.now() / 1000)
@@ -156,7 +160,7 @@ export async function verifyUserToken(token: string, secret: string, options: { 
   if (claims.exp < now - CLOCK_SKEW_S) throw new TokenError('token expired')
   if (claims.iat > now + CLOCK_SKEW_S) throw new TokenError('token issued in the future')
   if (claims.exp - claims.iat > USER_TOKEN_MAX_TTL_S) throw new TokenError(`token lifetime is longer than ${USER_TOKEN_MAX_TTL_S} s`)
-  if (claims.role !== undefined && claims.role !== 'user' && claims.role !== 'support' && claims.role !== 'admin') throw new TokenError('bad role')
+  if (claims.role !== undefined && (typeof claims.role !== 'string' || !ROLE_RE.test(claims.role))) throw new TokenError('bad role')
   return claims as UserTokenClaims
 }
 

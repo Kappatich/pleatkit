@@ -6,7 +6,7 @@ import { rawDb, type ErasureSubject, type StoreDb, type StoreExtension } from '.
  * DECISIONS 70.2, the right to erasure of the DPA: everything the store keeps about one user of an app, or about
  * the whole app, is deleted in one transaction: snapshots and heads, the request log, usage events (metering),
  * cached and signed bundles made from the user's files, run records, idempotency replies, quota buckets,
- * user flags, request labels, carry-over rows, references in wish maps, and the extensions' rows (the cloud's L1 facts). What
+ * user flags, request labels, and the extensions' rows (the cloud's tables, through `StoreExtension.erase`). What
  * stays is one audit row, the tombstone, with the counts and a random id but no personal data. A user's erasure
  * keeps the app's audit chain (other users' rows are hash-linked to it); an app's erasure deletes the chain too
  * and the tombstone starts a new one. `DELETE /v1/admin/users/:id`, `DELETE /v1/admin/apps/:id`, `pleatkit erase`.
@@ -36,11 +36,10 @@ function userParts(appId: string, userId: string): Part[] {
     { name: 'idempotency', from: 'idempotency WHERE app_id = ? AND (caller = ? OR substr(caller, 1, ?) = ?)', params: [appId, `agent:${userId}`, prefix.length, prefix] },
     { name: 'quota_buckets', from: 'quota_buckets WHERE app_id = ? AND substr(key, 1, ?) = ?', params: [appId, prefix.length, prefix] },
     { name: 'flags', from: "flags WHERE app_id = ? AND scope = 'user' AND scope_id = ?", params: [appId, userId] },
-    { name: 'release_items', from: 'release_items WHERE app_id = ? AND user_id = ?', params: [appId, userId] },
   ]
 }
 
-const APP_TABLES = ['events', 'request_labels', 'requests', 'heads', 'snapshots', 'bundle_files', 'bundles', 'agent_runs', 'idempotency', 'quota_buckets', 'flags', 'releases', 'release_items', 'wish_maps', 'app_plans', 'app_settings', 'audit']
+const APP_TABLES = ['events', 'request_labels', 'requests', 'heads', 'snapshots', 'bundle_files', 'bundles', 'agent_runs', 'idempotency', 'quota_buckets', 'flags', 'app_plans', 'app_settings', 'audit']
 
 function appParts(appId: string): Part[] {
   return APP_TABLES.map((t) => ({ name: t, from: `${t} WHERE app_id = ?`, params: [appId] }))
@@ -70,16 +69,6 @@ async function userBundles(db: StoreDb, appId: string, userId: string): Promise<
   return { signed, legacy }
 }
 
-/** Request ids of the user that wish maps refer to (the map keeps the rest of each theme). */
-function wishRefs(db: StoreDb, appId: string, userId: string): { seq: number; clusters: { requestIds: string[] }[]; drop: Set<string> }[] {
-  const raw = rawDb(db)
-  const ids = new Set((raw.prepare('SELECT id FROM requests WHERE app_id = ? AND user_id = ?').all(appId, userId) as { id: string }[]).map((r) => r.id))
-  if (!ids.size) return []
-  return (raw.prepare('SELECT seq, clusters FROM wish_maps WHERE app_id = ?').all(appId) as { seq: number; clusters: string }[])
-    .map((m) => ({ seq: m.seq, clusters: JSON.parse(m.clusters) as { requestIds: string[] }[], drop: ids }))
-    .filter((m) => m.clusters.some((k) => k.requestIds.some((id) => ids.has(id))))
-}
-
 export interface ErasurePlan {
   subject: ErasureSubject
   counts: ErasureCounts
@@ -93,14 +82,12 @@ async function plan(db: StoreDb, subject: ErasureSubject, extensions: readonly S
   const counts: ErasureCounts = {}
   for (const p of parts) counts[p.name] = (raw.prepare(`SELECT count(*) AS n FROM ${p.from}`).get(...p.params) as { n: number }).n
   const bundles = subject.userId ? await userBundles(db, subject.appId, subject.userId) : { signed: [], legacy: [] }
-  const wishes = subject.userId ? wishRefs(db, subject.appId, subject.userId) : []
   if (subject.userId) {
     counts.bundles_signed = bundles.signed.length
     counts.bundles_legacy = bundles.legacy.length
-    counts.wish_map_refs = wishes.reduce((n, m) => n + m.clusters.reduce((k, c) => k + c.requestIds.filter((id) => m.drop.has(id)).length, 0), 0)
   }
   for (const ext of extensions) for (const [k, v] of Object.entries(ext.count?.(db, subject) ?? {})) counts[`${ext.name}:${k}`] = v
-  return { parts, counts, bundles, wishes }
+  return { parts, counts, bundles }
 }
 
 const tokenOf = (subject: ErasureSubject, counts: ErasureCounts) =>
@@ -143,19 +130,6 @@ export async function eraseSubject(
       counts.bundles_signed = p.bundles.signed.reduce((n, key) => n + delSigned.run(subject.appId, key).changes, 0)
       const delLegacy = raw.prepare('DELETE FROM bundles WHERE app_id = ? AND hash = ?')
       counts.bundles_legacy = p.bundles.legacy.reduce((n, h) => n + delLegacy.run(subject.appId, h).changes, 0)
-      let refs = 0
-      const setClusters = raw.prepare('UPDATE wish_maps SET clusters = ? WHERE seq = ?')
-      for (const m of p.wishes) {
-        const clusters = m.clusters
-          .map((k) => {
-            const kept = k.requestIds.filter((id) => !m.drop.has(id))
-            refs += k.requestIds.length - kept.length
-            return { ...k, requestIds: kept }
-          })
-          .filter((k) => k.requestIds.length > 0)
-        setClusters.run(JSON.stringify(clusters), m.seq)
-      }
-      counts.wish_map_refs = refs
     }
     raw.prepare('DELETE FROM erasing WHERE app_id = ?').run(subject.appId)
   })()

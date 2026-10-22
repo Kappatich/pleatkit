@@ -2,23 +2,21 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import Database from 'better-sqlite3'
-import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { Hono, type Context } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { applyQuotaOps, signingKeyFromAppKey, sriDigest, verifyBundleSignature, type BundleSignature, type QuotaOp } from '@pleatkit/runtime/compiler'
-import { AuthError, resolveCaller, type AuthOptions, type Caller } from './auth.js'
+import { AuthError, resolveCaller, type AuthOptions, type Caller, type CallerAccess } from './auth.js'
 import { buildExport } from './export.js'
 import { deleteFlag, FLAG_SCOPES, listFlags, resolveFlags, setFlag, type FlagScope } from './flags.js'
 import { idempotencyMiddleware } from './idempotency.js'
 import { eraseSubject, tombstoneId } from './erase.js'
 import { attachExtensions, type ExtensionContext, type StoreDb, type StoreEnv, type StoreExtension } from './extension.js'
 import { appendAudit, EVENT_TYPES, markEditorActive, recordEvent, verifyAuditChain, type EventType } from './ledger.js'
-import { buildReport, DEFAULT_MINUTES_PER_EDIT, MAX_MINUTES_PER_EDIT, parseMinutesPerEdit, parseRange, reportCsv } from './report.js'
-import { grepError, grepSnapshots, planSelectionRollback } from './selection.js'
 import { labelRoutes } from './labels.js'
 import * as schema from './schema.js'
-import { agentRuns, appPlans, appSettings, audit, bundleFiles, events, heads, quotaBuckets, releaseItems, releases, requests, snapshots, wishMaps, type WishCluster } from './schema.js'
+import { agentRuns, appPlans, appSettings, audit, bundleFiles, events, heads, quotaBuckets, requests, snapshots } from './schema.js'
 
 export type { StoreDb } from './extension.js'
 
@@ -44,20 +42,11 @@ export interface StoreAppOptions {
   /** Largest request body, bytes (`PLEATKIT_STORE_BODY_LIMIT`). Default 4 MiB. */
   bodyLimitBytes?: number
   /**
-   * DECISIONS 75 Р4: minutes one applied edit saves a developer, for the report's `dev_hours_saved`
-   * (`PLEATKIT_REPORT_MINUTES_PER_EDIT`). Default 20; the report's `minutesPerEdit` query parameter wins.
-   */
-  reportMinutesPerEdit?: number
-  /**
-   * DECISIONS 70.1: modules on top of the open core (the managed cloud's `@pleatkit/store-cloud`): their tables,
-   * routes, jobs and hooks. None by default.
+   * DECISIONS 70.1: modules on top of the open core (the pleatkit cloud's `@pleatkit/store-cloud`): their tables,
+   * routes, roles, jobs and hooks. None by default.
    */
   extensions?: readonly StoreExtension[]
 }
-
-/** DECISIONS 70.3: wish items per read (the map's default input) and the most one read returns. */
-export const WISH_ITEMS_DEFAULT = 500
-export const WISH_ITEMS_MAX = 2000
 
 /** A snapshot of a big zone is a few hundred KB; a request log with tool results stays well under this. */
 export const DEFAULT_BODY_LIMIT = 4 * 1024 * 1024
@@ -125,7 +114,7 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
   const region = options.region ?? 'local'
   const defaultEnvironment = options.environment ?? 'development'
   const place = (who: Caller) => ({ region, environment: who.environment ?? defaultEnvironment })
-  /** Actor of an audit row: who did it, as the server authenticated them; an impersonation names both (C8). */
+  /** Actor of an audit row: who did it, as the server authenticated them; acting as a user names both ids. */
   const actor = (who: Caller) =>
     who.agent
       ? `agent${who.userId ? `:for:${who.userId}` : ''}`
@@ -193,34 +182,30 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     return c.json(row.signature ?? {}, 200, headers)
   })
 
-  // Everything else needs a caller: app key, user token, or (development only) demo headers.
+  // Everything else needs a caller: app key, user token, or (development only) demo headers. Roles beyond user and
+  // admin, and acting as a user, only when an extension provides them (403 `cloud-feature` otherwise).
+  const acting = extensions.find((e) => e.actAs)
+  const access: CallerAccess = { roles: extensions.flatMap((e) => e.roles ?? []), ...(acting ? { actAs: (who: Caller, target: string) => acting.actAs!(who, target) } : {}) }
   const api = new Hono<Env>()
   api.use('*', async (c, next) => {
     try {
-      c.set('caller', await resolveCaller((name) => c.req.header(name), auth))
+      c.set('caller', await resolveCaller((name) => c.req.header(name), auth, access))
     } catch (e) {
-      if (e instanceof AuthError) return c.json({ error: e.message }, e.status)
+      if (e instanceof AuthError) return c.json({ error: e.message, ...(e.code ? { code: e.code } : {}) }, e.status)
       throw e
     }
     await next()
   })
-  // C8: every call made while acting as a user goes to the audit chain with both ids, reads included.
-  // DECISIONS 70.5: support reads as the user and never writes; only the admin role writes as a user. A refused
-  // write is audited too, with its 403.
-  api.use('*', async (c, next) => {
-    const who = caller(c)
-    if (!who.viewer) return next()
-    const read = c.req.method === 'GET' || c.req.method === 'HEAD'
-    const path = c.req.path.replace(/^\/v1(?=\/)/, '')
-    const record = (status: number) =>
-      audited(who, read ? 'impersonate.read' : 'impersonate.write', 'user', who.userId, { viewer: who.viewer, user: who.userId, role: who.role, method: c.req.method, path, status })
-    if (!read && who.role !== 'admin') {
-      record(403)
-      return c.json({ error: 'support reads as a user and cannot write; only an admin may write as a user', code: 'support-read-only' }, 403)
-    }
-    await next()
-    record(c.res.status)
-  })
+  const ctx: ExtensionContext = {
+    db,
+    audited: (who, action, objectType, objectId, details = null) => audited(who, action, objectType, objectId, details),
+    place,
+    event: (who, type, userId, requestId, extra = {}) => void event(who, type, userId, requestId, extra),
+    outcome,
+    setHead: (appId, userId, snapshotId, orgId) => void setHead(appId, userId, snapshotId, orgId),
+  }
+  // extensions' middleware (the cloud's audit of calls made as a user) runs before every core route
+  for (const e of extensions) e.middleware?.(api, ctx)
   // Bodies are read only after the caller is known, and never beyond the limit (code review 06 item 7): 413
   api.use('*', bodyLimit({ maxSize: options.bodyLimitBytes ?? DEFAULT_BODY_LIMIT, onError: (c) => c.json({ error: 'request body is too large' }, 413) }))
   // F5: writes with an Idempotency-Key run once; retries get the stored response
@@ -611,14 +596,11 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
 
   // --- admin ---
 
-  /**
-   * C8: `admin` may do everything under /admin; `support` may read it (except the bulk export) and change nothing,
-   * other than through impersonation, where it acts as the user and every call is audited.
-   */
+  /** `admin` may do everything under /admin; another role only what an extension allows (`adminAccess`). */
   const adminOnly = async (c: Context, next: () => Promise<void>) => {
     const who = caller(c)
-    const read = c.req.method === 'GET' && !c.req.path.endsWith('/admin/export')
-    if (!who.admin && !(read && who.role === 'support')) return c.json({ error: read ? 'admin or support only' : 'admin only' }, 403)
+    const path = c.req.path.replace(/^\/v1(?=\/)/, '')
+    if (!who.admin && !extensions.some((e) => e.adminAccess?.(who, c.req.method, path))) return c.json({ error: 'admin only' }, 403)
     await next()
   }
   api.use('/admin/*', adminOnly)
@@ -851,299 +833,10 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
     })
   })
 
-  // --- C9: the pilot report ---
-
-  /**
-   * `GET /v1/report?from=YYYY-MM-DD&to=YYYY-MM-DD` as CSV (`&format=json` for the same rows as JSON). Admin.
-   * `&minutesPerEdit=N` overrides the minutes one applied edit saves (`dev_hours_saved`, DECISIONS 75 Р4).
-   */
-  api.get('/report', (c) => {
-    const who = caller(c)
-    if (!who.admin) return c.json({ error: 'admin only' }, 403)
-    const range = parseRange(c.req.query('from'), c.req.query('to'))
-    if ('error' in range) return c.json({ error: range.error }, 400)
-    const askedMinutes = c.req.query('minutesPerEdit')
-    const minutesPerEdit = askedMinutes === undefined ? (options.reportMinutesPerEdit ?? DEFAULT_MINUTES_PER_EDIT) : parseMinutesPerEdit(askedMinutes)
-    if (minutesPerEdit === null) return c.json({ error: `minutesPerEdit must be a number above 0 and at most ${MAX_MINUTES_PER_EDIT}` }, 400)
-    const report = buildReport(db, who.appId, range.fromMs, range.toMs, { minutesPerEdit })
-    audited(who, 'report', 'app', who.appId, { from: report.from, to: report.to, rows: report.rows.length })
-    if (c.req.query('format') === 'json') return c.json(report)
-    const name = `pleatkit-report-${who.appId}-${report.from.slice(0, 10)}-${new Date(range.toMs - 1).toISOString().slice(0, 10)}.csv`.replace(/[^\w.-]/g, '_')
-    return c.body(reportCsv(report), 200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${name}"` })
-  })
-
-  // --- C9: the wish-list map ---
-
-  /**
-   * What the zone could not serve: needs-backend, partial and out-of-zone requests of the range (L0, this tenant),
-   * newest first, at most `limit` (DECISIONS 70.3: the wish map reads 500 by default).
-   */
-  const unserved = (appId: string, fromMs: number, toMs: number) =>
-    and(
-      eq(requests.appId, appId),
-      gte(requests.createdAtMs, fromMs),
-      sql`${requests.createdAtMs} < ${toMs}`,
-      sql`(${requests.verdict} IN ('needs-backend', 'partial', 'not-editable') OR ${requests.intentLabel} = 'out-of-zone')`,
-    )
-  const wishItems = (appId: string, fromMs: number, toMs: number, limit: number) =>
-    db
-      .select()
-      .from(requests)
-      .where(unserved(appId, fromMs, toMs))
-      // newest first; rowid orders requests logged in the same millisecond
-      .orderBy(desc(requests.createdAtMs), sql`rowid DESC`)
-      .limit(limit)
-      .all()
-      .map((r) => ({
-        id: r.id,
-        userId: r.userId,
-        panel: r.target ?? null,
-        kind: r.verdict === 'needs-backend' || r.verdict === 'partial' ? 'needs-backend' : 'out-of-zone',
-        verdict: r.verdict,
-        intentLabel: r.intentLabel,
-        // the gist when retention has blanked the text (DECISIONS 44)
-        text: (r.text || r.gist || '').slice(0, 300),
-        createdAt: r.createdAt,
-      }))
-
-  api.get('/admin/wish-items', (c) => {
-    const who = caller(c)
-    const range = parseRange(c.req.query('from'), c.req.query('to'))
-    if ('error' in range) return c.json({ error: range.error }, 400)
-    const limit = Math.min(Math.max(Number(c.req.query('limit') ?? WISH_ITEMS_DEFAULT) || WISH_ITEMS_DEFAULT, 1), WISH_ITEMS_MAX)
-    const total = db.select({ n: sql<number>`count(*)` }).from(requests).where(unserved(who.appId, range.fromMs, range.toMs)).get()?.n ?? 0
-    return c.json({ from: range.fromMs, to: range.toMs, total, items: wishItems(who.appId, range.fromMs, range.toMs, limit) })
-  })
-
-  /** The latest wish map, each cluster with its counts from the request log. */
-  api.get('/admin/wishes', (c) => {
-    const who = caller(c)
-    const map = db.select().from(wishMaps).where(eq(wishMaps.appId, who.appId)).orderBy(desc(wishMaps.seq)).limit(1).get()
-    if (!map) return c.json({ map: null })
-    const all = map.clusters.flatMap((k) => k.requestIds)
-    const byId = new Map<string, RequestRow>()
-    for (let i = 0; i < all.length; i += 500) {
-      for (const r of db.select().from(requests).where(and(eq(requests.appId, who.appId), inArray(requests.id, all.slice(i, i + 500)))).all()) byId.set(r.id, r)
-    }
-    const clusters = map.clusters.map((k) => {
-      const rs = k.requestIds.map((id) => byId.get(id)).filter((r): r is RequestRow => Boolean(r))
-      return {
-        ...k,
-        requests: rs.length,
-        users: new Set(rs.map((r) => r.userId)).size,
-        lastAt: rs.reduce<string | null>((m, r) => (m && m > r.createdAt ? m : r.createdAt), null),
-        examples: rs.slice(0, 3).map((r) => (r.text || r.gist || '').slice(0, 160)),
-        statuses: rs.reduce<Record<string, number>>((m, r) => ((m[r.status] = (m[r.status] ?? 0) + 1), m), {}),
-      }
-    })
-    return c.json({ map: { createdAt: map.createdAt, from: map.fromMs, to: map.toMs, provider: map.provider, model: map.model, items: map.items, clusters } })
-  })
-
-  /** Store a wish map built by `pleatkit digest` or the agent server (one classifier call over the items). */
-  api.put('/admin/wishes', async (c) => {
-    const who = caller(c)
-    const b = await c.req.json<{ from?: number; to?: number; provider?: string; model?: string; items?: number; clusters?: unknown }>().catch(() => null)
-    if (!b || !Array.isArray(b.clusters) || typeof b.from !== 'number' || typeof b.to !== 'number') return c.json({ error: 'from, to and clusters are required' }, 400)
-    if (b.clusters.length > 200) return c.json({ error: 'at most 200 clusters' }, 400)
-    const clusters: WishCluster[] = []
-    for (const k of b.clusters as Record<string, unknown>[]) {
-      if (typeof k?.title !== 'string' || typeof k.panel !== 'string' || typeof k.kind !== 'string' || !Array.isArray(k.requestIds)) {
-        return c.json({ error: 'each cluster needs panel, title, kind and requestIds' }, 400)
-      }
-      const requestIds = (k.requestIds as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 500)
-      clusters.push({ panel: k.panel.slice(0, 80), title: k.title.slice(0, 120), kind: k.kind === 'needs-backend' ? 'needs-backend' : 'out-of-zone', requestIds })
-    }
-    const items = typeof b.items === 'number' ? b.items : clusters.reduce((n, k) => n + k.requestIds.length, 0)
-    db.insert(wishMaps)
-      .values({ appId: who.appId, createdAt: now(), fromMs: b.from, toMs: b.to, provider: typeof b.provider === 'string' ? b.provider : null, model: typeof b.model === 'string' ? b.model : null, items, clusters })
-      .run()
-    audited(who, 'wishes.build', 'app', who.appId, { clusters: clusters.length, items, model: b.model ?? null })
-    return c.json({ clusters: clusters.length }, 201)
-  })
-
-  // --- C11: search the code of the users' versions, roll back a selection ---
-
-  /** `?grep=<text>` (plain, case-sensitive) in the live versions, `&scope=all` in every version. Admin or support. */
-  api.get('/admin/snapshots', (c) => {
-    const who = caller(c)
-    const grep = c.req.query('grep')
-    const bad = grepError(grep)
-    if (bad) return c.json({ error: bad }, 400)
-    const scope = c.req.query('scope') === 'all' ? 'all' : 'heads'
-    const limit = Math.min(Number(c.req.query('limit') ?? 200) || 200, 1000)
-    return c.json({ grep, scope, ...grepSnapshots(db, who.appId, grep!, scope, limit) })
-  })
-
-  /**
-   * Roll back every live version that contains `grep`, each to the user's nearest earlier version without it.
-   * `confirm` must be the number of live versions that match now (what the admin saw); otherwise 409 with the count.
-   */
-  api.post('/admin/snapshots/rollback', async (c) => {
-    const who = caller(c)
-    const b = await c.req.json<{ grep?: string; confirm?: number }>().catch(() => ({}) as { grep?: string; confirm?: number })
-    const bad = grepError(b.grep)
-    if (bad) return c.json({ error: bad }, 400)
-    const result = db.transaction(() => {
-      const plan = planSelectionRollback(db, who.appId, b.grep!)
-      if (b.confirm !== plan.length) return { conflict: plan.length }
-      for (const p of plan) if (p.to) setHead(who.appId, p.userId, p.to, getHead(who.appId, p.userId)?.orgId ?? 'default')
-      return { plan }
-    })
-    if ('conflict' in result) {
-      return c.json({ error: `confirm must be ${result.conflict}, the number of live versions that match now`, code: 'confirm-count', count: result.conflict }, 409)
-    }
-    const done = result.plan.filter((p) => p.to)
-    for (const p of done) {
-      audited(who, 'snapshot.rollback-selection', 'head', p.userId, { from: p.from, to: p.to, grep: b.grep })
-      if (p.requestId) {
-        event(who, 'edit.reverted', p.userId, p.requestId, { props: { by: 'admin', selection: true } })
-        outcome(p.requestId, 'reverted:admin')
-      }
-    }
-    audited(who, 'selection.rollback', 'app', who.appId, { grep: b.grep, matched: result.plan.length, rolledBack: done.length })
-    return c.json({ matched: result.plan.length, rolledBack: done.length, skipped: result.plan.filter((p) => !p.to).map((p) => p.userId), users: done.map((p) => p.userId) })
-  })
-
-  // --- C10: bulk carry-over after a release, and its rollback ---
-
-  const RELEASE_RE = /^[\w.:-]{6,80}$/
-  const ITEM_STATES = ['carried', 'migrated', 'current', 'stale', 'budget', 'failed', 'moved'] as const
-  const releaseOf = (appId: string, release: string) => db.select().from(releases).where(and(eq(releases.appId, appId), eq(releases.release, release))).get()
-  const itemsOf = (appId: string, release: string) =>
-    db
-      .select()
-      .from(releaseItems)
-      .where(and(eq(releaseItems.appId, appId), eq(releaseItems.release, release)))
-      .orderBy(releaseItems.userId)
-      .all()
-  const countsOf = (items: { state: string }[]) => items.reduce<Record<string, number>>((m, i) => ((m[i.state] = (m[i.state] ?? 0) + 1), m), {})
-
-  api.get('/admin/releases', (c) => {
-    const who = caller(c)
-    const rows = db.select().from(releases).where(eq(releases.appId, who.appId)).orderBy(desc(releases.createdAt)).limit(50).all()
-    return c.json(rows.map((r) => ({ ...r, counts: countsOf(itemsOf(who.appId, r.release)) })))
-  })
-
-  api.get('/admin/releases/:release', (c) => {
-    const who = caller(c)
-    const r = releaseOf(who.appId, c.req.param('release'))
-    if (!r) return c.json({ error: 'not found' }, 404)
-    const items = itemsOf(who.appId, r.release)
-    return c.json({ release: { ...r, counts: countsOf(items) }, items })
-  })
-
-  /** Start a carry-over run, or resume it with a (new) budget. Returns the run and what is done so far. */
-  api.put('/admin/releases/:release', async (c) => {
-    const who = caller(c)
-    const release = c.req.param('release')
-    if (!RELEASE_RE.test(release)) return c.json({ error: 'bad release id' }, 400)
-    const b = await c.req.json<{ budgetUsd?: number }>().catch(() => ({}) as { budgetUsd?: number })
-    if (typeof b.budgetUsd !== 'number' || !Number.isFinite(b.budgetUsd) || b.budgetUsd < 0) return c.json({ error: 'budgetUsd must be a non-negative number' }, 400)
-    const existing = releaseOf(who.appId, release)
-    if (existing?.status === 'rolled-back') return c.json({ error: 'this release was rolled back; carry over to it again under a new id', code: 'rolled-back' }, 409)
-    const t = now()
-    db.insert(releases)
-      .values({ appId: who.appId, release, status: 'running', budgetUsd: b.budgetUsd, spentUsd: 0, createdAt: t, updatedAt: t })
-      .onConflictDoUpdate({ target: [releases.appId, releases.release], set: { status: 'running', budgetUsd: b.budgetUsd, updatedAt: t } })
-      .run()
-    audited(who, existing ? 'release.resume' : 'release.start', 'release', release, { budgetUsd: b.budgetUsd })
-    const items = itemsOf(who.appId, release)
-    return c.json({ release: { ...releaseOf(who.appId, release)!, counts: countsOf(items) }, items }, existing ? 200 : 201)
-  })
-
-  /** Record what the carry-over did for one user; the cost adds to the run's spend. */
-  api.put('/admin/releases/:release/items/:userId', async (c) => {
-    const who = caller(c)
-    const release = c.req.param('release')
-    const userId = c.req.param('userId')
-    const run = releaseOf(who.appId, release)
-    if (!run) return c.json({ error: 'start the release first' }, 404)
-    if (run.status === 'rolled-back') return c.json({ error: 'this release was rolled back', code: 'rolled-back' }, 409)
-    const b = await c.req.json<{ fromSnapshot?: string; toSnapshot?: string | null; state?: string; costUsd?: number; error?: string | null }>().catch(() => null)
-    if (!b || typeof b.fromSnapshot !== 'string' || !ITEM_STATES.includes(b.state as (typeof ITEM_STATES)[number])) {
-      return c.json({ error: `fromSnapshot and state (${ITEM_STATES.join(', ')}) are required` }, 400)
-    }
-    const from = getSnapshot(who.appId, b.fromSnapshot)
-    if (!from || from.userId !== userId) return c.json({ error: 'fromSnapshot is not a snapshot of this user' }, 400)
-    if (b.toSnapshot) {
-      const to = getSnapshot(who.appId, b.toSnapshot)
-      if (!to || to.userId !== userId) return c.json({ error: 'toSnapshot is not a snapshot of this user' }, 400)
-    }
-    const cost = typeof b.costUsd === 'number' && Number.isFinite(b.costUsd) && b.costUsd >= 0 ? b.costUsd : 0
-    const row = { appId: who.appId, release, userId, fromSnapshot: b.fromSnapshot, toSnapshot: b.toSnapshot ?? null, state: b.state!, error: typeof b.error === 'string' ? b.error.slice(0, 1000) : null, updatedAt: now() }
-    db.transaction((tx) => {
-      const prev = tx.select().from(releaseItems).where(and(eq(releaseItems.appId, who.appId), eq(releaseItems.release, release), eq(releaseItems.userId, userId))).get()
-      // a retried user keeps the cost of the earlier attempts
-      const costUsd = (prev?.costUsd ?? 0) + cost
-      tx.insert(releaseItems)
-        .values({ ...row, costUsd })
-        .onConflictDoUpdate({ target: [releaseItems.appId, releaseItems.release, releaseItems.userId], set: { ...row, costUsd } })
-        .run()
-      tx.update(releases)
-        .set({ spentUsd: sql`${releases.spentUsd} + ${cost}`, updatedAt: now() })
-        .where(and(eq(releases.appId, who.appId), eq(releases.release, release)))
-        .run()
-    })
-    audited(who, 'release.item', 'release', release, { userId, state: row.state, from: row.fromSnapshot, to: row.toSnapshot, costUsd: cost })
-    return c.json({ release: releaseOf(who.appId, release) })
-  })
-
-  api.post('/admin/releases/:release/finish', async (c) => {
-    const who = caller(c)
-    const release = c.req.param('release')
-    const run = releaseOf(who.appId, release)
-    if (!run) return c.json({ error: 'not found' }, 404)
-    if (run.status === 'rolled-back') return c.json({ error: 'this release was rolled back', code: 'rolled-back' }, 409)
-    const b = await c.req.json<{ status?: string }>().catch(() => ({}) as { status?: string })
-    const status = b.status === 'budget' ? 'budget' : 'done'
-    db.update(releases)
-      .set({ status, updatedAt: now() })
-      .where(and(eq(releases.appId, who.appId), eq(releases.release, release)))
-      .run()
-    audited(who, 'release.finish', 'release', release, { status, spentUsd: run.spentUsd })
-    return c.json({ status })
-  })
-
-  /**
-   * Roll the release back: every head the carry-over moved goes back to the head before it. A user who has made
-   * another edit since keeps their newer version (`kept`); the rest are `rolled-back`.
-   */
-  api.post('/admin/releases/:release/rollback', (c) => {
-    const who = caller(c)
-    const release = c.req.param('release')
-    if (!releaseOf(who.appId, release)) return c.json({ error: 'not found' }, 404)
-    const out = db.transaction(() => {
-      const restored: string[] = []
-      const kept: string[] = []
-      for (const item of itemsOf(who.appId, release)) {
-        if (!item.toSnapshot || item.state === 'rolled-back' || item.state === 'kept') continue
-        const head = getHead(who.appId, item.userId)
-        const next = head?.snapshotId === item.toSnapshot ? 'rolled-back' : 'kept'
-        if (next === 'rolled-back') {
-          setHead(who.appId, item.userId, item.fromSnapshot, head?.orgId ?? 'default')
-          restored.push(item.userId)
-        } else kept.push(item.userId)
-        db.update(releaseItems)
-          .set({ state: next, updatedAt: now() })
-          .where(and(eq(releaseItems.appId, who.appId), eq(releaseItems.release, release), eq(releaseItems.userId, item.userId)))
-          .run()
-      }
-      db.update(releases)
-        .set({ status: 'rolled-back', rolledBackAt: now(), updatedAt: now() })
-        .where(and(eq(releases.appId, who.appId), eq(releases.release, release)))
-        .run()
-      return { restored, kept }
-    })
-    for (const u of out.restored) audited(who, 'release.rollback.head', 'head', u, { release })
-    audited(who, 'release.rollback', 'release', release, { restored: out.restored.length, kept: out.kept.length })
-    return c.json(out)
-  })
-
   // --- DECISIONS 70.2: erasure of a user's or the app's data ---
 
   /**
-   * `DELETE /v1/admin/users/:id` and `DELETE /v1/admin/apps/:id`, admin only (support gets 403 like every admin
-   * write). Without `?confirm=` (or with a stale one) nothing is deleted: 409 with what would go and the token
+   * `DELETE /v1/admin/users/:id` and `DELETE /v1/admin/apps/:id`, admin only. Without `?confirm=` (or with a stale one) nothing is deleted: 409 with what would go and the token
    * for exactly that. With it, everything of the subject goes in one transaction and a tombstone without personal
    * data is appended to the audit chain.
    */
@@ -1171,7 +864,6 @@ export function createStoreApp(db: StoreDb, options: StoreAppOptions = {}) {
   })
 
   // extensions add their routes behind the same auth, body limit, idempotency and admin rules
-  const ctx: ExtensionContext = { db, audited: (who, action, objectType, objectId, details = null) => audited(who, action, objectType, objectId, details), place }
   for (const e of extensions) e.routes?.(api, ctx)
 
   app.route('/v1', api)

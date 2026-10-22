@@ -204,7 +204,7 @@ export interface AgentResult {
   error?: string
   /** Echo of the request's `expectedHeadId`: commit only on top of this head. */
   expectedHeadId?: string | null
-  /** For `partial` (and `needs-backend` from the main loop): what the backend would need, for the admin's wishlist. */
+  /** For `partial` (and `needs-backend` from the main loop): what the backend would need, for the admin's request log. */
   backendNote?: string
   /**
    * Block 4: the verbatim part(s) of the user's request that need the backend (always a substring of the request, so
@@ -213,7 +213,7 @@ export interface AgentResult {
   backendQuote?: string
   /** Closed-list label of the request (brainstorm 12 A2), from the classifier; L1 facts use it, never the text. */
   intentLabel?: string
-  /** At most 12 words of what was asked, without names or numbers (L0, for the wishlist map). */
+  /** At most 12 words of what was asked, without names or numbers (L0, a short label of the request for the admin). */
   gist?: string
   /** For verdict `clarify`: the question to show and 2 to 4 short answers as buttons. */
   clarify?: { question: string; options: string[] }
