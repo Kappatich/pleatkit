@@ -25,6 +25,11 @@ apps and chains are then found there, and the paths below (`evals/apps/...`, `ev
 private suite is skipped with a one-line note; tests that count the private suites are skipped. A live record without
 the variable writes its set to `evals/recordings/` here, which git ignores.
 
+The harness measures the open agent: the edit loop, the classifier and the checks. The pleatkit cloud's own model calls
+(the wish map's clustering, in `@pleatkit/agent-cloud`) go through the provider's generic `completeJson` call, which
+the recording provider writes as a `kind: 'json'` transcript line and the replay provider plays back; their prompts,
+fixtures and recordings live with the cloud packages, not here.
+
 ```bash
 pnpm eval:sanity    # reference solutions pass every grader; the null agent fails every task that needs a change
 pnpm eval:replay    # every task against its scripted transcript; exit 1 on a regression vs evals/baseline.scripted.json

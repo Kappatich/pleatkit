@@ -93,7 +93,7 @@ PLEATKIT_STORE_DB=/data/pleatkit.db npx pleatkit-store
 
 Back up the SQLite file (it is WAL; use `sqlite3 .backup`). Route `/pleatkit/b/*` of the app to store-server's `/v1/b/*` (public, signed, immutable bundles). Bodies are limited to 4 MiB (`PLEATKIT_STORE_BODY_LIMIT`).
 
-The pilot report (`GET /v1/report?from&to`, admin only, CSV or `&format=json`) has, after the request and outcome columns, `token_cost_usd` (the metered tokens of the range priced by pleatkit's model price table), `unpriced_tokens` (tokens of models without a price), `dev_hours_saved` (applied edits × minutes per edit / 60) and `cost_per_applied_edit_usd`; rows per day and organization, then one per organization (`date` = `all`), then the total. Minutes per edit: `PLEATKIT_REPORT_MINUTES_PER_EDIT` (default 20), or `&minutesPerEdit=` per request.
+The open store is everything a self-hosted install needs. The pleatkit cloud runs the same store with its private extensions (`PLEATKIT_STORE_EXTENSIONS`, `PLEATKIT_AGENT_EXTENSIONS`): the pilot report with cost and hours saved, the wish map, release carry-over runs, code search with rollback by selection, and the `support` role. Without them those routes answer 404, and a `support` token or an `x-pleatkit-act-as` header gets 403 `cloud-feature`.
 
 ## 6. Content-Security-Policy (server compile, the default)
 

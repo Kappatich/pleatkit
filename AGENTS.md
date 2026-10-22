@@ -19,11 +19,11 @@ notes, kept private; the code, the tests and the docs above are the source of tr
 | Path | What | Notes |
 |---|---|---|
 | `packages/runtime` | browser runtime: engine, `check` (shared with the server), loader, stores, React bindings | MIT; no Node APIs in `src/` |
-| `packages/agent` | agent server: model loop, tools, providers, bundle signing, alerts | MIT |
-| `packages/store-server` | the open store: snapshots, heads, request log, quotas, audit, roles, releases, erasure; `StoreExtension` | MIT, published |
+| `packages/agent` | agent server: model loop, tools, providers, bundle signing, alerts; `AgentExtension` | MIT |
+| `packages/store-server` | the open store: snapshots, heads, request log, quotas, audit, roles user/admin, flags, export, erasure; `StoreExtension` | MIT, published |
 | `packages/vite-plugin` | zones, manifest, digests, externals | MIT |
 | `packages/ui` | chat drawer | the architect owns the look; ask before touching |
-| `packages/cli` | doctor, ping, keys, export, check-snapshots, report, digest, carry-over | MIT |
+| `packages/cli` | doctor, init --suggest, ping, keys, export, erase, labels export, check-snapshots, report | MIT |
 | `apps/demo-crm` | the demo app and all e2e tests | Playwright, headless only |
 | `examples/t1-vite` | the install docs, followed into a fresh Vite app | `pnpm build && pnpm smoke` |
 | `site/` | the landing page | the architect owns it |
@@ -60,4 +60,8 @@ No model key is needed: the agent runs the `scripted` provider (recorded answers
 - The one `check`: `packages/runtime/src/compiler.ts` (`Compiler.compile`) + `check.ts` (rules).
 - Server trust: the agent takes context, readonly sources and types from `PLEATKIT_MANIFEST` (`packages/agent/src/manifest.ts`).
 - Incidents: `docs/ops/incident.md`. Production setup: `docs/for-agents/production.md`. Support: `docs/support-playbook.md`.
-- Roles and impersonation: `packages/store-server/src/auth.ts`; /admin screens: `apps/demo-crm/src/core/Admin*.tsx`.
+- Roles (`user`, `admin`; other roles and `x-pleatkit-act-as` are 403 `cloud-feature` without an extension): `packages/store-server/src/auth.ts`; /admin screens: `apps/demo-crm/src/core/Admin*.tsx`.
+- The open core / cloud boundary: the open packages never import a cloud package; the cloud plugs in through
+  `StoreExtension` (`packages/store-server/src/extension.ts`) and `AgentExtension` (`packages/agent/src/extension.ts`).
+  The report, the wish map, release carry-over, code search with rollback by selection, the `support` role and the
+  digest are cloud features (DECISIONS 89): do not add them back to the open packages.

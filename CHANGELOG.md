@@ -5,6 +5,52 @@ break, and every break is marked **Breaking** with its migration step. Policy: R
 changes". Nothing is published to npm yet. 0.3.0 is the first public release; it contains everything below, the
 "Unreleased" sections included (they are the stages that led to it).
 
+## 0.4.0 (unreleased)
+
+The open-core boundary (DECISIONS 89): the open packages keep what you need to install pleatkit and to trust it (the
+agent and its edit loop, the checks, the drawer, versions and undo, the request log with approve/reject/rollback,
+roles `user` and `admin`, quotas and plans, usage events, the audit chain, flags and the kill switch, export, erasure,
+request labels); what a vendor needs across all of its customers moves to the private pleatkit cloud packages
+(`@pleatkit/store-cloud`, `@pleatkit/agent-cloud`, `@pleatkit/admin-cloud`). Every package is 0.4.0.
+
+### Breaking (self-hosters)
+- **store-server: routes removed.** `GET /v1/report` (the pilot report and its money columns, with
+  `PLEATKIT_REPORT_MINUTES_PER_EDIT` and the `reportMinutesPerEdit` option), `/v1/admin/wish-items`,
+  `GET|PUT /v1/admin/wishes`, `/v1/admin/releases*` (list, get, start, items, finish, rollback),
+  `GET /v1/admin/snapshots?grep=` and `POST /v1/admin/snapshots/rollback` now answer 404. The exports `buildReport`,
+  `reportCsv`, `REPORT_COLUMNS`, `CARRY_OVER_PREFIX`, `grepSnapshots`, `planSelectionRollback`, `WishCluster` and the
+  schema tables `releases`, `release_items`, `wish_maps` are gone. A 0.3 database keeps those tables, but the open
+  store no longer creates them and its erasure no longer reaches them: drop them (`DROP TABLE releases;
+  DROP TABLE release_items; DROP TABLE wish_maps;`) if you used them.
+- **The `support` role and "view as a user" are refused.** The open store knows the roles `user` and `admin`. A user
+  token with another role (`support`), a development `x-pleatkit-role: support` header, or any
+  `x-pleatkit-act-as` header gets 403 `{ "code": "cloud-feature" }` unless a store extension provides them. A token
+  with an unknown but well-formed role is now 403 `cloud-feature` instead of 401. `UserRole` is `'user' | 'admin'`
+  plus any lowercase role word for extensions. `HttpStore`'s `viewer` option is gone (pass `headers`).
+- **CLI commands moved.** `pleatkit digest` and `pleatkit carry-over` are removed from `@pleatkit/cli` (they are
+  `pleatkit-ops digest|carry-over` in the cloud). `pleatkit report` (the bug report), `pleatkit erase` and
+  `pleatkit check-snapshots` stay.
+- **agent: the wish map, digest and bulk carry-over are gone.** `POST /agent/v1/wishes` answers 404;
+  `PLEATKIT_WISHES_MAX_ITEMS` / `PLEATKIT_WISHES_BUDGET_USD` and the `wishes` option are removed, as are the exports
+  of `wishes.ts`, `digest.ts` and `carry-over.ts`. `ModelProvider.cluster` and `clusterModel` are replaced by the
+  generic `completeJson(call, signal)` and `classifierModel`; scripted fixtures no longer have a `wishes` key
+  (extra keys are kept for extensions); the `digest` alert kind is now `summary`.
+- **The demo admin** shows requests, labels, flags, events, audit and plan; the Wishes, Releases and code-search
+  screens, the report half of the Plan screen and the `?as=support` view are gone.
+- **Migration:** use the pleatkit cloud for these features, or stay on the `v0.3.0` git tag.
+
+### Added
+- `StoreExtension` gets `roles`, `actAs(who, target)`, `adminAccess(who, method, path)` and `middleware(api, ctx)`;
+  `ExtensionContext` gets `event`, `outcome` and `setHead`. `AuthError` carries a `code`; `CLOUD_FEATURE` is exported.
+- `AgentExtension { name, routes(app, ctx) }` and `createAgentApp({ extensions })`: the context has the provider, the
+  store URL and client, `fetch`, `log`, `manifest(appId)`, `adminApp(c, body)`, `appKey(appId)` and
+  `reportUsage(appId, events)`. `pleatkit-agent` loads `PLEATKIT_AGENT_EXTENSIONS` (`none`, a module list, or
+  `@pleatkit/agent-cloud` when the deployment's `package.json` depends on it), like the store's
+  `PLEATKIT_STORE_EXTENSIONS`.
+- `ModelProvider.completeJson({ name, instructions, message, schema, maxTokens, scripted? })`: one structured call
+  on the classifier model outside the edit loop (Anthropic structured output, OpenAI-compatible JSON mode, scripted
+  through the call's own `scripted(fixtures)`, recorded as a `kind: 'json'` transcript line and replayed).
+
 ## 0.3.0 (prepared 2026-10-18, not published yet; numbered 0.3.0 at the founder's request, there was no 0.2.0)
 
 ### Added

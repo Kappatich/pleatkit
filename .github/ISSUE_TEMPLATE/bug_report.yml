@@ -41,7 +41,7 @@ body:
         - The drawer (chat, undo, history)
         - Edits (the agent, the static rules, compile)
         - store-server / admin dashboard
-        - CLI (export, check-snapshots, carry-over, digest)
+        - CLI (doctor, export, erase, check-snapshots, report)
         - Docs
         - Something else
     validations:

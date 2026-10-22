@@ -50,18 +50,28 @@ stays the default; [choosing a model](docs/for-agents/production.md#4-deploy-the
 | `@pleatkit/ui` | chat drawer, "point at a panel" picker, history, undo/reset, toasts, stale-version banner | pleatkit (public, MIT) |
 | `@pleatkit/agent` | Node agent server: model loop with zone-checked tools, server-side check, SSE progress, providers `anthropic` / `openai-compatible` / `scripted` | pleatkit (public, MIT) |
 | `@pleatkit/cli` | `pleatkit doctor` (setup checks with fixes), `init --suggest` (zones from the import graph), `ping`, `keys new`, `keys public`, `export`, `labels export` | pleatkit (public, MIT) |
-| `@pleatkit/store-server` | the open store: snapshots, heads, bundles, the request log, quotas, usage events, the audit chain, roles, flags, releases, code search, export and erasure; Hono + Drizzle + SQLite | pleatkit (public, MIT) |
+| `@pleatkit/store-server` | the open store: snapshots, heads, bundles, the request log with approve/reject/rollback, request labels, quotas and plans, usage events, the audit chain, roles `user` and `admin`, flags and the kill switch, export and erasure; Hono + Drizzle + SQLite | pleatkit (public, MIT) |
 | `apps/demo-crm` | demo CRM with two users, three dynamic panels and an `/admin` dashboard | pleatkit (public) |
 
-### Two repositories
+### Open source and cloud
 
-- **pleatkit** (public, MIT): everything you need to self-host: vite-plugin, runtime, ui, agent, cli, **the store**
-  (`@pleatkit/store-server`) and the demo. Bring your own model key; no backend of ours is involved.
-- **pleatkit-cloud** (private): the managed service, the same open store core plus a private extension package that
-  plugs into it through `StoreExtension`.
+- **pleatkit** (public, MIT): everything you need to install it and to trust it, self-hosted: vite-plugin, runtime,
+  ui, the agent server and its edit loop, the checks, the CLI, **the store** (`@pleatkit/store-server`: versions,
+  undo, the request log with approve/reject/rollback, roles `user` and `admin`, quotas, usage events, the audit
+  chain, flags and the kill switch, export, erasure, request labels) and the demo with its admin screens. Bring your
+  own model key; no backend of ours is involved.
+- **pleatkit cloud** (private, the managed service): the same open core plus private extension packages
+  (`@pleatkit/store-cloud`, `@pleatkit/agent-cloud`, `@pleatkit/admin-cloud`) that add what a vendor needs across
+  all of its customers: the pilot report (`GET /v1/report`, CSV with cost and hours saved), the wish map (requests
+  the panels could not serve, grouped into themes), carrying users' edits over to a new release and rolling that
+  back, code search across users' versions with rollback by selection, the `support` role with "view as a user",
+  the weekly digest and the learning layer.
 
-**Self-host: the open store. Cloud: the same core plus the cloud package** (DECISIONS 70.1). Nothing in the open
-packages imports the cloud package; the store binary loads it only for a deployment whose `package.json` depends on it.
+**Self-host: the open core. Cloud: the same core plus the cloud packages** (DECISIONS 70.1, 89). Nothing in the open
+packages imports a cloud package: they plug in through `StoreExtension` (`PLEATKIT_STORE_EXTENSIONS`) and
+`AgentExtension` (`PLEATKIT_AGENT_EXTENSIONS`), loaded only for a deployment whose `package.json` depends on them.
+Without them the open store answers 404 on the cloud routes and 403 `cloud-feature` on a `support` token or an
+`x-pleatkit-act-as` header.
 
 ## Run the demo
 
@@ -368,29 +378,20 @@ host never starts, the panel shows an error after 15 s.
   the audit chain, flags, settings and plan (`GET /v1/admin/export`).
 - **Erasure (DECISIONS 70.2).** `npx pleatkit erase --user <id> --app <id>` (or `--app <id>` alone for the whole
   app) deletes everything the store keeps about the subject: snapshots, heads, requests, usage events, bundles made
-  from the user's files, run records, flags, quota buckets, carry-over rows, wish-map references, the cloud's facts.
+  from the user's files, run records, flags, quota buckets, request labels, and the rows of any loaded extension.
   The first run prints what would go and a confirm token; `--confirm <token>` erases. One audit row stays, a
   tombstone with the counts and a random id, without personal data. Admin only (`DELETE /v1/admin/users/:id`,
   `DELETE /v1/admin/apps/:id`). [docs/security/retention.md](docs/security/retention.md).
 - **Plans as data (F14).** Limits live in the default plan table of the agent server and per app in store-server
   (`PUT /v1/admin/plan`); see "Quotas" above.
-- **Roles and "view as a user" (C8).** User tokens carry `role: 'user' | 'support' | 'admin'`. Support reads /admin
-  and views one user at a time (`x-pleatkit-act-as`, `HttpStore({ viewer })`) without writing (403); only an admin
-  may write as a user. Every such call, refused ones included, is in the audit chain with both ids.
-  [docs/support-playbook.md](docs/support-playbook.md).
-- **Pilot report and wish map (C9).** `GET /v1/report?from&to` (CSV per day and organization, per organization and in total,
-  with token cost, developer hours saved and cost per applied edit); the wish map groups
-  the requests the panels could not serve into themes per panel with one classifier call (/admin → Wishes): at
-  most 500 requests (the newest) and $0.50 per call by default (`PLEATKIT_WISHES_MAX_ITEMS`,
-  `PLEATKIT_WISHES_BUDGET_USD`, or `pleatkit digest --wishes-max-items --wishes-budget-usd`); what does not fit the
-  budget is grouped without the model.
-- **After a release (C10).** `pleatkit carry-over --release <hash> --budget-usd <n>` carries every user's edits to
-  the new build within a budget, resumable; `--rollback` puts them back. One user's migration may cost at most the
-  `perEditUsd` of the app's plan; `--per-user-usd` overrides it. /admin → Releases.
-- **Code search (C11).** /admin → Code search (`GET /v1/admin/snapshots?grep=`) and rollback of every matching live
-  version with a confirm count.
-- **Weekly digest (C5).** `pleatkit digest --week [--send]`: markdown with the week's numbers, what waits on the
-  admin, the audit chain and the wish map, through the alert webhook or e-mail API.
+- **Roles (C8).** User tokens carry `role: 'user' | 'admin'`: a user reads and writes their own version, an admin
+  every user's and the /admin routes. Other roles and acting as another user (`x-pleatkit-act-as`) are refused with
+  403 `cloud-feature` unless a store extension provides them (the pleatkit cloud's `support` role and "view as a
+  user"). [docs/support-playbook.md](docs/support-playbook.md).
+- **In the pleatkit cloud only (DECISIONS 89).** The pilot report (`GET /v1/report`), the wish map, carrying users'
+  edits over to a new release with its rollback, code search across versions with rollback by selection, the
+  `support` role and the weekly digest. In the open store these routes answer 404; the open CLI has no `digest` or
+  `carry-over` command.
 - **Bug reports.** `pleatkit report` writes `pleatkit-report.md` (doctor, versions, redacted config). Security
   reports: [SECURITY.md](SECURITY.md). Support matrix: [SUPPORTED.md](SUPPORTED.md). Plans: [docs/ROADMAP.md](docs/ROADMAP.md).
 

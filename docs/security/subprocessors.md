@@ -11,7 +11,7 @@ subprocessors of pleatkit; a self-hosted installation sends data only where its 
 
 | Subprocessor | Purpose | Data | Location | Since |
 |---|---|---|---|---|
-| Anthropic, PBC | model API: the classifier and the edit loop (`claude-haiku-5-5`, `claude-sonnet-5-5`), the wish-map call | request text, panel code, read-only sources and types of the app, DOM structure of the target panel (no values), screenshots the user attached; see [data-flows.md](data-flows.md) step 3 | [[region per the Anthropic agreement]] | [[date]] |
+| Anthropic, PBC | model API: the classifier and the edit loop (`claude-haiku-5-5`, `claude-sonnet-5-5`), in the Cloud the wish-map call | request text, panel code, read-only sources and types of the app, DOM structure of the target panel (no values), screenshots the user attached; see [data-flows.md](data-flows.md) step 3 | [[region per the Anthropic agreement]] | [[date]] |
 | [[hosting provider]] | runs the agent server and store-server, stores the SQLite database and its backups | everything store-server keeps ([data-flows.md](data-flows.md), "What store-server keeps") | [[region]] | [[date]] |
 | [[e-mail API, if pleatkit sends alerts or digests by e-mail]] | alert and weekly digest e-mails to the customer's admins | alert titles, app and user ids, digest counts and wish-theme titles | [[region]] | [[date]] |
 

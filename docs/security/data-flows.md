@@ -42,9 +42,9 @@ end user's browser ──(1)──▶ agent server ──(3)──▶ model prov
      zone; returns a label, a closed-list intent label and a gist of at most 12 words;
    - the main loop (`claude-sonnet-5-5` by default): the instructions, the read-only sources and type definitions of
      the app (cached), the panel code, the request, the DOM structure and screenshots as above.
-   The weekly digest makes one more classifier call over the week's requests the panels could not serve (request
-   text or gist, panel id, kind) to group them into themes (C9). `pleatkit carry-over` sends a user's old and new
-   panel code to the main model when the release changed the same files.
+   In the pleatkit cloud only: the wish map makes one more classifier call over the week's requests the panels could
+   not serve (request text or gist, panel id, kind) to group them into themes, and carrying users' edits over to a
+   new release sends a user's old and new panel code to the main model when the release changed the same files.
    **Not sent:** the customer's business data from their own APIs (the panels fetch it in the browser; the agent
    sees only types and code), field values, cookies, passwords, the user token, the app key.
 4. **Agent server → store-server** (server to server, the app key): the request log (text, target, verdict,
@@ -53,22 +53,24 @@ end user's browser ──(1)──▶ agent server ──(3)──▶ model prov
    **Browser → store-server** (`HttpStore`, the user token): the user's versions (snapshots of the panel code),
    which one is current (the head), and the link between a request and the version it produced.
 5. **Customer's backend → browser**: a user token (HS256, at most 15 minutes) with the user id, the organization,
-   the app, the environment and the role (`user`, `support`, `admin`). The secret stays on the customer's server.
+   the app, the environment and the role (`user` or `admin`; the cloud adds `support`). The secret stays on the
+   customer's server.
 6. **Agent server → alert channel** (only when the operator configures `PLEATKIT_ALERT_WEBHOOK` or
    `PLEATKIT_ALERT_EMAIL_*`): alert titles with the app id, the user id, the request id and the rule that was hit;
-   the weekly digest (counts, organization ids, wish themes with their titles). No panel code, no request text
-   except the wish themes' titles.
+   in the pleatkit cloud, the weekly digest (counts, organization ids, wish themes with their titles). No panel code,
+   no request text except the wish themes' titles.
 
 ## What store-server keeps
 
 | Data | Layer (DECISIONS 44) | Who can read it |
 |---|---|---|
-| Snapshots (the panel code of every version of every user), heads | tenant | the user (their own), support (acting as the user, audited), admin |
-| Request log: text, target, proposed files, tool log, usage, cost | tenant (L0) | admin and support of the app |
+| Snapshots (the panel code of every version of every user), heads | tenant | the user (their own), admin (in the cloud also support, acting as the user, audited) |
+| Request log: text, target, proposed files, tool log, usage, cost | tenant (L0) | admin (in the cloud also support) of the app |
 | Request facts: intent label, verdict, counts, cost, keyed ids (HMAC with a per-app salt), no text, no code | tenant (L1) | the app's operator; written only in the managed cloud (the `@pleatkit/store-cloud` module; the open store has no such table) and only when the app's `learning` flag allows |
-| Usage events (`edit.requested`, `tokens.used`, `cost.usd`...) | tenant | admin, support |
-| Audit chain (every write, every admin action, every impersonated call), append-only, hash-linked | tenant | admin, support; exported with the app |
-| Wish maps (themes with request ids), release runs, flags, plan, settings | tenant | admin, support |
+| Usage events (`edit.requested`, `tokens.used`, `cost.usd`...) | tenant | admin (in the cloud also support) |
+| Audit chain (every write, every admin action, in the cloud every impersonated call), append-only, hash-linked | tenant | admin (in the cloud also support); exported with the app |
+| Flags, plan, settings, request labels | tenant | admin |
+| In the cloud: wish maps (themes with request ids), release runs | tenant | admin, support |
 | Compiled bundles of edits | public by an unguessable content key (sha256), so `<script>` can load them | anyone who knows the key |
 
 There is no cross-tenant store (L2) in the code. Telemetry from the library is off unless a collector URL is
