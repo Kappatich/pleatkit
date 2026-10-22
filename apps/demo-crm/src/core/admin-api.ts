@@ -25,7 +25,7 @@ export function useAdminApi(appId: string): AdminCall {
   )
 }
 
-/** The agent server's admin routes (the wish map is built there: one classifier call). */
+/** The agent server's admin routes (the expected cost of an edit). */
 export function useAgentAdmin(appId: string): AdminCall {
   return useCallback(
     async <T,>(path: string, init?: RequestInit): Promise<T> => {

@@ -26,14 +26,14 @@ export const AUTH: 'token' | 'headers' = params.get('auth') === 'token' ? 'token
 
 const tokens = new Map<string, Promise<{ token: string; publicKey: string | null; at: number }>>()
 
-async function fetchToken(user: string, role: 'user' | 'support' | 'admin') {
+async function fetchToken(user: string, role: 'user' | 'admin') {
   const res = await fetch(`/api/pleatkit-token?user=${encodeURIComponent(user)}&role=${role}&app=${encodeURIComponent(APP_ID)}`)
   if (!res.ok) throw new Error(`could not get a pleatkit token: ${res.status}`)
   return { ...((await res.json()) as { token: string; publicKey: string | null }), at: Date.now() }
 }
 
 /** A fresh user token (refreshed after 10 minutes, or at once with `force` after a 401; tokens live 15). */
-export async function tokenFor(user: string, role: 'user' | 'support' | 'admin' = 'user', force = false): Promise<string> {
+export async function tokenFor(user: string, role: 'user' | 'admin' = 'user', force = false): Promise<string> {
   const key = `${role}:${user}`
   let hit = tokens.get(key)
   if (force || !hit || Date.now() - (await hit.catch(() => ({ at: 0 }))).at > 600_000) tokens.set(key, (hit = fetchToken(user, role)))
@@ -52,27 +52,19 @@ export async function demoPublicKey(): Promise<string | null> {
 const local = new LocalStore('pleatkit-demo-crm')
 const http = new Map<string, HttpStore>()
 
-/**
- * `?as=support` (C8, opened from /admin's "View as"): the demo's support person acts as the user. In `?auth=token`
- * mode with a support token, otherwise with the development headers (`x-pleatkit-role: support`).
- */
-export const VIEWER: string | null = params.get('as') === 'support' ? 'support' : null
-
 /** One store per user: a user token in `?auth=token` mode, otherwise the development header. */
 export function storeFor(user: UserId): SnapshotStore {
   if (STORE_KIND === 'local') return local
-  const key = VIEWER ? `${VIEWER}>${user}` : user
-  let s = http.get(key)
+  let s = http.get(user)
   if (!s) {
-    const token = VIEWER ? (o?: { refresh?: boolean }) => tokenFor(VIEWER!, 'support', o?.refresh) : (o?: { refresh?: boolean }) => tokenFor(user, 'user', o?.refresh)
+    const token = (o?: { refresh?: boolean }) => tokenFor(user, 'user', o?.refresh)
     s = new HttpStore({
       baseUrl: STORE_URL,
       userId: user,
       appId: APP_ID,
       ...(AUTH === 'token' ? { token } : {}),
-      ...(VIEWER ? { viewer: VIEWER, ...(AUTH === 'token' ? {} : { headers: { 'x-pleatkit-role': 'support' } }) } : {}),
     })
-    http.set(key, s)
+    http.set(user, s)
   }
   return s
 }
