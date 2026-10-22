@@ -41,7 +41,7 @@ These run without a human, so the first minutes of an incident are covered at ni
 | When | What |
 |---|---|
 | 0 | Detection (alert, report, monitoring). The incident lead opens a timeline (time, who, what). |
-| ≤ 1 hour (Cloud, business hours) / ≤ [[n]] hours (nights, weekends) | Containment: freeze the user, the organization or the app (kill switch); roll back what is live (one request, code search + rollback by selection, or a release rollback). Preserve evidence with `pleatkit export` before deleting anything. |
+| ≤ 1 hour (Cloud, business hours) / ≤ [[n]] hours (nights, weekends) | Containment: freeze the user, the organization or the app (kill switch); roll back what is live (one request; in the Cloud also code search + rollback by selection, or a release rollback). Preserve evidence with `pleatkit export` before deleting anything. |
 | ≤ 24 hours | Acknowledge a vulnerability report. First notice to affected customers when their data may be involved: what happened, what is contained, what they should do (for example rotate `PLEATKIT_JWT_SECRET`). |
 | ≤ 72 hours | Notice to customers as their controller obligations require (GDPR art. 33 gives the controller 72 hours to notify the authority; pleatkit as processor notifies the controller "without undue delay") [[confirm wording with counsel]]. Post-mortem written. |
 | After | Fix, a regression test (a rule bypass goes into `packages/runtime/test/check.test.ts`), release, and the post-mortem shared with affected customers. |
@@ -49,7 +49,7 @@ These run without a human, so the first minutes of an incident are covered at ni
 ## Evidence
 
 - The audit chain is append-only and hash-linked; `GET /v1/admin/audit?verify=1` (or /admin → Audit) shows whether
-  it is intact. An impersonated read or write carries both ids.
+  it is intact. In the Cloud an impersonated read or write carries both ids.
 - `pleatkit export` gives a complete JSON copy of an app or a user at the time of the incident.
 - The request log keeps the tool log for 30 days and the request text for 90 days ([retention.md](retention.md)):
   export early when an incident may need them later.

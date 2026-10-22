@@ -34,7 +34,8 @@ Before 1.0 only the latest minor release gets security fixes. Supported runtimes
 
 - The static rules that decide what generated code may do (`packages/runtime/src/check.ts`): network requests,
   computed URLs, cookies and storage, `eval`, navigation, escaping the zone, protected elements.
-- Bundle signing and verification, user tokens and roles (`support` / `admin`, impersonation and its audit trail).
+- Bundle signing and verification, user tokens and roles (`user` / `admin`; other roles and `x-pleatkit-act-as`
+  must be refused with 403 `cloud-feature` by the open store).
 - store-server's tenancy: one user reading or writing another user's versions, one app another app's data.
 - The agent server: prompt injection that makes it write code the rules should refuse, quota and budget bypasses.
 

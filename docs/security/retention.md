@@ -20,7 +20,7 @@ apps whose `learning` flag is on.
 | Snapshots and heads (every version of every user's panels) | as long as the app uses pleatkit | deleted with the user or the app (erasure, below) | `erase.ts` |
 | Usage events (metering) | as long as the app uses pleatkit | append-only (triggers refuse update and delete) except for an erasure: a user's events go with the user, all events with the app | `schema.ts` `ERASURE_TRIGGERS` |
 | Audit chain | as long as the app uses pleatkit | append-only; removed only with the whole app; an erasure leaves a tombstone without personal data | `schema.ts` `ERASURE_TRIGGERS` |
-| Wish maps, release runs, flags, plan, settings | as long as the app uses pleatkit | overwritten or removed with the app | — |
+| Flags, plan, settings, request labels (and in the Cloud wish maps and release runs) | as long as the app uses pleatkit | overwritten or removed with the app | — |
 | Compiled bundles | as long as the app uses pleatkit | rebuilt from snapshots when missing | — |
 | Screenshots attached to a request | not stored (only their count and size) | — | `requests.attachments` |
 | Backups of the database (Cloud) | [[e.g. 30 days, rolling]] | [[deleted by the hosting provider's lifecycle]] | operations |
@@ -39,14 +39,14 @@ npx pleatkit erase --app <app id> --store <url> [--confirm <token>]   # the whol
 ```
 
 (`DELETE /v1/admin/users/:id?confirm=` and `DELETE /v1/admin/apps/:id?confirm=`; the app key or a user token with
-role `admin`; support gets 403; erasing while acting as a user is refused.)
+role `admin`; any other role gets 403; erasing while acting as a user is refused.)
 
 - **A user** (data subject request, or the user leaves the customer): their snapshots and heads, their requests (text,
   tool logs, proposed files), usage events of the user or of their requests, the browser-made bundles they own and
   the signed bundles compiled from their files (by the files' hash; the app's original release, shared by every
-  user, stays), agent-run records, stored idempotent replies, quota buckets, user-scoped flags, carry-over rows,
-  their request ids in wish maps (themes made only of their requests are removed), and in the Cloud their L1 facts
-  (by request and by the user's HMAC key).
+  user, stays), agent-run records, stored idempotent replies, quota buckets, user-scoped flags, request labels, and
+  in the Cloud their carry-over rows, their request ids in wish maps (themes made only of their requests are
+  removed) and their L1 facts (by request and by the user's HMAC key), through the cloud extensions' erase hooks.
 - **A customer** leaves (Cloud): they first export everything (`pleatkit export --app <id>`, one JSON file with every
   version and the audit chain), then the app is erased: every row of every table with its app id, the audit chain,
   plan, settings, flags, and in the Cloud the L1 facts, the HMAC salt and the learning setting. Backups age out
