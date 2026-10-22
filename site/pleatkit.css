@@ -74,12 +74,13 @@ nav.links .btn { padding: 7px 12px; font-size: 13px; }
 .cta-more { margin: 16px 0 0; font-size: 14px; color: var(--ink-2); }
 
 /* the stage: the app on the left, the drawer on the right, as the user sees it */
-.stage { border: 1px solid var(--ink); background: var(--paper); display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 480px; }
-.app { border-right: 1px solid var(--ink); background: var(--paper-2); display: flex; flex-direction: column; min-width: 0; }
+.stage { border: 1px solid var(--ink); background: var(--paper); display: grid; grid-template-columns: minmax(0, 1fr) 340px; height: 600px; }
+/* The frame keeps its size while a request runs: the dashboard and the feed scroll inside it (Minte, 2026-10-22). */
+.app { border-right: 1px solid var(--ink); background: var(--paper-2); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .app-bar { display: flex; gap: 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--ink); background: var(--paper); }
 .app-bar b { font: 700 15px var(--sans); letter-spacing: -.02em; }
 .app-bar .zone-tag { margin-left: auto; }
-.dash { padding: 16px; display: grid; gap: 12px; align-content: start; }
+.dash { padding: 16px; display: grid; gap: 12px; align-content: start; flex: 1; min-height: 0; overflow: auto; }
 .dash.compact { padding: 10px; gap: 8px; }
 .pane { position: relative; background: var(--paper); border: 1px solid var(--rule); min-width: 0; }
 .pane { transition: filter .35s ease, opacity .35s ease; }
@@ -133,7 +134,9 @@ nav.links .btn { padding: 7px 12px; font-size: 13px; }
 .pane .due.overdue { color: var(--red-ink); font-weight: 600; }
 
 /* the drawer, as in @pleatkit/ui */
-.drawer { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto; min-width: 0; }
+.drawer { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto; min-width: 0; min-height: 0; }
+/* Explicit rows: the hidden ruler leaves the grid, and the feed must stay the flexible row either way. */
+.drawer-head { grid-row: 1; } .drawer .ver { grid-row: 2; } .ruler { grid-row: 3; } .feed { grid-row: 4; } .prompt-bar { grid-row: 5; } .recipes { grid-row: 6; } .live-foot { grid-row: 7; }
 .drawer-head { display: flex; align-items: center; gap: 4px; padding: 12px 10px 8px 14px; }
 .drawer-head b { font: 700 17px var(--sans); letter-spacing: -.02em; margin-right: auto; }
 .ic { width: 30px; height: 30px; border: 0; background: transparent; color: var(--ink); font: 16px var(--mono); cursor: pointer; display: grid; place-items: center; }
@@ -145,7 +148,8 @@ nav.links .btn { padding: 7px 12px; font-size: 13px; }
 .ver.on::before { content: ""; width: 8px; height: 8px; background: var(--red); }
 .ver.on::after { content: "▾"; color: var(--ink-3); }
 /* version history as a timetable */
-.ruler { list-style: none; margin: 0 14px; padding: 0; border-top: 1px solid var(--ink); }
+.ruler { list-style: none; margin: 0 14px; padding: 0; border-top: 1px solid var(--ink); max-height: 136px; overflow: auto; }
+.ruler + .feed { min-height: 150px; }
 .ruler .tick { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--rule); font: 500 12.5px var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; animation: rise .3s both; }
 .ruler .tick .v { font: 700 12px var(--mono); color: var(--ink); }
 .ruler .tick .t { font: 500 11.5px var(--mono); color: var(--ink-3); }
@@ -290,9 +294,9 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 @media (max-width: 960px) {
   .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 40px; }
   .hero h1 { max-width: none; }
-  .stage { grid-template-columns: minmax(0, 1fr); }
-  .app { border-right: 0; border-bottom: 1px solid var(--ink); }
-  .feed { max-height: 220px; }
+  .stage { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .app { border-right: 0; border-bottom: 1px solid var(--ink); height: 420px; }
+  .drawer { height: 470px; }
   .dims { grid-template-columns: 1fr 1fr; }
   .dim:nth-child(2) { border-right: 0; }
   .dim:nth-child(3) { padding-left: 0; border-top: 1px solid var(--rule); }
@@ -317,6 +321,8 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   .flow, .numbers, .dims { grid-template-columns: minmax(0, 1fr); }
   .tiles, .tiles:has(.tile:nth-child(4)) { grid-template-columns: 1fr 1fr; }
   .split { grid-template-columns: minmax(0, 1fr); }
+  .app { height: 680px; }
+  .drawer { height: 600px; }
   .app-bar .zone-tag { display: none; }
   .dim { border-right: 0; padding-left: 0 !important; border-top: 1px solid var(--rule); }
   .dim:first-child { border-top: 0; }
