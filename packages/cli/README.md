@@ -10,15 +10,14 @@ The `pleatkit` command for [pleatkit](https://github.com/Kappatich/pleatkit) app
 | `pleatkit export` | everything the store keeps for an app or one user, as JSON |
 | `pleatkit erase --user <id>` / `--app <id>` | deletes a user's or the app's data in the store (two steps, with a confirm token) |
 | `pleatkit check-snapshots` | carries every user's version over to a new build and compiles it, before the release |
-| `pleatkit carry-over` | carries every user's edits to a new release within a budget; `--rollback` |
-| `pleatkit digest --week` | the weekly digest with the wish map, as markdown or sent to the alert channel |
 | `pleatkit report` | a bug report with keys, tokens and secrets redacted |
 
 ```bash
-pnpm add -D @pleatkit/cli @pleatkit/agent    # the agent package is needed only for digest, carry-over, check-snapshots
+pnpm add -D @pleatkit/cli @pleatkit/agent    # the agent package is needed only for check-snapshots
 pnpm exec pleatkit doctor
 ```
 
-`pleatkit --help` lists every option. Anonymous usage events are opt-out (`PLEATKIT_TELEMETRY=0`).
+`pleatkit --help` lists every option. The bulk carry-over after a release and the weekly digest are pleatkit cloud
+commands (`pleatkit-ops`), not part of this package. Anonymous usage events are opt-out (`PLEATKIT_TELEMETRY=0`).
 
 MIT. Changes: [CHANGELOG.md](https://github.com/Kappatich/pleatkit/blob/main/CHANGELOG.md).

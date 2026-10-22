@@ -5,7 +5,6 @@ import { ping } from './ping.js'
 import { keys } from './keys.js'
 import { exportData } from './export.js'
 import { checkSnapshotsCommand } from './check-snapshots.js'
-import { carryOverCommand, digestCommand } from './ops.js'
 import { eraseCommand } from './erase.js'
 import { labelsExport } from './labels.js'
 import { bugReport } from './report.js'
@@ -13,7 +12,7 @@ import { formatPlan, parsePanels, suggest, writePlan } from './suggest.js'
 import fs from 'node:fs'
 import { track } from '@pleatkit/vite-plugin'
 
-const VERSION = '0.3.0'
+const VERSION = '0.4.0'
 /** F8: one anonymous event per command (PLEATKIT_TELEMETRY=0 turns it off; README "Telemetry"). */
 const event = (name: string, props: Record<string, string | number | boolean> = {}) => track(name, props, { source: { package: '@pleatkit/cli', version: VERSION } })
 
@@ -25,10 +24,6 @@ const HELP = `Usage:
   pleatkit export --store <url> --app <id> [--user <id>] [--out <file>]
   pleatkit check-snapshots --store <url> --app <id> [--manifest <file>] [--typecheck] [--root <dir>]
   pleatkit report [--root <dir>] [--dist <dir>] [--url <app url>] [--out <file>]
-  pleatkit digest --week --store <url> --app <id> [--out <file>] [--send] [--no-wishes] [--manifest <file>]
-                  [--wishes-max-items <n>] [--wishes-budget-usd <n>]
-  pleatkit carry-over --release <hash> --budget-usd <n> --store <url> --app <id> [--manifest <file>]
-                      [--per-user-usd <n>] [--dry-run] [--retry] [--typecheck] [--rollback]
   pleatkit erase --user <id> --app <id> --store <url> [--confirm <token>]
   pleatkit erase --app <id> --store <url> [--confirm <token>]
   pleatkit labels export --store <url> --app <id> [--eval-app <id>] [--out <file>] [--all]
@@ -66,20 +61,8 @@ type-checks it too): the users whose version would be marked stale, before the r
 report writes pleatkit-report.md for a bug report: doctor's findings, versions, the Vite config and the pleatkit
 environment with keys, tokens and secrets redacted, and a summary of the build manifest. Read it, then attach it.
 
-digest --week prints the weekly digest as markdown: requests and outcomes, cost, carry-overs, what waits on the
-admin, the audit chain, and the wish map (one classifier call over the week's requests the panels could not
-serve; the model provider comes from PLEATKIT_PROVIDER / PLEATKIT_API_KEY like the agent's). --send sends it
-through PLEATKIT_ALERT_WEBHOOK and/or PLEATKIT_ALERT_EMAIL_URL + _TO. The wish map reads at most 500 requests
-and spends at most $0.50 (--wishes-max-items, --wishes-budget-usd, or PLEATKIT_WISHES_MAX_ITEMS / _BUDGET_USD).
-
-carry-over carries every user's edits to a new release: by itself where the release did not touch the files the
-user changed, with the agent where it did, never past --budget-usd. The store keeps the progress: run it again
-(with a higher budget) to continue. --release is the build's release hash (or 8+ characters of it; the command
-prints it when it does not match). --rollback puts every user back on the version before the run. One user's
-migration may cost at most the perEditUsd of the app's plan; --per-user-usd overrides it.
-
 erase deletes everything store-server keeps about one user (--user) or the whole app (no --user): snapshots,
-heads, requests, usage events, bundles, run records, flags, carry-over rows, the cloud's facts. The first run
+heads, requests, usage events, bundles, run records, flags, labels and the rows of the store's extensions. The first run
 prints what would go and a confirm token; run it again with --confirm <token> to erase. An audit tombstone
 without personal data stays. Admin only (PLEATKIT_APP_KEY, or --key).
 
@@ -178,62 +161,6 @@ async function main(argv: string[]): Promise<number> {
     console.log(`wrote ${out}: ${r.findings.filter((f) => f.status === 'fail').length} failed checks. Read it, then attach it to the issue.`)
     await event('report.run')
     return 0
-  }
-  if (command === 'digest' || command === 'carry-over') {
-    const store = opt('--store') ?? process.env.PLEATKIT_STORE_URL
-    const app = opt('--app') ?? process.env.PLEATKIT_APP_ID
-    const key = opt('--key') ?? process.env.PLEATKIT_APP_KEY
-    if (!store || !app) {
-      console.error(`Usage: see pleatkit --help (${command} needs --store and --app, or PLEATKIT_STORE_URL and PLEATKIT_APP_ID)`)
-      return 1
-    }
-    if (command === 'digest') {
-      const out = opt('--out')
-      const days = rest.includes('--week') || !opt('--days') ? 7 : Number(opt('--days'))
-      const wishMax = opt('--wishes-max-items')
-      const wishBudget = opt('--wishes-budget-usd')
-      const r = await digestCommand({
-        store,
-        app,
-        ...(key ? { key } : {}),
-        days,
-        ...(out ? { out } : {}),
-        send: rest.includes('--send'),
-        noWishes: rest.includes('--no-wishes'),
-        manifest: opt('--manifest') ?? 'dist/pleatkit.manifest.json',
-        ...(wishMax !== undefined ? { wishMaxItems: Number(wishMax) } : {}),
-        ...(wishBudget !== undefined ? { wishBudgetUsd: Number(wishBudget) } : {}),
-      })
-      console.log(r.lines.join('\n'))
-      if (r.ok) await event('digest.run', { sent: rest.includes('--send') })
-      return r.ok ? 0 : 1
-    }
-    const release = opt('--release')
-    const budget = Number(opt('--budget-usd'))
-    const rollback = rest.includes('--rollback')
-    if (!release || (!rollback && !(budget >= 0 && opt('--budget-usd') !== undefined))) {
-      console.error('Usage: pleatkit carry-over --release <hash> --budget-usd <dollars> --store <url> --app <id> [--manifest dist/pleatkit.manifest.json]')
-      return 1
-    }
-    const perUser = opt('--per-user-usd')
-    const root = opt('--root')
-    const r = await carryOverCommand({
-      store,
-      app,
-      ...(key ? { key } : {}),
-      release,
-      budgetUsd: rollback ? 0 : budget,
-      manifest: opt('--manifest') ?? 'dist/pleatkit.manifest.json',
-      ...(perUser ? { perUserUsd: Number(perUser) } : {}),
-      dryRun: rest.includes('--dry-run'),
-      retry: rest.includes('--retry'),
-      rollback,
-      typecheck: rest.includes('--typecheck'),
-      ...(root ? { root } : {}),
-    })
-    console.log(r.lines.join('\n'))
-    if (r.ok) await event(rollback ? 'carry-over.rollback' : 'carry-over.run')
-    return r.ok ? 0 : 1
   }
   if (command === 'erase') {
     const store = opt('--store') ?? process.env.PLEATKIT_STORE_URL

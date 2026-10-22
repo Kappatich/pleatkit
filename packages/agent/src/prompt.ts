@@ -123,7 +123,7 @@ export interface PromptDigests {
   context?: { files: { path: string; source: string }[]; omitted: string[] }
 }
 
-/** The prompt's digests from a server manifest (one place for the server, doctor, carry-over and the evals). */
+/** The prompt's digests from a server manifest (one place for the server, doctor, extensions and the evals). */
 export function digestsFromManifest(m: Pick<PleatkitManifest, 'designSystem' | 'dataContracts' | 'agentContext'> | null | undefined): PromptDigests {
   if (!m) return {}
   return {

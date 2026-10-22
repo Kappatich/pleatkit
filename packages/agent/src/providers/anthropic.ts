@@ -3,8 +3,7 @@ import type { PleatkitManifest, TokenUsage } from '@pleatkit/runtime/compiler'
 import type { PromptTokenCount } from '../prefix.js'
 import { CLASSIFIER_INSTRUCTIONS, INTENT_LABELS } from '../prompt.js'
 import { perCallMaxTokens } from './budget.js'
-import type { BackendQuote, Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
-import { CLUSTER_MAX_TOKENS, CLUSTER_SCHEMA, clusterMessage, parseClusters, WISHES_INSTRUCTIONS, type ClusterInput, type ClusterOutput } from '../wishes.js'
+import type { BackendQuote, Classification, ClassifyInput, JsonCall, JsonOutput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
 
 type MessageParam = Anthropic.Beta.BetaMessageParam
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -204,10 +203,6 @@ export class AnthropicProvider implements ModelProvider {
     }
   }
 
-  get clusterModel(): string {
-    return this.classifierModel
-  }
-
   /** DECISIONS 75 Р2: the app's prompt counted with `count_tokens` (free) through this provider's client and key. */
   async countPromptTokens(manifest: PleatkitManifest): Promise<PromptTokenCount> {
     // imported here: prefix.ts imports this module for DEFAULT_MODEL
@@ -215,21 +210,22 @@ export class AnthropicProvider implements ModelProvider {
     return countPromptTokens(manifest, { client: this.client, model: this.model })
   }
 
-  /** C9: the wish-list map in one classifier call (structured output, low effort). */
-  async cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
+  /** A structured JSON call on the classifier model (structured output, low effort), for agent server extensions. */
+  async completeJson(call: JsonCall, signal: AbortSignal): Promise<JsonOutput> {
     const msg = await this.client.messages.create(
       {
         model: this.classifierModel,
-        max_tokens: CLUSTER_MAX_TOKENS,
-        output_config: { effort: 'low', format: { type: 'json_schema', schema: CLUSTER_SCHEMA } },
-        system: WISHES_INSTRUCTIONS,
-        messages: [{ role: 'user', content: clusterMessage(input) }],
+        max_tokens: call.maxTokens,
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: call.schema } },
+        system: call.instructions,
+        messages: [{ role: 'user', content: call.message }],
       },
-      // the wish map is one call outside the agent loop: the SDK retries it
+      // one call outside the agent loop: the SDK retries it
       { signal, maxRetries: 2 },
     )
     const text = msg.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
-    return { clusters: msg.stop_reason === 'refusal' ? [] : parseClusters(text), usage: usageOf(msg.usage), model: msg.model }
+    const refused = msg.stop_reason === 'refusal'
+    return { text: refused ? '' : text, usage: usageOf(msg.usage), model: msg.model, ...(refused ? { refused } : {}) }
   }
 
   /**

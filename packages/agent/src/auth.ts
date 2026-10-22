@@ -22,7 +22,7 @@ export interface Identity {
   userId: string
   environment: string | null
   via: 'jwt' | 'demo'
-  /** C8: the token's role (`user` without a token); only `admin` may rebuild the wish map. */
+  /** The token's role (`user` without a token); the agent's admin routes (and its extensions') need `admin`. */
   role?: UserRole
 }
 

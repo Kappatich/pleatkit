@@ -1,8 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { PROMPT_VERSION } from '../prompt.js'
-import type { Classification, ClassifyInput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
-import type { ClusterInput, ClusterOutput } from '../wishes.js'
+import type { Classification, ClassifyInput, JsonCall, JsonOutput, ModelProvider, ModelSession, ModelTurn, PromptParts, ToolResult, ToolSpec, TurnOptions } from '../types.js'
 
 /**
  * Full transcripts of model runs (brainstorm 04 §6, §8 items 2 and 11). `RecordingProvider` wraps any provider and
@@ -17,7 +16,7 @@ export type TranscriptLine =
   | { kind: 'start'; prompt: Omit<PromptParts, 'images'> & { images: number }; tools: string[]; request: string }
   | { kind: 'turn'; index: number; results: ToolResult[]; turn: ModelTurn; ms: number; maxOutputTokens: number }
   | { kind: 'say'; text: string }
-  | { kind: 'cluster'; input: ClusterInput; output: ClusterOutput; ms: number }
+  | { kind: 'json'; name: string; call: Omit<JsonCall, 'scripted'>; output: JsonOutput; ms: number }
 
 export interface RecordingOptions {
   /** Directory of transcripts; one `<runId>.jsonl` per run. */
@@ -67,17 +66,18 @@ export class RecordingProvider implements ModelProvider {
     return output
   }
 
-  get clusterModel(): string | undefined {
-    return this.inner.clusterModel
+  get classifierModel(): string | undefined {
+    return this.inner.classifierModel
   }
 
-  /** C9: the clustering call of the wish-list map gets a transcript of its own. */
-  async cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
-    if (!this.inner.cluster) return { clusters: [], usage: null, model: null }
+  /** A JSON call (an extension's) gets a transcript of its own. */
+  async completeJson(call: JsonCall, signal: AbortSignal): Promise<JsonOutput> {
+    if (!this.inner.completeJson) throw new Error(`${this.inner.name} has no JSON calls`)
     const file = this.open()
     const started = performance.now()
-    const output = await this.inner.cluster(input, signal)
-    this.write({ kind: 'cluster', input, output, ms: Math.round(performance.now() - started) }, file)
+    const output = await this.inner.completeJson(call, signal)
+    const { scripted: _scripted, ...recorded } = call
+    this.write({ kind: 'json', name: call.name, call: recorded, output, ms: Math.round(performance.now() - started) }, file)
     this.current = null
     return output
   }
@@ -130,10 +130,11 @@ export class ReplayProvider implements ModelProvider {
     return c.output
   }
 
-  /** The recorded clustering answer of a wish-list map transcript. */
-  async cluster(): Promise<ClusterOutput> {
-    const c = this.lines.find((l) => l.kind === 'cluster')
-    return c && c.kind === 'cluster' ? c.output : { clusters: [], usage: null, model: null }
+  /** The recorded answer of a JSON call (the one with the same name, else the first). */
+  async completeJson(call: JsonCall): Promise<JsonOutput> {
+    const calls = this.lines.flatMap((l) => (l.kind === 'json' ? [l] : []))
+    const c = calls.find((l) => l.name === call.name) ?? calls[0]
+    return c ? c.output : { text: 'null', usage: null, model: null }
   }
 
   start(): ModelSession {

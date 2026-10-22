@@ -1,8 +1,7 @@
 import type { PleatkitManifest, RequestClass } from '@pleatkit/runtime/compiler'
 import type { PromptTokenCount } from './prefix.js'
 import type { JevAnswer, JevRoute } from './providers/typesafe.js'
-import type { BackendQuote, Classification, ClassifyInput, ModelProvider, ModelSession, PromptParts, ToolSpec } from './types.js'
-import type { ClusterInput, ClusterOutput } from './wishes.js'
+import type { BackendQuote, Classification, ClassifyInput, JsonCall, JsonOutput, ModelProvider, ModelSession, PromptParts, ToolSpec } from './types.js'
 
 /**
  * DECISIONS 83, block 6: the classifier ensemble (PLEATKIT_CLASSIFIER_ENSEMBLE=jev). Jev (TypeSafe, ~0.3 s) and the
@@ -87,12 +86,13 @@ export class EnsembleProvider implements ModelProvider {
     this.graceMs = options.graceMs ?? 150
   }
 
-  get clusterModel(): string | undefined {
-    return this.inner.clusterModel
+  get classifierModel(): string | undefined {
+    return this.inner.classifierModel
   }
 
-  cluster(input: ClusterInput, signal: AbortSignal): Promise<ClusterOutput> {
-    return this.inner.cluster ? this.inner.cluster(input, signal) : Promise.resolve({ clusters: [], usage: null, model: null })
+  completeJson(call: JsonCall, signal: AbortSignal): Promise<JsonOutput> {
+    if (!this.inner.completeJson) return Promise.reject(new Error(`${this.inner.name} has no JSON calls`))
+    return this.inner.completeJson(call, signal)
   }
 
   countPromptTokens(manifest: PleatkitManifest): Promise<PromptTokenCount> {

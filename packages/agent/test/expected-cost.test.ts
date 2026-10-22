@@ -84,7 +84,7 @@ describe('DECISIONS 75 Р2: the agent server computes it for /admin', () => {
     const provider = {
       name: 'anthropic',
       model: SONNET,
-      clusterModel: HAIKU,
+      classifierModel: HAIKU,
       countPromptTokens: async (): Promise<PromptTokenCount> => (calls++, { prefixTokens: 8_000, tailTokens: 2_000, model: SONNET, promptVersion: 'p' }),
     }
     const cache = new Map<string, PromptTokenCount>()

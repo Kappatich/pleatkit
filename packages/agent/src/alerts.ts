@@ -10,13 +10,14 @@ import type { StoreClient } from './store-client.js'
  * - `budget`: the app crossed 50 %, 80 % or 100 % of its daily dollar budget (once per threshold per day);
  * - `freeze`: one user looked like abuse (rule violations, a burst of requests, a large share of the app's
  *   budget) and was frozen alone (`edits.enabled: false` for that user), instead of the whole app running out;
- * - `digest`: the weekly digest (C5, `pleatkit digest --week --send`), its markdown in `details.markdown`;
+ * - `summary`: a periodic report as a markdown document in `details.markdown` (a scheduled job's summary): the
+ *   webhook sends the title and the document, the e-mail sends the document with the title as its subject;
  * - `eval-drift`: the weekly eval check (`pnpm eval:weekly`, brainstorm 17 §20) found a regression or a live run
  *   below the baseline; its short text in `details.text`.
  *
  * Any alert may carry a few lines of plain text in `details.text`: both sinks print them under the title.
  */
-export type AlertKind = 'static-rule' | 'budget' | 'freeze' | 'digest' | 'eval-drift'
+export type AlertKind = 'static-rule' | 'budget' | 'freeze' | 'summary' | 'eval-drift'
 
 export interface Alert {
   kind: AlertKind
@@ -43,7 +44,7 @@ export class WebhookSink implements AlertSink {
     const res = await this.fetchFn(this.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: alert.kind === 'digest' ? `${alert.title}\n\n${String(alert.details.markdown ?? '')}` : `[pleatkit ${alert.severity}] ${alert.title}${typeof alert.details.text === 'string' ? `\n${alert.details.text}` : ''}`, alert }),
+      body: JSON.stringify({ text: alert.kind === 'summary' ? `${alert.title}\n\n${String(alert.details.markdown ?? '')}` : `[pleatkit ${alert.severity}] ${alert.title}${typeof alert.details.text === 'string' ? `\n${alert.details.text}` : ''}`, alert }),
       signal: AbortSignal.timeout(5_000),
     })
     if (!res.ok) throw new Error(`alert webhook answered ${res.status}`)
@@ -63,7 +64,7 @@ export class EmailSink implements AlertSink {
   ) {}
   async send(alert: Alert): Promise<void> {
     const text =
-      alert.kind === 'digest'
+      alert.kind === 'summary'
         ? String(alert.details.markdown ?? '')
         : [
             alert.title,
@@ -76,7 +77,7 @@ export class EmailSink implements AlertSink {
     const res = await this.fetchFn(this.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...(this.token ? { authorization: `Bearer ${this.token}` } : {}) },
-      body: JSON.stringify({ to: this.to, subject: alert.kind === 'digest' ? alert.title : `[pleatkit ${alert.severity}] ${alert.title}`, text }),
+      body: JSON.stringify({ to: this.to, subject: alert.kind === 'summary' ? alert.title : `[pleatkit ${alert.severity}] ${alert.title}`, text }),
       signal: AbortSignal.timeout(5_000),
     })
     if (!res.ok) throw new Error(`alert e-mail API answered ${res.status}`)
