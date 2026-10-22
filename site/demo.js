@@ -109,6 +109,17 @@
     else pipeline.classList.remove('grown');
     if (zone) flash(zone);
   }
+  // Focus: while a request runs and right after it lands, only the panel it changes stays sharp (Minte, 2026-10-22).
+  var focusTimer = null;
+  function focus(zone) {
+    clearTimeout(focusTimer);
+    [tiles, pipeline, customers].forEach(function (el) { el.classList.remove('pane-focus'); });
+    if (!zone) { dash.removeAttribute('data-focus'); return; }
+    dash.setAttribute('data-focus', zone);
+    (zone === 'all' ? [tiles, pipeline, customers] : [root.querySelector('[data-zone="' + zone + '"]')]).forEach(function (el) { el.classList.add('pane-focus'); });
+  }
+  function unfocusLater(ms) { clearTimeout(focusTimer); focusTimer = setTimeout(function () { focus(null); }, ms); }
+
   function flash(zone) {
     var els = zone === 'all' ? [tiles, pipeline, customers] : [root.querySelector('[data-zone="' + zone + '"]')];
     els.forEach(function (el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); });
@@ -205,6 +216,7 @@
     var r = recipesMap[key];
     var request = root.querySelector('.recipe[data-recipe="' + key + '"]').getAttribute('data-request');
     setBusy(true);
+    focus(r.zone || null);
     typeInto(request, function () {
       resetPrompt();
       var live = addTurn(request);
@@ -221,6 +233,7 @@
         }
         finish(live, r, secs);
         setBusy(false);
+        unfocusLater(r.backend ? 400 : 2600);
         if (done) done();
       });
     });
@@ -239,6 +252,7 @@
     if (busy || head === 0) return;
     var zone = recipesMap[history[head].id].zone;
     head--;
+    focus(zone); unfocusLater(1800);
     renderState(history[head].state, zone);
     sys('↶ Undone. Back to v' + head + '. One click, no model call.');
     drawRuler();
@@ -247,6 +261,7 @@
     manual = true;
     if (busy || head === 0) return;
     head = 0; history = history.slice(0, 1);
+    focus(null);
     renderState({}, 'all');
     sys('Reset to the original version.');
     drawRuler();
