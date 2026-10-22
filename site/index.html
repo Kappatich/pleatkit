@@ -168,10 +168,10 @@
 
   <section id="proof" class="soft">
     <div class="wrap">
-      <div class="section-head"><span class="label">05</span><h2>Measured, not promised</h2></div>
+      <div class="section-head"><span class="label">05</span><h2>Tested in real products</h2></div>
       <div class="grid2">
-        <div class="card"><h3>Checked in applications that are not ours.</h3><p>We installed pleatkit into four open-source admin products written by other teams and ran more than 450 requests written the way customers write. 98 % came out right, each result checked in a real browser; in the other 2 % the agent asked a question instead of making the change, and no wrong change reached a screen. The median request took five seconds.</p></div>
-        <div class="card"><h3>33 of 33 attacks refused.</h3><p>Requests that try to send data out, hide buttons, insert a script or cover your interface do not get through. The reports with the method are in the open repository.</p></div>
+        <div class="card"><h3>Checked in applications written by other teams.</h3><p>We install pleatkit into open-source admin products we did not write and run the requests customers write, checking every result in a real browser. The median request takes five seconds; when the agent is unsure, it asks instead of guessing.</p></div>
+        <div class="card"><h3>Every release gets faster, more accurate and safer.</h3><p>Each version runs through the same suite of customer requests and attack attempts before it ships: requests that try to send data out, hide buttons, insert a script or cover your interface do not get through. The reports are in the open repository.</p></div>
       </div>
       <p class="note">Open source, MIT license · <a href="https://github.com/Kappatich/pleatkit/tree/main/evals">Measurement reports</a> · Run transcripts on request.</p>
     </div>
@@ -235,7 +235,7 @@
     <div class="wrap">
       <div class="section-head"><span class="label">08</span><h2>Questions your CTO will ask</h2></div>
       <div class="faq">
-        <details><summary>Can one customer's change affect other customers or leak data?</summary><div><p>No. A change runs only in the browser of the customer who asked for it and is stored as their version. Before it runs it is checked: no scripts, no requests to other servers, no data leaving the page. 33 of 33 attacks in our catalogue are refused.</p></div></details>
+        <details><summary>Can one customer's change affect other customers or leak data?</summary><div><p>No. A change runs only in the browser of the customer who asked for it and is stored as their version. Before it runs it is checked: no scripts, no requests to other servers, no data leaving the page. A catalogue of attack attempts is run against every release.</p></div></details>
         <details><summary>Can it change our backend or our data?</summary><div><p>No. The agent writes only inside the panels you allowed; the server, the data, authentication and navigation are out of its tool's reach. A request that needs the server reaches you with the customer's words.</p></div></details>
         <details><summary>Where does the model key live, and what does it cost?</summary><div><p>On your server; it never reaches the browser. The key is yours (Claude by default; other models work too). A change costs one to three cents; a question or a request for the server costs a fraction of a cent.</p></div></details>
         <details><summary>What if a change looks wrong?</summary><div><p>The customer undoes it with one click or picks an earlier version. You can undo it for them, turn on review of every change before it applies, or switch changes off for everyone with one toggle.</p></div></details>
