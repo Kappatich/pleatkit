@@ -1,13 +1,13 @@
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Locale } from '@pleatkit/runtime'
 import type { AdminCall } from './admin-api'
 import type { AdminTranslate } from './admin-i18n'
 
 /**
- * The /admin screens beyond the request log (stage 4c block 2): the wish-list map (C9), code search and rollback
- * by selection (C11), carry-over runs per release (C10), and the 4a foundations that had no screen yet: flags,
- * the events feed, the audit chain and the plan with its usage. Same design v3 as the requests: one H1, one stats
- * line between rules, timetables with mono column labels, red only for what waits on the admin.
+ * The /admin screens beyond the request log (stage 4c block 2): the 4a foundations that had no screen yet: flags,
+ * the events feed, the audit chain and the plan with its usage and the expected cost of an edit. Same design v3 as
+ * the requests: one H1, one stats line between rules, timetables with mono column labels, red only for what waits on
+ * the admin. The pleatkit cloud adds its own screens (the wish map, code search, carry-over runs, the pilot report).
  */
 interface ScreenProps {
   call: AdminCall
@@ -45,514 +45,6 @@ function Problem({ text }: { text: string | null }) {
 }
 
 const usd = (v: number) => `$${v.toFixed(v >= 1 ? 2 : 4)}`
-
-// --- C9: wishes ---
-
-interface WishView {
-  panel: string
-  title: string
-  kind: 'needs-backend' | 'out-of-zone'
-  requestIds: string[]
-  requests: number
-  users: number
-  lastAt: string | null
-  examples: string[]
-}
-interface WishMapView {
-  createdAt: string
-  from: number
-  to: number
-  provider: string | null
-  model: string | null
-  items: number
-  clusters: WishView[]
-}
-
-export function WishesScreen({ call, agent, tr, locale }: ScreenProps & { agent: AdminCall }) {
-  const [map, setMap] = useState<WishMapView | null | undefined>(undefined)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const load = useCallback(() => call<{ map: WishMapView | null }>('/admin/wishes').then((r) => setMap(r.map), (e: Error) => setError(e.message)), [call])
-  useEffect(() => void load(), [load])
-  const rebuild = async () => {
-    setBusy(true)
-    try {
-      await agent('/wishes', { method: 'POST' })
-      setError(null)
-      await load()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-  const groups = useMemo(() => {
-    const by = new Map<string, WishView[]>()
-    for (const k of map?.clusters ?? []) by.set(k.panel, [...(by.get(k.panel) ?? []), k])
-    const total = (ks: WishView[]) => ks.reduce((n, k) => n + k.requests, 0)
-    return [...by.entries()].map(([panel, ks]) => [panel, ks.sort((a, b) => b.requests - a.requests)] as const).sort((a, b) => total(b[1]) - total(a[1]) || a[0].localeCompare(b[0]))
-  }, [map])
-  return (
-    <>
-      <Head title={tr('adm.w.title')}>
-        <p className="adm-week" data-testid="admin-wishes-stats">
-          {map ? (
-            <>
-              {tr('adm.w.range', { days: Math.round((map.to - map.from) / 86_400_000) })} <b className="adm-num">{map.items}</b> {tr('adm.w.items')}
-              <span className="adm-sep"> · </span>
-              <b className="adm-num">{map.clusters.length}</b> {tr('adm.w.themes')}
-            </>
-          ) : (
-            tr('adm.w.none.short')
-          )}
-        </p>
-        <div className="adm-chips">
-          {map && (
-            <span className="adm-chip" title={tr('adm.w.built.tip')}>
-              {tr('adm.w.built', { when: `${day(map.createdAt, locale)} ${hm(map.createdAt, locale)}`, model: map.model ?? map.provider ?? '—' })}
-            </span>
-          )}
-          <button type="button" className="adm-btn" data-testid="admin-wishes-rebuild" disabled={busy} title={tr('adm.w.rebuild.tip')} onClick={() => void rebuild()}>
-            {busy ? tr('adm.w.rebuilding') : tr('adm.w.rebuild')}
-          </button>
-        </div>
-      </Head>
-      <Problem text={error} />
-      <div className="adm-scroll">
-        <table className="adm-table" data-testid="admin-wishes">
-          <colgroup>
-            <col className="adm-w-140" />
-            <col />
-            <col className="adm-w-150" />
-            <col className="adm-w-92" />
-            <col className="adm-w-70" />
-            <col className="adm-w-120" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>{tr('adm.w.col.panel')}</th>
-              <th>{tr('adm.w.col.theme')}</th>
-              <th>{tr('adm.w.col.kind')}</th>
-              <th className="adm-r">{tr('adm.w.col.requests')}</th>
-              <th className="adm-r">{tr('adm.w.col.users')}</th>
-              <th className="adm-pl">{tr('adm.w.col.last')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {map !== undefined && groups.length === 0 && (
-              <tr>
-                <td colSpan={6} className="adm-empty">
-                  {map ? tr('adm.w.empty') : tr('adm.w.none')}
-                </td>
-              </tr>
-            )}
-            {groups.map(([panel, ks]) =>
-              ks.map((k, i) => (
-                <tr key={`${panel}\0${k.title}`} className={`adm-line${i === 0 ? ' adm-group' : ''}`} data-testid="admin-wish" data-panel={panel} data-kind={k.kind}>
-                  <td className="adm-panel">{i === 0 ? panel : ''}</td>
-                  <td>
-                    <span className="adm-text">{k.title}</span>
-                    {k.examples.slice(0, 2).map((x, j) => (
-                      <span key={j} className="adm-quote">
-                        “{x}”
-                      </span>
-                    ))}
-                  </td>
-                  <td className="adm-outcome">
-                    <span className="adm-mark" aria-hidden="true">
-                      {k.kind === 'needs-backend' ? '▸' : '–'}
-                    </span>
-                    <span className="adm-otext">{tr(k.kind === 'needs-backend' ? 'adm.w.kind.backend' : 'adm.w.kind.zone')}</span>
-                  </td>
-                  <td className="adm-big">{k.requests}</td>
-                  <td className="adm-cost">{k.users}</td>
-                  <TimeCell iso={k.lastAt} locale={locale} className="adm-pl" />
-                </tr>
-              )),
-            )}
-          </tbody>
-        </table>
-      </div>
-      <p className="adm-foot">{tr('adm.w.foot')}</p>
-    </>
-  )
-}
-
-// --- C11: code search and rollback by selection ---
-
-interface GrepRow {
-  userId: string
-  orgId: string
-  snapshotId: string
-  isHead: boolean
-  createdAt: string
-  author: string
-  message: string
-  matches: { file: string; line: number; text: string }[]
-}
-interface GrepResult {
-  grep: string
-  scope: 'heads' | 'all'
-  count: number
-  rows: GrepRow[]
-}
-
-function Highlight({ text, needle }: { text: string; needle: string }) {
-  const parts = text.split(needle)
-  return (
-    <>
-      {parts.map((p, i) => (
-        <Fragment key={i}>
-          {p}
-          {i < parts.length - 1 && <mark className="adm-hit">{needle}</mark>}
-        </Fragment>
-      ))}
-    </>
-  )
-}
-
-export function SnapshotsScreen({ call, tr, locale }: ScreenProps) {
-  const initial = new URLSearchParams(location.search).get('grep') ?? ''
-  const [q, setQ] = useState(initial)
-  const [scope, setScope] = useState<'heads' | 'all'>('heads')
-  const [result, setResult] = useState<GrepResult | null>(null)
-  const [confirming, setConfirming] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const search = useCallback(
-    async (needle: string, where: 'heads' | 'all') => {
-      if (needle.length < 2) return
-      try {
-        setResult(await call<GrepResult>(`/admin/snapshots?grep=${encodeURIComponent(needle)}&scope=${where}`))
-        setError(null)
-      } catch (e) {
-        setError((e as Error).message)
-      }
-    },
-    [call],
-  )
-  useEffect(() => {
-    if (initial) void search(initial, 'heads')
-  }, [initial, search])
-  const rollback = async () => {
-    if (!result) return
-    try {
-      const r = await call<{ rolledBack: number; users: string[]; skipped: string[] }>('/admin/snapshots/rollback', { method: 'POST', body: JSON.stringify({ grep: result.grep, confirm: result.count }) })
-      setMsg(tr('adm.s.done', { n: r.rolledBack, users: r.users.join(', ') || '—' }))
-      setConfirming(false)
-      await search(result.grep, result.scope)
-    } catch (e) {
-      setMsg((e as Error).message)
-      setConfirming(false)
-    }
-  }
-  const live = result?.scope === 'heads' ? result.count : 0
-  return (
-    <>
-      <Head title={tr('adm.s.title')}>
-        <form
-          className="adm-form"
-          data-testid="admin-grep-form"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setMsg(null)
-            setConfirming(false)
-            void search(q, scope)
-          }}
-        >
-          <input className="adm-input" data-testid="admin-grep" value={q} placeholder={tr('adm.s.placeholder')} aria-label={tr('adm.s.placeholder')} onChange={(e) => setQ(e.target.value)} />
-          <span className="adm-seg" role="group" aria-label={tr('adm.s.scope')}>
-            {(['heads', 'all'] as const).map((s) => (
-              <button key={s} type="button" aria-pressed={scope === s} data-testid={`admin-grep-scope-${s}`} onClick={() => setScope(s)}>
-                {tr(s === 'heads' ? 'adm.s.heads' : 'adm.s.all')}
-              </button>
-            ))}
-          </span>
-          <button type="submit" className="adm-btn" data-testid="admin-grep-go" disabled={q.length < 2}>
-            {tr('adm.s.search')}
-          </button>
-        </form>
-        {result && (
-          <p className="adm-week" data-testid="admin-grep-count">
-            {tr(result.scope === 'heads' ? 'adm.s.count.heads' : 'adm.s.count.all', { n: result.count })} <code className="adm-mono">{result.grep}</code>
-          </p>
-        )}
-      </Head>
-      <Problem text={error} />
-      {result && (
-        <div className="adm-scroll">
-          <table className="adm-table" data-testid="admin-grep-results">
-            <colgroup>
-              <col className="adm-w-92" />
-              <col className="adm-w-92" />
-              <col className="adm-w-196" />
-              <col />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>{tr('adm.col.time')}</th>
-                <th>{tr('admin.col.user')}</th>
-                <th>{tr('adm.s.col.version')}</th>
-                <th>{tr('adm.s.col.match')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.rows.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="adm-empty">
-                    {tr('adm.s.empty')}
-                  </td>
-                </tr>
-              )}
-              {result.rows.map((r) => (
-                <tr key={r.snapshotId} className={`adm-line${r.isHead ? ' adm-t-pending' : ''}`} data-testid="admin-grep-row" data-user={r.userId} data-head={r.isHead}>
-                  <TimeCell iso={r.createdAt} locale={locale} />
-                  <td className="adm-user">{r.userId}</td>
-                  <td>
-                    <span className="adm-mono">{r.snapshotId.slice(-8)}</span>
-                    {r.isHead && <span className="adm-live">{tr('admin.live')}</span>}
-                    <span className="adm-summary">{r.message}</span>
-                  </td>
-                  <td>
-                    {r.matches.map((m, i) => (
-                      <div key={i} className="adm-match">
-                        <span className="adm-loc">
-                          {m.file}:{m.line}
-                        </span>
-                        <code className="adm-code">
-                          <Highlight text={m.text} needle={result.grep} />
-                        </code>
-                      </div>
-                    ))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {live > 0 && !confirming && (
-        <div className="adm-actions adm-after">
-          <button type="button" className="adm-btn adm-btn-main" data-testid="admin-grep-rollback" title={tr('adm.s.rollback.tip')} onClick={() => setConfirming(true)}>
-            {tr('adm.s.rollback', { n: live })}
-          </button>
-        </div>
-      )}
-      {confirming && (
-        <div className="adm-confirm" data-testid="admin-grep-confirm">
-          <span>{tr('adm.s.confirm', { n: live })}</span>
-          <button type="button" className="adm-btn adm-btn-main" data-testid="admin-grep-confirm-go" onClick={() => void rollback()}>
-            {tr('adm.s.confirm.go', { n: live })}
-          </button>
-          <button type="button" className="adm-btn adm-btn-quiet" onClick={() => setConfirming(false)}>
-            {tr('adm.cancel')}
-          </button>
-        </div>
-      )}
-      {msg && (
-        <p className="adm-msg adm-after" data-testid="admin-grep-msg">
-          {msg}
-        </p>
-      )}
-    </>
-  )
-}
-
-// --- C10: releases (bulk carry-over runs) ---
-
-interface ReleaseRow {
-  release: string
-  status: 'running' | 'done' | 'budget' | 'rolled-back'
-  budgetUsd: number
-  spentUsd: number
-  createdAt: string
-  updatedAt: string
-  rolledBackAt: string | null
-  counts: Record<string, number>
-}
-interface ReleaseItem {
-  userId: string
-  fromSnapshot: string
-  toSnapshot: string | null
-  state: string
-  costUsd: number
-  error: string | null
-}
-
-const RELEASE_MARK: Record<ReleaseRow['status'], { mark: string; tone: 'ok' | 'pending' | 'quiet' }> = {
-  done: { mark: '✓', tone: 'ok' },
-  running: { mark: '▸', tone: 'quiet' },
-  budget: { mark: '▸', tone: 'pending' },
-  'rolled-back': { mark: '↶', tone: 'quiet' },
-}
-
-export function ReleasesScreen({ call, tr, locale }: ScreenProps) {
-  const [rows, setRows] = useState<ReleaseRow[] | null>(null)
-  const [open, setOpen] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const load = useCallback(() => call<ReleaseRow[]>('/admin/releases').then(setRows, (e: Error) => setError(e.message)), [call])
-  useEffect(() => void load(), [load])
-  const waiting = (rows ?? []).reduce((n, r) => n + (r.status === 'rolled-back' ? 0 : (r.counts.budget ?? 0)), 0)
-  return (
-    <>
-      <Head title={tr('adm.r.title')}>
-        <p className="adm-week">
-          {tr('adm.r.runs')} <b className="adm-num">{rows?.length ?? 0}</b>
-          {waiting > 0 && (
-            <>
-              <span className="adm-sep"> · </span>
-              {tr('adm.r.waiting')} <b className="adm-num">{waiting}</b>
-            </>
-          )}
-        </p>
-        <span className="adm-chip" title={tr('adm.r.cli.tip')}>
-          <code className="adm-chipcode">pleatkit carry-over --release &lt;hash&gt; --budget-usd 5</code>
-        </span>
-      </Head>
-      <Problem text={error} />
-      <div className="adm-scroll">
-        <table className="adm-table" data-testid="admin-releases">
-          <colgroup>
-            <col className="adm-w-92" />
-            <col className="adm-w-160" />
-            <col className="adm-w-150" />
-            <col />
-            <col className="adm-w-140" />
-            <col className="adm-c-chev" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>{tr('adm.r.col.started')}</th>
-              <th>{tr('adm.r.col.release')}</th>
-              <th>{tr('adm.r.col.status')}</th>
-              <th>{tr('adm.r.col.users')}</th>
-              <th className="adm-r">{tr('adm.r.col.spent')}</th>
-              <th aria-hidden="true" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows && rows.length === 0 && (
-              <tr>
-                <td colSpan={6} className="adm-empty">
-                  {tr('adm.r.empty')}
-                </td>
-              </tr>
-            )}
-            {(rows ?? []).map((r) => {
-              const m = RELEASE_MARK[r.status] ?? RELEASE_MARK.running
-              const isOpen = open === r.release
-              const parts = (['carried', 'migrated', 'current', 'stale', 'budget', 'failed', 'moved', 'rolled-back', 'kept'] as const).filter((k) => r.counts[k]).map((k) => tr(`adm.r.state.${k}` as K, { n: r.counts[k]! }))
-              return (
-                <Fragment key={r.release}>
-                  <tr className={`adm-row adm-t-${m.tone}${isOpen ? ' adm-open' : ''}`} data-testid="admin-release" data-release={r.release} data-status={r.status} onClick={() => setOpen(isOpen ? null : r.release)}>
-                    <TimeCell iso={r.createdAt} locale={locale} />
-                    <td className="adm-mono">{r.release}</td>
-                    <td className="adm-outcome">
-                      <span className="adm-mark" aria-hidden="true">
-                        {m.mark}
-                      </span>
-                      <span className="adm-otext">{tr(`adm.r.status.${r.status}` as K)}</span>
-                    </td>
-                    <td className="adm-summary-cell">{parts.join(' · ') || '—'}</td>
-                    <td className="adm-cost">
-                      {usd(r.spentUsd)} <span className="adm-of">/ {usd(r.budgetUsd)}</span>
-                    </td>
-                    <td className="adm-chevcell">
-                      <button type="button" className="adm-disclose" aria-expanded={isOpen} aria-label={tr('adm.open')}>
-                        <svg className={isOpen ? 'adm-chev adm-chev-open' : 'adm-chev'} viewBox="0 0 16 16" aria-hidden="true">
-                          <path d="M6 3.5 10.5 8 6 12.5" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                  {isOpen && (
-                    <tr className="adm-detailrow">
-                      <td colSpan={6}>
-                        <ReleaseDetail release={r} call={call} tr={tr} onChanged={load} />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </>
-  )
-}
-
-function ReleaseDetail({ release, call, tr, onChanged }: { release: ReleaseRow; call: AdminCall; tr: AdminTranslate; onChanged: () => Promise<void> }) {
-  const [items, setItems] = useState<ReleaseItem[] | null>(null)
-  const [confirming, setConfirming] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
-  const load = useCallback(() => call<{ items: ReleaseItem[] }>(`/admin/releases/${release.release}`).then((r) => setItems(r.items)), [call, release.release])
-  useEffect(() => void load(), [load])
-  const moved = (items ?? []).filter((i) => i.toSnapshot && i.state !== 'rolled-back' && i.state !== 'kept').length
-  const rollback = async () => {
-    try {
-      const r = await call<{ restored: string[]; kept: string[] }>(`/admin/releases/${release.release}/rollback`, { method: 'POST', body: '{}' })
-      setMsg(tr('adm.r.done', { n: r.restored.length, kept: r.kept.length }))
-      setConfirming(false)
-      await Promise.all([load(), onChanged()])
-    } catch (e) {
-      setMsg((e as Error).message)
-    }
-  }
-  if (!items) return <p className="adm-loading">{tr('admin.loading')}</p>
-  return (
-    <div className="adm-detail" data-testid="admin-release-detail">
-      <table className="adm-items">
-        <thead>
-          <tr>
-            <th>{tr('admin.col.user')}</th>
-            <th>{tr('adm.r.col.how')}</th>
-            <th>{tr('adm.r.col.before')}</th>
-            <th>{tr('adm.r.col.after')}</th>
-            <th className="adm-r">{tr('admin.col.cost')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((i) => (
-            <tr key={i.userId} data-testid="admin-release-item" data-state={i.state} className={i.state === 'failed' ? 'adm-bad' : undefined}>
-              <td>{i.userId}</td>
-              <td>
-                {tr(`adm.r.how.${i.state}` as K)}
-                {i.error && <span className="adm-loc">{i.error}</span>}
-              </td>
-              <td className="adm-mono">{i.fromSnapshot.slice(-8)}</td>
-              <td className="adm-mono">{i.toSnapshot ? i.toSnapshot.slice(-8) : '—'}</td>
-              <td className="adm-r adm-mono">{i.costUsd ? usd(i.costUsd) : '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="adm-actions">
-        {release.status !== 'rolled-back' && moved > 0 && !confirming && (
-          <button type="button" className="adm-btn" data-testid="admin-release-rollback" title={tr('adm.r.rollback.tip')} onClick={() => setConfirming(true)}>
-            {tr('adm.r.rollback')}
-          </button>
-        )}
-        {confirming && (
-          <>
-            <span className="adm-d-note">{tr('adm.r.confirm', { n: moved })}</span>
-            <button type="button" className="adm-btn adm-btn-main" data-testid="admin-release-rollback-go" onClick={() => void rollback()}>
-              {tr('adm.r.confirm.go', { n: moved })}
-            </button>
-            <button type="button" className="adm-btn adm-btn-quiet" onClick={() => setConfirming(false)}>
-              {tr('adm.cancel')}
-            </button>
-          </>
-        )}
-        {msg && (
-          <span className="adm-msg" data-testid="admin-release-msg">
-            {msg}
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
 
 // --- F6: flags ---
 
@@ -879,22 +371,6 @@ const PLANS: Record<string, Record<string, number>> = {
 }
 const LIMIT_KEYS = ['perEditUsd', 'userDailyUsd', 'userDailyEdits', 'appDailyUsd', 'appDailyEdits', 'userDailyCompiles'] as const
 
-/** A row of `GET /v1/report?format=json` (store-server's report.ts): the columns this screen reads. */
-interface ReportRowView {
-  date: string
-  org: string
-  requests: number
-  applied: number
-  token_cost_usd: number
-  unpriced_tokens: number
-  dev_hours_saved: number
-  cost_per_applied_edit_usd: number | null
-}
-interface ReportView {
-  minutesPerEdit: number
-  orgs: ReportRowView[]
-  total: ReportRowView
-}
 /** `POST /agent/v1/expected-cost` (the agent's expected-cost.ts): what this screen reads. */
 interface ExpectedCostView {
   model: string
@@ -906,44 +382,27 @@ interface ExpectedCostView {
 }
 
 /**
- * DECISIONS 75 (brainstorm 16, Р2 and Р4): the money of the last 7 days from the pilot report (token cost, developer
- * hours saved, cost per applied edit; per organization below), next to the expected cost of an edit on this app
- * from the agent server.
+ * DECISIONS 75 Р2: the expected cost of an edit on this app, from the agent server. (The measured money of the pilot
+ * report, token cost, hours saved and cost per applied edit by organization, is a pleatkit cloud screen.)
  */
-function MoneySection({ call, agent, tr, locale }: ScreenProps & { agent?: AdminCall }) {
-  const [report, setReport] = useState<ReportView | null>(null)
-  const [reportError, setReportError] = useState<string | null>(null)
+function MoneySection({ agent, tr }: Pick<ScreenProps, 'tr'> & { agent?: AdminCall }) {
   const [expected, setExpected] = useState<ExpectedCostView | null>(null)
   const [expectedError, setExpectedError] = useState<string | null>(null)
-  // the store's `to` is exclusive: a request logged in this very millisecond belongs to the range too
-  const range = useMemo(() => ({ from: Date.now() - 7 * 86_400_000, to: Date.now() + 1 }), [])
-  useEffect(() => {
-    call<ReportView>(`/report?from=${range.from}&to=${range.to}&format=json`).then(setReport, (e: Error) => setReportError(e.message))
-  }, [call, range])
   useEffect(() => {
     if (!agent) return
     agent<ExpectedCostView>('/expected-cost', { method: 'POST' }).then(setExpected, (e: Error) => setExpectedError(e.message))
   }, [agent])
-  const t = report?.total
   const money = (v: number | null | undefined) => (v === null || v === undefined ? '—' : usd(v))
-  const hours = (v: number) => `${v.toLocaleString(locale, { maximumFractionDigits: 1 })} h`
-  const expectedText = expected && expected.expectedUsd !== null ? usd(expected.expectedUsd) : '—'
-  const expectedNote = expected
+  const value = expected && expected.expectedUsd !== null ? usd(expected.expectedUsd) : '—'
+  const note = expected
     ? expected.expectedUsd === null
       ? tr('adm.p.m.expected.none', { reason: expected.unpriced.join(', ') })
       : tr('adm.p.m.expected.note', { model: expected.model, how: tr(expected.source === 'counted' ? 'adm.p.m.counted' : 'adm.p.m.estimated'), cold: money(expected.coldUsd) })
     : tr('adm.p.m.expected.none', { reason: expectedError ?? '…' })
-  const measures: [string, string, string, string][] = [
-    ['token-cost', tr('adm.p.m.tokenCost'), t ? usd(t.token_cost_usd) : '—', [tr('adm.p.m.tokenCost.note'), ...(t?.unpriced_tokens ? [tr('adm.p.m.unpriced', { n: t.unpriced_tokens.toLocaleString(locale) })] : [])].join('; ')],
-    ['hours-saved', tr('adm.p.m.hours'), t ? hours(t.dev_hours_saved) : '—', t && report ? tr('adm.p.m.hours.note', { n: t.applied, m: report.minutesPerEdit }) : ''],
-    ['cost-per-edit', tr('adm.p.m.perEdit'), money(t?.cost_per_applied_edit_usd), tr('adm.p.m.perEdit.note')],
-    ['expected', tr('adm.p.m.expected'), expectedText, expectedNote],
-  ]
   return (
     <div className="adm-split adm-after" data-testid="admin-plan-money">
       <section>
         <h2 className="adm-h2">{tr('adm.p.money')}</h2>
-        <Problem text={reportError} />
         <table className="adm-table" data-testid="admin-plan-measures">
           <colgroup>
             <col />
@@ -956,62 +415,17 @@ function MoneySection({ call, agent, tr, locale }: ScreenProps & { agent?: Admin
             </tr>
           </thead>
           <tbody>
-            {measures.map(([id, label, value, note]) => (
-              <tr key={id} className="adm-line" data-testid={`admin-plan-${id}`} {...(id === 'expected' && expected ? { 'data-source': expected.source } : {})}>
-                <td>
-                  <span className="adm-text">{label}</span>
-                  {note && <span className="adm-quote">{note}</span>}
-                </td>
-                <td className="adm-cost" data-testid={`admin-plan-${id}-value`}>
-                  {value}
-                </td>
-              </tr>
-            ))}
+            <tr className="adm-line" data-testid="admin-plan-expected" {...(expected ? { 'data-source': expected.source } : {})}>
+              <td>
+                <span className="adm-text">{tr('adm.p.m.expected')}</span>
+                <span className="adm-quote">{note}</span>
+              </td>
+              <td className="adm-cost" data-testid="admin-plan-expected-value">
+                {value}
+              </td>
+            </tr>
           </tbody>
         </table>
-      </section>
-      <section>
-        <h2 className="adm-h2">{tr('adm.p.byOrg')}</h2>
-        <div className="adm-scroll">
-          <table className="adm-table" data-testid="admin-plan-orgs">
-            <colgroup>
-              <col />
-              <col className="adm-w-70" />
-              <col className="adm-w-92" />
-              <col className="adm-w-70" />
-              <col className="adm-w-92" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>{tr('adm.p.col.org')}</th>
-                <th className="adm-r">{tr('adm.p.col.applied')}</th>
-                <th className="adm-r">{tr('adm.p.col.tokenCost')}</th>
-                <th className="adm-r">{tr('adm.p.col.hours')}</th>
-                <th className="adm-r">{tr('adm.p.col.perEdit')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report && report.orgs.length === 0 && (
-                <tr className="adm-line">
-                  <td colSpan={5} className="adm-dim">
-                    {tr('adm.p.noOrgs')}
-                  </td>
-                </tr>
-              )}
-              {report?.orgs.map((o) => (
-                <tr key={o.org} className="adm-line" data-testid="admin-plan-org" data-org={o.org}>
-                  <td className="adm-panel">{o.org}</td>
-                  <td className="adm-cost">{o.applied}</td>
-                  <td className="adm-cost">{usd(o.token_cost_usd)}</td>
-                  <td className="adm-cost">{o.dev_hours_saved.toLocaleString(locale, { maximumFractionDigits: 1 })}</td>
-                  <td className="adm-cost" data-testid="admin-plan-org-per-edit">
-                    {money(o.cost_per_applied_edit_usd)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </section>
     </div>
   )
@@ -1161,7 +575,7 @@ export function PlanScreen({ call, agent, tr, locale }: ScreenProps & { agent?: 
           </div>
         </section>
       </div>
-      <MoneySection call={call} agent={agent} tr={tr} locale={locale} />
+      <MoneySection agent={agent} tr={tr} />
       <p className="adm-foot">{tr('adm.p.foot')}</p>
     </>
   )

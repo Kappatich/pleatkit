@@ -4,7 +4,7 @@ import type { Locale, Moderation, Snapshot, ToolLogEntry, UsageByModel } from '@
 import type { UiKey } from '@pleatkit/ui'
 import { adminTranslator, type AdminTranslate } from './admin-i18n'
 import { useAdminApi, useAgentAdmin } from './admin-api'
-import { AuditScreen, EventsScreen, FlagsScreen, PlanScreen, ReleasesScreen, SnapshotsScreen, WishesScreen } from './AdminScreens'
+import { AuditScreen, EventsScreen, FlagsScreen, PlanScreen } from './AdminScreens'
 import { LabelsScreen } from './AdminLabels'
 import './admin.css'
 
@@ -50,7 +50,7 @@ interface Stats {
 }
 
 /** The screens of /admin, `?view=` (the request log is the default). */
-export const ADMIN_VIEWS = ['requests', 'wishes', 'labels', 'snapshots', 'releases', 'flags', 'events', 'audit', 'plan'] as const
+export const ADMIN_VIEWS = ['requests', 'labels', 'flags', 'events', 'audit', 'plan'] as const
 export type AdminView = (typeof ADMIN_VIEWS)[number]
 
 function readView(): AdminView {
@@ -144,8 +144,6 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
     const q = [v === 'requests' ? '' : `view=${v}`, appQuery, langQuery].filter(Boolean).join('&')
     return `/admin${q ? `?${q}` : ''}`
   }
-  /** C8: open the app as this user (support view): their version, their history; every call is audited. */
-  const viewAsHref = (user: string) => `/?${[`user=${encodeURIComponent(user)}`, 'as=support', appQuery, langQuery].filter(Boolean).join('&')}`
 
   const pendingReview = stats?.pendingReview ?? 0
   const filtering = onlyReview && pendingReview > 0
@@ -192,10 +190,7 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
 
       {view !== 'requests' && (
         <main className="adm-main" data-testid={`admin-${view}-screen`}>
-          {view === 'wishes' && <WishesScreen call={call} agent={agent} tr={tr} locale={locale} />}
           {view === 'labels' && <LabelsScreen call={call} tr={tr} locale={locale} />}
-          {view === 'snapshots' && <SnapshotsScreen call={call} tr={tr} locale={locale} />}
-          {view === 'releases' && <ReleasesScreen call={call} tr={tr} locale={locale} />}
           {view === 'flags' && <FlagsScreen call={call} tr={tr} locale={locale} />}
           {view === 'events' && <EventsScreen call={call} tr={tr} locale={locale} />}
           {view === 'audit' && <AuditScreen call={call} tr={tr} locale={locale} />}
@@ -312,7 +307,7 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
                   {isOpen && (
                     <tr className="adm-detailrow">
                       <td colSpan={6}>
-                        <RequestDetail id={r.id} call={call} tr={tr} onChanged={load} viewAs={viewAsHref(r.userId)} />
+                        <RequestDetail id={r.id} call={call} tr={tr} onChanged={load} />
                       </td>
                     </tr>
                   )}
@@ -327,7 +322,7 @@ export function Admin({ appId, locale = 'en' }: { appId: string; locale?: Locale
   )
 }
 
-function RequestDetail({ id, call, tr, onChanged, viewAs }: { id: string; call: ReturnType<typeof useAdminApi>; tr: AdminTranslate; onChanged: () => Promise<void>; viewAs: string }) {
+function RequestDetail({ id, call, tr, onChanged }: { id: string; call: ReturnType<typeof useAdminApi>; tr: AdminTranslate; onChanged: () => Promise<void> }) {
   const [d, setD] = useState<Detail | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -415,9 +410,6 @@ function RequestDetail({ id, call, tr, onChanged, viewAs }: { id: string; call: 
             {tr('admin.reject')}
           </button>
         )}
-        <a className="adm-btn adm-btn-quiet" data-testid="admin-view-as" href={viewAs} title={tr('adm.viewAs.tip', { user: r.userId })}>
-          {tr('adm.viewAs', { user: r.userId })}
-        </a>
         {msg && (
           <span className="adm-msg" data-testid="admin-msg">
             {msg}

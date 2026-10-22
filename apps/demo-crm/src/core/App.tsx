@@ -5,8 +5,7 @@ import { api, type Customer, type Deal } from '@/readonly/api'
 import { formatDate } from '@/readonly/format'
 import { cn } from '@/lib/utils'
 import { Admin } from './Admin'
-import { adminTranslator } from './admin-i18n'
-import { AGENT_URL, APP_ID, AUTH, BUNDLE_URL, COMPILE, demoPublicKey, pleatkitConfig, storeFor, tokenFor, USERS, VIEWER, type UserId } from './pleatkit'
+import { AGENT_URL, APP_ID, AUTH, BUNDLE_URL, COMPILE, demoPublicKey, pleatkitConfig, storeFor, tokenFor, USERS, type UserId } from './pleatkit'
 
 function readParams() {
   const params = new URLSearchParams(location.search)
@@ -68,7 +67,6 @@ function Crm() {
     >
       <RefreshOnFocus />
       {EVAL_HOOK ? <EvalHook /> : null}
-      {VIEWER ? <ViewingAs user={user} /> : null}
       {/* Leave room for the fixed dev panel so it does not cover the panels being edited. */}
       <div className="min-h-screen" style={dev ? { paddingRight: 580 } : undefined}>
         <header className="border-b border-border bg-card">
@@ -103,31 +101,10 @@ function Crm() {
       </div>
       {dev ? (
         <DevPanel />
-      ) : VIEWER ? null : (
+      ) : (
         <PleatkitChat agentUrl={AGENT_URL} appId={APP_ID} locale={LOCALE} examples={EXAMPLES[LOCALE]} {...(AUTH === 'token' ? { token: () => tokenFor(user) } : {})} />
       )}
     </PleatkitProvider>
-  )
-}
-
-/**
- * C8: the support view (`?as=support`, from /admin's "View as"). The panels run the user's version from
- * store-server, read with `x-pleatkit-act-as` (every read audited); the data is the viewer's own, from the app's
- * backend. No chat: support looks and, if needed, restores a version from /admin, it does not edit as the user.
- */
-function ViewingAs({ user }: { user: string }) {
-  const tr = adminTranslator(LOCALE)
-  const back = '/admin' + (APP_ID !== 'demo-crm' || LOCALE !== 'en' ? `?${[APP_ID !== 'demo-crm' ? `app=${encodeURIComponent(APP_ID)}` : '', LOCALE !== 'en' ? `lang=${LOCALE}` : ''].filter(Boolean).join('&')}` : '')
-  return (
-    <div data-testid="viewing-as" data-user={user} style={{ background: '#111', color: '#fff', font: '13px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif', borderBottom: '3px solid #e30613' }}>
-      <div style={{ maxWidth: 1152, margin: '0 auto', padding: '9px 24px', display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <b style={{ fontSize: 14 }}>{tr('adm.va.banner', { user })}</b>
-        <span style={{ color: '#bdbdbd', flex: '1 1 320px' }}>{tr('adm.va.note')}</span>
-        <a href={back} style={{ color: '#fff', textDecoration: 'underline', textUnderlineOffset: 3 }}>
-          {tr('adm.va.exit')}
-        </a>
-      </div>
-    </div>
   )
 }
 
