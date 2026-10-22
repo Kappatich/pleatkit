@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="pleatkit.css?v=pricing2">
+<link rel="stylesheet" href="pleatkit.css?v=pricing3">
 </head>
 <body>
 <header class="top">
@@ -197,7 +197,8 @@
           <div class="price">Free</div>
           <p class="for">MIT · your servers · your own model key</p>
           <ul>
-            <li>Everything on this page: the agent, the checks, the drawer, the admin dashboard</li>
+            <li>Everything a customer sees: the agent, the checks, the drawer, versions and undo</li>
+            <li>The admin dashboard: request log with approve, reject and rollback, roles, quotas, audit, kill switch</li>
             <li>Customers' versions live in their browser, or in the open store you host and maintain yourself</li>
             <li>No account with us</li>
           </ul>
@@ -209,8 +210,10 @@
           <p class="for">we host your customers' versions · a monthly fee per active customer organisation</p>
           <ul>
             <li>Versions follow each customer to every device and every colleague</li>
-            <li>Review queue for your team, one-click undo, carry-over into every new release</li>
-            <li>A map of what all your customers ask for and where your server is needed</li>
+            <li>A map of what all your customers ask for, where your server is needed, and a weekly digest</li>
+            <li>One run carries every customer's changes into your new release, with rollback</li>
+            <li>The pilot report: cost per change, developer hours saved, what each customer asked for</li>
+            <li>Support view of any customer's screen, every call audited; code search across versions</li>
             <li>Nothing to host or maintain; your own model key</li>
           </ul>
           <a class="btn primary" href="#pilot">Join the first pilots</a>
@@ -239,7 +242,7 @@
         <details><summary>Can it change our backend or our data?</summary><div><p>No. The agent writes only inside the panels you allowed; the server, the data, authentication and navigation are out of its tool's reach. A request that needs the server reaches you with the customer's words.</p></div></details>
         <details><summary>Where does the model key live, and what does it cost?</summary><div><p>On your server; it never reaches the browser. The key is yours (Claude by default; other models work too). A change costs one to three cents; a question or a request for the server costs a fraction of a cent.</p></div></details>
         <details><summary>What if a change looks wrong?</summary><div><p>The customer undoes it with one click or picks an earlier version. You can undo it for them, turn on review of every change before it applies, or switch changes off for everyone with one toggle.</p></div></details>
-        <details><summary>What happens when we ship a new release?</summary><div><p>Customers' changes move over on their own where the release did not touch the same panels; the rest are carried over by the agent within a budget you set. A release can be rolled back.</p></div></details>
+        <details><summary>What happens when we ship a new release?</summary><div><p>Customers' changes move over on their own where the release did not touch the same panels. In the cloud, one run carries the rest over within a budget you set, and that run can be rolled back.</p></div></details>
         <details><summary>Are we tied to you?</summary><div><p>No. The library is open source (MIT), a customer's version is a plain copy of your panel files, and everything runs on your servers. Remove pleatkit and the panels are your original code again.</p></div></details>
         <details><summary>Which technologies are supported?</summary><div><p>React with Vite (6 to 8), React 18 or 19, TypeScript. Next.js is on the roadmap.</p></div></details>
       </div>
@@ -275,6 +278,6 @@
     <span><a href="ru.html" hreflang="ru" lang="ru">По-русски</a></span>
   </div>
 </footer>
-<script src="demo.js?v=pricing2" defer></script>
+<script src="demo.js?v=pricing3" defer></script>
 </body>
 </html>
