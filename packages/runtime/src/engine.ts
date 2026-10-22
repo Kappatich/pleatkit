@@ -210,7 +210,7 @@ export function componentId(path: string, roots: string[]): string {
   return path.slice(root.length).replace(/\.(tsx|ts|jsx|js|mts|mjs)$/, '')
 }
 
-// fileHashes, changedPaths and releaseHash live in release.ts (shared with the agent server's carry-over, C10)
+// fileHashes, changedPaths and releaseHash live in release.ts (shared with the agent's check-snapshots)
 export { fileHashes, changedPaths, releaseHash }
 
 /** 32-bit FNV-1a: a cheap signature of panel sources (not a security hash). */

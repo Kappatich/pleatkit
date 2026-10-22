@@ -89,7 +89,7 @@ export interface LabelExportItem {
 }
 
 /**
- * The Labels routes, behind the core's auth and its `/admin/*` rule (admin writes, support reads):
+ * The Labels routes, behind the core's auth and its `/admin/*` rule (admin only, or what an extension's `adminAccess` allows):
  * - `GET  /admin/labels?filter=unlabelled|all|disagreements&limit=&cursor=&since=` newest first, paged by `cursor`
  *   (the `next` of the previous page), with the caller's counts (labelled since `since` in ms, default today 00:00 UTC;
  *   left to label; disagreements) and the caller's latest labels (`recent`);

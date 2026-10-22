@@ -56,7 +56,6 @@ async function populate(t: ReturnType<typeof setup>, userId: string) {
   await t.call('/v1/admin/flags', t.admin, { method: 'PUT', body: JSON.stringify({ scope: 'user', scopeId: userId, key: 'edits.enabled', value: false }) })
   await t.call('/v1/quota', t.agent(userId), { method: 'POST', body: JSON.stringify({ ops: [{ op: 'take', key: `user:${userId}:edits`, capacity: 10, refillPerSec: 0, amount: 1 }] }) })
   await t.call('/v1/events', t.agent(userId), { method: 'POST', body: JSON.stringify({ events: [{ type: 'cost.usd', value: 0.02, unit: 'usd', userId, requestId }] }) })
-  await t.call('/v1/admin/wishes', t.admin, { method: 'PUT', body: JSON.stringify({ from: 0, to: Date.now() + 1, clusters: [{ panel: 'card', title: 'Phones', kind: 'needs-backend', requestIds: [requestId] }] }) })
   return { requestId, key, base, v1 }
 }
 
@@ -69,7 +68,7 @@ describe('DECISIONS 70.2: erasure of a user and of an app', () => {
     expect(first.status).toBe(409)
     const plan = (await first.json()) as { code: string; confirm: string; counts: Record<string, number> }
     expect(plan.code).toBe('confirm-required')
-    expect(plan.counts).toMatchObject({ snapshots: 2, heads: 1, requests: 1, bundles_owned: 1, bundles_signed: 1, flags: 1, quota_buckets: 1, wish_map_refs: 1 })
+    expect(plan.counts).toMatchObject({ snapshots: 2, heads: 1, requests: 1, bundles_owned: 1, bundles_signed: 1, flags: 1, quota_buckets: 1 })
     expect(plan.counts.events).toBeGreaterThanOrEqual(2) // editor.active, edit.applied, cost.usd
     expect(t.count('snapshots', "user_id = 'alice'")).toBe(2) // the plan wrote nothing
     expect((await t.call('/v1/admin/users/alice?confirm=nope', t.admin, { method: 'DELETE' })).status).toBe(409)
@@ -91,9 +90,8 @@ describe('DECISIONS 70.2: erasure of a user and of an app', () => {
     expect((await t.user('bob').head('bob'))?.id).toBe(bob.v1.id)
     expect(t.count('requests', "user_id = 'bob'")).toBe(1)
     expect(t.count('bundle_files', `key = '${bob.key}'`)).toBe(1)
-    // the wish map keeps bob's request and forgets alice's
-    const wishes = (await (await t.call('/v1/admin/wishes', t.admin)).json()) as { map: { clusters: { requestIds: string[] }[] } }
-    expect(wishes.map.clusters.flatMap((k) => k.requestIds)).toEqual([bob.requestId])
+    // the open core has no tables of the cloud's (its erasure counts come from the extensions' hooks)
+    expect(Object.keys(plan.counts).filter((k) => /wish|release/.test(k))).toEqual([])
 
     // the tombstone: an audit row with counts and a random id, nothing that names alice; the chain still verifies
     const tomb = t.auditRows().at(-1)!
@@ -107,13 +105,15 @@ describe('DECISIONS 70.2: erasure of a user and of an app', () => {
     expect(() => raw.prepare("DELETE FROM audit WHERE app_id = 'crm'").run()).toThrow(/append-only/)
   })
 
-  it('admin only: support and users get 403, and acting as a user is refused', async () => {
+  it('admin only: users get 403, other roles and acting as a user are cloud features (403)', async () => {
     const t = setup({ auth: { apps: { crm: { appKey: APP_KEY, jwtSecret: SECRET } } } })
     const tok = async (role: 'user' | 'support' | 'admin', userId = 'carol') => ({ authorization: `Bearer ${await mintUserToken({ secret: SECRET, userId, appId: 'crm', role })}` })
     expect((await t.call('/v1/admin/users/alice', await tok('support'), { method: 'DELETE' })).status).toBe(403)
     expect((await t.call('/v1/admin/users/alice', await tok('user', 'alice'), { method: 'DELETE' })).status).toBe(403)
     expect((await t.call('/v1/admin/apps/crm', await tok('support'), { method: 'DELETE' })).status).toBe(403)
-    expect((await t.call('/v1/admin/users/alice', { ...(await tok('admin')), 'x-pleatkit-act-as': 'alice' }, { method: 'DELETE' })).status).toBe(400)
+    const actAs = await t.call('/v1/admin/users/alice', { ...(await tok('admin')), 'x-pleatkit-act-as': 'alice' }, { method: 'DELETE' })
+    expect(actAs.status).toBe(403)
+    expect(((await actAs.json()) as { code: string }).code).toBe('cloud-feature')
     expect((await t.call('/v1/admin/users/alice', await tok('admin'), { method: 'DELETE' })).status).toBe(409)
     expect((await t.call('/v1/admin/apps/other', { authorization: `Bearer ${APP_KEY}` }, { method: 'DELETE' })).status).toBe(403)
   })
@@ -125,11 +125,11 @@ describe('DECISIONS 70.2: erasure of a user and of an app', () => {
     await t.call('/v1/admin/plan', t.admin, { method: 'PUT', body: JSON.stringify({ plan: 'team', limits: {} }) })
     await t.call('/v1/requests', { 'x-pleatkit-agent': '1', 'x-pleatkit-user': 'zed', 'x-pleatkit-app': 'other' }, { method: 'POST', body: JSON.stringify({ userId: 'zed', text: 'x', verdict: 'ok', status: 'proposed', log: [] }) })
     const plan = await planErasure(t.db, { appId: 'crm', userId: null })
-    expect(plan.counts).toMatchObject({ snapshots: 4, heads: 2, requests: 2, app_plans: 1, wish_maps: 2 })
+    expect(plan.counts).toMatchObject({ snapshots: 4, heads: 2, requests: 2, app_plans: 1 })
     expect(plan.counts.audit).toBeGreaterThan(10)
     const res = await t.call(`/v1/admin/apps/crm?confirm=${plan.confirm}`, t.admin, { method: 'DELETE' })
     expect(res.status).toBe(200)
-    for (const table of ['snapshots', 'heads', 'requests', 'events', 'bundle_files', 'flags', 'quota_buckets', 'wish_maps', 'app_plans', 'idempotency', 'erasing']) expect(t.count(table), table).toBe(0)
+    for (const table of ['snapshots', 'heads', 'requests', 'events', 'bundle_files', 'flags', 'quota_buckets', 'app_plans', 'idempotency', 'erasing']) expect(t.count(table), table).toBe(0)
     const rows = t.auditRows()
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ action: 'erase.app', objectType: 'app' })
@@ -152,23 +152,6 @@ describe('DECISIONS 70.2: erasure of a user and of an app', () => {
     const done = (await (await t.call(`/v1/admin/users/alice?confirm=${plan.confirm}`, t.admin, { method: 'DELETE' })).json()) as { counts: Record<string, number> }
     expect(done.counts['probe:rows']).toBe(3)
     expect(seen).toEqual(['crm:alice'])
-  })
-})
-
-describe('DECISIONS 70.5: support reads as a user, only admin writes as one', () => {
-  it('with the development headers too: support gets 403 on every write while acting as, admin may write', async () => {
-    const t = setup()
-    const { base } = await populate(t, 'alice')
-    const support = { 'x-pleatkit-role': 'support', 'x-pleatkit-user': 'carol', 'x-pleatkit-app': 'crm', 'x-pleatkit-act-as': 'alice' }
-    expect((await t.call('/v1/heads/alice', support)).status).toBe(200)
-    const write = await t.call(`/v1/snapshots/${base.id}/head`, support, { method: 'POST', body: '{}' })
-    expect(write.status).toBe(403)
-    expect(((await write.json()) as { code: string }).code).toBe('support-read-only')
-    expect((await t.call('/v1/requests', support, { method: 'POST', body: JSON.stringify({ userId: 'alice', text: 'x' }) })).status).toBe(403)
-    expect(t.auditRows().at(-1)).toMatchObject({ actor: 'support:carol:as:alice', action: 'impersonate.write' })
-    const admin = { 'x-pleatkit-role': 'admin', 'x-pleatkit-user': 'dave', 'x-pleatkit-app': 'crm', 'x-pleatkit-act-as': 'alice' }
-    expect((await t.call(`/v1/snapshots/${base.id}/head`, admin, { method: 'POST', body: '{}' })).status).toBe(204)
-    expect((await t.user('alice').head('alice'))?.id).toBe(base.id)
   })
 })
 
@@ -195,7 +178,6 @@ describe('DECISIONS 70.1: the open core', () => {
     const t = setup({ extensions: [ext] })
     expect(await (await t.call('/v1/admin/probe', t.admin)).json()).toEqual({ ok: true, app: 'crm' })
     expect((await t.call('/v1/admin/probe', { 'x-pleatkit-user': 'alice', 'x-pleatkit-app': 'crm' })).status).toBe(403)
-    expect((await t.call('/v1/admin/probe', { 'x-pleatkit-role': 'support', 'x-pleatkit-user': 'c', 'x-pleatkit-app': 'crm' }, { method: 'PUT' })).status).toBe(403)
     expect(await (await t.call('/v1/admin/settings', t.admin)).json()).toEqual({ moderation: 'off', default: 'off', probe: 1 })
     const { requestId, base } = await populate(t, 'alice')
     await t.user('alice').setHead('alice', base.id)

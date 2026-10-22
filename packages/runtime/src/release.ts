@@ -27,8 +27,8 @@ export async function releaseHash(filesHash: string, ctxHash: string, cssMode: s
 }
 
 /**
- * The release hash a browser running this build writes into its snapshots as `baseHash` (C10: `pleatkit
- * carry-over --release <hash>` computes it from the build's manifest, so carried-over snapshots are not stale).
+ * The release hash a browser running this build writes into its snapshots as `baseHash` (a bulk carry-over, such as
+ * the pleatkit cloud's, computes it from the build's manifest, so carried-over snapshots are not stale).
  */
 export async function manifestReleaseHash(m: PleatkitManifest): Promise<string> {
   const files = Object.fromEntries(m.dynamic.map((f) => [f.path, f.source]))

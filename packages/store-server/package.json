@@ -1,6 +1,6 @@
 {
   "name": "@pleatkit/store-server",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The open pleatkit store (MIT): per-user snapshots and heads, signed bundles, the agent request log, quotas, usage events, the audit chain, roles, flags and the kill switch, releases, code search, erasure (Hono + Drizzle + SQLite)",
   "license": "MIT",
   "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/store-server#readme",

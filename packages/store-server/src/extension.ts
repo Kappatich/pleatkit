@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import type { Hono } from 'hono'
 import type { Caller } from './auth.js'
+import type { EventType } from './ledger.js'
 import type * as schema from './schema.js'
 
 export type StoreDb = BetterSQLite3Database<typeof schema>
@@ -9,18 +10,36 @@ export type StoreDb = BetterSQLite3Database<typeof schema>
 export type StoreEnv = { Variables: { caller: Caller } }
 
 /**
- * DECISIONS 70.1: the store core is open (MIT); what only the managed cloud needs (the learning layer and its
- * `request_facts`, later billing and region routing) lives in a separate package and plugs in here. The core
- * runs without any extension (self-host, the demo, examples/t1-vite); `createStoreApp(db, { extensions })` and
- * the `pleatkit-store` binary load them when present.
+ * DECISIONS 70.1 and 89: the store core is open (MIT): snapshots, heads, bundles, the request log with
+ * approve/reject/rollback, the roles `user` and `admin`, quotas and plans, usage events, the audit chain, flags and
+ * the kill switch, request labels, export and erasure. The pleatkit cloud adds its modules through this interface
+ * (the private `@pleatkit/store-cloud`: the pilot report, the wish map, release carry-over runs, code search with
+ * rollback by selection, the support role with acting as a user, the learning layer). The core runs without any
+ * extension (self-host, the demo, examples/t1-vite); `createStoreApp(db, { extensions })` and the `pleatkit-store`
+ * binary load them when present.
  */
 export interface StoreExtension {
   name: string
+  /**
+   * Roles beyond the core's `user` and `admin` that this extension handles (the cloud's `support`). A token or demo
+   * header with a role no loaded extension declares gets 403 `cloud-feature`.
+   */
+  roles?: string[]
+  /**
+   * Acting as another user (`x-pleatkit-act-as: <userId>`): return the caller acting as `target` (its `viewer` set to
+   * who is acting), or throw `AuthError` to refuse. Without an extension that implements it, the header gets 403
+   * `cloud-feature`. The first extension that implements it decides.
+   */
+  actAs?(who: Caller, target: string): Caller
+  /** Whether a caller that is not an admin may use an /admin route (`path` without the `/v1` prefix). */
+  adminAccess?(who: Caller, method: string, path: string): boolean
+  /** Middleware on the authenticated API, registered right after the caller is resolved and before the core's routes. */
+  middleware?(api: Hono<StoreEnv>, ctx: ExtensionContext): void
   /** Tables of the extension: plain idempotent DDL (`CREATE TABLE IF NOT EXISTS …`), run after the core schema. */
   ddl?: string
   /** One-off migrations after `ddl` (copying old rows, adding columns); must be idempotent. */
   migrate?(db: StoreDb): void
-  /** Routes on the authenticated API (`/v1/...` and the unversioned prefix); `/admin/*` is already admin/support only. */
+  /** Routes on the authenticated API (`/v1/...` and the unversioned prefix); `/admin/*` is already admin only (or what `adminAccess` allows). */
   routes?(api: Hono<StoreEnv>, ctx: ExtensionContext): void
   /** Periodic jobs; the `pleatkit-store` binary runs them hourly with the core's own (`runMaintenance`). */
   jobs?: { name: string; run(db: StoreDb, now: number): unknown }[]
@@ -42,10 +61,24 @@ export interface StoreExtension {
 /** What an extension's routes may use. */
 export interface ExtensionContext {
   db: StoreDb
-  /** Append to the caller's app audit chain, with the caller as the actor (an impersonation names both ids). */
+  /** Append to the caller's app audit chain, with the caller as the actor (acting as a user names both ids). */
   audited(who: Caller, action: string, objectType: string, objectId: string | null, details?: Record<string, unknown> | null): string
   /** Region and environment recorded on rows written for this caller. */
   place(who: Caller): { region: string; environment: string }
+  /** Append a usage event (F3) for the caller's app, as the core's own routes do. */
+  event(who: Caller, type: EventType, userId: string | null, requestId: string | null, extra?: UsageEventExtra): void
+  /** Report an outcome of an agent edit (`reverted:admin`, ...) to every extension's `onOutcome`. */
+  outcome(requestId: string, label: string): void
+  /** Move a user's head (no checks, no audit: the caller does both). */
+  setHead(appId: string, userId: string, snapshotId: string, orgId?: string): void
+}
+
+/** Optional parts of a usage event written through `ExtensionContext.event`. */
+export interface UsageEventExtra {
+  value?: number
+  unit?: string
+  props?: Record<string, unknown>
+  dedupeKey?: string
 }
 
 /** The agent run the core just logged, with the parts of the body an extension may read. */
