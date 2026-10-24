@@ -135,8 +135,10 @@
   // In the ask phase the line sits in the middle of the stage; the drop is measured, so the move up is one transform.
   function measureDrop() {
     var cs = getComputedStyle(root);
-    var inner = root.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - dotsBox.offsetHeight;
-    var drop = Math.max(0, (inner - askBlock.offsetHeight) / 2);
+    // centre the request in the space between the top of the stage and the small preview of the fragment
+    root.style.setProperty('--drop', '0px');
+    var askRect = askBlock.getBoundingClientRect(), fragRect = frag.getBoundingClientRect();
+    var drop = Math.max(0, (fragRect.top - askRect.bottom) / 2 - 12);
     root.style.setProperty('--drop', drop + 'px');
   }
   window.addEventListener('resize', measureDrop);
@@ -201,7 +203,9 @@
     dots.forEach(function (d, j) { d.classList.toggle('on', j === i); });
     // a clean slate before the ask phase shows: no ghost of the previous request or fragment
     typed.textContent = '';
-    frag.innerHTML = '';
+    frag.innerHTML = s.before();   // the preview of what will change is on screen from the first second
+    frag.classList.add('small');
+    frag.classList.remove('editing');
     caption.textContent = '';
     reveal.classList.remove('captioned');
     stepsEl.innerHTML = '';
@@ -222,8 +226,8 @@
               runSteps(s.lines, guard(function () {
                 phase('between');
                 later(function () {
-                  frag.innerHTML = s.before();
                   phase('reveal');
+                  frag.classList.remove('small');   // the preview grows to full size
                   frag.classList.add('editing');
                   later(function () {
                     frag.classList.remove('editing');
@@ -250,7 +254,7 @@
   dots.forEach(function (d, j) { d.addEventListener('click', function () { play(j); }); });
 
   if (window.__pleatkitNoAutoplay) {
-    typed.textContent = scenarios[0].ask; frag.innerHTML = scenarios[0].before(); phase('reveal'); measureDrop();
+    typed.textContent = scenarios[0].ask; frag.innerHTML = scenarios[0].before(); frag.classList.remove('small'); phase('reveal'); measureDrop();
     scenarios[0].morph(function () { caption.textContent = scenarios[0].caption; reveal.classList.add('captioned'); });
     dots[0].classList.add('on');
     return;
