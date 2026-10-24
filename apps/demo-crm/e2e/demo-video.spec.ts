@@ -19,15 +19,16 @@ const OVERLAY = `(() => {
     const style = document.createElement('style')
     style.textContent = \`
       #demo-caption { position: fixed; left: 24px; bottom: 24px; z-index: 2147483600; max-width: 760px; padding: 12px 18px;
-        border-radius: 0; border-left: 4px solid #e30613; background: #111; color: #fff; font: 600 20px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif;
+        border-radius: 8px; border-left: 4px solid #e2361f; background: #1c1a17; color: #fbfaf7; font: 600 20px/1.35 "Inter", "Helvetica Neue", Arial, sans-serif;
+        box-shadow: 0 1px 2px rgba(28,26,23,.06), 0 10px 24px -18px rgba(28,26,23,.4);
         letter-spacing: -.01em; transition: opacity .25s; }
-      #demo-caption small { display: block; font-weight: 400; font-size: 15px; color: #c4c4c4; margin-top: 2px; }
+      #demo-caption small { display: block; font-weight: 400; font-size: 15px; color: #c7c0b5; margin-top: 2px; }
       #demo-caption:empty { opacity: 0; }
       #demo-pointer { position: fixed; z-index: 2147483601; width: 22px; height: 22px; margin: -4px 0 0 -4px; pointer-events: none;
-        border-radius: 50%; background: rgba(227,6,19,.25); border: 2px solid #e30613; transition: transform .12s; }
-      #demo-pointer.down { transform: scale(.7); background: rgba(227,6,19,.6); }
+        border-radius: 50%; background: rgba(226,54,31,.25); border: 2px solid #e2361f; transition: transform .12s; }
+      #demo-pointer.down { transform: scale(.7); background: rgba(226,54,31,.6); }
       #demo-badge { position: fixed; left: 24px; bottom: 112px; z-index: 2147483600; padding: 3px 10px;
-        border-radius: 0; background: #fff; border: 1px solid #111; color: #4a4a4a; font: 500 11.5px/1.4 "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: .04em; pointer-events: none; }\`
+        border-radius: 999px; background: #fbfaf7; border: 1px solid #c3bdb2; color: #514c45; font: 500 11.5px/1.4 "JetBrains Mono", ui-monospace, Consolas, monospace; letter-spacing: .04em; pointer-events: none; }\`
     document.head.appendChild(style)
     const caption = document.createElement('div')
     caption.id = 'demo-caption'

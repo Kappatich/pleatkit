@@ -51,6 +51,16 @@ request labels); what a vendor needs across all of its customers moves to the pr
   on the classifier model outside the edit loop (Anthropic structured output, OpenAI-compatible JSON mode, scripted
   through the call's own `scripted(fixtures)`, recorded as a `kind: 'json'` transcript line and replayed).
 
+### Changed
+- ui: design v4 warm. The chat drawer takes the landing page's v4 look through its `--mk-*` tokens (light and dark,
+  `data-mk-theme="dark"` as before): warm paper and ink, no pure black or white, a paper gradient on the drawer, a red
+  square before the title, the version button as a pill (red wash with a dot when there are changes), the request as a
+  dark gradient bubble, the result as a card with a round check, the live step as a pill with a pulsing dot, pill
+  chips, 4px buttons, a 12px composer with a soft shadow and a red gradient send button. The drawer now uses the host
+  app's font (it set Helvetica before); mono is a JetBrains Mono stack, still without loading fonts. Class names, test
+  ids, the mobile bottom sheet and reduced motion are unchanged. The demo's /admin and dashboard panels follow (8px
+  panes with a soft shadow, tinted table headers, status pills), and the demo darkens with `data-mk-theme="dark"`.
+
 ## 0.3.0 (prepared 2026-10-18, not published yet; numbered 0.3.0 at the founder's request, there was no 0.2.0)
 
 ### Added
