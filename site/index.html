@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="pleatkit.css?v=warm1">
+<link rel="stylesheet" href="pleatkit.css?v=motion1">
 </head>
 <body>
 <header class="top">
@@ -53,45 +53,25 @@
   </div>
 
   <div class="wrap">
-    <div class="stage" data-live aria-label="Scripted demo: a request typed into the drawer changes the dashboard">
-      <div class="app">
-        <div class="app-bar">
-          <b>Acme CRM</b>
-          <span class="label">Alice's version</span>
-        </div>
-        <div class="dash" aria-live="polite">
-          <div class="pane tiles" data-zone="tiles"></div>
-          <div class="split">
-            <div class="pane pipeline" data-zone="pipeline"></div>
-            <div class="pane customers" data-zone="customers"></div>
-          </div>
-        </div>
+    <div class="stage motion" data-live data-phase="ask" aria-label="Scripted demo: a request typed by a customer, a few seconds of work, and the panel that changed">
+      <p class="asked" aria-hidden="true"></p>
+      <div class="scene ask">
+        <p class="ask-text"><span class="typed"></span><span class="caret"></span></p>
+        <p class="ask-hint"><span class="key">Enter</span></p>
       </div>
-      <div class="drawer">
-        <div class="drawer-head">
-          <b>Customize this page</b>
-          <button class="ic" data-reset disabled title="Reset to the original version" aria-label="Reset to the original version">⟲</button>
-          <button class="ic" data-undo disabled title="Undo last change" aria-label="Undo last change">↶</button>
-        </div>
-        <button class="ver" data-history type="button">Original version</button>
-        <ol class="ruler" aria-label="Version history" hidden></ol>
-        <div class="feed" aria-live="polite">
-          <p class="hint">Describe a change. AI edits only your view and can get it wrong. Undo anytime.</p>
-        </div>
-        <div class="prompt-bar" aria-hidden="true">
-          <span class="text empty">Describe a change or paste a screenshot</span>
-          <span class="cursor" hidden></span>
-          <span class="tools"><span>⌖ Pick panel</span></span>
-          <span class="send">↑</span>
-        </div>
-        <div class="recipes" role="group" aria-label="Try a request">
-          <button class="recipe" data-recipe="overdue" data-request="Add a tile with overdue payments">Overdue tile</button>
-          <button class="recipe" data-recipe="bars" data-request="Show the pipeline by stage as bars instead of the table">Pipeline as bars</button>
-          <button class="recipe" data-recipe="sort" data-request="Put overdue customers first and mark their dates in red">Overdue first</button>
-          <button class="recipe" data-recipe="compact" data-request="Make the dashboard more compact">Compact layout</button>
-          <button class="recipe" data-recipe="backend" data-request="Add a discount column and recompute totals on the server">Discount on the server</button>
-        </div>
-        <p class="live-foot">This is what your customer sees. Claude writes the change, pleatkit checks it, and every other customer keeps their dashboard as it was.</p>
+      <div class="scene work">
+        <div class="progress"><i></i></div>
+        <ol class="steps-live"></ol>
+        <span class="timer"></span>
+      </div>
+      <div class="scene reveal">
+        <div class="frag"></div>
+        <p class="caption"></p>
+      </div>
+      <div class="dots" role="group" aria-label="Replay a request">
+        <button type="button" title="Add a tile with overdue payments"><span></span>Overdue tile</button>
+        <button type="button" title="Show the pipeline as bars"><span></span>Pipeline as bars</button>
+        <button type="button" title="Overdue customers first"><span></span>Overdue first</button>
       </div>
     </div>
   </div>
