@@ -7,8 +7,8 @@
 //    poster moment,
 // 3. ffmpeg trims the webm to the start/end marks and encodes it,
 // 4. builds the sound track from the samples in apps/demo-crm/e2e/sounds/ (<kind>-<n>.wav, 48 kHz mono 16-bit,
-//    peak -6 dBFS; CC0 and CC BY 4.0, sources in docs/sounds/CREDITS.md): places each event sample-accurately at
-//    its kind's gain and mixes them in Node (a few hundred key ticks would make an ffmpeg adelay/amix graph of
+//    all at the same loudness; CC0 and CC BY 4.0, sources in docs/sounds/CREDITS.md): thins the key events to
+//    one audible press at a time, places each event sample-accurately at its kind's gain and mixes them in Node (a few hundred key ticks would make an ffmpeg adelay/amix graph of
 //    hundreds of inputs), then muxes it into the mp4 with ffmpeg (-c:v copy -c:a aac),
 // 5. prints ffprobe's duration and size and refuses a film over 90 s or 20 MB.
 // `--skip-record` reuses docs/.video (demo.webm + events.json), e.g. to retune the sound.
@@ -107,20 +107,55 @@ const one = (kind) => {
   return samples[kind][0]
 }
 
-// gain per kind in dB, applied to samples that peak at -6 dBFS: typing peaks near -26 dBFS, the applied and closing
-// chimes near -18, the camera's whoosh near -26; everything stays under the -12 dBFS guard below
-const GAIN = { key: -21.5, click: -14, drawer: -18, applied: -12, whoosh: -20, thud: -17, band: -15, close: -12 }
-// key ticks: never the same sample twice in a row, and each a little louder or softer (±1.5 dB), so typing does
-// not sound like a machine gun
+// Every sample has the same average loudness (-19 LUFS, K-weighted, measured while it sounds), so a gain of 0 dB
+// would make every kind equally loud. The gains keep the picture: typing and the camera's whoosh quietest (about
+// -44 and -49 LUFS in the film), the click, drawer, plates and bands in the middle (-36), the applied and closing
+// chimes loudest (-30); everything stays under the -12 dBFS guard below.
+const GAIN = { key: -25.5, whoosh: -30, click: -17, drawer: -17, thud: -17, band: -17, applied: -11, close: -11 }
+
+// Typing: the recording logs one key event per character, but wall-clock pacing delivers them 34 ms apart or in
+// bursts, which sounds like a machine gun. A run of key events closer than KEY_GAP_MS keeps only as many presses as
+// fit KEY_GAP_MS apart, spread evenly over the run, so the sound still follows the text and each press is heard.
+const KEY_GAP_MS = 70
+function thinKeys(events) {
+  const keys = events.filter((e) => e.kind === 'key').map((e) => e.t).sort((x, y) => x - y)
+  const out = events.filter((e) => e.kind !== 'key')
+  for (let i = 0; i < keys.length; ) {
+    let j = i
+    while (j + 1 < keys.length && keys[j + 1] - keys[j] < KEY_GAP_MS) j++
+    const first = keys[i], span = keys[j] - first
+    const n = Math.floor(span / KEY_GAP_MS) + 1
+    for (let k = 0; k < n; k++) out.push({ t: n === 1 ? first : first + (k * span) / (n - 1), kind: 'key' })
+    i = j + 1
+  }
+  return out.sort((x, y) => x.t - y.t)
+}
+const events = thinKeys(timeline.events)
+const keyCount = (list) => list.filter((e) => e.kind === 'key').length
+
+// The five key samples are played in shuffled rounds, each sample once per round and never the same one twice in a
+// row, each a little louder or softer (±1.5 dB).
+let keyRound = []
 let lastKey = -1
 function keySample() {
   const keys = samples.key ?? [one('key')]
-  let k = Math.floor(rand() * keys.length)
-  if (k === lastKey) k = (k + 1) % keys.length
-  lastKey = k
-  return keys[k]
+  if (!keyRound.length) {
+    keyRound = keys.map((_, i) => i)
+    for (let i = keyRound.length - 1; i > 0; i--) {
+      const r = Math.floor(rand() * (i + 1))
+      ;[keyRound[i], keyRound[r]] = [keyRound[r], keyRound[i]]
+    }
+    if (keyRound.length > 1 && keyRound[0] === lastKey) keyRound.push(keyRound.shift())
+  }
+  lastKey = keyRound.shift()
+  return keys[lastKey]
 }
-/** [sample, gain in dB, offset in s] for each event kind */
+// The closing card's band event (a close follows it within a second) plays close-2.wav, the low drop under the
+// closing chime, instead of band-1.wav.
+const closingBand = new Set(
+  events.filter((e, i) => e.kind === 'band' && events.slice(i + 1).some((c) => c.kind === 'close' && c.t - e.t < 1000)),
+)
+/** [sample, gain in dB, offset in s] for an event */
 const sounds = {
   key: () => [[keySample(), GAIN.key - 1.5 + 3 * rand(), 0]],
   click: () => [[one('click'), GAIN.click, 0]],
@@ -128,8 +163,7 @@ const sounds = {
   applied: () => [[one('applied'), GAIN.applied, 0]],
   whoosh: () => [[one('whoosh'), GAIN.whoosh, 0]],
   thud: () => [[one('thud'), GAIN.thud, 0]],
-  band: () => [[one('band'), GAIN.band, 0]],
-  // the closing chime; the closing card's own band event already lays the low drop under it, 250 ms earlier
+  band: (e) => [[closingBand.has(e) && samples.close?.[1] ? samples.close[1] : one('band'), GAIN.band, 0]],
   close: () => [[one('close'), GAIN.close, 0]],
 }
 
@@ -137,11 +171,11 @@ const track = new Float32Array(Math.ceil((duration + 1.5) * SR))
 // one stem per kind as well, only to report each kind's peak as it sounds in the film (overlapping key ticks add up)
 const stems = {}
 let placed = 0
-for (const e of timeline.events) {
+for (const e of events) {
   const at = (e.t - timeline.start) / 1000
   if (at < -0.05 || at > duration) continue
   const stem = (stems[e.kind] ??= new Float32Array(track.length))
-  for (const [buf, gainDb, offset] of sounds[e.kind]()) {
+  for (const [buf, gainDb, offset] of sounds[e.kind](e)) {
     const o = Math.round((at + offset) * SR)
     const g = db(gainDb)
     for (let i = 0; i < buf.length; i++) {
@@ -167,7 +201,8 @@ let peak = 0
 for (const v of track) peak = Math.max(peak, Math.abs(Math.tanh(v)))
 const peakDb = 20 * Math.log10(peak || 1e-9)
 const counts = {}
-for (const e of timeline.events) counts[e.kind] = (counts[e.kind] ?? 0) + 1
+for (const e of events) counts[e.kind] = (counts[e.kind] ?? 0) + 1
+console.log(`key events: ${keyCount(timeline.events)} logged, ${keyCount(events)} after thinning to ${KEY_GAP_MS} ms`)
 console.log(`sound: ${placed} events placed (${Object.entries(counts).map(([k, n]) => `${k} ${n}`).join(', ')}), peak ${peakDb.toFixed(1)} dBFS`)
 if (peakDb > -12) {
   console.error('the sound track peaks above -12 dBFS')
