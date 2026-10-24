@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Records the demo film headless (about 75 s, at most 90 s and 20 MB) and writes docs/demo.mp4 (H.264 1280x800 +
+// Records the demo film headless (about 80 s, at most 90 s and 20 MB) and writes docs/demo.mp4 (H.264 1280x800 +
 // AAC mono), site/demo.mp4 (the same file) and site/poster.jpg.
 // 1. builds the demo, 2. runs e2e/demo-video.spec.ts with PLEATKIT_VIDEO=1 (Playwright recordVideo, scripted
 //    provider paced for reading); the spec also writes docs/.video/events.json: the start/end marks and every
-//    sound event (key, click, drawer, applied, band, close) in ms since the page was created,
+//    sound event (key, click, drawer, applied, whoosh, thud, band, close) in ms since the page was created, and the
+//    poster moment,
 // 3. ffmpeg trims the webm to the start/end marks and encodes it,
 // 4. synthesizes the sound track here (no samples, no downloads: filtered noise and sines written as a WAV),
 //    places each event sample-accurately and mixes them in Node (a few hundred key ticks would make an ffmpeg
@@ -143,6 +144,23 @@ function chime() {
   return normalize(b, -18)
 }
 
+/** a camera move: 250 ms of soft band-passed noise rising and falling, low in the mix */
+function whoosh() {
+  return sweep(0.25, 380, 1500, 0.7, (p) => Math.pow(Math.sin(Math.PI * p), 2), -24)
+}
+
+/** a plate landing: a 90 Hz sine, 120 ms, fast attack, a gentle drop in pitch */
+function thud() {
+  const b = seconds(0.12)
+  let phase = 0
+  for (let i = 0; i < b.length; i++) {
+    const t = i / SR
+    phase += (2 * Math.PI * 90 * (1 - 0.15 * (t / 0.12))) / SR
+    b[i] = Math.sin(phase) * Math.min(1, t / 0.004) * Math.exp(-t / 0.045) * Math.min(1, (0.12 - t) / 0.01)
+  }
+  return normalize(b, -20)
+}
+
 /** a low 400 ms swell under the title band */
 function swell() {
   const b = seconds(0.45)
@@ -160,6 +178,8 @@ const sounds = {
   click: () => [[click(), 0]],
   drawer: () => [[sweep(0.22, 700, 3400, 1.1, (p) => Math.pow(p, 1.3) * Math.min(1, (1 - p) / 0.18), -25), 0.02]],
   applied: () => [[sweep(0.3, 450, 4200, 0.9, (p) => Math.pow(Math.sin(Math.PI * p), 1.5), -23), 0], [chime(), 0.3]],
+  whoosh: () => [[whoosh(), 0]],
+  thud: () => [[thud(), 0]],
   band: () => [[swell(), 0]],
   close: () => [[chime(), 0]],
 }
@@ -183,9 +203,17 @@ wav.write('data', 36); wav.writeUInt32LE(track.length * 2, 40)
 for (let i = 0; i < track.length; i++) wav.writeInt16LE(Math.round(Math.tanh(track[i]) * 32767), 44 + i * 2)
 const audio = path.join(work, 'sound.wav')
 fs.writeFileSync(audio, wav)
+// levels, checked by numbers only (nothing is played): the mix must peak at or below -12 dBFS
+let peak = 0
+for (const v of track) peak = Math.max(peak, Math.abs(Math.tanh(v)))
+const peakDb = 20 * Math.log10(peak || 1e-9)
 const counts = {}
 for (const e of timeline.events) counts[e.kind] = (counts[e.kind] ?? 0) + 1
-console.log(`sound: ${placed} events placed (${Object.entries(counts).map(([k, n]) => `${k} ${n}`).join(', ')})`)
+console.log(`sound: ${placed} events placed (${Object.entries(counts).map(([k, n]) => `${k} ${n}`).join(', ')}), peak ${peakDb.toFixed(1)} dBFS`)
+if (peakDb > -12) {
+  console.error('the sound track peaks above -12 dBFS')
+  process.exit(1)
+}
 
 run('ffmpeg', ['-y', '-loglevel', 'error', '-i', picture, '-i', audio, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '96k', '-t', duration.toFixed(3), '-movflags', '+faststart', mp4])
 
@@ -201,9 +229,10 @@ if (length > MAX_SECONDS || sizeMb > MAX_MB || !sound) {
   process.exit(1)
 }
 
-// the landing page serves its own copy (it is deployed without docs/), plus a poster frame: the applied card
+// the landing page serves its own copy (it is deployed without docs/), plus a poster frame: the changed card,
+// zoomed (the spec marks the moment), else 1.6 s after the first applied chime
 fs.copyFileSync(mp4, path.join(root, 'site', 'demo.mp4'))
 const applied = timeline.events.find((e) => e.kind === 'applied')
-const posterAt = applied ? (applied.t - timeline.start) / 1000 + 1.6 : 13
+const posterAt = timeline.poster ? (timeline.poster - timeline.start) / 1000 : applied ? (applied.t - timeline.start) / 1000 + 1.6 : 13
 run('ffmpeg', ['-y', '-loglevel', 'error', '-ss', posterAt.toFixed(2), '-i', mp4, '-frames:v', '1', '-q:v', '4', path.join(root, 'site', 'poster.jpg')])
 console.log('copied to site/demo.mp4 and site/poster.jpg')
