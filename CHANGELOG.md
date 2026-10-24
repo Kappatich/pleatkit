@@ -60,6 +60,12 @@ request labels); what a vendor needs across all of its customers moves to the pr
   app's font (it set Helvetica before); mono is a JetBrains Mono stack, still without loading fonts. Class names, test
   ids, the mobile bottom sheet and reduced motion are unchanged. The demo's /admin and dashboard panels follow (8px
   panes with a soft shadow, tinted table headers, status pills), and the demo darkens with `data-mk-theme="dark"`.
+- demo video sound, after the founder's listening: the set picked on the audition page (a brighter keyboard set,
+  a Kenney switch for the drawer, a low Material tone for the title bands), every sample at the same average loudness
+  (-19 LUFS, K-weighted) and the levels set per kind in the mixer: typing and the camera whoosh quietest (-44.5 and
+  -49 LUFS), click, drawer, plates and bands in the middle (-36), the applied and closing chimes loudest (-30). Key
+  events closer than 70 ms are thinned to one press at a time, spread evenly over the burst (159 logged, 77 heard),
+  and the five keystrokes play in shuffled rounds; the whoosh is cut to 150 ms. Same take, 8.6 MB, `demo.mp4?v=v7`.
 - demo video: real sound samples instead of the synthesized track, and a new closing card (76 s, 8.7 MB, a fresh
   take). `scripts/record-demo.mjs` mixes WAV samples from `apps/demo-crm/e2e/sounds/` (`<kind>-<n>.wav`, 48 kHz mono,
   peak -6 dBFS, read in Node without dependencies) at the same event times: five keystrokes from a recorded
