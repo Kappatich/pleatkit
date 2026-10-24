@@ -14,7 +14,6 @@
   var reveal = root.querySelector('.scene.reveal');
   var frag = root.querySelector('.reveal .frag');
   var caption = root.querySelector('.reveal .caption');
-  var dotsBox = root.querySelector('.dots');
   var dots = Array.prototype.slice.call(root.querySelectorAll('.dots button'));
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var canAnimate = !reduced && typeof askBlock.animate === 'function';
@@ -134,7 +133,6 @@
 
   // In the ask phase the line sits in the middle of the stage; the drop is measured, so the move up is one transform.
   function measureDrop() {
-    var cs = getComputedStyle(root);
     // centre the request in the space between the top of the stage and the small preview of the fragment
     root.style.setProperty('--drop', '0px');
     var askRect = askBlock.getBoundingClientRect(), fragRect = frag.getBoundingClientRect();
