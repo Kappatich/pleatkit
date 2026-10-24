@@ -8,8 +8,8 @@ import { Film, overlay, type Rect } from './video-helpers'
 // matters right now, area plates name the app, the drawer and the admin view once, a thin red frame keeps the name
 // while the camera stays there, and everything but the changing panel is blurred while it changes. Recorded
 // headless with Playwright's recordVideo, scripted provider paced by PLEATKIT_SCRIPTED_DELAY_MS;
-// scripts/record-demo.mjs trims it to the start/end marks, synthesizes the sound track from docs/.video/events.json
-// and writes docs/demo.mp4. The shot list:
+// scripts/record-demo.mjs trims it to the start/end marks, mixes the sound track from the samples in e2e/sounds/ at
+// the times in docs/.video/events.json and writes docs/demo.mp4. The shot list:
 //  a cold open, plate on the app ("Your app")
 //  b camera 1.8x on the launcher, two pulses, click; drawer opens; 1x; plate on the drawer; frame DRAWER
 //  c camera 2x on the composer; the request is typed and sent
@@ -18,7 +18,8 @@ import { Film, overlay, type Rect } from './video-helpers'
 //  f the same for redo, so the customer part ends on the changed card
 //  g camera 2x on the composer; a backend request; the drawer's answer; caption
 //  h band "What the admin sees"; plate on the request row; frame ADMIN; camera on the row, its diff; caption
-//  i closing card (pleatkit.com · open source · MIT), fade to paper
+//  i closing card (pleatkit.com, "your customers change their own screens by asking", the honesty note), fade to
+//    paper
 // Five captions in all, counting the closing card. Sounds are not recorded: every typed character, click, camera
 // move, plate, drawer open, applied, band and close is logged with its offset from the page's creation (the video's
 // first frame) and mixed in by record-demo.mjs.
@@ -195,7 +196,7 @@ test('demo video (~75 s): area plates, camera, request, undo, redo, backend requ
   await film.pause(1000)
 
   // i (74–80 s): closing card, fade to paper
-  await film.band('pleatkit.com', 'open source · MIT', {
+  await film.band('pleatkit.com', 'your customers change their own screens by asking', {
     mark: true,
     note: 'The agent\'s answers in this film are recorded; compile, commit, undo and storage run for real.',
   })
