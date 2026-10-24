@@ -92,15 +92,16 @@
     var b = t.querySelector('b');
     requestAnimationFrame(function () { requestAnimationFrame(function () {
       t.classList.add('in');
-      countUp(b, 21500, reduced ? 0 : 800);
-      setTimeout(done, reduced ? 50 : 900);
+      setTimeout(function () { countUp(b, 21500, reduced ? 0 : 1300); }, reduced ? 0 : 350);
+      setTimeout(function () { t.classList.add('lit'); }, reduced ? 0 : 1500);
+      setTimeout(done, reduced ? 50 : 2100);
     }); });
   }
   function morphBars(done) {
     var pane = frag.querySelector('.fpane');
     pane.classList.add('to-bars');
-    setTimeout(function () { pane.classList.add('grown'); }, reduced ? 0 : 420);
-    setTimeout(done, reduced ? 50 : 1300);
+    setTimeout(function () { pane.classList.add('grown'); }, reduced ? 0 : 650);
+    setTimeout(done, reduced ? 50 : 2300);
   }
   function morphList(done) {
     var ul = frag.querySelector('.flist');
@@ -112,10 +113,10 @@
     // FLIP through the Web Animations API: no inline styles left behind, nothing to clean up on the next frame.
     items.forEach(function (li) {
       var dy = first[li.dataset.i] - li.getBoundingClientRect().top;
-      if (!reduced && dy && li.animate) li.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 700, easing: 'cubic-bezier(.2,.7,.2,1)' });
+      if (!reduced && dy && li.animate) li.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 1000, delay: +li.dataset.od ? 0 : 120, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
     });
-    setTimeout(function () { ul.classList.add('marked'); }, reduced ? 0 : 350);
-    setTimeout(done, reduced ? 50 : 1100);
+    setTimeout(function () { ul.classList.add('marked'); }, reduced ? 0 : 900);
+    setTimeout(done, reduced ? 50 : 2200);
   }
   function countUp(el, to, ms) {
     if (!ms) { el.textContent = money(to); return; }
@@ -139,9 +140,29 @@
     var i = 0;
     (function step() {
       typed.textContent = str.slice(0, ++i);
-      if (i < str.length) later(step, 26 + Math.random() * 34 + (/[,.]/.test(str[i - 1]) ? 140 : 0));
-      else later(done, 520);
+      if (i < str.length) later(step, 14 + Math.random() * 16 + (/[,.]/.test(str[i - 1]) ? 90 : 0));
+      else later(done, 340);
     })();
+  }
+
+  // The typed line itself flies to the top and shrinks into the small "asked" line: one element, no cut.
+  function shrinkAsk(done) {
+    var big = root.querySelector('.ask-text');
+    if (reduced || !big.animate) { phase('between'); return later(done, 120); }
+    var from = big.getBoundingClientRect();
+    asked.style.visibility = 'hidden';
+    phase('between');
+    asked.style.opacity = '1';
+    var to = asked.getBoundingClientRect();
+    asked.style.opacity = '';
+    var sx = to.height / from.height;
+    var dx = to.left - from.left, dy = to.top - from.top;
+    big.style.transformOrigin = '0 0';
+    var anim = big.animate([
+      { transform: 'none', opacity: 1 },
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + Math.max(sx, .28) + ')', opacity: .9 }
+    ], { duration: 480, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' });
+    anim.onfinish = function () { asked.style.visibility = ''; anim.cancel(); big.style.transformOrigin = ''; done(); };
   }
 
   function runSteps(lines, done) {
@@ -157,7 +178,7 @@
       stepsEl.appendChild(li);
       requestAnimationFrame(function () { li.classList.add('in'); });
       if (stepsEl.children.length > 1) stepsEl.children[stepsEl.children.length - 2].classList.add('done');
-      later(next, 640);
+      later(next, 430);
     })();
   }
 
@@ -186,31 +207,34 @@
         key.classList.add('press');
         later(function () {
           asked.textContent = s.ask;
-          phase('between');
-          later(function () { phase('work'); }, 300);
-          bar.style.transitionDuration = (s.lines.length * 640 + 300) + 'ms';
-          later(function () {
-            runSteps(s.lines, function () {
-              phase('between');
-              later(function () {
-              frag.innerHTML = s.before;
-              phase('reveal');
-              later(function () {
-                s.morph(guard(function () {
-                  caption.textContent = s.caption;
-                  reveal.classList.add('captioned');
+          shrinkAsk(guard(function () {
+            phase('work');
+            bar.style.transitionDuration = (s.lines.length * 430 + 200) + 'ms';
+            later(function () {
+              runSteps(s.lines, function () {
+                phase('between');
+                later(function () {
+                  frag.innerHTML = s.before;
+                  phase('reveal');
+                  frag.classList.add('editing');
                   later(function () {
-                    root.classList.add('leave');
-                    later(function () { reveal.classList.remove('captioned'); play((i + 1) % scenarios.length); }, 520);
-                  }, 3200);
-                }));
-              }, 900);
-              }, 380);
-            });
-          }, 420);
-        }, 420);
+                    frag.classList.remove('editing');
+                    s.morph(guard(function () {
+                      caption.textContent = s.caption;
+                      reveal.classList.add('captioned');
+                      later(function () {
+                        root.classList.add('leave');
+                        later(function () { reveal.classList.remove('captioned'); play((i + 1) % scenarios.length); }, 450);
+                      }, 3000);
+                    }));
+                  }, 1100);
+                }, 260);
+              });
+            }, 200);
+          }));
+        }, 260);
       });
-    }, 500);
+    }, 300);
   }
 
   dots.forEach(function (d, j) { d.addEventListener('click', function () { play(j); }); });
