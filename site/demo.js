@@ -1,23 +1,23 @@
-// Hero stage v5 "motion" (2026-10-24, Minte): one request at a time, large. The customer types the request in big
-// type and presses Enter; a few quiet seconds show what the drawer reports; then the one fragment that changed
-// appears large and morphs from before to after. Nothing else on the stage. Scripted, no model runs here.
+// Hero stage v5.2 "motion" (2026-10-24, Minte's notes): one request at a time, large. The customer's line types
+// in big type, Enter is pressed, the line stays large and moves to the top while the steps run below it; then the
+// one fragment that changed appears and morphs from before to after; at the end everything is drawn into the dot
+// at the bottom that stores this request, so the dots read as the place to replay. Scripted, no model runs here.
 (function () {
   var root = document.querySelector('[data-live]');
   if (!root) return;
-  var ask = root.querySelector('.ask');
-  var typed = root.querySelector('.ask .typed');
-  var caret = root.querySelector('.ask .caret');
-  var key = root.querySelector('.ask .key');
-  var asked = root.querySelector('.asked');
-  var work = root.querySelector('.work');
+  var askBlock = root.querySelector('.ask-block');
+  var typed = root.querySelector('.ask-text .typed');
+  var key = root.querySelector('.ask-hint .key');
   var stepsEl = root.querySelector('.work .steps-live');
   var timerEl = root.querySelector('.work .timer');
   var bar = root.querySelector('.work .progress i');
-  var reveal = root.querySelector('.reveal');
+  var reveal = root.querySelector('.scene.reveal');
   var frag = root.querySelector('.reveal .frag');
   var caption = root.querySelector('.reveal .caption');
+  var dotsBox = root.querySelector('.dots');
   var dots = Array.prototype.slice.call(root.querySelectorAll('.dots button'));
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var canAnimate = !reduced && typeof askBlock.animate === 'function';
 
   var customers = [
     { name: 'Globex Corporation', due: 'Oct 11', overdue: true, amount: 12000 },
@@ -34,28 +34,22 @@
 
   var scenarios = [
     {
-      id: 'overdue',
       ask: 'Add a tile with overdue payments at the top.',
       lines: ['Understanding the request', "Looking at the app's data helpers", 'Adding a tile to the dashboard', 'Checking that everything still works'],
       caption: 'A new tile, only on this customer’s screen. One click to undo.',
-      before: tilesHtml(false),
-      morph: morphTiles
+      before: tilesHtml, morph: morphTiles
     },
     {
-      id: 'bars',
       ask: 'Show the pipeline by stage as bars instead of the table.',
-      lines: ['Understanding the request', 'Changing the deals panel', 'Checking that everything still works'],
+      lines: ['Understanding the request', 'Reading the deals table', 'Changing the deals panel', 'Checking that everything still works'],
       caption: 'Same numbers, a different panel. Every other customer keeps the table.',
-      before: tableHtml(),
-      morph: morphBars
+      before: tableHtml, morph: morphBars
     },
     {
-      id: 'sort',
       ask: 'Put overdue customers first and mark their dates in red.',
       lines: ['Understanding the request', 'Changing the customer list', 'Checking that everything still works'],
       caption: 'Sorted and marked, as asked. Saved as this customer’s version.',
-      before: listHtml(),
-      morph: morphList
+      before: listHtml, morph: morphList
     }
   ];
 
@@ -67,11 +61,12 @@
     return '<div class="ftiles">' + tileHtml('Customers', '4', '2 active') + tileHtml('Open pipeline', '$49,500', '2 deals') + tileHtml('Won', '$48,000', 'all time') + '</div>';
   }
   function tableHtml() {
+    var order = ['won', 'qualified', 'proposal'];
     return '<div class="fpane"><h4><span class="t1">Deals</span><span class="t2">Pipeline by stage</span></h4><div class="fbody">' +
-      '<table class="ftable"><thead><tr><th>Title</th><th>Stage</th><th class="n">Amount</th></tr></thead><tbody>' +
-      deals.map(function (d) { return '<tr><td>' + d.title + '</td><td><span class="st ' + d.stage + '">' + d.stage + '</span></td><td class="n">' + money(d.amount) + '</td></tr>'; }).join('') +
+      '<table class="ftable"><thead><tr><th><span class="t1">Title</span><span class="t2">Stage</span></th><th><span class="t1">Stage</span></th><th class="n">Amount</th></tr></thead><tbody>' +
+      deals.map(function (d) { return '<tr><td class="tt">' + d.title + '</td><td class="ts"><span class="st ' + d.stage + '">' + d.stage + '</span></td><td class="n">' + money(d.amount) + '</td></tr>'; }).join('') +
       '</tbody></table>' +
-      '<div class="fbars">' + ['won', 'qualified', 'proposal'].map(function (st) {
+      '<div class="fbars">' + order.map(function (st) {
         var sum = deals.filter(function (d) { return d.stage === st; }).reduce(function (a, d) { return a + d.amount; }, 0);
         return '<div class="fbar"><span class="k">' + st + '</span><i style="--w:' + Math.round(sum / 48000 * 100) + '%"></i><span class="n">' + money(sum) + '</span></div>';
       }).join('') + '</div></div></div>';
@@ -82,7 +77,7 @@
     }).join('') + '</ul></div>';
   }
 
-  // --- morphs: before is on screen, animate to after, resolve when done ---
+  // --- morphs: the "before" is on screen; animate to "after"; call done when the eye has settled ---
   function morphTiles(done) {
     var row = frag.querySelector('.ftiles');
     var t = document.createElement('div');
@@ -92,16 +87,20 @@
     var b = t.querySelector('b');
     requestAnimationFrame(function () { requestAnimationFrame(function () {
       t.classList.add('in');
-      setTimeout(function () { countUp(b, 21500, reduced ? 0 : 1300); }, reduced ? 0 : 350);
-      setTimeout(function () { t.classList.add('lit'); }, reduced ? 0 : 1500);
-      setTimeout(done, reduced ? 50 : 2100);
+      setTimeout(function () { countUp(b, 21500, reduced ? 0 : 1400); }, reduced ? 0 : 400);
+      setTimeout(function () { t.classList.add('lit'); }, reduced ? 0 : 1700);
+      setTimeout(done, reduced ? 50 : 2400);
     }); });
   }
+  // Each table row turns into its bar in place: the stage pill folds, the title slides left, the bar grows out of
+  // the row, the amount reappears at the end of the bar. Rows go one after another.
   function morphBars(done) {
     var pane = frag.querySelector('.fpane');
+    var rows = Array.prototype.slice.call(pane.querySelectorAll('tbody tr'));
     pane.classList.add('to-bars');
-    setTimeout(function () { pane.classList.add('grown'); }, reduced ? 0 : 650);
-    setTimeout(done, reduced ? 50 : 2300);
+    rows.forEach(function (tr, i) { setTimeout(function () { tr.classList.add('fold'); }, reduced ? 0 : 150 + i * 380); });
+    setTimeout(function () { pane.classList.add('grown'); }, reduced ? 0 : 500);
+    setTimeout(done, reduced ? 50 : 2600);
   }
   function morphList(done) {
     var ul = frag.querySelector('.flist');
@@ -110,13 +109,12 @@
     items.forEach(function (li) { first[li.dataset.i] = li.getBoundingClientRect().top; });
     items.sort(function (a, b) { return (+b.dataset.od) - (+a.dataset.od); });
     items.forEach(function (li) { ul.appendChild(li); });
-    // FLIP through the Web Animations API: no inline styles left behind, nothing to clean up on the next frame.
     items.forEach(function (li) {
       var dy = first[li.dataset.i] - li.getBoundingClientRect().top;
-      if (!reduced && dy && li.animate) li.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 1000, delay: +li.dataset.od ? 0 : 120, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
+      if (canAnimate && dy) li.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 1100, delay: +li.dataset.od ? 0 : 140, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
     });
-    setTimeout(function () { ul.classList.add('marked'); }, reduced ? 0 : 900);
-    setTimeout(done, reduced ? 50 : 2200);
+    setTimeout(function () { ul.classList.add('marked'); }, reduced ? 0 : 1000);
+    setTimeout(done, reduced ? 50 : 2400);
   }
   function countUp(el, to, ms) {
     if (!ms) { el.textContent = money(to); return; }
@@ -134,35 +132,24 @@
   function clearTimers() { timers.forEach(clearTimeout); timers = []; }
   function phase(name) { root.setAttribute('data-phase', name); }
 
+  // In the ask phase the line sits in the middle of the stage; the drop is measured, so the move up is one transform.
+  function measureDrop() {
+    var cs = getComputedStyle(root);
+    var inner = root.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - dotsBox.offsetHeight;
+    var drop = Math.max(0, (inner - askBlock.offsetHeight) / 2);
+    root.style.setProperty('--drop', drop + 'px');
+  }
+  window.addEventListener('resize', measureDrop);
+
   function typeInto(str, done) {
     typed.textContent = '';
     if (reduced) { typed.textContent = str; return later(done, 100); }
     var i = 0;
     (function step() {
       typed.textContent = str.slice(0, ++i);
-      if (i < str.length) later(step, 14 + Math.random() * 16 + (/[,.]/.test(str[i - 1]) ? 90 : 0));
-      else later(done, 340);
+      if (i < str.length) later(step, 20 + Math.random() * 26 + (/[,.]/.test(str[i - 1]) ? 120 : 0));
+      else later(done, 700);
     })();
-  }
-
-  // The typed line itself flies to the top and shrinks into the small "asked" line: one element, no cut.
-  function shrinkAsk(done) {
-    var big = root.querySelector('.ask-text');
-    if (reduced || !big.animate) { phase('between'); return later(done, 120); }
-    var from = big.getBoundingClientRect();
-    asked.style.visibility = 'hidden';
-    phase('between');
-    asked.style.opacity = '1';
-    var to = asked.getBoundingClientRect();
-    asked.style.opacity = '';
-    var sx = to.height / from.height;
-    var dx = to.left - from.left, dy = to.top - from.top;
-    big.style.transformOrigin = '0 0';
-    var anim = big.animate([
-      { transform: 'none', opacity: 1 },
-      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + Math.max(sx, .28) + ')', opacity: .9 }
-    ], { duration: 480, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' });
-    anim.onfinish = function () { asked.style.visibility = ''; anim.cancel(); big.style.transformOrigin = ''; done(); };
   }
 
   function runSteps(lines, done) {
@@ -172,49 +159,70 @@
     timers.push(tick);
     var i = 0;
     (function next() {
-      if (i >= lines.length) { clearInterval(tick); timerEl.textContent = ((performance.now() - start) / 1000).toFixed(1) + ' s'; return done(); }
+      if (i >= lines.length) { clearInterval(tick); timerEl.textContent = ((performance.now() - start) / 1000).toFixed(1) + ' s'; return later(done, 500); }
       var li = document.createElement('li');
       li.textContent = lines[i++];
       stepsEl.appendChild(li);
       requestAnimationFrame(function () { li.classList.add('in'); });
       if (stepsEl.children.length > 1) stepsEl.children[stepsEl.children.length - 2].classList.add('done');
-      later(next, 430);
+      later(next, 820);
     })();
   }
 
-  var current = -1;
+  // Everything on the stage is drawn into the dot that stores this request.
+  function suckInto(i, done) {
+    var dot = dots[i].querySelector('span').getBoundingClientRect();
+    var parts = [askBlock, frag, caption];
+    if (!canAnimate) { parts.forEach(function (el) { el.style.opacity = '0'; }); return later(function () { parts.forEach(function (el) { el.style.opacity = ''; }); done(); }, 150); }
+    var anims = parts.map(function (el) {
+      var r = el.getBoundingClientRect();
+      var dx = dot.left + dot.width / 2 - (r.left + r.width / 2), dy = dot.top + dot.height / 2 - (r.top + r.height / 2);
+      return el.animate([
+        { transform: 'none', opacity: 1, offset: 0 },
+        { transform: 'translate(' + dx * .15 + 'px,' + dy * .1 + 'px) scale(.92)', opacity: .9, offset: .3 },
+        { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.04)', opacity: 0, offset: 1 }
+      ], { duration: 720, easing: 'cubic-bezier(.6,0,.9,.4)', fill: 'forwards', composite: el === askBlock ? 'add' : 'replace' });
+    });
+    later(function () {
+      dots[i].classList.add('stored');
+      dots[i].querySelector('span').animate([{ transform: 'scale(1.25)' }, { transform: 'scale(2.1)' }, { transform: 'scale(1.25)' }], { duration: 420, easing: 'ease-out' });
+      later(function () { anims.forEach(function (a) { a.cancel(); }); done(); }, 320);
+    }, 700);
+  }
+
   var running = false;
   var runId = 0;
   function play(i) {
     clearTimers();
     running = true;
-    current = i;
     var my = ++runId;
-    // A click on a dot while a run is in flight starts a new run; callbacks of the old one must not touch the stage.
     var guard = function (fn) { return function () { if (my === runId) fn.apply(null, arguments); }; };
     var s = scenarios[i];
     dots.forEach(function (d, j) { d.classList.toggle('on', j === i); });
-    root.classList.remove('leave');
+    // a clean slate before the ask phase shows: no ghost of the previous request or fragment
+    typed.textContent = '';
     frag.innerHTML = '';
     caption.textContent = '';
     reveal.classList.remove('captioned');
     stepsEl.innerHTML = '';
     timerEl.textContent = '';
     key.classList.remove('press');
+    bar.style.transitionDuration = '0ms';
+    measureDrop();
     phase('ask');
     later(function () {
-      typeInto(s.ask, function () {
+      typeInto(s.ask, guard(function () {
         key.classList.add('press');
         later(function () {
-          asked.textContent = s.ask;
-          shrinkAsk(guard(function () {
-            phase('work');
-            bar.style.transitionDuration = (s.lines.length * 430 + 200) + 'ms';
+          phase('sent');          // Enter pressed: the line stays put for a moment, the reader finishes it
+          later(function () {
+            phase('work');        // the line moves to the top, the steps run under it
+            bar.style.transitionDuration = (s.lines.length * 820 + 600) + 'ms';
             later(function () {
-              runSteps(s.lines, function () {
+              runSteps(s.lines, guard(function () {
                 phase('between');
                 later(function () {
-                  frag.innerHTML = s.before;
+                  frag.innerHTML = s.before();
                   phase('reveal');
                   frag.classList.add('editing');
                   later(function () {
@@ -223,28 +231,31 @@
                       caption.textContent = s.caption;
                       reveal.classList.add('captioned');
                       later(function () {
-                        root.classList.add('leave');
-                        later(function () { reveal.classList.remove('captioned'); play((i + 1) % scenarios.length); }, 450);
+                        suckInto(i, guard(function () {
+                          reveal.classList.remove('captioned');
+                          play((i + 1) % scenarios.length);
+                        }));
                       }, 3000);
                     }));
-                  }, 1100);
-                }, 260);
-              });
-            }, 200);
-          }));
+                  }, 1300);
+                }, 300);
+              }));
+            }, 650);
+          }, 1000);
         }, 260);
-      });
-    }, 300);
+      }));
+    }, 350);
   }
 
   dots.forEach(function (d, j) { d.addEventListener('click', function () { play(j); }); });
 
-  // Start when the stage is in view; the page's screenshots set __pleatkitNoAutoplay and show the final state.
   if (window.__pleatkitNoAutoplay) {
-    frag.innerHTML = scenarios[0].before; phase('reveal'); scenarios[0].morph(function () { caption.textContent = scenarios[0].caption; reveal.classList.add('captioned'); });
+    typed.textContent = scenarios[0].ask; frag.innerHTML = scenarios[0].before(); phase('reveal'); measureDrop();
+    scenarios[0].morph(function () { caption.textContent = scenarios[0].caption; reveal.classList.add('captioned'); });
     dots[0].classList.add('on');
     return;
   }
+  measureDrop();
   function start() { if (!running) play(0); }
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (entries) {
