@@ -60,6 +60,17 @@ request labels); what a vendor needs across all of its customers moves to the pr
   app's font (it set Helvetica before); mono is a JetBrains Mono stack, still without loading fonts. Class names, test
   ids, the mobile bottom sheet and reduced motion are unchanged. The demo's /admin and dashboard panels follow (8px
   panes with a soft shadow, tinted table headers, status pills), and the demo darkens with `data-mk-theme="dark"`.
+- demo video re-shot (78 s, 8.5 MB): show, don't tell. The camera now lives inside the page (the app and the
+  drawer are wrapped in one element that is translated and scaled with a CSS transition, so a zoom is real pixels):
+  it zooms on the launcher, the composer while the request is typed, the customer card while it changes and the
+  undo and redo buttons, and pulls back to the whole page in between. The app, the drawer and the admin view are each
+  introduced once by a plate (everything else dimmed, a large title in the dark part), then a thin red frame with one
+  name tag stays while the whole area is in view. While the card changes, everything else is blurred with four
+  backdrop-blurred rects. Four bottom captions and the closing card replace the pill labels; the persona is not named
+  in the film, and the note that the agent's answers are recorded moved to the closing card. A soft whoosh per
+  camera move and a low thud per plate join the synthesized track (peak checked at or below -12 dBFS); the poster is
+  the zoomed changed card. Typing is paced by the wall clock, and the drawer is opened once before the start mark, so
+  the film keeps its length on a loaded machine.
 - demo video re-recorded on design v4, with sound and labels. `pnpm demo:video` now records a 74 s film (the limit
   in `scripts/record-demo.mjs` is 90 s and 20 MB): a visible 26 px pointer with a ripple on every click, motion labels
   for the customer's app, the pleatkit drawer and the admin view, the panels that do not change blurred while the

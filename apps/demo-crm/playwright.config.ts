@@ -30,7 +30,7 @@ const agentEnv: Record<string, string> = LIVE
           .map((k) => [k, process.env[k]!]),
       ),
     }
-  : { PLEATKIT_PROVIDER: 'scripted', ...(VIDEO ? { PLEATKIT_SCRIPTED_DELAY_MS: '650' } : {}) }
+  : { PLEATKIT_PROVIDER: 'scripted', ...(VIDEO ? { PLEATKIT_SCRIPTED_DELAY_MS: '1100' } : {}) }
 
 // Strictly headless: never open windows on the developer's screen. Runs against the production build,
 // with the scripted model provider (no network, no key) and an in-memory store-server.
