@@ -6,9 +6,10 @@
 //    sound event (key, click, drawer, applied, whoosh, thud, band, close) in ms since the page was created, and the
 //    poster moment,
 // 3. ffmpeg trims the webm to the start/end marks and encodes it,
-// 4. synthesizes the sound track here (no samples, no downloads: filtered noise and sines written as a WAV),
-//    places each event sample-accurately and mixes them in Node (a few hundred key ticks would make an ffmpeg
-//    adelay/amix graph of hundreds of inputs), then muxes it into the mp4 with ffmpeg (-c:v copy -c:a aac),
+// 4. builds the sound track from the samples in apps/demo-crm/e2e/sounds/ (<kind>-<n>.wav, 48 kHz mono 16-bit,
+//    peak -6 dBFS; CC0 and CC BY 4.0, sources in docs/sounds/CREDITS.md): places each event sample-accurately at
+//    its kind's gain and mixes them in Node (a few hundred key ticks would make an ffmpeg adelay/amix graph of
+//    hundreds of inputs), then muxes it into the mp4 with ffmpeg (-c:v copy -c:a aac),
 // 5. prints ffprobe's duration and size and refuses a film over 90 s or 20 MB.
 // `--skip-record` reuses docs/.video (demo.webm + events.json), e.g. to retune the sound.
 // VIDEO_LEAD_MS: Playwright's video shows a moment about 70 ms before the wall clock says it happened (measured
@@ -70,131 +71,89 @@ const rand = () => {
   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296
 }
-const noise = () => rand() * 2 - 1
 
-/** RBJ band-pass, cutoff may change every sample (sweeps). */
-function bandpass(input, freqAt, q) {
-  const out = new Float32Array(input.length)
-  let x1 = 0, x2 = 0, y1 = 0, y2 = 0
-  for (let i = 0; i < input.length; i++) {
-    const w0 = (2 * Math.PI * freqAt(i / SR)) / SR
-    const alpha = Math.sin(w0) / (2 * q)
-    const a0 = 1 + alpha
-    const y = (alpha * input[i] - alpha * x2 + 2 * Math.cos(w0) * y1 - (1 - alpha) * y2) / a0
-    out[i] = y
-    x2 = x1; x1 = input[i]; y2 = y1; y1 = y
-  }
-  return out
-}
-
-function normalize(buf, peakDb) {
-  let peak = 0
-  for (const v of buf) peak = Math.max(peak, Math.abs(v))
-  const g = peak ? db(peakDb) / peak : 0
-  for (let i = 0; i < buf.length; i++) buf[i] *= g
-  return buf
-}
-
-const seconds = (s) => new Float32Array(Math.round(s * SR))
-
-/** key tick: a 12 ms band-passed noise burst, slightly different pitch and level each time */
-function keyTick() {
-  const b = seconds(0.016)
-  for (let i = 0; i < b.length; i++) b[i] = noise()
-  const f = 3200 * (0.8 + 0.4 * rand())
-  const out = bandpass(b, () => f, 1.4)
-  for (let i = 0; i < out.length; i++) {
-    const t = i / SR
-    out[i] *= Math.min(1, t / 0.0005) * Math.exp(-t / 0.0032)
-  }
-  return normalize(out, -29 + 3 * rand())
-}
-
-/** mouse click: 25 ms, a 2 kHz body under a short noise transient */
-function click() {
-  const b = seconds(0.025)
-  for (let i = 0; i < b.length; i++) {
-    const t = i / SR
-    b[i] = Math.sin(2 * Math.PI * 2000 * t) * Math.exp(-t / 0.006) + 0.6 * noise() * Math.exp(-t / 0.0012)
-    b[i] *= Math.min(1, t / 0.0003) * (t > 0.02 ? (0.025 - t) / 0.005 : 1)
-  }
-  return normalize(b, -19)
-}
-
-/** a noise sweep between two frequencies; `shape` is the envelope over 0..1 */
-function sweep(len, f0, f1, q, shape, peakDb) {
-  const b = seconds(len)
-  for (let i = 0; i < b.length; i++) b[i] = noise()
-  const out = bandpass(b, (t) => f0 * Math.pow(f1 / f0, t / len), q)
-  for (let i = 0; i < out.length; i++) out[i] *= shape(i / out.length)
-  return normalize(out, peakDb)
-}
-
-/** E5 then B5, sines with a soft octave, 120 ms apart, ringing out */
-function chime() {
-  const b = seconds(1.1)
-  for (const [f, at] of [[659.25, 0], [987.77, 0.12]]) {
-    const o = Math.round(at * SR)
-    for (let i = 0; o + i < b.length; i++) {
-      const t = i / SR
-      const env = Math.min(1, t / 0.004) * Math.exp(-t / 0.26)
-      b[o + i] += env * (Math.sin(2 * Math.PI * f * t) + 0.22 * Math.sin(2 * Math.PI * 2 * f * t))
+/** a 16-bit PCM mono 48 kHz WAV (what e2e/sounds holds) as floats */
+function readWav(file) {
+  const b = fs.readFileSync(file)
+  if (b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WAVE') throw new Error(`${file}: not a WAV`)
+  let fmt = null
+  for (let o = 12; o + 8 <= b.length; ) {
+    const id = b.toString('ascii', o, o + 4)
+    const size = b.readUInt32LE(o + 4)
+    if (id === 'fmt ') fmt = { format: b.readUInt16LE(o + 8), channels: b.readUInt16LE(o + 10), rate: b.readUInt32LE(o + 12), bits: b.readUInt16LE(o + 22) }
+    if (id === 'data') {
+      if (!fmt || fmt.format !== 1 || fmt.channels !== 1 || fmt.rate !== SR || fmt.bits !== 16) throw new Error(`${file}: expected 16-bit PCM mono ${SR} Hz`)
+      const out = new Float32Array(Math.floor(size / 2))
+      for (let i = 0; i < out.length; i++) out[i] = b.readInt16LE(o + 8 + i * 2) / 32768
+      return out
     }
+    o += 8 + size + (size & 1)
   }
-  return normalize(b, -18)
+  throw new Error(`${file}: no data chunk`)
 }
 
-/** a camera move: 250 ms of soft band-passed noise rising and falling, low in the mix */
-function whoosh() {
-  return sweep(0.25, 380, 1500, 0.7, (p) => Math.pow(Math.sin(Math.PI * p), 2), -24)
+// the samples, by kind: key-1.wav to key-5.wav, click-1.wav, ...
+const soundsDir = path.join(app, 'e2e', 'sounds')
+const samples = {}
+for (const file of fs.readdirSync(soundsDir).sort()) {
+  const m = /^([a-z]+)-(\d+)\.wav$/.exec(file)
+  if (m) (samples[m[1]] ??= []).push(readWav(path.join(soundsDir, file)))
 }
-
-/** a plate landing: a 90 Hz sine, 120 ms, fast attack, a gentle drop in pitch */
-function thud() {
-  const b = seconds(0.12)
-  let phase = 0
-  for (let i = 0; i < b.length; i++) {
-    const t = i / SR
-    phase += (2 * Math.PI * 90 * (1 - 0.15 * (t / 0.12))) / SR
-    b[i] = Math.sin(phase) * Math.min(1, t / 0.004) * Math.exp(-t / 0.045) * Math.min(1, (0.12 - t) / 0.01)
+const one = (kind) => {
+  if (!samples[kind]?.length) {
+    console.error(`no ${kind}-<n>.wav in ${soundsDir}`)
+    process.exit(1)
   }
-  return normalize(b, -20)
+  return samples[kind][0]
 }
 
-/** a low 400 ms swell under the title band */
-function swell() {
-  const b = seconds(0.45)
-  const n = bandpass(Float32Array.from(b, () => noise()), () => 260, 0.8)
-  for (let i = 0; i < b.length; i++) {
-    const t = i / SR
-    const env = t < 0.3 ? Math.pow(t / 0.3, 2) : Math.max(0, Math.cos(((t - 0.3) / 0.15) * (Math.PI / 2)))
-    b[i] = env * (Math.sin(2 * Math.PI * 98 * t) + 0.5 * Math.sin(2 * Math.PI * 147 * t) + 0.6 * n[i])
-  }
-  return normalize(b, -21)
+// gain per kind in dB, applied to samples that peak at -6 dBFS: typing peaks near -26 dBFS, the applied and closing
+// chimes near -18, the camera's whoosh near -26; everything stays under the -12 dBFS guard below
+const GAIN = { key: -21.5, click: -14, drawer: -18, applied: -12, whoosh: -20, thud: -17, band: -15, close: -12 }
+// key ticks: never the same sample twice in a row, and each a little louder or softer (±1.5 dB), so typing does
+// not sound like a machine gun
+let lastKey = -1
+function keySample() {
+  const keys = samples.key ?? [one('key')]
+  let k = Math.floor(rand() * keys.length)
+  if (k === lastKey) k = (k + 1) % keys.length
+  lastKey = k
+  return keys[k]
 }
-
+/** [sample, gain in dB, offset in s] for each event kind */
 const sounds = {
-  key: () => [[keyTick(), 0]],
-  click: () => [[click(), 0]],
-  drawer: () => [[sweep(0.22, 700, 3400, 1.1, (p) => Math.pow(p, 1.3) * Math.min(1, (1 - p) / 0.18), -25), 0.02]],
-  applied: () => [[sweep(0.3, 450, 4200, 0.9, (p) => Math.pow(Math.sin(Math.PI * p), 1.5), -23), 0], [chime(), 0.3]],
-  whoosh: () => [[whoosh(), 0]],
-  thud: () => [[thud(), 0]],
-  band: () => [[swell(), 0]],
-  close: () => [[chime(), 0]],
+  key: () => [[keySample(), GAIN.key - 1.5 + 3 * rand(), 0]],
+  click: () => [[one('click'), GAIN.click, 0]],
+  drawer: () => [[one('drawer'), GAIN.drawer, 0.02]],
+  applied: () => [[one('applied'), GAIN.applied, 0]],
+  whoosh: () => [[one('whoosh'), GAIN.whoosh, 0]],
+  thud: () => [[one('thud'), GAIN.thud, 0]],
+  band: () => [[one('band'), GAIN.band, 0]],
+  // the closing chime; the closing card's own band event already lays the low drop under it, 250 ms earlier
+  close: () => [[one('close'), GAIN.close, 0]],
 }
 
 const track = new Float32Array(Math.ceil((duration + 1.5) * SR))
+// one stem per kind as well, only to report each kind's peak as it sounds in the film (overlapping key ticks add up)
+const stems = {}
 let placed = 0
 for (const e of timeline.events) {
   const at = (e.t - timeline.start) / 1000
   if (at < -0.05 || at > duration) continue
-  for (const [buf, offset] of sounds[e.kind]()) {
+  const stem = (stems[e.kind] ??= new Float32Array(track.length))
+  for (const [buf, gainDb, offset] of sounds[e.kind]()) {
     const o = Math.round((at + offset) * SR)
-    for (let i = 0; i < buf.length; i++) if (o + i >= 0 && o + i < track.length) track[o + i] += buf[i]
+    const g = db(gainDb)
+    for (let i = 0; i < buf.length; i++) {
+      if (o + i < 0 || o + i >= track.length) continue
+      track[o + i] += buf[i] * g
+      stem[o + i] += buf[i] * g
+    }
   }
   placed++
 }
+const peakOf = (buf) => buf.reduce((p, v) => Math.max(p, Math.abs(v)), 0)
+console.log(`sound peaks by kind: ${Object.entries(stems).map(([k, b]) => `${k} ${(20 * Math.log10(peakOf(b) || 1e-9)).toFixed(1)}`).join(', ')} dBFS`)
 const wav = Buffer.alloc(44 + track.length * 2)
 wav.write('RIFF', 0); wav.writeUInt32LE(36 + track.length * 2, 4); wav.write('WAVE', 8)
 wav.write('fmt ', 12); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22)

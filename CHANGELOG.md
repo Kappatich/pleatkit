@@ -60,6 +60,17 @@ request labels); what a vendor needs across all of its customers moves to the pr
   app's font (it set Helvetica before); mono is a JetBrains Mono stack, still without loading fonts. Class names, test
   ids, the mobile bottom sheet and reduced motion are unchanged. The demo's /admin and dashboard panels follow (8px
   panes with a soft shadow, tinted table headers, status pills), and the demo darkens with `data-mk-theme="dark"`.
+- demo video: real sound samples instead of the synthesized track, and a new closing card (76 s, 8.7 MB, a fresh
+  take). `scripts/record-demo.mjs` mixes WAV samples from `apps/demo-crm/e2e/sounds/` (`<kind>-<n>.wav`, 48 kHz mono,
+  peak -6 dBFS, read in Node without dependencies) at the same event times: five keystrokes from a recorded
+  mechanical keyboard, never the same one twice in a row and ±1.5 dB each (typing peaks at -26 dBFS), a UI click,
+  Material Design transition sounds for the drawer and the camera moves (-24 and -26 dBFS), a two-note Material
+  confirmation when the change lands and a warmer one on the closing card (-18 dBFS), and a soft low impact for the
+  title bands and the plates. The generators are gone; the mix still peaks at or below -12 dBFS (it peaks at -18)
+  and the script now prints each kind's peak. Sources are CC0 (Kenney, unicaegames on OpenGameArt) and CC BY 4.0
+  (Google's Material Design product sounds); `docs/sounds/CREDITS.md` lists every file with its pack, author,
+  license and the attribution text. The closing card reads "pleatkit.com" and "your customers change their own
+  screens by asking" instead of "open source · MIT"; the landing page loads the film as `demo.mp4?v=v6`.
 - demo video re-shot (78 s, 8.5 MB): show, don't tell. The camera now lives inside the page (the app and the
   drawer are wrapped in one element that is translated and scaled with a CSS transition, so a zoom is real pixels):
   it zooms on the launcher, the composer while the request is typed, the customer card while it changes and the

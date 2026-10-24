@@ -12,8 +12,9 @@ import type { BrowserContext, Locator, Page } from '@playwright/test'
 // Every overlay element lives in a fixed container outside the camera, so it never zooms. The event timeline is
 // what scripts/record-demo.mjs turns into the sound track. Nothing here runs in the normal e2e suite.
 
-/** Sounds are placed from these events: one key tick per typed character, a click, the drawer swish, the applied
- * whoosh + chime, a soft whoosh per camera move, a low thud per plate, the band swell and the closing chime. */
+/** Sounds are placed from these events (samples in e2e/sounds/<kind>-<n>.wav): one keystroke per typed character, a
+ * click, the drawer's transition, the applied chime, a soft whoosh per camera move, a low thud per plate, the band's
+ * low drop and the closing chime. */
 export type SoundKind = 'key' | 'click' | 'drawer' | 'applied' | 'whoosh' | 'thud' | 'band' | 'close'
 
 export interface Timeline {
