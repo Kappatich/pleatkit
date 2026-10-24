@@ -1,7 +1,8 @@
-// Hero stage v5.2 "motion" (2026-10-24, Minte's notes): one request at a time, large. The customer's line types
-// in big type, Enter is pressed, the line stays large and moves to the top while the steps run below it; then the
-// one fragment that changed appears and morphs from before to after; at the end everything is drawn into the dot
-// at the bottom that stores this request, so the dots read as the place to replay. Scripted, no model runs here.
+// Hero stage v5.4 "motion" (2026-10-24): one request at a time, large. The customer's line types in big type and
+// Enter is pressed; the line moves to the top and the steps run under it; the small preview of the fragment grows
+// and morphs from before to after; the viewer can press Undo to see the screen as it was (the loop pauses) and
+// Redo to apply the change again; at the end everything is drawn into the dot that stores this request.
+// Scripted, no model runs here.
 (function () {
   var root = document.querySelector('[data-live]');
   if (!root) return;
@@ -14,9 +15,13 @@
   var reveal = root.querySelector('.scene.reveal');
   var frag = root.querySelector('.reveal .frag');
   var caption = root.querySelector('.reveal .caption');
+  var undoBtn = root.querySelector('.ur .undo');
+  var redoBtn = root.querySelector('.ur .redo');
   var dots = Array.prototype.slice.call(root.querySelectorAll('.dots button'));
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var canAnimate = !reduced && typeof askBlock.animate === 'function';
+  var HOLD = 5200;        // how long a result stays before the stage moves on
+  var HOLD_AFTER_REDO = 4200;
 
   var customers = [
     { name: 'Globex Corporation', due: 'Oct 11', overdue: true, amount: 12000 },
@@ -36,19 +41,22 @@
       ask: 'Add a tile with overdue payments at the top.',
       lines: ['Understanding the request', "Looking at the app's data helpers", 'Adding a tile to the dashboard', 'Checking that everything still works'],
       caption: 'A new tile, only on this customer’s screen. One click to undo.',
-      before: tilesHtml, morph: morphTiles
+      undone: 'The screen as it was. The change is kept in history; Redo brings it back.',
+      before: tilesHtml, morph: morphTiles, revert: revertTiles
     },
     {
       ask: 'Show the pipeline by stage as bars instead of the table.',
       lines: ['Understanding the request', 'Reading the deals table', 'Changing the deals panel', 'Checking that everything still works'],
       caption: 'Same numbers, a different panel. Every other customer keeps the table.',
-      before: tableHtml, morph: morphBars
+      undone: 'The table is back, exactly as before. Nothing was lost.',
+      before: tableHtml, morph: morphBars, revert: revertBars
     },
     {
       ask: 'Put overdue customers first and mark their dates in red.',
       lines: ['Understanding the request', 'Changing the customer list', 'Checking that everything still works'],
       caption: 'Sorted and marked, as asked. Saved as this customer’s version.',
-      before: listHtml, morph: morphList
+      undone: 'The original order. One click, and the version is back.',
+      before: listHtml, morph: morphList, revert: revertList
     }
   ];
 
@@ -59,16 +67,18 @@
   function tilesHtml() {
     return '<div class="ftiles">' + tileHtml('Customers', '4', '2 active') + tileHtml('Open pipeline', '$49,500', '2 deals') + tileHtml('Won', '$48,000', 'all time') + '</div>';
   }
+  // The deals panel is one grid whose columns animate: the title column shrinks into a stage label, the stage
+  // column widens and its pill gives way to a bar, the amount never moves. The same DOM before and after.
   function tableHtml() {
-    var order = ['won', 'qualified', 'proposal'];
-    return '<div class="fpane"><h4><span class="t1">Deals</span><span class="t2">Pipeline by stage</span></h4><div class="fbody">' +
-      '<table class="ftable"><thead><tr><th><span class="t1">Title</span><span class="t2">Stage</span></th><th><span class="t1">Stage</span></th><th class="n">Amount</th></tr></thead><tbody>' +
-      deals.map(function (d) { return '<tr><td class="tt">' + d.title + '</td><td class="ts"><span class="st ' + d.stage + '">' + d.stage + '</span></td><td class="n">' + money(d.amount) + '</td></tr>'; }).join('') +
-      '</tbody></table>' +
-      '<div class="fbars">' + order.map(function (st) {
-        var sum = deals.filter(function (d) { return d.stage === st; }).reduce(function (a, d) { return a + d.amount; }, 0);
-        return '<div class="fbar"><span class="k">' + st + '</span><i style="--w:' + Math.round(sum / 48000 * 100) + '%"></i><span class="n">' + money(sum) + '</span></div>';
-      }).join('') + '</div></div></div>';
+    var order = { won: 0, qualified: 1, proposal: 2 };
+    var rows = deals.slice().sort(function (a, b) { return order[a.stage] - order[b.stage]; });
+    return '<div class="fpane"><h4><span class="t1">Deals</span><span class="t2">Pipeline by stage</span></h4><div class="fgrid">' +
+      '<div class="r h"><span class="c1"><em class="a">Title</em><em class="b">Stage</em></span><span class="c2"><em class="a">Stage</em></span><span class="c3">Amount</span></div>' +
+      rows.map(function (d) {
+        return '<div class="r"><span class="c1"><em class="a">' + d.title + '</em><em class="b">' + d.stage + '</em></span>' +
+          '<span class="c2"><span class="st ' + d.stage + '">' + d.stage + '</span><i class="bar" style="--w:' + Math.round(d.amount / 48000 * 100) + '%"></i></span>' +
+          '<span class="c3 n">' + money(d.amount) + '</span></div>';
+      }).join('') + '</div></div>';
   }
   function listHtml() {
     return '<div class="fpane"><h4>Customers</h4><ul class="flist">' + customers.map(function (c, i) {
@@ -76,9 +86,10 @@
     }).join('') + '</ul></div>';
   }
 
-  // --- morphs: the "before" is on screen; animate to "after"; call done when the eye has settled ---
+  // --- morphs and their reverse; each calls done when the eye has settled ---
   function morphTiles(done) {
     var row = frag.querySelector('.ftiles');
+    var old = row.querySelector('.ftile.enter'); if (old) old.remove();
     var t = document.createElement('div');
     t.className = 'ftile alert enter';
     t.innerHTML = '<span class="k">Overdue</span><b>$0</b><small>2 customers</small>';
@@ -91,29 +102,41 @@
       setTimeout(done, reduced ? 50 : 2400);
     }); });
   }
-  // Each table row turns into its bar in place: the stage pill folds, the title slides left, the bar grows out of
-  // the row, the amount reappears at the end of the bar. Rows go one after another.
+  function revertTiles(done) {
+    var t = frag.querySelector('.ftile.enter');
+    if (!t) return done();
+    t.classList.remove('in', 'lit');
+    setTimeout(function () { t.remove(); done(); }, reduced ? 50 : 1200);
+  }
   function morphBars(done) {
     var pane = frag.querySelector('.fpane');
-    var rows = Array.prototype.slice.call(pane.querySelectorAll('tbody tr'));
     pane.classList.add('to-bars');
-    rows.forEach(function (tr, i) { setTimeout(function () { tr.classList.add('fold'); }, reduced ? 0 : 150 + i * 380); });
-    setTimeout(function () { pane.classList.add('grown'); }, reduced ? 0 : 500);
     setTimeout(done, reduced ? 50 : 2600);
   }
-  function morphList(done) {
+  function revertBars(done) {
+    frag.querySelector('.fpane').classList.remove('to-bars');
+    setTimeout(done, reduced ? 50 : 1800);
+  }
+  function flipList(sorter, done, settle) {
     var ul = frag.querySelector('.flist');
     var items = Array.prototype.slice.call(ul.children);
     var first = {};
     items.forEach(function (li) { first[li.dataset.i] = li.getBoundingClientRect().top; });
-    items.sort(function (a, b) { return (+b.dataset.od) - (+a.dataset.od); });
+    items.sort(sorter);
     items.forEach(function (li) { ul.appendChild(li); });
-    items.forEach(function (li) {
+    items.forEach(function (li, k) {
       var dy = first[li.dataset.i] - li.getBoundingClientRect().top;
-      if (canAnimate && dy) li.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 1100, delay: +li.dataset.od ? 0 : 140, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
+      if (canAnimate && dy) li.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 1100, delay: k * 60, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' });
     });
-    setTimeout(function () { ul.classList.add('marked'); }, reduced ? 0 : 1000);
+    setTimeout(settle, reduced ? 0 : 1000);
     setTimeout(done, reduced ? 50 : 2400);
+  }
+  function morphList(done) {
+    flipList(function (a, b) { return (+b.dataset.od) - (+a.dataset.od); }, done, function () { frag.querySelector('.flist').classList.add('marked'); });
+  }
+  function revertList(done) {
+    frag.querySelector('.flist').classList.remove('marked');
+    flipList(function (a, b) { return (+a.dataset.i) - (+b.dataset.i); }, done, function () {});
   }
   function countUp(el, to, ms) {
     if (!ms) { el.textContent = money(to); return; }
@@ -131,9 +154,8 @@
   function clearTimers() { timers.forEach(clearTimeout); timers = []; }
   function phase(name) { root.setAttribute('data-phase', name); }
 
-  // In the ask phase the line sits in the middle of the stage; the drop is measured, so the move up is one transform.
+  // In the ask phase the line sits in the middle of the space above the preview; the drop is measured.
   function measureDrop() {
-    // centre the request in the space between the top of the stage and the small preview of the fragment
     root.style.setProperty('--drop', '0px');
     var askRect = askBlock.getBoundingClientRect(), fragRect = frag.getBoundingClientRect();
     var drop = Math.max(0, (fragRect.top - askRect.bottom) / 2 - 12);
@@ -190,15 +212,34 @@
     }, 700);
   }
 
+  // --- the run ---
   var running = false;
   var runId = 0;
+  var cur = null;   // { i, s, my, state: 'applied' | 'undone' | 'busy' }
+
+  function setButtons(state) {
+    reveal.classList.toggle('done', state === 'applied' || state === 'undone');
+    undoBtn.hidden = state !== 'applied';
+    redoBtn.hidden = state !== 'undone';
+  }
+  function scheduleAdvance(ms) {
+    var c = cur;
+    later(function () {
+      if (!c || c.my !== runId) return;
+      c.state = 'busy'; setButtons('busy');
+      suckInto(c.i, function () { if (c.my !== runId) return; reveal.classList.remove('captioned'); play((c.i + 1) % scenarios.length); });
+    }, ms);
+  }
+
   function play(i) {
     clearTimers();
     running = true;
     var my = ++runId;
     var guard = function (fn) { return function () { if (my === runId) fn.apply(null, arguments); }; };
     var s = scenarios[i];
+    cur = { i: i, s: s, my: my, state: 'busy' };
     dots.forEach(function (d, j) { d.classList.toggle('on', j === i); });
+    setButtons('busy');
     // a clean slate before the ask phase shows: no ghost of the previous request or fragment
     typed.textContent = '';
     frag.innerHTML = s.before();   // the preview of what will change is on screen from the first second
@@ -232,12 +273,8 @@
                     s.morph(guard(function () {
                       caption.textContent = s.caption;
                       reveal.classList.add('captioned');
-                      later(function () {
-                        suckInto(i, guard(function () {
-                          reveal.classList.remove('captioned');
-                          play((i + 1) % scenarios.length);
-                        }));
-                      }, 3000);
+                      cur.state = 'applied'; setButtons('applied');
+                      scheduleAdvance(HOLD);
                     }));
                   }, 1300);
                 }, 300);
@@ -248,6 +285,25 @@
       }));
     }, 350);
   }
+
+  // Undo shows the screen as it was and pauses the loop; Redo applies the change again and the loop resumes.
+  undoBtn.addEventListener('click', function () {
+    if (!cur || cur.state !== 'applied') return;
+    clearTimers();
+    var c = cur; c.state = 'busy'; setButtons('busy');
+    caption.textContent = c.s.undone;
+    c.s.revert(function () { if (c.my !== runId) return; c.state = 'undone'; setButtons('undone'); });
+  });
+  redoBtn.addEventListener('click', function () {
+    if (!cur || cur.state !== 'undone') return;
+    var c = cur; c.state = 'busy'; setButtons('busy');
+    caption.textContent = '';
+    frag.classList.add('editing');
+    later(function () {
+      frag.classList.remove('editing');
+      c.s.morph(function () { if (c.my !== runId) return; caption.textContent = c.s.caption; c.state = 'applied'; setButtons('applied'); scheduleAdvance(HOLD_AFTER_REDO); });
+    }, 700);
+  });
 
   dots.forEach(function (d, j) { d.addEventListener('click', function () { play(j); }); });
 
