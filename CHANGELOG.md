@@ -60,6 +60,13 @@ request labels); what a vendor needs across all of its customers moves to the pr
   app's font (it set Helvetica before); mono is a JetBrains Mono stack, still without loading fonts. Class names, test
   ids, the mobile bottom sheet and reduced motion are unchanged. The demo's /admin and dashboard panels follow (8px
   panes with a soft shadow, tinted table headers, status pills), and the demo darkens with `data-mk-theme="dark"`.
+- demo video re-recorded on design v4, with sound and labels. `pnpm demo:video` now records a 74 s film (the limit
+  in `scripts/record-demo.mjs` is 90 s and 20 MB): a visible 26 px pointer with a ripple on every click, motion labels
+  for the customer's app, the pleatkit drawer and the admin view, the panels that do not change blurred while the
+  agent works, a flash on the changed card, full-frame title bands between the scenes and a closing card. The sound
+  track (key ticks, clicks, the drawer swish, an applied whoosh and chime, the band swell) is synthesized in the
+  script from the spec's event timeline (`docs/.video/events.json`), with no samples or downloads, and muxed as AAC;
+  the landing's `<video>` stays muted until the viewer unmutes it. Same five beats and scripted provider as before.
 
 ## 0.3.0 (prepared 2026-10-18, not published yet; numbered 0.3.0 at the founder's request, there was no 0.2.0)
 
