@@ -74,7 +74,7 @@ nav.links .btn { padding: 7px 12px; font-size: 13px; }
 .cta-more { margin: 16px 0 0; font-size: 14px; color: var(--ink-2); }
 
 /* the stage: the app on the left, the drawer on the right, as the user sees it */
-.stage { border: 1px solid var(--ink); background: var(--paper); display: grid; grid-template-columns: minmax(0, 1fr) 340px; height: 600px; }
+.stage { border: 1px solid var(--ink); background: var(--paper); display: grid; grid-template-columns: minmax(0, 1fr) 340px; height: 640px; }
 /* The frame keeps its size while a request runs: the dashboard and the feed scroll inside it (Minte, 2026-10-22). */
 .app { border-right: 1px solid var(--ink); background: var(--paper-2); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .app-bar { display: flex; gap: 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--ink); background: var(--paper); }
@@ -148,8 +148,8 @@ nav.links .btn { padding: 7px 12px; font-size: 13px; }
 .ver.on::before { content: ""; width: 8px; height: 8px; background: var(--red); }
 .ver.on::after { content: "▾"; color: var(--ink-3); }
 /* version history as a timetable */
-.ruler { list-style: none; margin: 0 14px; padding: 0; border-top: 1px solid var(--ink); max-height: 136px; overflow: auto; }
-.ruler + .feed { min-height: 150px; }
+.ruler { list-style: none; margin: 0 14px; padding: 0; border-top: 1px solid var(--ink); max-height: 110px; overflow: auto; }
+.ruler + .feed { min-height: 120px; }
 .ruler .tick { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--rule); font: 500 12.5px var(--sans); color: var(--ink-2); font-variant-numeric: tabular-nums; animation: rise .3s both; }
 .ruler .tick .v { font: 700 12px var(--mono); color: var(--ink); }
 .ruler .tick .t { font: 500 11.5px var(--mono); color: var(--ink-3); }
@@ -322,7 +322,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   .tiles, .tiles:has(.tile:nth-child(4)) { grid-template-columns: 1fr 1fr; }
   .split { grid-template-columns: minmax(0, 1fr); }
   .app { height: 680px; }
-  .drawer { height: 600px; }
+  .drawer { height: 640px; }
   .app-bar .zone-tag { display: none; }
   .dim { border-right: 0; padding-left: 0 !important; border-top: 1px solid var(--rule); }
   .dim:first-child { border-top: 0; }
@@ -331,3 +331,102 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   summary::before { display: none; }
   details > div { padding-left: 0; }
 }
+
+/* design v4 "warm" (2026-10-24, Minte): the Swiss grid stays, ink and paper get a warm cast, pure black goes,
+   three soft gradients give the page depth (hero wash, soft sections, primary button), Inter replaces Helvetica. */
+:root {
+  --paper: #fbfaf7; --paper-2: #f3f1ec; --canvas: #ebe8e1;
+  --ink: #1c1a17; --ink-2: #514c45; --ink-3: #6f6a62;
+  --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --rule: #ddd8cf; --rule-2: #c3bdb2;
+  --red: #e2361f; --red-ink: #b7260f; --red-wash: #fbe9e4;
+  --ok: #1f7a3c; --ok-wash: #e6f3e9;
+  --code-bg: #1f1c19; --code-text: #f1ece4;
+  --glow: rgba(226, 54, 31, .10); --glow-2: rgba(226, 54, 31, .04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #171512; --paper-2: #1f1c18; --canvas: #110f0d; --ink: #f1ece4; --ink-2: #c7c0b5; --ink-3: #9d968a;
+    --rule: #36322c; --rule-2: #4c463e; --red: #ff5a3c; --red-ink: #ff7a60; --red-wash: #3a1c15; --ok: #6fd48c; --ok-wash: #183222;
+    --code-bg: #0e0d0b; --code-text: #ebe6dd; --glow: rgba(255, 90, 60, .14); --glow-2: rgba(255, 90, 60, .05);
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #171512; --paper-2: #1f1c18; --canvas: #110f0d; --ink: #f1ece4; --ink-2: #c7c0b5; --ink-3: #9d968a;
+  --rule: #36322c; --rule-2: #4c463e; --red: #ff5a3c; --red-ink: #ff7a60; --red-wash: #3a1c15; --ok: #6fd48c; --ok-wash: #183222;
+  --code-bg: #0e0d0b; --code-text: #ebe6dd; --glow: rgba(255, 90, 60, .14); --glow-2: rgba(255, 90, 60, .05);
+}
+
+/* hard black lines become warm ink lines; the strongest rules soften one step */
+header.top { border-bottom-color: var(--rule-2); background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(8px); }
+.stage, .zone-map, .video { border-color: var(--rule-2); }
+.stage { box-shadow: 0 24px 60px -32px rgba(28, 26, 23, .35); }
+.app { border-right-color: var(--rule-2); }
+.app-bar { border-bottom-color: var(--rule-2); }
+.dims { border-top-color: var(--rule-2); border-bottom-color: var(--rule-2); }
+.section-head, .card, .contrast > div, .pricing, .faq, .numbers div, .rule { border-top-color: var(--rule-2); }
+.pricing { border-bottom-color: var(--rule-2); }
+
+/* the hero wash: one warm glow behind the headline and the stage */
+body { background-color: var(--paper); background-image:
+  radial-gradient(1100px 520px at 12% -6%, var(--glow), transparent 70%),
+  radial-gradient(800px 420px at 95% 22%, var(--glow-2), transparent 70%);
+  background-repeat: no-repeat; background-size: 100% 1200px; }
+section.soft { background: linear-gradient(180deg, var(--paper-2) 0%, var(--paper) 100%); border-color: var(--rule); }
+#pilot.soft { background: linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%); }
+
+/* buttons: a small radius, a gradient on the primary one, a soft hover instead of a black fill */
+.btn { border-radius: 4px; border-color: var(--rule-2); transition: background .15s, border-color .15s, color .15s, transform .15s; }
+.btn:hover { background: var(--paper-2); color: var(--ink); border-color: var(--ink-2); }
+.btn.primary { background: linear-gradient(180deg, var(--red) 0%, var(--red-ink) 100%); border-color: var(--red-ink); box-shadow: 0 1px 2px rgba(28, 26, 23, .18), inset 0 1px 0 rgba(255, 255, 255, .18); }
+.btn.primary:hover { background: linear-gradient(180deg, var(--red-ink) 0%, var(--red-ink) 100%); transform: translateY(-1px); }
+.recipe { border-radius: 4px; }
+.prompt-bar { border-radius: 4px; border-color: var(--rule-2); }
+.prompt-bar .send { border-radius: 3px; }
+.plan.featured { background: linear-gradient(180deg, var(--red-wash) 0%, transparent 60%); padding-left: 24px; margin-left: -24px; padding-right: 24px; }
+.plan.featured + .plan { padding-left: 24px; }
+.pane, .tile { border-radius: 3px; }
+.pane .st { border-radius: 2px; }
+
+/* the dims row reads as one strip, the numbers take the accent */
+.dim b { color: var(--ink); }
+.dim:first-child b { color: var(--red-ink); }
+
+/* type: Inter is loaded so Windows and Mac see the same face; tighter headline tracking as before */
+body { font-feature-settings: "cv11", "ss01"; }
+h1, h2 { letter-spacing: -.035em; }
+nav.links .btn.primary { color: #fff; }
+nav.links a.gh { color: var(--ink-2); }
+
+/* v4: the stage reads as a modern SaaS surface: rounded panes with soft shadows, a drawer with real surfaces */
+.stage { border-radius: 10px; overflow: hidden; }
+.app { background: var(--canvas); }
+.app-bar { background: var(--paper); border-bottom-color: var(--rule); }
+.pane, .tile { border-radius: 8px; box-shadow: 0 1px 2px rgba(28, 26, 23, .05); }
+.pane::before { border-radius: 8px 0 0 8px; }
+.pane h4 { border-bottom-color: var(--rule); }
+.pane th { background: var(--paper-2); }
+.drawer { background: linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%); }
+.drawer-head { padding: 14px 10px 6px 14px; }
+.drawer-head b { display: flex; align-items: center; gap: 8px; }
+.drawer-head b::before { content: ""; width: 10px; height: 10px; background: var(--red); border-radius: 2px; }
+.ic { border-radius: 6px; }
+.ver { margin: 0 14px 8px; padding: 4px 10px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--rule); }
+.ver.on { background: var(--red-wash); border-color: transparent; color: var(--red-ink); }
+.ver.on::before { border-radius: 50%; }
+.ruler { border-top-color: var(--rule-2); }
+.feed { border-top-color: var(--rule); padding: 12px 14px; }
+.feed .u { background: linear-gradient(180deg, #2a2622 0%, var(--ink) 100%); color: #fbfaf7; border-radius: 12px 12px 3px 12px; padding: 8px 12px; box-shadow: 0 2px 6px -2px rgba(28, 26, 23, .35); }
+:root[data-theme="dark"] .feed .u { background: linear-gradient(180deg, #ffe9e2 0%, #f1ece4 100%); color: #1c1a17; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .feed .u { background: linear-gradient(180deg, #ffe9e2 0%, #f1ece4 100%); color: #1c1a17; } }
+.feed .live { background: var(--paper); border: 1px solid var(--rule); border-radius: 999px; padding: 5px 10px 5px 8px; justify-self: start; max-width: 100%; }
+.feed .res { background: var(--paper); border: 1px solid var(--rule); border-radius: 12px 12px 12px 3px; padding: 10px 12px; box-shadow: 0 1px 2px rgba(28, 26, 23, .05); }
+.feed .res .mark { width: 18px; height: 18px; border-radius: 50%; background: var(--ok-wash); display: grid; place-items: center; font-size: 11px; line-height: 1; }
+.feed .res.backend .mark { background: var(--red-wash); }
+.prompt-bar { border-radius: 12px; border-color: var(--rule-2); background: var(--paper); box-shadow: 0 1px 2px rgba(28, 26, 23, .06), 0 10px 24px -18px rgba(28, 26, 23, .4); transition: border-color .2s, box-shadow .2s; }
+.stage[data-busy] .prompt-bar, .prompt-bar:has(.cursor:not([hidden])) { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-wash); }
+.prompt-bar .send { border-radius: 8px; }
+.prompt-bar .send.on { background: linear-gradient(180deg, var(--red) 0%, var(--red-ink) 100%); color: #fff; }
+.recipes { gap: 5px; padding-top: 8px; }
+.recipe { border-radius: 999px; background: var(--paper); border-color: var(--rule); color: var(--ink-2); transition: background .15s, border-color .15s, color .15s; }
+.recipe:hover, .recipe:focus-visible { background: var(--red-wash); border-color: var(--red); color: var(--red-ink); }
