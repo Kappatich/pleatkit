@@ -1,0 +1,289 @@
+<!doctype html>
+<!-- pleatkit landing, static. Published to GitHub Pages by .github/workflows/pages.yml -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pleatkit: your customers change the screen by asking</title>
+<meta name="description" content="Put Claude inside your React app with strict rights: your customers ask for a change in the drawer and get it in a minute, only in their own view. It can change the screen, never your backend. You see every change and can undo it. Open source, your own model key.">
+<meta property="og:title" content="pleatkit: your customers change the screen by asking">
+<meta property="og:description" content="Claude inside your React app, on a leash: customers ask in the drawer and get the change in a minute, only in their own view. Screen yes, backend no. Every change visible and undoable. Open source.">
+<meta property="og:image" content="https://pleatkit.com/poster.jpg">
+<meta property="og:url" content="https://pleatkit.com/">
+<link rel="canonical" href="https://pleatkit.com/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23ffffff'/%3E%3Crect x='6' y='6' width='20' height='20' fill='%23e30613'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="pleatkit.css?v=hdr1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="pleatkit-warm.css?v=2">
+<meta name="robots" content="noindex">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#"><span class="mark" aria-hidden="true"></span>pleatkit</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#demo">Demo</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a class="gh" href="https://github.com/Kappatich/pleatkit">GitHub</a>
+      <a class="btn primary" href="#pilot">Request a pilot</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div class="copy">
+      <span class="label">For B2B products on React · <b>open source</b></span>
+      <h1>Your customers get the interface changes they ask for <em>in a minute.</em></h1>
+    </div>
+    <div class="aside">
+      <p class="lead">pleatkit puts Claude inside your app with strict rights: it changes only what a customer sees, and only for that customer. You see every change and can undo any of them.</p>
+      <div class="cta">
+        <a class="btn primary" href="#pilot">Request a 4-week pilot</a>
+        <a class="btn" href="#demo">See how it works</a>
+      </div>
+      <p class="cta-more"><a href="https://github.com/Kappatich/pleatkit">Open source on GitHub</a> · <a href="https://github.com/Kappatich/pleatkit#readme">Install it yourself</a></p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="stage" data-live aria-label="Scripted demo: a request typed into the drawer changes the dashboard">
+      <div class="app">
+        <div class="app-bar">
+          <b>Acme CRM</b>
+          <span class="label">Alice's version</span>
+        </div>
+        <div class="dash" aria-live="polite">
+          <div class="pane tiles" data-zone="tiles"></div>
+          <div class="split">
+            <div class="pane pipeline" data-zone="pipeline"></div>
+            <div class="pane customers" data-zone="customers"></div>
+          </div>
+        </div>
+      </div>
+      <div class="drawer">
+        <div class="drawer-head">
+          <b>Customize this page</b>
+          <button class="ic" data-reset disabled title="Reset to the original version" aria-label="Reset to the original version">⟲</button>
+          <button class="ic" data-undo disabled title="Undo last change" aria-label="Undo last change">↶</button>
+        </div>
+        <button class="ver" data-history type="button">Original version</button>
+        <ol class="ruler" aria-label="Version history" hidden></ol>
+        <div class="feed" aria-live="polite">
+          <p class="hint">Describe a change. AI edits only your view and can get it wrong. Undo anytime.</p>
+        </div>
+        <div class="prompt-bar" aria-hidden="true">
+          <span class="text empty">Describe a change or paste a screenshot</span>
+          <span class="cursor" hidden></span>
+          <span class="tools"><span>⌖ Pick panel</span></span>
+          <span class="send">↑</span>
+        </div>
+        <div class="recipes" role="group" aria-label="Try a request">
+          <button class="recipe" data-recipe="overdue" data-request="Add a tile with overdue payments">Overdue tile</button>
+          <button class="recipe" data-recipe="bars" data-request="Show the pipeline by stage as bars instead of the table">Pipeline as bars</button>
+          <button class="recipe" data-recipe="sort" data-request="Put overdue customers first and mark their dates in red">Overdue first</button>
+          <button class="recipe" data-recipe="compact" data-request="Make the dashboard more compact">Compact layout</button>
+          <button class="recipe" data-recipe="backend" data-request="Add a discount column and recompute totals on the server">Discount on the server</button>
+        </div>
+        <p class="live-foot">This is what your customer sees. Claude writes the change, pleatkit checks it, and every other customer keeps their dashboard as it was.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="dims" aria-label="What changes">
+      <div class="dim"><i></i><b>1 minute</b><span>from a customer's request to the change on their screen</span></div>
+      <div class="dim"><i></i><b>0</b><span>unsafe changes reach a screen: every change is checked before the customer sees it</span></div>
+      <div class="dim"><i></i><b>1 click</b><span>to undo any change, for the customer and for you</span></div>
+    </div>
+  </div>
+
+  <section id="demo">
+    <div class="wrap">
+      <div class="section-head"><span class="label">01</span><h2>What your customer sees</h2></div>
+      <p class="sub">A customer opens the drawer in your app, writes what they want, and the panel changes in front of them. Fifty seconds from the demo app.</p>
+      <div class="video">
+        <video controls preload="none" playsinline poster="poster.jpg" width="1280" height="800">
+          <source src="demo.mp4" type="video/mp4">
+          <a href="demo.mp4">Download the demo (MP4, 1 MB)</a>
+        </video>
+      </div>
+    </div>
+  </section>
+
+  <section id="pain" class="soft">
+    <div class="wrap">
+      <div class="section-head"><span class="label">02</span><h2>How a customer asks for a change</h2></div>
+      <div class="pain">
+        <div>
+          <h2>Today</h2>
+          <div class="card"><h3>Every request becomes a ticket.</h3><p>Add a field to the card, remove a column, show the table differently. The ticket waits its turn behind the roadmap; the customer waits for months.</p></div>
+          <div class="card"><h3>Big customers want their own version.</h3><p>Saying yes means a separate branch of code to maintain for years. Saying no comes up again at renewal.</p></div>
+          <div class="card"><h3>You can't see what customers want.</h3><p>Requests arrive by e-mail, on calls and in chats, and nobody counts them. The roadmap follows whoever is loudest.</p></div>
+        </div>
+        <div>
+          <h2>With pleatkit</h2>
+          <div class="card"><h3>The customer asks inside the app and gets it in a minute.</h3><p>In their own words, in the drawer on the side. Only their screen changes.</p></div>
+          <div class="card"><h3>Each customer has their own version of the screen in one codebase.</h3><p>Your release is the same for everyone; their changes move to the new release on their own.</p></div>
+          <div class="card"><h3>Every request is recorded and grouped.</h3><p>What needs your server reaches you with the customer's exact words. It is a backlog your customers wrote for you.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="value">
+    <div class="wrap">
+      <div class="section-head"><span class="label">03</span><h2>What it does for your business</h2></div>
+      <div class="grid3">
+        <div class="card"><h3>Customers stay.</h3><p>A customer whose screen is set up the way they asked renews. They got it without a support thread and without waiting.</p></div>
+        <div class="card"><h3>Your team builds the product.</h3><p>Small requests stop landing in the backlog. Developers work on what every customer needs at once.</p></div>
+        <div class="card"><h3>You see what they want.</h3><p>Every request is recorded in the customer's words and grouped by theme. You build the roadmap on what is asked for most.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head"><span class="label">04</span><h2>Claude inside your product, on a short leash</h2></div>
+      <div class="zones">
+        <ol class="steps">
+          <li><div><h3>You decide what may change.</h3><p>You mark the panels customers may adjust. Your backend, data, authentication and navigation are closed to the agent by the construction itself, without relying on a prompt. One command suggests the setup from your code.</p></div></li>
+          <li><div><h3>The customer asks.</h3><p>They point at a panel and write in their own words. A small model sorts the request: screen work goes ahead; anything that needs the server reaches you with the customer's exact words.</p></div></li>
+          <li><div><h3>Claude writes, pleatkit checks.</h3><p>The change is compiled, type-checked and checked against the safety rules before anyone sees it: no scripts, no requests to other servers, no data leaks. A panel that breaks returns to its previous state on its own.</p></div></li>
+          <li><div><h3>It becomes the customer's version.</h3><p>Saved only for them, with a history. You see it in the admin dashboard, can roll it back, and can carry every customer's changes into your next release.</p></div></li>
+        </ol>
+        <div>
+          <div class="zone-map" aria-label="What the agent may touch">
+            <div class="core"><b>your backend, data, authentication</b><small>the agent does not touch them</small></div>
+            <div class="ro"><b>your design system</b><small>used, not changed</small></div>
+            <div class="dyn"><b>the customer's panels</b><small>the only place changes happen</small></div>
+          </div>
+          <p class="note">The red line is a setting your team owns. Writes beyond it are refused by the tool itself.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="proof" class="soft">
+    <div class="wrap">
+      <div class="section-head"><span class="label">05</span><h2>Tested in real products</h2></div>
+      <div class="grid2">
+        <div class="card"><h3>Checked in applications written by other teams.</h3><p>We install pleatkit into open-source admin products we did not write and run the requests customers write, checking every result in a real browser. The median request takes five seconds; when the agent is unsure, it asks instead of guessing.</p></div>
+        <div class="card"><h3>Every release gets faster, more accurate and safer.</h3><p>Each version runs through the same suite of customer requests and attack attempts before it ships: requests that try to send data out, hide buttons, insert a script or cover your interface do not get through. The reports are in the open repository.</p></div>
+      </div>
+      <p class="note">Open source, MIT license · <a href="https://github.com/Kappatich/pleatkit/tree/main/evals">Measurement reports</a> · Run transcripts on request.</p>
+    </div>
+  </section>
+
+  <section id="start">
+    <div class="wrap">
+      <div class="section-head"><span class="label">06</span><h2>Two ways to start</h2></div>
+      <div class="grid2">
+        <div class="card"><span class="label">pilot</span><h3>A four-week pilot in your product.</h3><p>We install pleatkit in your app together with you, open it to a few customers, and after four weeks hand you a report: what they asked for, what was done, what it cost, what needs your server. A fixed price before any work starts, credited to your first year.</p><a class="btn primary" href="#pilot">Request a pilot</a></div>
+        <div class="card"><span class="label">self-serve</span><h3>Install it yourself.</h3><p>Free, on your own servers, with your own model key. Five steps in the guide, and one command suggests the setup from your code. The drawer appears in your app within a day.</p><a class="btn" href="https://github.com/Kappatich/pleatkit#readme">Install guide</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing" class="soft">
+    <div class="wrap">
+      <div class="section-head"><span class="label">07</span><h2>Pricing</h2></div>
+      <p class="sub">The same library in every plan. You pay for where your customers' versions live and who keeps that store running. The cloud is billed per customer organisation that uses it, so the bill grows with your customer base and stays the same whatever the size of your team. The first pilots set the number.</p>
+      <div class="pricing">
+        <div class="plan">
+          <h3>Open source</h3>
+          <div class="price">Free</div>
+          <p class="for">MIT · your servers · your own model key</p>
+          <ul>
+            <li>Everything a customer sees: the agent, the checks, the drawer, versions and undo</li>
+            <li>The admin dashboard: request log with approve, reject and rollback, roles, quotas, audit, kill switch</li>
+            <li>Customers' versions live in their browser, or in the open store you host and maintain yourself</li>
+            <li>No account with us</li>
+          </ul>
+          <a class="btn" href="https://github.com/Kappatich/pleatkit">Get it on GitHub</a>
+        </div>
+        <div class="plan featured">
+          <h3>Cloud <span class="tag">early access</span></h3>
+          <div class="price">Per org</div>
+          <p class="for">we host your customers' versions · a monthly fee per active customer organisation</p>
+          <ul>
+            <li>Versions follow each customer to every device and every colleague</li>
+            <li>A map of what all your customers ask for, where your server is needed, and a weekly digest</li>
+            <li>One run carries every customer's changes into your new release, with rollback</li>
+            <li>The pilot report: cost per change, developer hours saved, what each customer asked for</li>
+            <li>Support view of any customer's screen, every call audited; code search across versions</li>
+            <li>Nothing to host or maintain; your own model key</li>
+          </ul>
+          <a class="btn primary" href="#pilot">Join the first pilots</a>
+        </div>
+        <div class="plan">
+          <h3>Enterprise</h3>
+          <div class="price">Talk to us</div>
+          <p class="for">private deployment, SSO, audit export, DPA</p>
+          <ul>
+            <li>Private deployment or your cloud account</li>
+            <li>SSO, audit export, DPA</li>
+            <li>Support with a response time in the contract</li>
+          </ul>
+          <a class="btn" href="#pilot">Request a pilot</a>
+        </div>
+      </div>
+      <p class="note">Tokens are billed to you by your model provider: by our measurements one change costs one to three cents.</p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <div class="section-head"><span class="label">08</span><h2>Questions your CTO will ask</h2></div>
+      <div class="faq">
+        <details><summary>Can one customer's change affect other customers or leak data?</summary><div><p>No. A change runs only in the browser of the customer who asked for it and is stored as their version. Before it runs it is checked: no scripts, no requests to other servers, no data leaving the page. A catalogue of attack attempts is run against every release.</p></div></details>
+        <details><summary>Can it change our backend or our data?</summary><div><p>No. The agent writes only inside the panels you allowed; the server, the data, authentication and navigation are out of its tool's reach. A request that needs the server reaches you with the customer's words.</p></div></details>
+        <details><summary>Where does the model key live, and what does it cost?</summary><div><p>On your server; it never reaches the browser. The key is yours (Claude by default; other models work too). A change costs one to three cents; a question or a request for the server costs a fraction of a cent.</p></div></details>
+        <details><summary>What if a change looks wrong?</summary><div><p>The customer undoes it with one click or picks an earlier version. You can undo it for them, turn on review of every change before it applies, or switch changes off for everyone with one toggle.</p></div></details>
+        <details><summary>What happens when we ship a new release?</summary><div><p>Customers' changes move over on their own where the release did not touch the same panels. In the cloud, one run carries the rest over within a budget you set, and that run can be rolled back.</p></div></details>
+        <details><summary>Are we tied to you?</summary><div><p>No. The library is open source (MIT), a customer's version is a plain copy of your panel files, and everything runs on your servers. Remove pleatkit and the panels are your original code again.</p></div></details>
+        <details><summary>Which technologies are supported?</summary><div><p>React with Vite (6 to 8), React 18 or 19, TypeScript. Next.js is on the roadmap.</p></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section id="pilot" class="soft">
+    <div class="wrap ctas">
+      <div class="card main-cta">
+        <span class="label">09</span>
+        <h3>Request a four-week pilot.</h3>
+        <p>Tell us about your product and the customers who ask for the most. We fix the price before any work starts.</p>
+        <a class="btn primary" href="mailto:pilot@pleatkit.com?subject=Pilot%20request&body=Product%3A%20%0AWhat%20customers%20ask%20for%20most%3A%20%0AHow%20many%20customer%20organisations%3A%20">Write to pilot@pleatkit.com</a>
+        <p class="note">Or send a plain e-mail to <b>pilot@pleatkit.com</b>; we answer within a day.</p>
+      </div>
+      <div class="card">
+        <h3>Try the demo.</h3>
+        <p>The demo app runs without a model key.</p>
+        <a href="https://github.com/Kappatich/pleatkit#run-the-demo">Get the code</a>
+      </div>
+      <div class="card">
+        <h3>Install it in your app.</h3>
+        <p>Open source, five steps, your own key.</p>
+        <a href="https://github.com/Kappatich/pleatkit#readme">Install guide</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>pleatkit · MIT · <a href="https://github.com/Kappatich/pleatkit">github.com/Kappatich/pleatkit</a></span>
+    <span>Claude is a model by Anthropic; pleatkit is not affiliated with Anthropic.</span>
+  </div>
+</footer>
+<script src="demo.js?v=hdr1" defer></script>
+</body>
+</html>
