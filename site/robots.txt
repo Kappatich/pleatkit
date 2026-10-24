@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /warm.html
+
+Sitemap: https://pleatkit.com/sitemap.xml
