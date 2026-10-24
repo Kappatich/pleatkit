@@ -161,7 +161,7 @@ function CrmPage({ isolated }: { isolated: boolean }) {
       {/* With ?isolated=1 this panel runs in a sandboxed iframe (opaque origin, no access to the page). */}
       <Dynamic id="dashboard-panels" props={{ customers, deals }} isolated={isolated} />
       <div className="grid gap-6 md:grid-cols-[260px_1fr]">
-        <nav aria-label="Customers" className="rounded-xl border border-border bg-card p-2">
+        <nav aria-label="Customers" className="rounded-lg border border-border bg-card p-2 shadow-soft">
           <ul data-testid="customer-list">
             {customers.map((c) => (
               <li key={c.id}>
