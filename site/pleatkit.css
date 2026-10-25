@@ -467,8 +467,8 @@ nav.links a.gh { color: var(--ink-2); }
 /* work */
 .scene.work { justify-items: start; gap: 10px; padding-top: 14px; }
 .work .progress { width: min(420px, 100%); height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden; }
-.work .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--red), var(--red-ink)); transition: width 3s linear; }
-.stage.motion[data-phase="work"] .work .progress i { width: 100%; }
+.work .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--red), var(--red-ink)); transition: width .45s cubic-bezier(.2,.7,.2,1), background .4s; }
+.work .progress.ok i { background: var(--ok); }
 .stage.motion[data-phase="ask"] .work .progress i, .stage.motion[data-phase="sent"] .work .progress i { transition: none; width: 0; }
 .work .steps-live { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font: 500 14px var(--sans); color: var(--ink-2); }
 .work .steps-live li { display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(6px); transition: opacity .35s, transform .35s, color .35s; }
@@ -600,11 +600,11 @@ nav.links a.gh { color: var(--ink-2); }
 .stage.motion .dots button.stored span { background: var(--red); }
 .stage.motion .dots button:hover { color: var(--ink); border-color: var(--rule-2); }
 @media (max-width: 960px) {
-  .stage.motion { height: 600px; padding: 22px 20px 16px; }
+  .stage.motion { height: 660px; padding: 22px 20px 16px; }
   .ftile b { font-size: 28px; }
 }
 @media (max-width: 480px) {
-  .stage.motion { height: 560px; padding: 18px 16px 14px; }
+  .stage.motion { height: 650px; padding: 18px 16px 14px; }
   .reveal .frag.small { transform: scale(.8); }
   .fgrid .r { padding: 0 12px; }
   .fgrid .c1 { flex-basis: calc(100% - 196px); }
@@ -620,4 +620,12 @@ nav.links a.gh { color: var(--ink-2); }
   .fbar { grid-template-columns: 76px 1fr 80px; }
   .ftable th:nth-child(2), .ftable td:nth-child(2) { display: none; }
   .stage.motion .dots button { padding: 6px 8px; font-size: 11.5px; }
+  /* phones: the request smaller, the steps fold away once the result shows, dots without labels except the active one */
+  .ask-text { font-size: clamp(19px, 5.6vw, 24px); }
+  .stage.motion[data-phase="reveal"] .scene.work { max-height: 0; opacity: 0; }
+  .stage.motion .dots { gap: 10px; }
+  .stage.motion .dots button { padding: 6px 6px; }
+  .stage.motion .dots button:not(.on) { font-size: 0; }
+  .stage.motion .dots button span { width: 10px; height: 10px; }
+  .stage.motion .dots button.on { padding: 6px 10px; }
 }

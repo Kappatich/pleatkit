@@ -12,6 +12,7 @@
   var stepsEl = root.querySelector('.work .steps-live');
   var timerEl = root.querySelector('.work .timer');
   var bar = root.querySelector('.work .progress i');
+  var progress = root.querySelector('.work .progress');
   var reveal = root.querySelector('.scene.reveal');
   var frag = root.querySelector('.reveal .frag');
   var caption = root.querySelector('.reveal .caption');
@@ -232,13 +233,21 @@
     var tick = setInterval(function () { timerEl.textContent = ((performance.now() - start) / 1000).toFixed(1) + ' s'; }, 100);
     timers.push(tick);
     var i = 0;
+    function finish(k) {   // step k is done: its dot turns green and the line fills to that step
+      stepsEl.children[k].classList.add('done');
+      bar.style.width = Math.round((k + 1) / lines.length * 100) + '%';
+    }
     (function next() {
-      if (i >= lines.length) { clearInterval(tick); timerEl.textContent = ((performance.now() - start) / 1000).toFixed(1) + ' s'; return later(done, 500); }
+      if (i >= lines.length) {
+        clearInterval(tick); timerEl.textContent = ((performance.now() - start) / 1000).toFixed(1) + ' s';
+        finish(lines.length - 1); progress.classList.add('ok');
+        return later(done, 600);
+      }
       var li = document.createElement('li');
       li.textContent = lines[i++];
       stepsEl.appendChild(li);
       requestAnimationFrame(function () { li.classList.add('in'); });
-      if (stepsEl.children.length > 1) stepsEl.children[stepsEl.children.length - 2].classList.add('done');
+      if (i > 1) finish(i - 2);
       later(next, 820);
     })();
   }
@@ -302,7 +311,8 @@
     stepsEl.innerHTML = '';
     timerEl.textContent = '';
     key.classList.remove('press');
-    bar.style.transitionDuration = '0ms';
+    bar.style.width = '0';
+    progress.classList.remove('ok');
     measureDrop();
     phase('ask');
     later(function () {
@@ -312,7 +322,6 @@
           phase('sent');          // Enter pressed: the line stays put for a moment, the reader finishes it
           later(function () {
             phase('work');        // the line moves to the top, the steps run under it
-            bar.style.transitionDuration = (s.lines.length * 820 + 600) + 'ms';
             later(function () {
               runSteps(s.lines, guard(function () {
                 phase('between');
