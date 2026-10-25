@@ -450,7 +450,7 @@ nav.links a.gh { color: var(--ink-2); }
 .stage.motion .scene { grid-column: 1; display: grid; min-height: 0; pointer-events: none; }
 .stage.motion .scene.work { grid-row: 2; align-content: start; max-height: 0; opacity: 0; overflow: hidden; transform: translateY(-6px); transition: max-height .55s cubic-bezier(.2,.7,.2,1), opacity .35s, transform .45s; }
 .stage.motion[data-phase="work"] .scene.work, .stage.motion[data-phase="between"] .scene.work, .stage.motion[data-phase="reveal"] .scene.work { max-height: 190px; opacity: 1; transform: none; }
-.stage.motion[data-phase="reveal"] .scene.work { opacity: .55; }
+.stage.motion[data-phase="reveal"] .scene.work { opacity: .55; max-height: 130px; }
 .stage.motion .scene.reveal { grid-row: 3; align-content: center; pointer-events: auto; }
 /* work */
 .scene.work { justify-items: start; gap: 10px; padding-top: 14px; }
@@ -541,6 +541,35 @@ nav.links a.gh { color: var(--ink-2); }
 .ur button { font: 500 13px var(--sans); color: var(--ink); background: var(--paper); border: 1px solid var(--rule-2); border-radius: 999px; padding: 6px 14px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; transition: background .15s, border-color .15s; }
 .ur button:hover { background: var(--red-wash); border-color: var(--red); color: var(--red-ink); }
 .ur button b { font-family: var(--mono); font-weight: 600; }
+/* the revenue chart: the months table folds away while the bars grow out of the baseline, the axis and the forecast draw in */
+.fpane.chart .cbody { position: relative; height: 220px; }
+.ctable { width: 100%; border-collapse: collapse; font-size: 15px; }
+.ctable td { height: 44px; padding: 0 20px; border-bottom: 1px solid var(--rule); transition: opacity .35s, transform .5s; transition-delay: var(--d, 0ms); }
+.ctable tr:last-child td { border-bottom: 0; }
+.ctable td:nth-child(2) { color: var(--ink-3); font-size: 13.5px; }
+.ctable .n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.fpane.to-chart .ctable td { opacity: 0; transform: translateX(-16px); }
+.csvg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .3s .25s; pointer-events: none; }
+.fpane.to-chart .csvg { opacity: 1; }
+.csvg .caxis { stroke: var(--rule-2); stroke-width: 1.5; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .9s .3s cubic-bezier(.2,.7,.2,1); }
+.fpane.to-chart .caxis { stroke-dashoffset: 0; }
+.csvg .cbar { fill: var(--ink); transform: scaleY(0); transform-box: fill-box; transform-origin: 50% 100%; transition: transform .9s cubic-bezier(.2,.7,.2,1), fill .4s; transition-delay: calc(var(--d) + .45s), 0s; }
+.csvg .cbar.fc { fill: none; stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.fpane.to-chart .cbar { transform: scaleY(1); }
+.fpane.to-chart .cbar.best { fill: var(--red); transition-delay: calc(var(--d) + .45s), 1.5s; }
+.csvg .cm { font: 500 12px var(--mono); fill: var(--ink-3); text-anchor: middle; opacity: 0; transition: opacity .4s; transition-delay: calc(var(--d) + .45s); }
+.fpane.to-chart .cm { opacity: 1; }
+.csvg .cfc { fill: none; stroke: var(--red); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.1s 1.3s cubic-bezier(.2,.7,.2,1); }
+.fpane.to-chart .cfc { stroke-dashoffset: 0; }
+.csvg .cbest { font: 700 14px var(--sans); fill: var(--red-ink); text-anchor: middle; opacity: 0; transition: opacity .4s 1.4s; }
+.csvg .cbest .cl { font-weight: 500; fill: var(--ink-3); }
+.fpane.to-chart .cbest { opacity: 1; }
+.csvg .cnote { font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; fill: var(--ink-3); text-anchor: middle; opacity: 0; transition: opacity .4s 2.2s; }
+.fpane.to-chart .cnote { opacity: 1; }
+.fpane.chart h4 .t2 { opacity: 0; transform: translateY(6px); }
+.fpane.chart.to-chart h4 .t1 { opacity: 0; transform: translateY(-6px); }
+.fpane.chart.to-chart h4 .t2 { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .ctable td, .csvg, .csvg * { transition-duration: 0s !important; transition-delay: 0s !important; } }
 .ur button[hidden] { display: none; }
 .flist { list-style: none; margin: 0; padding: 0; }
 .flist li { display: flex; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--rule); font-size: 16px; background: var(--paper); transition: background .7s; }

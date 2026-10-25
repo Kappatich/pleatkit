@@ -35,6 +35,9 @@
     { title: 'Support upgrade', stage: 'proposal', amount: 9500 }
   ];
   function money(n) { return '$' + n.toLocaleString('en-US'); }
+  // revenue by month, in thousands; the last three are the forecast
+  var months = [['May', 42], ['Jun', 38], ['Jul', 55], ['Aug', 49], ['Sep', 64]];
+  var forecast = [['Oct', 68], ['Nov', 72], ['Dec', 77]];
 
   var scenarios = [
     {
@@ -57,6 +60,13 @@
       caption: 'Sorted and marked, as asked. Saved as this customer’s version.',
       undone: 'The original order. One click, and the version is back.',
       before: listHtml, morph: morphList, revert: revertList
+    },
+    {
+      ask: 'Turn the deals table into a monthly revenue chart with a three-month forecast and mark the best month.',
+      lines: ['Understanding the request', 'Reading five months of deals', 'Building the chart and the forecast', 'Checking that everything still works'],
+      caption: 'A chart with a forecast, built from the same deals. Only on this customer\u2019s screen.',
+      undone: 'The table is back. The chart stays in history.',
+      before: chartHtml, morph: morphChart, revert: revertChart
     }
   ];
 
@@ -79,6 +89,48 @@
           '<span class="c2"><span class="st ' + d.stage + '">' + d.stage + '</span><i class="bar" style="--w:' + Math.round(d.amount / 48000 * 100) + '%"></i></span>' +
           '<span class="c3 n">' + money(d.amount) + '</span></div>';
       }).join('') + '</div></div>';
+  }
+  // The months table and the chart share one body; the rows fold away while the bars grow out of the baseline.
+  function chartHtml() {
+    var W = 720, H = 220, base = 180, slot = W / 8, bw = 40, max = 80, k = 140 / max;
+    var all = months.concat(forecast);
+    var bars = all.map(function (m, i) {
+      var x = Math.round(slot * i + (slot - bw) / 2), h = Math.round(m[1] * k), y = base - h;
+      var fc = i >= months.length;
+      return '<rect class="cbar' + (fc ? ' fc' : '') + (m[0] === 'Sep' ? ' best' : '') + '" x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" rx="3" style="--d:' + (i * 90) + 'ms"/>' +
+        '<text class="cm" x="' + (x + bw / 2) + '" y="' + (base + 22) + '" style="--d:' + (i * 90 + 300) + 'ms">' + m[0] + '</text>';
+    }).join('');
+    var pts = all.slice(months.length - 1).map(function (m, i) { var idx = months.length - 1 + i; return Math.round(slot * idx + slot / 2) + ',' + Math.round(base - m[1] * k); }).join(' ');
+    var bx = Math.round(slot * 4 + slot / 2);
+    return '<div class="fpane chart"><h4><span class="t1">Deals</span><span class="t2">Revenue by month</span></h4><div class="cbody">' +
+      '<table class="ctable"><tbody>' + months.map(function (m, i) { return '<tr style="--d:' + (i * 70) + 'ms"><td>' + m[0] + ' 2026</td><td>' + (m[1] * 7) + ' deals closed</td><td class="n">$' + m[1] + ',000</td></tr>'; }).join('') + '</tbody></table>' +
+      '<svg class="csvg" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' +
+      '<line class="caxis" x1="20" y1="' + base + '" x2="' + (W - 20) + '" y2="' + base + '" pathLength="1"/>' + bars +
+      '<polyline class="cfc" points="' + pts + '" pathLength="1"/>' +
+      '<text class="cbest" x="' + bx + '" y="' + (base - Math.round(64 * k) - 12) + '"><tspan class="cv">$0k</tspan><tspan class="cl"> best</tspan></text>' +
+      '<text class="cnote" x="' + Math.round(slot * 6.5) + '" y="28">forecast</text>' +
+      '</svg></div></div>';
+  }
+  function morphChart(done) {
+    var pane = frag.querySelector('.fpane.chart');
+    pane.classList.add('to-chart');
+    var v = pane.querySelector('.cv');
+    setTimeout(function () {
+      if (reduced) { v.textContent = '$64k'; return; }
+      var start = performance.now();
+      (function tick(now) {
+        var p = Math.min(1, (now - start) / 900); p = 1 - Math.pow(1 - p, 3);
+        v.textContent = '$' + Math.round(64 * p) + 'k';
+        if (p < 1) requestAnimationFrame(tick);
+      })(start);
+    }, reduced ? 0 : 1300);
+    setTimeout(done, reduced ? 50 : 3200);
+  }
+  function revertChart(done) {
+    var pane = frag.querySelector('.fpane.chart');
+    pane.classList.remove('to-chart');
+    pane.querySelector('.cv').textContent = '$0k';
+    setTimeout(done, reduced ? 50 : 1600);
   }
   function listHtml() {
     return '<div class="fpane"><h4>Customers</h4><ul class="flist">' + customers.map(function (c, i) {
