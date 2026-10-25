@@ -71,6 +71,12 @@ nav.links .btn { padding: 7px 12px; font-size: 13px; }
 .hero.cta { grid-template-columns: minmax(0, 1fr); gap: 26px; align-items: start; }
 .hero h1.cta-lines { max-width: none; font-size: clamp(28px, 3.7vw, 46px); line-height: 1.12; letter-spacing: -.015em; }
 @media (min-width: 961px) { .hero h1.cta-lines span { white-space: nowrap; } }
+/* the footnote under "forever": hover, keyboard focus or a tap on touch screens */
+.hero h1 em.fn { position: relative; cursor: help; outline: none; text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--red) 55%, transparent); text-underline-offset: .12em; text-decoration-thickness: 2px; }
+.hero h1 em.fn .note { position: absolute; left: 0; top: calc(100% + 14px); z-index: 5; width: min(44ch, 78vw); white-space: normal; font: 400 15px/1.5 var(--sans); letter-spacing: 0; color: var(--ink-2); background: var(--paper); border: 1px solid var(--rule-2); border-radius: 8px; padding: 12px 14px; box-shadow: 0 12px 32px -16px rgba(28,26,23,.45); opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .2s, transform .2s; }
+.hero h1 em.fn .note::before { content: ""; position: absolute; left: 22px; top: -6px; width: 10px; height: 10px; background: var(--paper); border-left: 1px solid var(--rule-2); border-top: 1px solid var(--rule-2); transform: rotate(45deg); }
+.hero h1 em.fn:hover .note, .hero h1 em.fn:focus .note, .hero h1 em.fn:focus-within .note { opacity: 1; transform: none; pointer-events: auto; }
+@media (max-width: 640px) { .hero h1 em.fn .note { position: fixed; left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; transform: translateY(6px); } .hero h1 em.fn .note::before { display: none; } }
 .hero h1.cta-lines span { display: block; }
 .hero h1.cta-lines span + span { margin-top: .12em; }
 .hero .aside { padding-bottom: 8px; }
