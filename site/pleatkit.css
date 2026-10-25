@@ -68,6 +68,11 @@ nav.links .btn { padding: 7px 12px; font-size: 13px; }
 .hero { padding: 44px 0 32px; display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 40px; align-items: end; }
 .hero .copy .label { margin-bottom: 20px; display: block; }
 .hero h1 { margin: 0; max-width: 14ch; }
+.hero.cta { grid-template-columns: minmax(0, 1fr); gap: 26px; align-items: start; }
+.hero h1.cta-lines { max-width: none; font-size: clamp(28px, 3.7vw, 46px); line-height: 1.12; letter-spacing: -.015em; }
+@media (min-width: 961px) { .hero h1.cta-lines span { white-space: nowrap; } }
+.hero h1.cta-lines span { display: block; }
+.hero h1.cta-lines span + span { margin-top: .12em; }
 .hero .aside { padding-bottom: 8px; }
 .lead { font-size: clamp(17px, 1.5vw, 20px); color: var(--ink-2); max-width: 46ch; margin: 0 0 24px; }
 .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
@@ -294,6 +299,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 @media (max-width: 960px) {
   .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 40px; }
   .hero h1 { max-width: none; }
+  .hero h1.cta-lines { max-width: none; font-size: clamp(26px, 5.2vw, 44px); }
   .stage { grid-template-columns: minmax(0, 1fr); height: auto; }
   .app { border-right: 0; border-bottom: 1px solid var(--ink); height: 420px; }
   .drawer { height: 470px; }
