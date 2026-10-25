@@ -1,0 +1,17 @@
+{
+  "name": "showcase-revenue-chart",
+  "description": "Showcase 1: the deals table becomes a monthly revenue chart (SVG, CSS animations) with a three-month forecast and the best month marked.",
+  "match": ["revenue chart|график выручки"],
+  "classify": { "label": "ui", "reason": "A display change: won deals and their close dates are already in the data the app reads." },
+  "turns": [
+    { "text": "Won deals carry their close date in meta.closedOn; I will sum them by month, fit a trend for the forecast and draw the chart in place of the table.", "calls": [{ "tool": "read_file", "input": { "path": "src/readonly/api.ts" }, "expect": "ok" }] },
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/revenue-chart.css" }, "contentFile": "../showcase/revenue-chart.css", "expect": "ok" },
+        { "tool": "write_file", "input": { "path": "src/dynamic/deals-table.tsx" }, "contentFile": "../showcase/revenue-chart.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "The deals table is now a monthly revenue chart for the last twelve months, with a dashed three-month forecast and the best month marked in red." }, "expect": "ok" }] }
+  ]
+}

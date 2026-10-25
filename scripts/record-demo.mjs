@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Records the demo film headless (about 80 s, at most 90 s and 20 MB) and writes docs/demo.mp4 (H.264 1280x800 +
+// Records the demo film headless (about 100 s, at most 110 s and 20 MB) and writes docs/demo.mp4 (H.264 1280x800 +
 // AAC mono), site/demo.mp4 (the same file) and site/poster.jpg.
 // 1. builds the demo, 2. runs e2e/demo-video.spec.ts with PLEATKIT_VIDEO=1 (Playwright recordVideo, scripted
 //    provider paced for reading); the spec also writes docs/.video/events.json: the start/end marks and every
-//    sound event (key, click, drawer, applied, whoosh, thud, band, close) in ms since the page was created, and the
-//    poster moment,
+//    sound event (key, click, drawer, applied, whoosh, thud, band, close, slide) in ms since the page was created,
+//    and the poster moment,
 // 3. ffmpeg trims the webm to the start/end marks and encodes it,
 // 4. builds the sound track from the samples in apps/demo-crm/e2e/sounds/ (<kind>-<n>.wav, 48 kHz mono 16-bit,
 //    all at the same loudness; CC0 and CC BY 4.0, sources in docs/sounds/CREDITS.md): thins the key events to
@@ -29,7 +29,7 @@ const webm = path.join(work, 'demo.webm')
 const eventsFile = path.join(work, 'events.json')
 const mp4 = path.join(root, 'docs', 'demo.mp4')
 const shell = process.platform === 'win32'
-const MAX_SECONDS = 90
+const MAX_SECONDS = 110
 const MAX_MB = 20
 const VIDEO_LEAD_MS = 70
 
@@ -109,9 +109,10 @@ const one = (kind) => {
 
 // Every sample has the same average loudness (-19 LUFS, K-weighted, measured while it sounds), so a gain of 0 dB
 // would make every kind equally loud. The gains keep the picture: typing and the camera's whoosh quietest (about
-// -44 and -49 LUFS in the film), the click, drawer, plates and bands in the middle (-36), the applied and closing
-// chimes loudest (-30); everything stays under the -12 dBFS guard below.
-const GAIN = { key: -25.5, whoosh: -30, click: -17, drawer: -17, thud: -17, band: -17, applied: -11, close: -11 }
+// -44 and -49 LUFS in the film), the showcase slide changes soft (the same Material whoosh at -41), the click,
+// drawer, plates and bands in the middle (-36), the applied and closing chimes loudest (-30); everything stays under
+// the -12 dBFS guard below.
+const GAIN = { key: -25.5, whoosh: -30, slide: -22, click: -17, drawer: -17, thud: -17, band: -17, applied: -11, close: -11 }
 
 // Typing: the recording logs one key event per character, but wall-clock pacing delivers them 34 ms apart or in
 // bursts, which sounds like a machine gun. A run of key events closer than KEY_GAP_MS keeps only as many presses as
@@ -162,6 +163,7 @@ const sounds = {
   drawer: () => [[one('drawer'), GAIN.drawer, 0.02]],
   applied: () => [[one('applied'), GAIN.applied, 0]],
   whoosh: () => [[one('whoosh'), GAIN.whoosh, 0]],
+  slide: () => [[one('whoosh'), GAIN.slide, 0]],
   thud: () => [[one('thud'), GAIN.thud, 0]],
   band: (e) => [[closingBand.has(e) && samples.close?.[1] ? samples.close[1] : one('band'), GAIN.band, 0]],
   close: () => [[one('close'), GAIN.close, 0]],

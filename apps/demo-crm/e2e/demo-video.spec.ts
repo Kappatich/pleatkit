@@ -1,10 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
+import { ask, SHOWCASE } from './chat-helpers'
 import { DOCS } from './helpers'
 import { Film, overlay, type Rect } from './video-helpers'
 
-// The demo film (ARCHITECTURE §8), about 75 s. Show, don't tell: a camera inside the page zooms on the part that
+// The demo film (ARCHITECTURE §8), about 100 s. Show, don't tell: a camera inside the page zooms on the part that
 // matters right now, area plates name the app, the drawer and the admin view once, a thin red frame keeps the name
 // while the camera stays there, and everything but the changing panel is blurred while it changes. Recorded
 // headless with Playwright's recordVideo, scripted provider paced by PLEATKIT_SCRIPTED_DELAY_MS;
@@ -17,12 +18,17 @@ import { Film, overlay, type Rect } from './video-helpers'
 //  e camera on undo, click, pan to the card as it reverts; caption; 1x
 //  f the same for redo, so the customer part ends on the changed card
 //  g camera 2x on the composer; a backend request; the drawer's answer; caption
+//  s band "What else customers ask for", then a slideshow on a dark stage, one slide per showcase request (the
+//    answers were made through the drawer before the take, in a namespace of their own; each slide is one redo):
+//    the request types itself as the title, the panel is pushed in from the right at 1.3x and its own CSS
+//    animation plays, a caption names the result: revenue chart with forecast, retention heatmap, kanban board,
+//    pivot table; a soft transition sound per push
 //  h band "What the admin sees"; plate on the request row; frame ADMIN; camera on the row, its diff; caption
-//  i closing card (pleatkit.com, "your customers change their own screens by asking", the honesty note), fade to
-//    paper
-// Five captions in all, counting the closing card. Sounds are not recorded: every typed character, click, camera
-// move, plate, drawer open, applied, band and close is logged with its offset from the page's creation (the video's
-// first frame) and mixed in by record-demo.mjs.
+//  i closing card (pleatkit.com, "your customers change their own screens by asking", the honesty note and the
+//    sound credit under it), fade to paper
+// Nine captions in all, counting the closing card. Sounds are not recorded: every typed character, click, camera
+// move, plate, drawer open, applied, band, slide and close is logged with its offset from the page's creation (the
+// video's first frame) and mixed in by record-demo.mjs.
 // Never runs in the normal e2e suite.
 test.skip(process.env.PLEATKIT_VIDEO !== '1', 'set PLEATKIT_VIDEO=1 (pnpm demo:video) to record the demo')
 
@@ -33,10 +39,22 @@ const DRAWER = '[data-testid="mk-chat"]'
 const INPUT = '[data-testid="mk-chat-input"]'
 const ROW = '[data-testid="admin-row"][data-status="applied"]'
 
-test('demo video (~75 s): area plates, camera, request, undo, redo, backend request, admin', async ({ browser }) => {
-  test.setTimeout(180_000)
+test('demo video (~100 s): area plates, camera, request, undo, redo, backend request, showcase, admin', async ({ browser }) => {
+  test.setTimeout(300_000)
   fs.rmSync(OUT, { recursive: true, force: true })
   fs.mkdirSync(OUT, { recursive: true })
+  // before the take, unrecorded: the four showcase requests go through the drawer in a namespace of their own, so
+  // the store holds one version per answer; the slideshow walks back to the original and redoes them one by one
+  const showcaseApp = `demo-showcase-${Date.now().toString(36)}`
+  const prep = await browser.newContext({ viewport: SIZE })
+  const prepPage = await prep.newPage()
+  await prepPage.goto(`/?user=alice&app=${showcaseApp}`)
+  await expect(prepPage.getByTestId('customer-card')).toContainText('Globex')
+  for (const request of [SHOWCASE.chart, SHOWCASE.heatmap, SHOWCASE.kanban, SHOWCASE.pivot]) {
+    const { turn } = await ask(prepPage, request)
+    await expect(turn).toHaveAttribute('data-status', 'applied')
+  }
+  await prep.close()
   const context = await browser.newContext({ viewport: SIZE, recordVideo: { dir: OUT, size: SIZE }, deviceScaleFactor: 1 })
   await context.addInitScript(overlay)
   const film = await Film.open(context)
@@ -147,7 +165,7 @@ test('demo video (~75 s): area plates, camera, request, undo, redo, backend requ
   await film.camera(null, 1, 1000)
   await film.pause(700)
 
-  // g (46–58 s): a request that needs the server; the drawer says so
+  // g (46–55 s): a request that needs the server; the drawer says so
   await film.camera(INPUT, 2, 1000)
   await film.glideClick(input, 600, 0.3, 0.5)
   await film.pause(150)
@@ -163,7 +181,70 @@ test('demo video (~75 s): area plates, camera, request, undo, redo, backend requ
   await film.pause(2800)
   await film.caption('')
 
-  // h (58–74 s): the admin view
+  // s (55–80 s): what else customers ask for, as a slideshow of the showcase answers
+  const engine = (op: 'undo' | 'redo') => async () => {
+    const ok = await page.evaluate((o) => (window as unknown as { __pleatkitEval: { undo(): Promise<unknown>; redo(): Promise<unknown> } }).__pleatkitEval[o]().then((x) => !!x), op)
+    expect(ok, op).toBe(true)
+  }
+  const showcase = await film.band('What else customers ask for', 'four more requests, four panels built from the same data', { carry: true })
+  film.shot('showcase band', 900)
+  // under the band: the showcase namespace with `?eval=1` (the app puts its pleatkit engine on window), its head on
+  // the fourth answer; undo four times to the original version, so each slide is one redo of the drawer's history
+  await page.goto(`/?user=alice&app=${showcaseApp}&eval=1`)
+  await expect(page.getByTestId('pipeline-pivot')).toBeVisible()
+  if (await page.getByTestId('mk-chat').isVisible()) await page.getByTestId('mk-chat-close').click()
+  await expect(page.getByTestId('mk-chat-open')).toBeVisible()
+  for (let i = 0; i < 4; i++) await engine('undo')()
+  await expect(page.getByTestId('deals-table')).toContainText('Annual licence')
+  await film.stage(true)
+  await film.bandOut(showcase, 1500)
+  await film.pause(450)
+  await film.slide({
+    name: 'slide 1 chart',
+    title: SHOWCASE.chart,
+    sel: '[data-testid="revenue-chart"]',
+    ready: '[data-testid="best-month"]',
+    caption: 'Revenue chart with forecast',
+    change: engine('redo'),
+    captionAt: 3100,
+    holdMs: 5600,
+    shots: { mid: 1500, end: 4600 },
+  })
+  await film.slide({
+    name: 'slide 2 heatmap',
+    title: SHOWCASE.heatmap,
+    sel: '[data-testid="retention-heatmap"]',
+    ready: '[data-testid="retention-cell"]',
+    caption: 'Retention heatmap by cohort',
+    change: engine('redo'),
+    captionAt: 2700,
+    holdMs: 5200,
+    shots: { mid: 1150, end: 4300 },
+  })
+  await film.slide({
+    name: 'slide 3 kanban',
+    title: SHOWCASE.kanban,
+    sel: '[data-testid="deals-kanban"]',
+    ready: '[data-testid="kanban-card"]',
+    caption: 'Kanban board by stage',
+    change: engine('redo'),
+    captionAt: 2900,
+    holdMs: 5400,
+    shots: { mid: 1300, end: 4500 },
+  })
+  await film.slide({
+    name: 'slide 4 pivot',
+    title: SHOWCASE.pivot,
+    sel: '[data-testid="pipeline-pivot"]',
+    ready: '[data-testid="pivot-grand-total"]',
+    caption: 'Pivot table with totals',
+    change: engine('redo'),
+    captionAt: 3300,
+    holdMs: 5700,
+    shots: { mid: 1600, end: 4900 },
+  })
+
+  // h (80–95 s): the admin view
   const band = await film.band('What the admin sees', 'a separate screen, only for your team', { carry: true })
   await film.pause(500)
   await page.goto(`/admin?app=${app}`)
@@ -195,10 +276,12 @@ test('demo video (~75 s): area plates, camera, request, undo, redo, backend requ
   await film.camera(null, 1, 1000)
   await film.pause(1000)
 
-  // i (74–80 s): closing card, fade to paper
+  // i (95–100 s): closing card, fade to paper
   await film.band('pleatkit.com', 'your customers change their own screens by asking', {
     mark: true,
-    note: 'The agent\'s answers in this film are recorded; compile, commit, undo and storage run for real.',
+    note:
+      "The agent's answers in this film are recorded; compile, commit, undo and storage run for real.\n" +
+      'Sounds: Google Material Design (CC BY 4.0), Kenney and unicaegames (CC0)',
   })
   film.sound('close', film.now() + 250)
   film.shot('closing', 1800)

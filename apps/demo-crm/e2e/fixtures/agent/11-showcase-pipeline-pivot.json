@@ -1,0 +1,17 @@
+{
+  "name": "showcase-pipeline-pivot",
+  "description": "Showcase 4: the open pipeline as a pivot table by region and owner, with subtotals and a grand total.",
+  "match": ["pivot|сводн"],
+  "classify": { "label": "ui", "reason": "A display change: every open deal has a region and an owner in its data." },
+  "turns": [
+    { "text": "Each open deal has meta.region and meta.owner; I will group them into a pivot with the lead and proposal stages as columns.", "calls": [{ "tool": "read_file", "input": { "path": "src/readonly/api.ts" }, "expect": "ok" }] },
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/pipeline-pivot.css" }, "contentFile": "../showcase/pipeline-pivot.css", "expect": "ok" },
+        { "tool": "write_file", "input": { "path": "src/dynamic/deals-table.tsx" }, "contentFile": "../showcase/pipeline-pivot.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "The pipeline is now a pivot table by region and owner, with a subtotal for each region and the grand total at the bottom." }, "expect": "ok" }] }
+  ]
+}

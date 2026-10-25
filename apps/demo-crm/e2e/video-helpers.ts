@@ -14,8 +14,8 @@ import type { BrowserContext, Locator, Page } from '@playwright/test'
 
 /** Sounds are placed from these events (samples in e2e/sounds/<kind>-<n>.wav): one keystroke per typed character, a
  * click, the drawer's transition, the applied chime, a soft whoosh per camera move, a low thud per plate, the band's
- * low drop and the closing chime. */
-export type SoundKind = 'key' | 'click' | 'drawer' | 'applied' | 'whoosh' | 'thud' | 'band' | 'close'
+ * low drop, the closing chime and the soft transition of each showcase slide (the whoosh sample, louder). */
+export type SoundKind = 'key' | 'click' | 'drawer' | 'applied' | 'whoosh' | 'thud' | 'band' | 'close' | 'slide'
 
 export interface Timeline {
   /** ms since the page (and so its video) was created */
@@ -127,8 +127,26 @@ export function overlay(): void {
     #demo-band b i { width: 18px; height: 18px; border-radius: 3px; background: ${RED}; }
     #demo-band span { font: 400 22px/1.4 ${SANS}; color: #c7c0b5; }
     #demo-band small { margin-top: 26px; font: 400 14px/1.4 ${MONO}; color: #8f877b; letter-spacing: .02em; }
+    #demo-band small + small { margin-top: -10px; }
     #demo-fade { position: fixed; inset: 0; z-index: 6; background: ${PAPER}; opacity: 0; transition: opacity .9s ease; }
-    #demo-fade.on { opacity: 1; }`
+    #demo-fade.on { opacity: 1; }
+    #demo-stage { position: fixed; inset: 0; z-index: 2; background: ${INK}; }
+    #demo-stage.open { background: transparent; }
+    #demo-stage .hole { position: fixed; display: none; border-radius: 10px; box-shadow: 0 0 0 9999px ${INK}; }
+    #demo-stage.open .hole { display: block; }
+    #demo-stage .ghost { position: fixed; transform-origin: 0 0; }
+    #demo-stage .ghost * { animation: none !important; transition: none !important; }
+    #demo-stitle { position: fixed; left: 64px; right: 64px; top: 28px; display: flex; flex-direction: column; align-items: center; gap: 14px;
+      text-align: center; color: ${PAPER}; font: 600 34px/1.22 ${SANS}; letter-spacing: -.02em; text-wrap: balance; transition: opacity .2s ease; }
+    #demo-stitle.gone { opacity: 0; }
+    #demo-stitle .rest { color: transparent; }
+    #demo-stitle i { display: block; width: 0; height: 3px; border-radius: 2px; background: ${RED}; transition: width .5s ${EASE} .2s; }
+    #demo-stitle.on i { width: 56px; }
+    #demo-caption.light:empty { transition: none; }
+    #demo-caption.light { background: ${PAPER}; color: ${INK}; box-shadow: 0 18px 40px -18px rgba(0,0,0,.6); }
+    #demo-pointer.hidden { opacity: 0; }
+    #demo-cam.paused, #demo-cam.paused * { animation-play-state: paused !important; }
+    #demo-cam.showcase [data-pleatkit-ui-host] { visibility: hidden; }`
 
   const make = (tag: string, id: string, parent: Element): HTMLElement => {
     const e = document.createElement(tag)
@@ -192,8 +210,14 @@ export function overlay(): void {
   let frameAnchor: A | null = null
   let frameAlign = 0
   let blurAnchor: A | null = null
+  let stageAnchor: A | null = null
   const tick = (): void => {
     if (scrollX || scrollY) scrollTo(0, 0) // the camera pans; the window never scrolls
+    if (stageAnchor) {
+      const r = screenRect(stageAnchor)
+      const hole = document.querySelector<HTMLElement>('#demo-stage .hole')
+      if (r && hole) place(hole, r)
+    }
     if (plateAnchor) {
       const r = screenRect(plateAnchor)
       const hole = document.querySelector<HTMLElement>('#demo-plate .hole')
@@ -244,7 +268,8 @@ export function overlay(): void {
     if (b.mark) make('i', '', title)
     title.append(b.title)
     make('span', '', t).textContent = b.sub
-    if (b.note) make('small', '', t).textContent = b.note
+    // a note of several lines (separated by \n): each line in the same small mono, close under the one above
+    for (const line of (b.note ?? '').split('\n').filter(Boolean)) make('small', '', t).textContent = line
     if (animate) nextFrame(() => band.classList.add('on'))
     else {
       band.style.transition = 'none'
@@ -468,6 +493,123 @@ export function overlay(): void {
       const f = make('div', 'demo-fade', ov())
       nextFrame(() => f.classList.add('on'))
     },
+    /**
+     * The showcase stage: a dark mat over the whole screen with one window, the panel on show (the camera frames it),
+     * a typed title on top. Closed (no window) until the first push; the pointer hides, captions turn light.
+     */
+    stage(on: boolean): void {
+      install()
+      document.getElementById('demo-stage')?.remove()
+      stageAnchor = null
+      document.getElementById('demo-pointer')?.classList.toggle('hidden', on)
+      document.getElementById('demo-caption')?.classList.toggle('light', on)
+      cam()?.classList.toggle('showcase', on) // the drawer's launcher would show through the window
+      if (!on) return
+      const s = make('div', 'demo-stage', ov())
+      make('div', '', s).className = 'hole'
+      make('div', 'demo-stitle', s)
+    },
+    /** Freeze the panel on show: a still copy of it stays on the mat (animations off) and the window closes, so
+     * the page can change underneath unseen. */
+    stageGhost(): void {
+      const s = document.getElementById('demo-stage')
+      const e = stageAnchor?.sel ? find(stageAnchor.sel) : null
+      if (!s || !e) return
+      const r = e.getBoundingClientRect()
+      const z = matrix().a
+      const ghost = make('div', '', s)
+      ghost.className = 'ghost'
+      ghost.setAttribute('data-pleatkit-id', 'demo-ghost') // the edit's own CSS is scoped to [data-pleatkit-id]
+      Object.assign(ghost.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.width / z}px`, transform: `scale(${z})` })
+      const copy = e.cloneNode(true) as Element
+      // no second element with the panel's test ids while the copy is on screen
+      for (const x of [copy, ...copy.querySelectorAll('[data-testid]')]) x.removeAttribute('data-testid')
+      ghost.appendChild(copy)
+      // the edits' CSS of this version, kept for the copy: the next version may no longer have the panel's styles
+      document.getElementById('demo-ghost-css')?.remove()
+      const css = make('style', 'demo-ghost-css', document.head)
+      css.textContent = Array.from(document.querySelectorAll('style[data-pleatkit-css]'), (x) => x.textContent ?? '').join('\n')
+      s.classList.remove('open')
+      stageAnchor = null
+    },
+    /**
+     * Push: the camera jumps to frame `sel` (at `rect`, page coordinates) one screen width to the right, then slides
+     * it in while the still copy of the previous panel slides out to the left at the same speed (one horizontal push,
+     * inside the camera).
+     */
+    stagePush(sel: string, rect: R, tx: number, ty: number, z: number, ms: number): void {
+      const s = document.getElementById('demo-stage')
+      const hole = s?.querySelector<HTMLElement>('.hole')
+      const c = cam()
+      if (!s || !hole || !c) return
+      const vw = innerWidth
+      const ease = 'cubic-bezier(.65,0,.3,1)'
+      c.style.willChange = 'transform'
+      c.style.transition = 'none'
+      c.style.transform = `translate(${tx + vw}px, ${ty}px) scale(${z})`
+      // the window moves with the same transition as the camera (following it frame by frame would lag a frame
+      // behind and cut the panel's leading edge); it tracks the panel again once the push is over
+      stageAnchor = null
+      place(hole, { x: tx + z * rect.x, y: ty + z * rect.y, width: z * rect.width, height: z * rect.height })
+      hole.style.transition = 'none'
+      hole.style.transform = `translateX(${vw}px)`
+      s.classList.add('open')
+      void c.offsetWidth
+      void hole.offsetWidth
+      const key = `translate(${tx}px, ${ty}px) scale(${z})`
+      camKey = key
+      c.style.transition = `transform ${ms}ms ${ease}`
+      c.style.transform = key
+      hole.style.transition = `transform ${ms}ms ${ease}`
+      hole.style.transform = 'translateX(0px)'
+      setTimeout(() => {
+        hole.style.transition = ''
+        hole.style.transform = ''
+        stageAnchor = { sel }
+      }, ms + 40)
+      for (const g of s.querySelectorAll<HTMLElement>('.ghost')) {
+        g.style.transition = `transform ${ms}ms ${ease}`
+        g.style.transform = `translateX(${-vw}px) ${g.style.transform}`
+        setTimeout(() => {
+          g.remove()
+          document.getElementById('demo-ghost-css')?.remove()
+        }, ms + 60)
+      }
+      window.clearTimeout(settle)
+      settle = window.setTimeout(() => (c.style.willChange = ''), ms + 40)
+    },
+    /** The request as the slide's title, typed in `ms` (silent); the rest of it is laid out already, so the lines
+     * never jump while it types. Empty: the title fades. */
+    stageTitle(text: string, ms: number): void {
+      const t = document.getElementById('demo-stitle')
+      if (!t) return
+      if (!text) {
+        t.classList.add('gone')
+        return
+      }
+      t.textContent = ''
+      t.className = ''
+      const p = make('div', '', t)
+      const typed = make('span', '', p)
+      const rest = make('span', '', p)
+      rest.className = 'rest'
+      make('i', '', t)
+      const full = `“${text}”`
+      rest.textContent = full
+      const step = Math.max(8, ms / full.length)
+      let n = 0
+      const timer = window.setInterval(() => {
+        n = Math.min(full.length, n + 1)
+        typed.textContent = full.slice(0, n)
+        rest.textContent = full.slice(n)
+        if (n >= full.length) window.clearInterval(timer)
+      }, step)
+      nextFrame(() => t.classList.add('on'))
+    },
+    /** Hold every animation inside the camera (a panel mounted under the mat starts when it is on screen). */
+    pauseCam(on: boolean): void {
+      cam()?.classList.toggle('paused', on)
+    },
   }
   ;(window as unknown as { __demo: typeof api }).__demo = api
 
@@ -495,6 +637,11 @@ type DemoApi = {
   band(t: string, s: string, mark: boolean, carry: boolean, note: string): void
   bandOut(): void
   fade(): void
+  stage(on: boolean): void
+  stageGhost(): void
+  stagePush(sel: string, rect: Rect, tx: number, ty: number, z: number, ms: number): void
+  stageTitle(text: string, ms: number): void
+  pauseCam(on: boolean): void
 }
 
 type DemoWindow = { __demo: DemoApi }
@@ -698,5 +845,62 @@ export class Film {
 
   fade(): Promise<void> {
     return this.page.evaluate(() => (window as unknown as DemoWindow).__demo.fade())
+  }
+
+  /** The dark showcase stage on or off (put it on under a band). */
+  stage(on: boolean): Promise<void> {
+    return this.page.evaluate((o) => (window as unknown as DemoWindow).__demo.stage(o), on)
+  }
+
+  /**
+   * One showcase slide. The panel on show freezes (a still copy on the mat), `change` makes the next one under the
+   * mat with every animation held, then it is pushed in from the right, framed at `zoom` with its centre at `centerY`
+   * on screen, while the request types itself as the title; the animations run from there, the caption names the
+   * result at `captionAt` ms after the push, and the slide holds until `holdMs` after it. A soft transition sound
+   * on the push; `shots` are review moments in ms after the push.
+   */
+  async slide(o: {
+    name: string
+    title: string
+    sel: string
+    ready: string
+    caption: string
+    change: () => Promise<void>
+    zoom?: number
+    centerY?: number
+    pushMs?: number
+    captionAt?: number
+    holdMs?: number
+    shots?: Record<string, number>
+  }): Promise<void> {
+    await this.page.evaluate(() => {
+      const d = (window as unknown as DemoWindow).__demo
+      d.stageGhost()
+      d.pauseCam(true)
+      d.stageTitle('', 0)
+    })
+    await this.caption('')
+    await o.change()
+    await this.page.locator(o.ready).first().waitFor()
+    const r = await this.rect(o.sel)
+    const z = o.zoom ?? 1.3
+    const vw = this.page.viewportSize()?.width ?? 1280
+    const tx = Math.round(vw / 2 - z * (r.x + r.width / 2))
+    const ty = Math.round((o.centerY ?? 420) - z * (r.y + r.height / 2))
+    const pushMs = o.pushMs ?? 600
+    this.sound('slide')
+    const t0 = Date.now()
+    for (const [shot, at] of Object.entries(o.shots ?? {})) this.shot(`${o.name} ${shot}`, at)
+    await this.page.evaluate(([s, rr, x, y, zz, ms]) => (window as unknown as DemoWindow).__demo.stagePush(s, rr, x, y, zz, ms), [o.sel, r, tx, ty, z, pushMs] as const)
+    await this.page.evaluate((t) => (window as unknown as DemoWindow).__demo.stageTitle(t, 900), o.title)
+    await this.pause(Math.round(pushMs * 0.6))
+    await this.page.evaluate(() => (window as unknown as DemoWindow).__demo.pauseCam(false))
+    const until = async (ms: number) => {
+      const wait = t0 + ms - Date.now()
+      if (wait > 0) await this.pause(wait)
+    }
+    await until(o.captionAt ?? 3000)
+    await this.caption(o.caption)
+    await until(o.holdMs ?? 5400)
   }
 }

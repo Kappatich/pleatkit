@@ -1,0 +1,17 @@
+{
+  "name": "showcase-retention-heatmap",
+  "description": "Showcase 2: a retention heatmap by signup cohort next to the dashboard numbers (CSS animations, colour scale from paper to red).",
+  "match": ["retention|удержани"],
+  "classify": { "label": "ui", "reason": "A display change: the signup cohorts are already available from the app's data client." },
+  "turns": [
+    { "text": "The app's client has the signup cohorts with the accounts still paying each month; I will show them as a heatmap and keep the three dashboard numbers beside it.", "calls": [{ "tool": "read_file", "input": { "path": "src/readonly/api.ts" }, "expect": "ok" }] },
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/retention-heatmap.css" }, "contentFile": "../showcase/retention-heatmap.css", "expect": "ok" },
+        { "tool": "write_file", "input": { "path": "src/dynamic/dashboard-panels.tsx" }, "contentFile": "../showcase/retention-heatmap.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "The dashboard now shows retention by signup cohort as a heatmap, month by month, next to its three numbers." }, "expect": "ok" }] }
+  ]
+}

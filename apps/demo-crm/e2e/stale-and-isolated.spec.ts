@@ -82,7 +82,7 @@ test('isolated panel: the dashboard renders in a sandboxed iframe and still foll
   await expect(iframe).toHaveAttribute('sandbox', 'allow-scripts')
   const frame = page.frameLocator('[data-testid="pleatkit-isolated-dashboard-panels"]')
   await expect(frame.getByTestId('dashboard-panels')).toContainText('Open pipeline')
-  await expect(frame.getByTestId('dashboard-panels')).toContainText('$97,500')
+  await expect(frame.getByTestId('dashboard-panels')).toContainText('$411,000')
   // opaque origin: the page cannot reach into the frame, and the frame cannot reach the page
   expect(await iframe.evaluate((el: HTMLIFrameElement) => el.contentDocument)).toBeNull()
   const height = await iframe.evaluate((el) => el.getBoundingClientRect().height)

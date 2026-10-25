@@ -1,0 +1,33 @@
+/* Pivot table: each region opens in turn (its name, then its owners one after another), its subtotal slides in, the
+   grand total comes last and counts up. Everything is still for reduced motion. */
+.pv-table { border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.pv-table th, .pv-table td { height: 29px; padding: 0 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.pv-head th { height: 30px; font: 500 11px "JetBrains Mono", ui-monospace, monospace; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--muted-foreground); text-align: right; border-bottom: 1.5px solid var(--foreground); animation: pv-fade .4s ease both; }
+.pv-head th.text-left { text-align: left; }
+.pv-num { text-align: right; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pv-none { color: var(--muted-foreground); }
+.pv-strong { font-weight: 600; }
+.pv-count { color: var(--muted-foreground); }
+.pv-region { width: 150px; vertical-align: top; text-align: left; font-weight: 600; color: var(--foreground);
+  border-right: 1px solid var(--border); animation: pv-fade .4s ease both; animation-delay: var(--d); }
+.pv-chevron { display: inline-block; width: 7px; height: 7px; margin: 0 8px 2px 0; border-right: 1.5px solid var(--destructive); border-bottom: 1.5px solid var(--destructive);
+  transform: rotate(45deg); animation: pv-open .35s cubic-bezier(.2, .7, .2, 1) both; animation-delay: var(--d); }
+.pv-table th.pv-region { padding-top: 7px; }
+.pv-owner { color: var(--foreground); }
+.pv-row td { animation: pv-expand .42s cubic-bezier(.2, .7, .2, 1) both; animation-delay: var(--d); }
+.pv-sub td { background: var(--muted); font-weight: 600; animation: pv-slide .45s cubic-bezier(.2, .7, .2, 1) both; animation-delay: var(--d); }
+.pv-sub .pv-owner { color: var(--muted-foreground); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.pv-grand th, .pv-grand td { height: 34px; font-weight: 700; border-top: 1.5px solid var(--foreground); border-bottom: 0;
+  animation: pv-rise .5s cubic-bezier(.2, .7, .2, 1) both; animation-delay: var(--d); }
+.pv-grand .pv-strong { color: var(--destructive); font-size: 14px; }
+
+@keyframes pv-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pv-open { from { transform: rotate(-45deg); } to { transform: rotate(45deg); } }
+@keyframes pv-expand { from { opacity: 0; transform: translateY(-8px); clip-path: inset(0 0 100% 0); } to { opacity: 1; transform: none; clip-path: inset(0); } }
+@keyframes pv-slide { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@keyframes pv-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-head th, .pv-region, .pv-chevron, .pv-row td, .pv-sub td, .pv-grand th, .pv-grand td { animation: none; }
+}

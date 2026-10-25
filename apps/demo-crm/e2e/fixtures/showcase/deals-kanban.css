@@ -1,0 +1,26 @@
+/* Kanban board: the columns appear, the cards slide in one after another (the order they had in the table), each
+   column's total counts up when its last card lands. Everything is still for reduced motion. */
+.kb-col { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 6px; border-radius: 8px; background: var(--muted);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  animation: kb-col .45s ease both; animation-delay: calc(var(--k) * 70ms); }
+.kb-col, .kb-list { grid-template-columns: minmax(0, 1fr); }
+.kb-head { display: grid; gap: 2px; padding: 2px 4px 4px; border-bottom: 1px solid var(--border); }
+.kb-count { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: var(--card); border: 1px solid var(--border);
+  font: 600 11px "JetBrains Mono", ui-monospace, monospace; text-align: center; color: var(--muted-foreground); }
+.kb-total { font: 600 13px "JetBrains Mono", ui-monospace, monospace; color: var(--foreground); font-variant-numeric: tabular-nums;
+  animation: kb-fade .3s ease both; animation-delay: var(--d, 0s); }
+.kb-card { min-width: 0; padding: 7px 8px 8px; border-radius: 6px; background: var(--card); border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(28, 26, 23, .06);
+  animation: kb-in .5s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--n) * 110ms + .35s); }
+.kb-owner { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: var(--foreground);
+  color: var(--card); font: 600 9px "JetBrains Mono", ui-monospace, monospace; letter-spacing: .02em; }
+.kb-amount { flex: none; font: 600 12px "JetBrains Mono", ui-monospace, monospace; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.kb-sum { animation: kb-fade .4s ease both; animation-delay: .2s; }
+
+@keyframes kb-col { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes kb-in { from { opacity: 0; transform: translate(-28px, -10px) rotate(-1.5deg); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes kb-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .kb-col, .kb-total, .kb-card, .kb-sum { animation: none; }
+}
