@@ -3,6 +3,14 @@ import path from 'node:path'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { appFor, DOCS } from './helpers'
 
+/** The showcase requests (showcase.spec.ts and the film's "What else customers ask for"), answered by fixtures 08-11. */
+export const SHOWCASE = {
+  chart: 'Turn the deals table into a monthly revenue chart with a three-month forecast and mark the best month',
+  heatmap: 'Show customer retention by signup cohort as a heatmap',
+  kanban: 'Show open deals as a kanban board by stage',
+  pivot: 'Summarise pipeline by region and owner as a pivot table with totals',
+}
+
 export async function openCrm(page: Page, options: { user?: 'alice' | 'bob'; customer?: string; query?: string } = {}): Promise<void> {
   const { user = 'alice', customer = 'Globex', query = '' } = options
   await page.goto(`/?user=${user}&app=${appFor(page)}${query}`)

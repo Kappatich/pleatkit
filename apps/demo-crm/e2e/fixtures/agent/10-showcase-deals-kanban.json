@@ -1,0 +1,17 @@
+{
+  "name": "showcase-deals-kanban",
+  "description": "Showcase 3: open deals as a kanban board by pipeline step, cards sliding in, column totals counting up.",
+  "match": ["kanban|канбан"],
+  "classify": { "label": "ui", "reason": "A display change: open deals and their pipeline step are already in the data." },
+  "turns": [
+    { "text": "Open deals carry their pipeline step in meta.step and an owner; I will lay them out as a board with a total per column.", "calls": [{ "tool": "read_file", "input": { "path": "src/readonly/api.ts" }, "expect": "ok" }] },
+    {
+      "calls": [
+        { "tool": "write_file", "input": { "path": "src/dynamic/deals-kanban.css" }, "contentFile": "../showcase/deals-kanban.css", "expect": "ok" },
+        { "tool": "write_file", "input": { "path": "src/dynamic/deals-table.tsx" }, "contentFile": "../showcase/deals-kanban.tsx", "expect": "ok" },
+        { "tool": "check", "input": {}, "expect": "ok" }
+      ]
+    },
+    { "calls": [{ "tool": "finish", "input": { "verdict": "ok", "summary": "Open deals are now a kanban board with a column per stage and a total under each stage name." }, "expect": "ok" }] }
+  ]
+}

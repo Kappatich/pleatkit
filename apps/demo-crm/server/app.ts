@@ -36,6 +36,7 @@ export function createApp() {
     const customerId = c.req.query('customerId')
     return c.json(customerId ? db.deals.filter((d) => d.customerId === customerId) : db.deals)
   })
+  app.get('/cohorts', (c) => c.json(db.cohorts))
   app.patch('/deals/:id/meta', async (c) => {
     const deal = db.deals.find((x) => x.id === c.req.param('id'))
     if (!deal) return c.json({ error: 'not found' }, 404)

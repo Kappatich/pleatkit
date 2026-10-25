@@ -60,6 +60,23 @@ request labels); what a vendor needs across all of its customers moves to the pr
   app's font (it set Helvetica before); mono is a JetBrains Mono stack, still without loading fonts. Class names, test
   ids, the mobile bottom sheet and reduced motion are unchanged. The demo's /admin and dashboard panels follow (8px
   panes with a soft shadow, tinted table headers, status pills), and the demo darkens with `data-mk-theme="dark"`.
+- demo: four showcase requests with recorded answers (scripted fixtures 08-11), each building a real panel from the
+  CRM's data with its own CSS animation and a still version for reduced motion: the deals table as a monthly revenue
+  chart (SVG bars growing from the baseline, gridlines drawing in, a dashed trend forecast for three months, the best
+  month in red with a counting label), retention by signup cohort as a heatmap next to the dashboard numbers (cells
+  fading in along the diagonals, paper to red), open deals as a kanban board by pipeline step (cards sliding in,
+  column totals counting up) and the open pipeline as a pivot by region and owner (groups opening in turn, subtotals,
+  the grand total last). The drawer applies them, undo reverts them, the admin shows their diff
+  (`e2e/showcase.spec.ts`). The demo data grows to match: twelve months of won deals with close dates, an open
+  pipeline of 13 deals with step, owner and region, and six signup cohorts (`GET /api/cohorts`, `api.cohorts()`);
+  Globex's two deals are unchanged, the dashboard now reads $411,000 open and $1,037,400 won.
+- demo video (100 s, 9.9 MB, `demo.mp4?v=v8`): the story is unchanged, and before the admin band a new segment "What
+  else customers ask for": a dark band, then a slideshow of the four showcase answers on a dark stage, each request
+  typed as the title, the panel pushed in from the right at 1.3x while its animation plays, a short caption per slide
+  and a soft Material transition per push (the whoosh sample, a new `slide` kind in the mixer at -41 LUFS; the mix
+  still peaks at -15.3 dBFS). The answers are made through the drawer before the take in a namespace of their own;
+  each slide is one redo. The closing card credits the sounds under the honesty note (the site footer no longer
+  does). `scripts/record-demo.mjs` now allows up to 110 s.
 - demo video sound, after the founder's listening: the set picked on the audition page (a brighter keyboard set,
   a Kenney switch for the drawer, a low Material tone for the title bands), every sample at the same average loudness
   (-19 LUFS, K-weighted) and the levels set per kind in the mixer: typing and the camera whoosh quietest (-44.5 and

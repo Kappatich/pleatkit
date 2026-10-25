@@ -17,7 +17,7 @@ event.
 | `drawer-1.wav` | the drawer opens | `Audio/switch_007.ogg` | [Interface Sounds](https://kenney.nl/assets/interface-sounds) | Kenney (kenney.nl) | CC0 1.0 |
 | `applied-1.wav` | the change lands | `wav/01 Hero Sounds/hero_simple-celebration-01.wav` | [Material Design product sounds](https://m2.material.io/design/sound/sound-resources.html) | Google | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | `band-1.wav` | title band | `wav/03 Primary System Sounds/navigation_backward-selection.wav` | Material Design product sounds | Google | CC BY 4.0 |
-| `whoosh-1.wav` | camera move | `wav/04 Secondary System Sounds/navigation_transition-left.wav` | Material Design product sounds | Google | CC BY 4.0 |
+| `whoosh-1.wav` | camera move; showcase slide change (louder) | `wav/04 Secondary System Sounds/navigation_transition-left.wav` | Material Design product sounds | Google | CC BY 4.0 |
 | `close-1.wav` | closing card | `wav/01 Hero Sounds/hero_simple-celebration-03.wav` | Material Design product sounds | Google | CC BY 4.0 |
 | `close-2.wav` | the low drop under the closing card | `Audio/impactSoft_heavy_000.ogg` | [Impact Sounds](https://kenney.nl/assets/impact-sounds) | Kenney (kenney.nl) | CC0 1.0 |
 | `thud-1.wav` | area plate appears | `Audio/impactSoft_medium_001.ogg` | Impact Sounds | Kenney (kenney.nl) | CC0 1.0 |

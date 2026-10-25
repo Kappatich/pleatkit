@@ -1,0 +1,30 @@
+/* Retention heatmap: the cells fade in along the diagonals (cohort + month), the colour first, the number after it.
+   Everything is still for reduced motion. */
+.hm-layout { display: flex; gap: 16px; align-items: flex-start; }
+.hm-kpis { flex: 1 1 200px; min-width: 0; }
+.hm-card { flex: 0 1 860px; min-width: 0; }
+.hm-grid { display: grid; grid-template-columns: 112px 64px repeat(6, minmax(0, 1fr)); gap: 5px; align-items: center; }
+.hm-head { font: 500 11px "JetBrains Mono", ui-monospace, monospace; color: var(--muted-foreground); text-align: center; padding-bottom: 2px; }
+.hm-head-left { text-align: left; }
+.hm-label { font-size: 13px; font-weight: 600; color: var(--foreground); white-space: nowrap; }
+.hm-size { font: 500 12.5px "JetBrains Mono", ui-monospace, monospace; color: var(--muted-foreground); text-align: center; font-variant-numeric: tabular-nums; }
+.hm-cell { position: relative; display: grid; place-items: center; height: 36px; border-radius: 5px; border: 1px solid color-mix(in oklab, var(--foreground) 7%, transparent);
+  animation: hm-in .5s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc((var(--r) + var(--c)) * 85ms + .25s); }
+.hm-empty { background: transparent; border: 1px dashed var(--border); }
+.hm-num { font: 600 13px "Inter", ui-sans-serif, sans-serif; color: var(--foreground); font-variant-numeric: tabular-nums;
+  animation: hm-num .35s ease both; animation-delay: calc((var(--r) + var(--c)) * 85ms + .6s); }
+.hm-num-strong { color: #fff; }
+.hm-note { grid-column: 1 / -1; margin-top: 8px; font-size: 13px; color: var(--muted-foreground); }
+.hm-note b { color: var(--foreground); font-weight: 600; }
+.hm-legend { display: flex; align-items: center; gap: 8px; padding-top: 2px; font: 500 11px "JetBrains Mono", ui-monospace, monospace; color: var(--muted-foreground); }
+.hm-legend i { display: block; width: 120px; height: 10px; border-radius: 3px; border: 1px solid var(--border);
+  background: linear-gradient(90deg, var(--card), color-mix(in oklab, var(--destructive) 50%, var(--card)), var(--destructive)); }
+.hm-fade { animation: hm-fade .45s ease both; animation-delay: var(--d, 0s); }
+
+@keyframes hm-in { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: none; } }
+@keyframes hm-num { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes hm-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-cell, .hm-num, .hm-fade { animation: none; }
+}

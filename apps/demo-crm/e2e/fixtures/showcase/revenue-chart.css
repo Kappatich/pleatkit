@@ -1,0 +1,49 @@
+/* Revenue chart: the axis and gridlines draw in, the bars grow from the baseline one after another, the best month
+   turns red and its label counts up, then the dashed forecast draws itself. Everything is still for reduced motion. */
+.rc-card { overflow: hidden; }
+.rc-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--foreground); }
+.rc-key-best { background: var(--destructive); }
+.rc-key-fc { height: 0; border-radius: 0; background: none; border-top: 2px dashed var(--muted-foreground); }
+
+.rc-axis { stroke: var(--foreground); stroke-width: 1.5; stroke-dasharray: 1; animation: rc-draw .7s cubic-bezier(.2, .7, .2, 1) both; }
+.rc-grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 1; animation: rc-draw .8s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i) * 110ms); }
+.rc-tick { fill: var(--muted-foreground); font: 500 11px "JetBrains Mono", ui-monospace, monospace; text-anchor: end; }
+.rc-month { fill: var(--muted-foreground); font: 500 11px "JetBrains Mono", ui-monospace, monospace; text-anchor: middle; }
+.rc-month-fc { font-style: italic; }
+
+.rc-bar { fill: var(--foreground); transform-box: fill-box; transform-origin: 50% 100%;
+  animation: rc-grow .75s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i) * 70ms + .35s); }
+.rc-bar-best { fill: var(--destructive); animation: rc-grow .75s cubic-bezier(.2, .7, .2, 1) both, rc-highlight .45s ease both;
+  animation-delay: calc(var(--i) * 70ms + .35s), 1.55s; }
+
+.rc-label { animation: rc-rise .4s cubic-bezier(.2, .7, .2, 1) 1.7s both; }
+.rc-best-value { fill: var(--destructive); font: 700 15px "Inter", ui-sans-serif, sans-serif; text-anchor: middle; font-variant-numeric: tabular-nums;
+  paint-order: stroke; stroke: var(--card); stroke-width: 5px; stroke-linejoin: round; }
+.rc-best-note { fill: var(--muted-foreground); font: 500 10.5px "JetBrains Mono", ui-monospace, monospace; text-anchor: middle;
+  paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+
+.rc-fc-zone { fill: var(--muted); }
+.rc-fc-title { fill: var(--muted-foreground); font: 600 10px "JetBrains Mono", ui-monospace, monospace; letter-spacing: .12em; text-anchor: middle; }
+/* the dash pattern covers the path once (pathLength 98) and is followed by a gap as long as the path: moving the
+   offset from 98 to 0 draws the dashed line from its start */
+.rc-forecast { fill: none; stroke: var(--destructive); stroke-width: 2.25; stroke-linecap: butt; stroke-linejoin: round;
+  stroke-dasharray: 4 3 4 3 4 3 4 3 4 3 4 3 4 3 4 3 4 3 4 3 4 3 4 3 4 3 4 3 0 98;
+  animation: rc-dash 1.1s cubic-bezier(.4, 0, .2, 1) 1.9s both; }
+.rc-dot { transform-box: fill-box; transform-origin: center; animation: rc-pop .4s cubic-bezier(.3, 1.5, .5, 1) both; animation-delay: calc(var(--i) * 260ms + 2.25s); }
+.rc-dot circle { fill: var(--card); stroke: var(--destructive); stroke-width: 2; }
+.rc-fc-value { fill: var(--foreground); font: 600 11px "JetBrains Mono", ui-monospace, monospace; text-anchor: middle;
+  paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }
+.rc-fade { animation: rc-fade .45s ease both; animation-delay: var(--d, 0s); }
+
+@keyframes rc-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes rc-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes rc-highlight { from { fill: var(--foreground); } to { fill: var(--destructive); } }
+@keyframes rc-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes rc-dash { from { stroke-dashoffset: 98; } to { stroke-dashoffset: 0; } }
+@keyframes rc-pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+@keyframes rc-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rc-axis, .rc-grid, .rc-bar, .rc-bar-best, .rc-label, .rc-forecast, .rc-dot, .rc-fade { animation: none; }
+  .rc-forecast { stroke-dasharray: 4 3; }
+}
