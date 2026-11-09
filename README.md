@@ -103,7 +103,7 @@ Ports: web 5173, data 8787, agent 8789, store-server 8790 (`WEB_PORT`, `DATA_POR
 
 ## Install into your own Vite + React project (5 steps)
 
-**1. Install.**
+**1. Install.** The packages are not on npm yet: build them from a checkout and add them with `link:`, step by step in [docs/for-agents/install.md](docs/for-agents/install.md). Once they are published, this step becomes:
 
 ```bash
 pnpm add @pleatkit/runtime @pleatkit/ui
