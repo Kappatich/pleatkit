@@ -9,7 +9,9 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "preview": "vite preview",
-    "e2e": "vite build && playwright test"
+    "e2e": "vite build && playwright test",
+    "e2e:demo": "vite build && playwright test -c playwright.demo.config.ts",
+    "demo:public": "tsx server/public/main.ts"
   },
   "dependencies": {
     "@pleatkit/runtime": "workspace:*",

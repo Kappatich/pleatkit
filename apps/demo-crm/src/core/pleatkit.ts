@@ -6,8 +6,13 @@ export const USERS = ['alice', 'bob'] as const
 export type UserId = (typeof USERS)[number]
 
 const params = new URLSearchParams(location.search)
+/**
+ * The public demo server (docs/demo-hosting.md) gives each visitor a namespace of their own and names it in the
+ * readable `pk_demo_app` cookie: server-compiled bundles are built for that namespace, so the page must use it too.
+ */
+const DEMO_APP = /(?:^|;\s*)pk_demo_app=(v[0-9a-f]{16})(?:;|$)/.exec(document.cookie)?.[1] ?? null
 /** Store namespace in store-server; `?app=` lets tests run in isolation. */
-export const APP_ID = params.get('app') ?? 'demo-crm'
+export const APP_ID = DEMO_APP ?? params.get('app') ?? 'demo-crm'
 /** `?store=local` keeps everything in this browser (IndexedDB); default is store-server (needed for /admin). */
 export const STORE_KIND: 'http' | 'local' = params.get('store') === 'local' ? 'local' : 'http'
 export const STORE_URL = '/pleatkit-store'

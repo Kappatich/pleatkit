@@ -13,6 +13,17 @@ roles `user` and `admin`, quotas and plans, usage events, the audit chain, flags
 request labels); what a vendor needs across all of its customers moves to the private pleatkit cloud packages
 (`@pleatkit/store-cloud`, `@pleatkit/agent-cloud`, `@pleatkit/admin-cloud`). Every package is 0.4.0.
 
+### Public demo (demo.pleatkit.com)
+- **A hosted demo anyone can try** (`apps/demo-crm/server/public`, `docs/demo-hosting.md`): one Node process with the
+  demo CRM, its data API, the agent server and one store-server per visitor, behind nginx. SCRIPTED by default (the
+  film's six requests as chips, answered from the recorded fixtures; free text gets a friendly refusal with the
+  contact), LIVE with the operator's key under a daily dollar and request cap, a per-visitor cap and a classifier-first
+  off-topic guard, falling back to SCRIPTED at the cap. Each visitor cookie is its own sandbox (versions, undo, data and
+  the admin view), deleted after 24 h and on restart. A research log (JSONL per day, no IPs, 30 days), a feedback strip
+  after each applied edit, a pilot form (`leads.jsonl`), `scripts/deploy-demo.sh`, `scripts/demo-pull.sh`,
+  `scripts/demo-report.mjs`, a hardened systemd unit and the nginx vhost. Tests: `pnpm --filter @pleatkit/demo-crm e2e:demo`.
+  No package changed; the demo page shows its strip only when the demo server serves it.
+
 ### Breaking (self-hosters)
 - **store-server: routes removed.** `GET /v1/report` (the pilot report and its money columns, with
   `PLEATKIT_REPORT_MINUTES_PER_EDIT` and the `reportMinutesPerEdit` option), `/v1/admin/wish-items`,

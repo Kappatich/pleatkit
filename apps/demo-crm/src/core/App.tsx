@@ -6,6 +6,7 @@ import { formatDate } from '@/readonly/format'
 import { cn } from '@/lib/utils'
 import { Admin } from './Admin'
 import { AGENT_URL, APP_ID, AUTH, BUNDLE_URL, COMPILE, demoPublicKey, pleatkitConfig, storeFor, tokenFor, USERS, type UserId } from './pleatkit'
+import { DemoLeadForm, DemoStrip, DemoTracker, useDemoStatus } from './PublicDemo'
 
 function readParams() {
   const params = new URLSearchParams(location.search)
@@ -33,12 +34,25 @@ const EXAMPLES = {
 }
 
 export function App() {
-  if (location.pathname.replace(/\/$/, '') === '/admin') return <Admin appId={APP_ID} locale={LOCALE} />
+  if (location.pathname.replace(/\/$/, '') === '/admin') return <AdminPage />
   return <Crm />
+}
+
+/** /admin; behind the public demo server, with its strip on top (the store answers for the visitor's own sandbox). */
+function AdminPage() {
+  const demo = useDemoStatus()
+  return (
+    <>
+      {demo && <DemoStrip status={demo} admin />}
+      <Admin appId={APP_ID} locale={LOCALE} />
+    </>
+  )
 }
 
 function Crm() {
   const [{ user, dev, isolated }, setParams] = useState(readParams)
+  // the public demo (demo.pleatkit.com): its strip, its six requests as chips, the feedback strip and the pilot form
+  const demo = useDemoStatus()
   // `?auth=token`: bundles must be signed by the app key; its public key comes from the demo's backend
   const [publicKey, setPublicKey] = useState<string | null | undefined>(AUTH === 'token' ? undefined : null)
   useEffect(() => {
@@ -66,9 +80,11 @@ function Crm() {
       {...(AUTH === 'token' ? { token: (o?: { refresh?: boolean }) => tokenFor(user, 'user', o?.refresh), onAuthExpired: () => tokenFor(user, 'user', true) } : {})}
     >
       <RefreshOnFocus />
+      {demo && <DemoTracker />}
       {EVAL_HOOK ? <EvalHook /> : null}
       {/* Leave room for the fixed dev panel so it does not cover the panels being edited. */}
       <div className="min-h-screen" style={dev ? { paddingRight: 580 } : undefined}>
+        {demo && <DemoStrip status={demo} />}
         <header className="border-b border-border bg-card">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
             <div className="flex items-center gap-2">
@@ -98,11 +114,12 @@ function Crm() {
           </div>
         </header>
         <CrmPage isolated={isolated} />
+        {demo && <DemoLeadForm status={demo} />}
       </div>
       {dev ? (
         <DevPanel />
       ) : (
-        <PleatkitChat agentUrl={AGENT_URL} appId={APP_ID} locale={LOCALE} examples={EXAMPLES[LOCALE]} {...(AUTH === 'token' ? { token: () => tokenFor(user) } : {})} />
+        <PleatkitChat agentUrl={AGENT_URL} appId={APP_ID} locale={LOCALE} examples={demo ? demo.requests.map((r) => r.text) : EXAMPLES[LOCALE]} {...(AUTH === 'token' ? { token: () => tokenFor(user) } : {})} />
       )}
     </PleatkitProvider>
   )

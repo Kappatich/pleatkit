@@ -63,3 +63,9 @@ body {
 
 /* /admin is pleatkit's own surface, design v4: src/core/admin.css. The CRM keeps its own components; only its tokens,
    panel radius (8px) and soft shadow follow v4, so the recorded demo matches the landing's stage. */
+
+/* the public demo (core/PublicDemo.tsx): feedback strip and privacy line docked to the drawer's left edge (420 px) */
+.demo-dock { position: fixed; right: 432px; bottom: 12px; width: 300px; z-index: 2147482002; display: grid; gap: 8px; }
+@media (max-width: 760px) {
+  .demo-dock { top: 8px; bottom: auto; left: 8px; right: 8px; width: auto; }
+}

@@ -35,6 +35,7 @@ pnpm install && pnpm build && pnpm test && pnpm e2e && pnpm lint   # the definit
 pnpm typecheck
 pnpm dev                                                         # demo + agent + store, one command
 cd examples/t1-vite && pnpm build && pnpm smoke                    # the docs still work
+pnpm --filter @pleatkit/demo-crm e2e:demo                          # the public demo server (docs/demo-hosting.md)
 node scripts/release-check.mjs                                   # before a release: versions, metadata, dry-run publish
 ```
 

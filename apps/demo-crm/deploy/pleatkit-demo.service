@@ -1,0 +1,68 @@
+# demo.pleatkit.com: the public pleatkit demo (docs/demo-hosting.md). Installed by scripts/deploy-demo.sh as
+# /etc/systemd/system/pleatkit-demo.service. Settings and the model key: /etc/pleatkit-demo/demo.env (root:pleatkit-demo, 0640).
+[Unit]
+Description=pleatkit public demo (demo.pleatkit.com)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pleatkit-demo
+Group=pleatkit-demo
+WorkingDirectory=/var/www/pleatkit-demo/app
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--max-old-space-size=448
+Environment=DEMO_HOST=127.0.0.1
+Environment=DEMO_PORT=8710
+Environment=DEMO_TRUST_PROXY=1
+# per-visitor sandboxes in a tmpfs that systemd creates at start and removes at stop (wiped on every restart)
+Environment=DEMO_STATE_DIR=/run/pleatkit-demo
+# the research log, the day's counters and leads.jsonl (kept across restarts; JSONL pruned after 30 days)
+Environment=DEMO_DATA_DIR=/var/lib/pleatkit-demo
+# overrides and the key (EnvironmentFile wins over Environment=)
+EnvironmentFile=/etc/pleatkit-demo/demo.env
+ExecStart=/usr/bin/env node /var/www/pleatkit-demo/app/server.mjs
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+
+RuntimeDirectory=pleatkit-demo
+RuntimeDirectoryMode=0700
+StateDirectory=pleatkit-demo
+StateDirectoryMode=0700
+UMask=0077
+
+# memory cap (the tmpfs sandboxes count towards it too) and process limits
+MemoryHigh=640M
+MemoryMax=768M
+TasksMax=128
+LimitNOFILE=4096
+
+# hardening: the process reads its code, writes only its two folders, opens no privileged ports
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/pleatkit-demo /run/pleatkit-demo
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pleatkit-demo
+
+[Install]
+WantedBy=multi-user.target
