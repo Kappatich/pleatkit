@@ -37,6 +37,7 @@ pnpm dev                                                         # demo + agent 
 cd examples/t1-vite && pnpm build && pnpm smoke                    # the docs still work
 pnpm --filter @pleatkit/demo-crm e2e:demo                          # the public demo server (docs/demo-hosting.md)
 node scripts/release-check.mjs                                   # before a release: versions, metadata, dry-run publish
+node scripts/npm-smoke.mjs --from packed --dir <tmp>             # before a release: the packed tarballs into a fresh Vite app
 ```
 
 No model key is needed: the agent runs the `scripted` provider (recorded answers in `apps/demo-crm/e2e/fixtures/agent`).

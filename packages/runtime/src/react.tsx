@@ -80,7 +80,8 @@ export function PleatkitProvider({
   auth.current = { token, onAuthExpired }
   // One engine per user and configuration, made during render: switching users never unmounts the host's tree
   // (code review 06 item 11), the new user's panels show their placeholder until the head is loaded. The engine
-  // constructor has no side effects (StrictMode may build two); listeners are attached in an effect.
+  // constructor has no side effects beyond installing its externals registry, which the engine installs again
+  // before each bundle it loads (StrictMode may build two); listeners are attached in an effect.
   const engine = useMemo(
     () =>
       new PleatkitEngine({

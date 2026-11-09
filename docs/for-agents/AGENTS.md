@@ -1,6 +1,6 @@
 # pleatkit for coding agents
 
-Version: pleatkit 0.3.0, docs dated 2026-10-19. Tested by following them into a fresh `create vite@7 --template react-ts` app and into four existing open-source apps: shadcn-admin (Vite 8, pnpm, TanStack Router and Table, recharts), TailAdmin (Vite 8, npm, react-i18next, ApexCharts), an Ant Design dashboard (Vite 5 → 6, pnpm 9, React Router, TanStack Query, no Tailwind) and a CSS-modules dashboard (Vite 8, npm, React Router, TanStack Query, no Tailwind); the last two by a coding agent that saw only this folder. Everything you need is in `docs/for-agents/`.
+Version: pleatkit 0.4.0, docs dated 2026-11-09 (the npm route of install.md re-run from the packed 0.4.0 tarballs into a fresh `create vite@7` app that day). Tested by following them into a fresh `create vite@7 --template react-ts` app and into four existing open-source apps: shadcn-admin (Vite 8, pnpm, TanStack Router and Table, recharts), TailAdmin (Vite 8, npm, react-i18next, ApexCharts), an Ant Design dashboard (Vite 5 → 6, pnpm 9, React Router, TanStack Query, no Tailwind) and a CSS-modules dashboard (Vite 8, npm, React Router, TanStack Query, no Tailwind); the last two by a coding agent that saw only this folder. Everything you need is in `docs/for-agents/`.
 
 ## What it is
 
@@ -39,7 +39,7 @@ Good dynamic panels: views users have opinions about (cards, tables, dashboards,
 ## Facts you may need
 
 - Packages: `@pleatkit/vite-plugin` (dev), `@pleatkit/runtime`, `@pleatkit/ui`, `@pleatkit/agent` (server, bin `pleatkit-agent`), `@pleatkit/store-server` (bin `pleatkit-store`), `@pleatkit/cli` (bin `pleatkit`: `doctor`, `ping`, `init --suggest`, `keys`, `export`, `check-snapshots`, `labels export`).
-- Not on npm yet: install from a local checkout with `link:` (install.md step 1 shows both forms).
+- On npm: `pnpm add @pleatkit/runtime @pleatkit/ui && pnpm add -D --allow-build=better-sqlite3 @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli @pleatkit/store-server` (install.md step 2 A). A local checkout with `link:` works too (steps 1 B and 2 B).
 - Agent server: port 8789 by default (`PLEATKIT_AGENT_PORT`); routes `POST /agent/v1/run` (SSE), `POST /agent/v1/compile`, `GET /agent/v1/b/<app>/<key>.js|css|json`, `GET /agent/health` (unversioned `/agent/run` still works). Without `PLEATKIT_API_KEY` it runs the `scripted` provider, which replays recorded answers from `PLEATKIT_FIXTURES` (default `./fixtures`) and politely refuses anything else.
 - Supported: Vite 6 to 8 (Vite 5: upgrade to 6 first, install.md step 0), React 18 or 19, TypeScript 5 or 6, Tailwind 4 through `@tailwindcss/vite` or PostCSS (optional, `css: 'tailwind'`), apps without Tailwind (CSS modules, a component library: `css: 'palette'`), pnpm 9 or 10, or npm. Not supported: Next.js, webpack.
 - Telemetry: the CLI and the Vite plugin can send one anonymous event per command; `PLEATKIT_TELEMETRY=0` (or `DO_NOT_TRACK=1`, or CI) turns it off, and in this version nothing is sent unless `PLEATKIT_TELEMETRY_URL` is set.

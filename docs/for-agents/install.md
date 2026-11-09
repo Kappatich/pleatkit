@@ -1,6 +1,6 @@
 # Install pleatkit into a Vite + React app
 
-Every step: **run** the command, **expect** the output, and if it differs, do what **if not** says. Paths: `<APP>` is the app folder (run commands there unless a step says otherwise), `<PLEATKIT>` is a local checkout of pleatkit. Use forward slashes in paths, also on Windows.
+Every step: **run** the command, **expect** the output, and if it differs, do what **if not** says. Paths: `<APP>` is the app folder (run commands there unless a step says otherwise), `<PLEATKIT>` is a local checkout of pleatkit (only for the checkout route, B in steps 1 and 2). Use forward slashes in paths, also on Windows.
 
 The commands use pnpm; npm works too (step 2 shows its form, and `npx` replaces `pnpm exec`). Tested on a fresh `create vite` app and on four existing open-source apps: shadcn-admin (pnpm, Tailwind, TanStack Router), TailAdmin (npm, Tailwind, React Router), an Ant Design dashboard (pnpm 9, Vite 5 → 6, React Router, TanStack Query, no Tailwind) and a CSS-modules dashboard (npm, Vite 8, React Router, TanStack Query, no Tailwind). Everything you need is in this folder (`docs/for-agents/`); links outside it are background only.
 
@@ -14,15 +14,25 @@ Run:
 node -v && pnpm -v
 ```
 
-Expect: `v22.x` or newer, then `10.x` or newer. pnpm is needed for the checkout in step 1; an npm app itself stays on npm (use the npm forms of the commands).
+Expect: `v22.x` or newer, then `10.x` or newer. pnpm is needed only to build a checkout (step 1 B); an npm app stays on npm (use the npm forms of the commands).
 
 If not: install Node 22 LTS and pnpm 10 (`npm install -g pnpm@10`). An app that pins pnpm 9 in `package.json#packageManager` switches pnpm to 9.x inside its folder: that works too, keep the pin.
 
-The app must use React 18 or 19 and Vite 6, 7 or 8: check with `pnpm list react vite` (or `npm ls react vite`) in `<APP>`. **Vite 5 or older:** upgrade to Vite 6 first, the smallest supported step (`pnpm add -D vite@^6`, and the app's Vite plugins to a version that supports Vite 6, e.g. `@vitejs/plugin-react@^4` or `@vitejs/plugin-react-swc@^3.8`; check the installed version first with `pnpm list @vitejs/plugin-react @vitejs/plugin-react-swc`: if the lockfile already has a version that supports Vite 6, leave the plugin and its range as they are; `ERR_PNPM_ADDING_TO_ROOT` means the app has its own `pnpm-workspace.yaml`: add `-w`, here and in step 2; if the app's own install needed `--ignore-scripts`, add it here too), then check that the app's own `build` still passes before going on. pnpm does not warn about it: packages added with `link:` are not checked against their peer ranges.
+The app must use React 18 or 19 and Vite 6, 7 or 8: check with `pnpm list react vite` (or `npm ls react vite`) in `<APP>`. **Vite 5 or older:** upgrade to Vite 6 first, the smallest supported step (`pnpm add -D vite@^6`, and the app's Vite plugins to a version that supports Vite 6, e.g. `@vitejs/plugin-react@^4` or `@vitejs/plugin-react-swc@^3.8`; check the installed version first with `pnpm list @vitejs/plugin-react @vitejs/plugin-react-swc`: if the lockfile already has a version that supports Vite 6, leave the plugin and its range as they are; `ERR_PNPM_ADDING_TO_ROOT` means the app has its own `pnpm-workspace.yaml`: add `-w`, here and in step 2; if the app's own install needed `--ignore-scripts`, add it here too), then check that the app's own `build` still passes before going on. From npm, pnpm warns about an unmet `vite` peer; packages added with `link:` (step 2 B) are not checked against their peer ranges, so there it does not warn.
 
 ## Step 1. Get the pleatkit packages
 
-pleatkit is not published to npm yet; build it from a checkout (one time):
+**A. From npm (the default).** The six packages are `@pleatkit/runtime`, `@pleatkit/ui`, `@pleatkit/vite-plugin`, `@pleatkit/agent`, `@pleatkit/cli` and `@pleatkit/store-server`, always released together at one version. Run:
+
+```bash
+pnpm view @pleatkit/runtime version
+```
+
+Expect: `0.4.0` or newer. Then go to step 2 A.
+
+If not: `E404` means the registry has no pleatkit (a mirror that does not proxy npm, or an offline machine): use B.
+
+**B. From a checkout** (to try an unreleased change, or without access to npm). Build it once:
 
 ```bash
 git clone https://github.com/Kappatich/pleatkit.git <PLEATKIT>
@@ -41,7 +51,25 @@ If not: `pnpm build:packages` prints the failing package first; fix that (usuall
 
 ## Step 2. Add the packages to the app
 
-In `<APP>`, with `<PLEATKIT>` written **relative to the app** (`../pleatkit`): pnpm stores the path as you type it, so an absolute path (`C:/Users/…/pleatkit`) ends up in `package.json` and `pnpm-lock.yaml` and works only on your machine.
+**A. From npm.** In `<APP>`:
+
+```bash
+pnpm add @pleatkit/runtime @pleatkit/ui
+pnpm add -D --allow-build=better-sqlite3 @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli @pleatkit/store-server
+```
+
+With npm:
+
+```bash
+npm install @pleatkit/runtime @pleatkit/ui
+npm install -D @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli @pleatkit/store-server
+```
+
+`--allow-build=better-sqlite3`: pnpm 10 runs a dependency's install script only when the app allows it, and store-server's SQLite driver (`better-sqlite3`) builds its native part in one. pnpm records the permission in the app (`onlyBuiltDependencies`). pnpm 9 and npm run the script anyway: leave the flag out with pnpm 9. A pnpm 10 that does not know the flag: run the command without it, then `pnpm approve-builds` and pick `better-sqlite3`.
+
+Expect: `+ @pleatkit/runtime 0.4.0` (or newer) and the same line for the other five, then `Done` (npm: `added N packages`). `Ignored build scripts: esbuild@…` is harmless: esbuild's script only checks its binary, which comes in its own package.
+
+**B. From the checkout of step 1 B.** In `<APP>`, with `<PLEATKIT>` written **relative to the app** (`../pleatkit`): pnpm stores the path as you type it, so an absolute path (`C:/Users/…/pleatkit`) ends up in `package.json` and `pnpm-lock.yaml` and works only on your machine.
 
 ```bash
 pnpm add link:<PLEATKIT>/packages/runtime link:<PLEATKIT>/packages/ui
@@ -63,22 +91,23 @@ If the app uses Tailwind 4 already, nothing more. To let edits use Tailwind clas
 pnpm add -D tailwindcss@^4 @tailwindcss/vite@^4
 ```
 
-Expect: lines like `+ @pleatkit/runtime 0.3.0 <- ../pleatkit/packages/runtime` for all six packages, then `Done` (npm: `added N packages`, and `node_modules/@pleatkit/*` are links to the checkout).
+Expect (B): lines like `+ @pleatkit/runtime 0.4.0 <- ../pleatkit/packages/runtime` for all six packages, then `Done` (npm: `added N packages`, and `node_modules/@pleatkit/*` are links to the checkout).
 
-`@pleatkit/store-server` is the server that keeps every user's version (snapshots, the request log, the admin's levers). It runs as its own process (step 7); the browser talks to it through `HttpStore`.
+`@pleatkit/store-server` is the server that keeps every user's version (snapshots, the request log, the admin's levers). It runs as its own process (step 7); the browser talks to it through `HttpStore`. With the managed cloud you point `HttpStore` at the cloud instead and can leave it out.
 
 If not:
 - `ERR_PNPM_...workspace`, or pnpm installs a different project: the app is inside another pnpm workspace. Add `--ignore-workspace` to every `pnpm add` / `pnpm install` in the app.
 - `ERR_PNPM_ADDING_TO_ROOT`: the app has its own `pnpm-workspace.yaml` (a one-package workspace, `packages: ['.']`), so it is a workspace root. Add `-w` to every `pnpm add`. pnpm 9 may then print lines like `… is already in devDependencies, was not moved`: harmless.
-- An absolute path in the specs (`link:C:/Users/…`): rewrite it to the relative form (`link:../pleatkit/packages/runtime`) in both files, then `pnpm install --frozen-lockfile` must pass.
+- `ERR_PNPM_FETCH_404` for an `@pleatkit/…` package: that version is not on the registry (yet); use B.
+- B: an absolute path in the specs (`link:C:/Users/…`): rewrite it to the relative form (`link:../pleatkit/packages/runtime`) in both files, then `pnpm install --frozen-lockfile` must pass.
 - `pnpm add` fails in another package's install script (for example a Windows path-length error in a Storybook addon's postinstall): pleatkit's packages need no install scripts, so `pnpm add --ignore-scripts …` is safe; the app's own scripts are its business.
-- On Windows pnpm writes the specs with backslashes (`link:..\pleatkit\packages\runtime`) in `package.json` and `pnpm-lock.yaml`, whatever you typed: replace them with forward slashes in both files (they work on every OS), then `pnpm install --frozen-lockfile` must pass. A command that does it (bash; it touches only `link:` specs):
+- B: on Windows pnpm writes the specs with backslashes (`link:..\pleatkit\packages\runtime`) in `package.json` and `pnpm-lock.yaml`, whatever you typed: replace them with forward slashes in both files (they work on every OS), then `pnpm install --frozen-lockfile` must pass. A command that does it (bash; it touches only `link:` specs):
 
   ```bash
   node -e "const fs=require('fs');for(const f of ['package.json','pnpm-lock.yaml'])fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/link:[^\s\",']+/g,(m)=>m.split(String.fromCharCode(92)).filter(Boolean).join('/')))"
   ```
-- npm: `Unsupported URL Type "link:"`: use the folder paths of the npm form above.
-- Once pleatkit is on npm, the same step is `pnpm add @pleatkit/runtime @pleatkit/ui && pnpm add -D @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli @pleatkit/store-server` (the store is open source since 0.2; with the managed cloud you point `HttpStore` at the cloud instead and skip it).
+- B with npm: `Unsupported URL Type "link:"`: use the folder paths of the npm form above.
+- Later, store-server exits with `better-sqlite3 has no native binding` (or `Could not locate the bindings file`): pnpm 10 skipped its install script. Run `pnpm approve-builds` (pick `better-sqlite3`), then `pnpm rebuild better-sqlite3`.
 
 ## Step 3. Configure Vite
 
@@ -114,7 +143,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
-    dedupe: ['react', 'react-dom'], // required while pleatkit is linked from a checkout
+    dedupe: ['react', 'react-dom'], // required when pleatkit is linked from a checkout (B); harmless from npm
   },
   server: { proxy },
   preview: { proxy },

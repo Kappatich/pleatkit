@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "description": "Agent server for pleatkit: model loop with zone-checked file tools, server-side esbuild check, SSE progress",
   "license": "MIT",
-  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/agent#readme",
+  "homepage": "https://pleatkit.com",
   "bugs": {
     "url": "https://github.com/Kappatich/pleatkit/issues"
   },
@@ -54,7 +54,6 @@
     "node": ">=22"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   }
 }

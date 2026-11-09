@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "description": "Vite plugin for pleatkit: zones, manifest, externals registry and fallback bundle for runtime-editable UI",
   "license": "MIT",
-  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/vite-plugin#readme",
+  "homepage": "https://pleatkit.com",
   "bugs": {
     "url": "https://github.com/Kappatich/pleatkit/issues"
   },
@@ -53,7 +53,6 @@
     "vitest": "^3.2.4"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   }
 }

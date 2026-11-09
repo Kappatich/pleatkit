@@ -56,7 +56,11 @@ Run: `pnpm add -D @types/node@^22`.
 
 **Build warns `[pleatkit] esbuild-wasm not found; runtime compilation will be unavailable`.**
 Cause: `@pleatkit/runtime` (which brings `esbuild-wasm`) is not installed in the app.
-Run: `pnpm add link:<PLEATKIT>/packages/runtime` (or `pnpm add @pleatkit/runtime`).
+Run: `pnpm add @pleatkit/runtime` (from a checkout: `pnpm add link:<PLEATKIT>/packages/runtime`).
+
+**store-server exits with `better-sqlite3 has no native binding` (or `Could not locate the bindings file`).**
+Cause: pnpm 10 runs a dependency's install script only when the app allows it, and `better-sqlite3` builds its native part in one.
+Run: `pnpm approve-builds` (pick `better-sqlite3`), then `pnpm rebuild better-sqlite3`; or add the package again with `pnpm add -D --allow-build=better-sqlite3 @pleatkit/store-server`.
 
 ## doctor
 

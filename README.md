@@ -103,12 +103,17 @@ Ports: web 5173, data 8787, agent 8789, store-server 8790 (`WEB_PORT`, `DATA_POR
 
 ## Install into your own Vite + React project (5 steps)
 
-**1. Install.** The packages are not on npm yet: build them from a checkout and add them with `link:`, step by step in [docs/for-agents/install.md](docs/for-agents/install.md). Once they are published, this step becomes:
+**1. Install** the packages from npm (`@pleatkit/runtime`, `@pleatkit/ui`, `@pleatkit/vite-plugin`, `@pleatkit/agent`,
+`@pleatkit/cli`, `@pleatkit/store-server`):
 
 ```bash
 pnpm add @pleatkit/runtime @pleatkit/ui
-pnpm add -D @pleatkit/vite-plugin @pleatkit/agent
+pnpm add -D --allow-build=better-sqlite3 @pleatkit/vite-plugin @pleatkit/agent @pleatkit/cli @pleatkit/store-server
 ```
+
+`--allow-build=better-sqlite3` lets pnpm 10 build store-server's SQLite driver (pnpm 9 and npm build it anyway; npm:
+`npm install …` and `npm install -D …` with the same names). To work from a checkout of this repository instead
+(`link:`), see [docs/for-agents/install.md](docs/for-agents/install.md) step 1.
 
 **2. Configure the Vite plugin** and proxy the agent so the browser stays on one origin:
 
@@ -408,9 +413,10 @@ sent prints a one-line notice.
 
 ### Open source and closed parts (F12)
 
-- `packages/runtime`, `vite-plugin`, `ui`, `agent`, `cli` and `apps/*`, `examples/*`: MIT, published to npm
-  (once publishing is enabled, `docs/RELEASING.md`). They depend on nothing closed.
-- `packages/store-server`: MIT and published since 0.2 (DECISIONS 70.1): the store you self-host. The open
+- `packages/runtime`, `vite-plugin`, `ui`, `agent`, `cli`: MIT, published to npm as `@pleatkit/runtime`,
+  `@pleatkit/vite-plugin`, `@pleatkit/ui`, `@pleatkit/agent` and `@pleatkit/cli` (from 0.4.0, `docs/RELEASING.md`).
+  They depend on nothing closed. `apps/*` and `examples/*` are MIT too, but private: never published.
+- `packages/store-server`: MIT, open since 0.2 (DECISIONS 70.1) and published as `@pleatkit/store-server`: the store you self-host. The open
   packages know it only through the HTTP contract (`HttpStore`, the agent's `StoreClient`), so any store with the
   same `/v1` API is a drop-in replacement.
 - The managed cloud's extension package (`@pleatkit/store-cloud`) is private and lives in the pleatkit-cloud

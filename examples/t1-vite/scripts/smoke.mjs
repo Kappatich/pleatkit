@@ -4,12 +4,19 @@
 // --browser drives the chat headless: ask for overdue orders in red, wait for "Applied", check the row, reload and
 // check it again (the version comes back from store-server). Stops the three servers (and only them). Run after
 // `pnpm build`. Ports: agent 8789, store 8790, preview 4173.
+//
+//   --dev   use `vite` (the dev server, port 5173, React StrictMode active) instead of `vite preview`
+// PLEATKIT_PLAYWRIGHT_FROM: a package.json whose folder resolves @playwright/test (default: the checkout's demo-crm);
+// scripts/npm-smoke.mjs sets it when it runs this file in an app outside the repository.
 import { spawn, spawnSync } from 'node:child_process'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { createRequire } from 'node:module'
 
 const shell = process.platform === 'win32'
 const started = []
+const dev = process.argv.includes('--dev')
+const port = dev ? 5173 : 4173
+const origin = `http://localhost:${port}`
 
 function start(cmd, args, env = {}) {
   const child = spawn(cmd, args, { shell, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -43,14 +50,14 @@ async function waitFor(url, ms = 30_000) {
 
 /** The chat, headless: one request, the recorded answer, a commit in the browser. Playwright from the pleatkit checkout. */
 async function browserCheck() {
-  const require = createRequire(new URL('../../../apps/demo-crm/package.json', import.meta.url))
+  const require = createRequire(process.env.PLEATKIT_PLAYWRIGHT_FROM ?? new URL('../../../apps/demo-crm/package.json', import.meta.url))
   const { chromium } = require('@playwright/test')
   const browser = await chromium.launch({ headless: true })
   try {
     const page = await browser.newPage()
     const errors = []
     page.on('pageerror', (e) => errors.push(e.message))
-    await page.goto('http://localhost:4173/')
+    await page.goto(`${origin}/`)
     await page.getByTestId('orders-table').waitFor()
     await page.getByTestId('mk-chat-open').click()
     await page.getByTestId('mk-chat-input').fill('Show the status and make overdue orders red')
@@ -82,11 +89,11 @@ let code = 1
 try {
   start('pnpm', ['exec', 'pleatkit-store'], { PLEATKIT_STORE_DB: ':memory:', PLEATKIT_STORE_PORT: '8790' })
   start('pnpm', ['exec', 'pleatkit-agent'], { PLEATKIT_FIXTURES: 'fixtures/agent', PLEATKIT_STORE_URL: 'http://localhost:8790' })
-  start('pnpm', ['exec', 'vite', 'preview', '--port', '4173', '--strictPort'])
+  start('pnpm', dev ? ['exec', 'vite', '--port', String(port), '--strictPort'] : ['exec', 'vite', 'preview', '--port', String(port), '--strictPort'])
   await waitFor('http://localhost:8790/health')
   await waitFor('http://localhost:8789/agent/health')
-  await waitFor('http://localhost:4173/')
-  code = spawnSync('pnpm', ['exec', 'pleatkit', 'ping', '--url', 'http://localhost:4173'], { shell, stdio: 'inherit' }).status ?? 1
+  await waitFor(`${origin}/`)
+  code = spawnSync('pnpm', ['exec', 'pleatkit', 'ping', '--url', origin], { shell, stdio: 'inherit' }).status ?? 1
   if (code === 0 && process.argv.includes('--browser')) code = await browserCheck()
 } catch (e) {
   console.error(e.message)

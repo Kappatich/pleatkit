@@ -17,6 +17,7 @@ pnpm install --ignore-workspace
 pnpm build
 pnpm pleatkit-doctor # no [FAIL] (not `pnpm doctor`: that is pnpm's own command)
 pnpm smoke           # store-server + agent + vite preview + pleatkit ping + one chat edit and a reload, headless; stops all three
+pnpm smoke:dev       # the same against the dev server (vite, React StrictMode on)
 ```
 
 By hand: `pnpm store` in one terminal, `PLEATKIT_FIXTURES=fixtures/agent PLEATKIT_STORE_URL=http://localhost:8790 pnpm agent`

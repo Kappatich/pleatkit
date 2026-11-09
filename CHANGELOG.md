@@ -2,8 +2,8 @@
 
 All notable changes to the pleatkit packages. Versions follow semver; while they are `0.x`, a minor version may
 break, and every break is marked **Breaking** with its migration step. Policy: README, "Changelog and breaking
-changes". Nothing is published to npm yet. 0.3.0 is the first public release; it contains everything below, the
-"Unreleased" sections included (they are the stages that led to it).
+changes". 0.4.0 is the first version published to npm (0.3.0 was prepared but never published); it contains
+everything below, the "Unreleased" sections included (they are the stages that led to it).
 
 ## 0.4.0 (unreleased)
 
@@ -12,6 +12,17 @@ agent and its edit loop, the checks, the drawer, versions and undo, the request 
 roles `user` and `admin`, quotas and plans, usage events, the audit chain, flags and the kill switch, export, erasure,
 request labels); what a vendor needs across all of its customers moves to the private pleatkit cloud packages
 (`@pleatkit/store-cloud`, `@pleatkit/agent-cloud`, `@pleatkit/admin-cloud`). Every package is 0.4.0.
+
+### Packaging (first npm release)
+- Every package's `homepage` is https://pleatkit.com, and `publishConfig` sets only `access: public`: provenance
+  comes from the release workflow's `--provenance` flag, because npm can attest only a publish from a supported CI
+  and the first release is published by hand (`docs/RELEASING.md`). The root `.npmrc` no longer forces it.
+- runtime: the engine that loads a bundle makes its externals registry the one the bundle reaches. Under React
+  StrictMode in development the provider builds a second engine whose registry was installed last, so every edit that
+  imported a lazy external (`@/readonly/*`, an icon set) was rejected in `vite dev` with "lazy module … was not
+  loaded before the edit ran" (production builds were not affected).
+- store-server: when `better-sqlite3` has no native binding (pnpm 10 skips its install script unless allowed), the
+  server says so and prints the fix instead of a stack trace. The install docs add `--allow-build=better-sqlite3`.
 
 ### Public demo (demo.pleatkit.com)
 - **A hosted demo anyone can try** (`apps/demo-crm/server/public`, `docs/demo-hosting.md`): one Node process with the

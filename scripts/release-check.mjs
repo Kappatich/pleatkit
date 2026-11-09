@@ -76,14 +76,21 @@ for (const p of pub) {
   const errs = []
   if (j.license !== 'MIT') errs.push(`license is ${j.license}`)
   if (j.publishConfig?.access !== 'public') errs.push('publishConfig.access is not public')
+  // provenance comes from the release workflow's --provenance flag: in publishConfig it would make the by-hand
+  // first publish (and any publish outside a supported CI) fail
+  if (j.publishConfig?.provenance !== undefined) errs.push('publishConfig.provenance is set (pass --provenance in CI instead)')
+  if (j.homepage !== 'https://pleatkit.com') errs.push(`homepage is ${j.homepage}, not https://pleatkit.com`)
   if (j.repository?.url !== 'git+https://github.com/Kappatich/pleatkit.git' || j.repository?.directory !== p.dir) errs.push('repository is not Kappatich/pleatkit with this directory')
   if (!Array.isArray(j.files) || !j.files.includes('dist')) errs.push('files does not include dist')
   for (const f of ['README.md', 'LICENSE']) if (!fs.existsSync(path.join(root, p.dir, f))) errs.push(`no ${f}`)
   if (!j.exports?.['.']) errs.push('no exports["."]')
   for (const bin of Object.keys(j.bin ?? {})) if (/morphkit/.test(bin)) errs.push(`old binary ${bin}`)
   if (errs.length) fail(`${where} ${errs.join('; ')}`)
-  else ok(`${where} license, publishConfig, repository, files, README, LICENSE`)
+  else ok(`${where} license, homepage, publishConfig, repository, files, README, LICENSE`)
 }
+const npmrc = fs.existsSync(path.join(root, '.npmrc')) ? fs.readFileSync(path.join(root, '.npmrc'), 'utf8') : ''
+if (/^\s*provenance\s*=\s*true/m.test(npmrc)) fail('.npmrc sets provenance=true: a publish outside CI fails (the workflow passes --provenance)')
+else ok('.npmrc does not force provenance (the release workflow passes --provenance)')
 for (const p of priv) {
   if (p.json.publishConfig) fail(`${p.json.name} is private but has publishConfig`)
 }

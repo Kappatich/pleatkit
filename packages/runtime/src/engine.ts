@@ -2,7 +2,7 @@ import { isComponentExport } from './component.js'
 import { Compiler, isScript, type CompilerMetrics, type CompileOptions } from './compiler.js'
 import { CssCompiler, type CssMetrics } from './css.js'
 import { HeadConflictError, withTimeout } from './errors.js'
-import { applyCss, defaultLoader, installExternals, type BundleLoader } from './loader.js'
+import { activateExternals, applyCss, defaultLoader, installExternals, type BundleLoader } from './loader.js'
 import { isWritablePath, WRITABLE_EXT } from './paths.js'
 import type { AgentRunRequest } from './protocol.js'
 import { browserBootStorage, HEARTBEAT_MS, PAGE_ID, previousLoadFailed, readBoot, safeModeRequested, writeBoot, type BootStorage } from './safe-mode.js'
@@ -768,6 +768,8 @@ export class PleatkitEngine {
       this.timings.lastSwapMs = performance.now() - started
       return hit.modules
     }
+    // this engine's registry is the one the bundle reaches, also when StrictMode built a twin after it
+    activateExternals(this.registry, this.namespace)
     await this.registry.ensure(bundle.externals)
     const modules = await this.loader(bundle)
     this.loads++

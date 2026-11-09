@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "description": "Chat drawer, element picker, history and toasts for pleatkit",
   "license": "MIT",
-  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/ui#readme",
+  "homepage": "https://pleatkit.com",
   "bugs": {
     "url": "https://github.com/Kappatich/pleatkit/issues"
   },
@@ -45,7 +45,6 @@
     "vitest": "^3.2.4"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   }
 }

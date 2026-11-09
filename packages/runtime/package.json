@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "description": "Browser runtime for pleatkit: snapshots, esbuild-wasm compiler, hot swap of dynamic React components, undo/redo",
   "license": "MIT",
-  "homepage": "https://github.com/Kappatich/pleatkit/tree/main/packages/runtime#readme",
+  "homepage": "https://pleatkit.com",
   "bugs": {
     "url": "https://github.com/Kappatich/pleatkit/issues"
   },
@@ -66,7 +66,6 @@
     "vitest": "^3.2.4"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   }
 }

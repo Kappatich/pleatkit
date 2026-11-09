@@ -148,6 +148,25 @@ describe('B6: one registry per app instance, lazy externals', () => {
     expect(a.currentBundle()?.js).toContain('globalThis.__pleatkit.apps["app-a"].require("lucide-react")')
     expect(a.currentBundle()?.externals).toContain('lucide-react')
   })
+
+  it('the engine that loads a bundle owns its namespace: a StrictMode twin built after it does not break lazy externals', async () => {
+    const icons = vi.fn(async () => ({ Star: () => 'star' }))
+    const mk = () => {
+      const config = makeConfig()
+      config.externals = { ...config.externals, 'lucide-react': icons }
+      config.manifest = { ...config.manifest, externals: [...config.manifest.externals, 'lucide-react'], externalPatterns: [...config.manifest.externalPatterns, 'lucide-react'] }
+      const compiler = new Compiler({ ...config.manifest, namespace: 'strict' }, { loadEsbuild: nodeEsbuild })
+      return new PleatkitEngine({ store: new MemoryStore(), userId: 'alice', config, compiler, loader: nodeLoader, bootStorage: null, namespace: 'strict' })
+    }
+    const kept = mk()
+    const twin = mk() // the discarded second build of the same provider: its constructor installed its registry last
+    expect(registryFor('strict')).not.toBeNull()
+    await kept.init()
+    await commit(kept, CARD, `import { Star } from 'lucide-react'\nexport default function C() { return <b><Star /></b> }`)
+    expect(icons).toHaveBeenCalledTimes(1)
+    expect(kept.getState().error).toBeNull()
+    expect(twin.getState().status).toBe('loading')
+  })
 })
 
 describe('B7: bundles name their frames pleatkit://, tags for error reporting', () => {

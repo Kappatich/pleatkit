@@ -11,6 +11,7 @@
     "agent": "pleatkit-agent",
     "store": "pleatkit-store",
     "smoke": "node scripts/smoke.mjs --browser",
+    "smoke:dev": "node scripts/smoke.mjs --browser --dev",
     "pleatkit-doctor": "pleatkit doctor"
   },
   "dependencies": {

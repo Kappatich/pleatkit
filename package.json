@@ -19,6 +19,8 @@
     "e2e:live": "node scripts/with-env.mjs pnpm --filter @pleatkit/demo-crm e2e live-anthropic",
     "demo:video": "pnpm build:packages && node scripts/record-demo.mjs",
     "site:check": "node scripts/site-check.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "release:smoke": "node scripts/npm-smoke.mjs",
     "pleatkit-doctor": "node packages/cli/dist/cli.js doctor --root apps/demo-crm",
     "eval:record": "node scripts/with-env.mjs pnpm --filter @pleatkit/evals record",
     "eval:replay": "pnpm --filter @pleatkit/evals replay",

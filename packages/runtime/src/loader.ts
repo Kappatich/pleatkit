@@ -73,6 +73,15 @@ export function installExternals(externals: Record<string, ExternalEntry>, names
   return registry
 }
 
+/**
+ * Make `registry` the one that compiled bundles of `namespace` reach. The engine calls it right before it loads a
+ * bundle: React StrictMode builds two engines for one provider during development and keeps only one, and the
+ * discarded twin installed its registry last, so its `require` never saw the lazy modules the kept engine loaded.
+ */
+export function activateExternals(registry: AppRegistry, namespace = 'default'): void {
+  globalRegistry().apps[namespace] = registry
+}
+
 export function registryFor(namespace = 'default'): AppRegistry | null {
   return globalRegistry().apps[namespace] ?? null
 }

@@ -23,7 +23,21 @@ try {
 }
 const file = process.env.PLEATKIT_STORE_DB ?? '.pleatkit/store.db'
 const port = Number(process.env.PLEATKIT_STORE_PORT ?? 8790)
-const { db, close } = openStore({ file })
+let opened
+try {
+  opened = openStore({ file })
+} catch (e) {
+  const message = (e as Error).message
+  // pnpm 10 skips install scripts unless a package is allowed, and better-sqlite3 builds its native binding in one
+  if (/Could not locate the bindings file|better_sqlite3\.node/.test(message)) {
+    console.error(
+      'pleatkit store-server: better-sqlite3 has no native binding; its install script did not run (pnpm 10 skips it unless allowed).\n' +
+        '  fix: pnpm add -D --allow-build=better-sqlite3 @pleatkit/store-server   (or: pnpm approve-builds, then pnpm rebuild better-sqlite3)',
+    )
+  } else console.error(`pleatkit store-server: cannot open ${file}: ${message}`)
+  process.exit(1)
+}
+const { db, close } = opened
 const region = process.env.PLEATKIT_REGION ?? 'local'
 const environment = process.env.PLEATKIT_ENVIRONMENT ?? (auth.production ? 'production' : 'development')
 const bodyLimitBytes = Number(process.env.PLEATKIT_STORE_BODY_LIMIT) || undefined
