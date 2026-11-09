@@ -5,7 +5,7 @@ break, and every break is marked **Breaking** with its migration step. Policy: R
 changes". 0.4.0 is the first version published to npm (0.3.0 was prepared but never published); it contains
 everything below, the "Unreleased" sections included (they are the stages that led to it).
 
-## 0.4.0 (unreleased)
+## 0.4.0 (2026-11-09)
 
 The open-core boundary (DECISIONS 89): the open packages keep what you need to install pleatkit and to trust it (the
 agent and its edit loop, the checks, the drawer, versions and undo, the request log with approve/reject/rollback,
