@@ -5,6 +5,18 @@ break, and every break is marked **Breaking** with its migration step. Policy: R
 changes". 0.4.0 is the first version published to npm (0.3.0 was prepared but never published); it contains
 everything below, the "Unreleased" sections included (they are the stages that led to it).
 
+## Unreleased
+
+### Public demo (demo.pleatkit.com)
+- **Crawlers get the page and nothing else.** A crawler keeps no cookie, so every page it fetched was a new
+  visitor: a new sandbox, an `admin_opened` line in the research log and, because the admin links carry the
+  sandbox id, a fresh set of URLs to follow (one crawler opened `/admin` every 20 seconds for hours). The gateway
+  now serves `/robots.txt` (the page is open; `/admin` and the APIs are disallowed), answers a user agent that
+  calls itself a crawler or a link previewer with the page alone (no sandbox, no cookie, no log line;
+  `X-Robots-Tag: noindex, nofollow` outside `/`), and refuses its API calls with 403. `scripts/demo-report.mjs`
+  counts "admin view opened" for visitors that did anything else and reports the rest separately, so earlier
+  logs read correctly too. Tests: `e2e-demo/scripted.spec.ts`. No package changed.
+
 ## 0.4.0 (2026-11-09)
 
 The open-core boundary (DECISIONS 89): the open packages keep what you need to install pleatkit and to trust it (the

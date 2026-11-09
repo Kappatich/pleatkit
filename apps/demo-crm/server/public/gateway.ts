@@ -56,6 +56,16 @@ const TYPES: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 }
 
+/** What a crawler may fetch: the demo page. The per-visitor views and the APIs are not for indexing. */
+const ROBOTS = ['User-agent: *', 'Disallow: /admin', 'Disallow: /api/', 'Disallow: /demo/api/', 'Disallow: /pleatkit-store/', 'Disallow: /pleatkit/', 'Disallow: /agent/', ''].join('\n')
+
+/**
+ * User agents that call themselves a crawler or a link previewer. They keep no cookie, so every page they fetch
+ * would be a new visitor: one more sandbox, one more line in the research log, and (the admin links carry the
+ * sandbox id) one more set of URLs to follow. They get the page and nothing else.
+ */
+const CRAWLER = /bot[/;)-]|crawl|spider|slurp|externalhit|externalagent|chatgpt-user/i
+
 const USERS = ['alice', 'bob']
 /** Identity headers the browser may not set: the gateway decides the app, the agent flag and the org. */
 const STRIPPED = ['authorization', 'cookie', 'x-pleatkit-app', 'x-pleatkit-agent', 'x-pleatkit-act-as', 'x-pleatkit-org', 'x-pleatkit-role', 'x-pleatkit-env', 'x-demo-client-ip', 'x-forwarded-for', 'x-real-ip', 'host', 'content-length']
@@ -113,11 +123,14 @@ export function createGateway(deps: GatewayDeps) {
     return json(c, { error: 'too many requests, slow down a little' }, 429)
   }
 
-  /** The visitor of this request, created (with its cookie) on first contact. */
+  const isCrawler = (c: Ctx): boolean => CRAWLER.test(c.req.header('user-agent') ?? '')
+
+  /** The visitor of this request, created (with its cookie) on first contact. Crawlers get none. */
   const visitor = (c: Ctx): Visitor | Response => {
     const cookie = getCookie(c, COOKIE)
     const known = visitors.get(cookie)
     if (known) return known
+    if (isCrawler(c)) return json(c, { error: 'the demo keeps no sandbox for crawlers' }, 403)
     const tooMany = limit(c, 'newVisitor')
     if (tooMany) return tooMany
     const { visitor: v } = visitors.ensure(cookie)
@@ -432,6 +445,8 @@ export function createGateway(deps: GatewayDeps) {
   const root = path.resolve(config.webDir)
   const index = () => fs.readFileSync(path.join(root, 'index.html'))
 
+  app.get('/robots.txt', (c) => c.body(ROBOTS, 200, { 'content-type': TYPES['.txt']!, 'cache-control': 'public, max-age=3600' }))
+
   app.get('*', async (c) => {
     const tooMany = limit(c as Ctx, 'page')
     if (tooMany) return tooMany
@@ -445,6 +460,10 @@ export function createGateway(deps: GatewayDeps) {
       return c.body(fs.readFileSync(file), 200, { 'content-type': type, 'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=300' })
     }
     if (path.extname(rel) && rel !== '/admin') return json(c as Ctx, { error: 'not found' }, 404)
+    // a crawler gets the page as a file: no sandbox, no cookie, no line in the log
+    if (isCrawler(c as Ctx) && !visitors.get(getCookie(c, COOKIE))) {
+      return c.body(index(), 200, { 'content-type': TYPES['.html']!, 'cache-control': 'no-store', ...(rel === '/' ? {} : { 'x-robots-tag': 'noindex, nofollow' }) })
+    }
     // a page: the CRM or /admin; every visitor gets their sandbox (and cookie) here
     const v = visitor(c as Ctx)
     if (v instanceof Response) return v

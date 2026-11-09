@@ -110,6 +110,11 @@ Everything stays on the server; nothing is sent anywhere. The coordinator pulls 
 - `kind: "session"`: `undo` (with `msSinceApplied` and `within2min`), `repeat` (the same text again), `rephrase`
   (free text within 90 s of the previous free text, sharing at least half of its words), `admin_opened`,
   `film_click`, `site_click`, `admin_click`, `email_left`.
+- Crawlers are not visitors. A user agent that calls itself a crawler or a link previewer (`GPTBot/1.4`,
+  `Googlebot/2.1`, `facebookexternalhit`, ...) gets the page as a file: no sandbox, no cookie, no line in this log;
+  its API calls get 403. `/robots.txt` leaves the page open and disallows `/admin` and the APIs. Without this a
+  crawler, which keeps no cookie, was a new visitor on every fetch. The report still counts `admin_opened` only
+  for visitors with other activity and shows the rest apart, for crawlers that do not name themselves.
 - `kind: "feedback"`: the strip after each applied edit, "Did it do what you asked? Yes / Not quite", with the reasons
   (`wrong_panel`, `looks_wrong`, `not_what_i_meant`) and the optional comment, against the request id.
 

@@ -131,7 +131,15 @@ const reasons = notQuite.flatMap((f) => f.reasons ?? [])
 if (reasons.length) say(`- "Not quite" reasons: ${Object.entries(count(reasons.map((r) => ({ r })), 'r')).map(([k, v]) => `${k} ${v}`).join(', ')}`)
 say(`- undo within 2 minutes of applied: ${undos.filter((u) => u.within2min).length} of ${applied.length} applied edits (${pct(undos.filter((u) => u.within2min).length, applied.length)}); median time to undo ${ms(quantile(undos.map((u) => u.msSinceApplied), 0.5))}`)
 const ev = count(sessions, 'event')
-say(`- rephrases ${ev.rephrase ?? 0}, repeats ${ev.repeat ?? 0}, admin view opened ${ev.admin_opened ?? 0}, film link ${ev.film_click ?? 0}, emails left ${ev.email_left ?? 0}`)
+// a visitor whose only trace is opening /admin is a crawler following links far more often than a person:
+// without a cookie every fetch was a "new visitor" (the gateway no longer logs declared crawlers at all)
+const isAdminOpen = (r) => r.kind === 'session' && r.event === 'admin_opened'
+const active = new Set(records.filter((r) => !isAdminOpen(r)).map((r) => r.visitor))
+const adminOpens = sessions.filter(isAdminOpen)
+const adminByActive = adminOpens.filter((s) => active.has(s.visitor)).length
+const adminOnly = adminOpens.length - adminByActive
+const adminNote = adminOnly ? ` (and ${adminOnly} more by visitors with no other activity, typically crawlers)` : ''
+say(`- rephrases ${ev.rephrase ?? 0}, repeats ${ev.repeat ?? 0}, admin view opened ${adminByActive}${adminNote}, film link ${ev.film_click ?? 0}, emails left ${ev.email_left ?? 0}`)
 say()
 
 say('## Top 20 requests')

@@ -30,6 +30,34 @@ test('the strip, the links and the six requests as chips (the four showcase requ
   expect(big.status()).toBe(413)
 })
 
+test('a crawler gets robots.txt and the page, but no sandbox, no cookie and no line in the log', async ({ playwright }) => {
+  // a crawler keeps no cookie: before this, every page it fetched was a new visitor with a new sandbox
+  const bot = await playwright.request.newContext({
+    baseURL: base('scripted'),
+    userAgent: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.4; +https://openai.com/gptbot)',
+  })
+  const robots = await bot.get('/robots.txt')
+  expect(robots.status()).toBe(200)
+  expect(robots.headers()['content-type']).toContain('text/plain')
+  const rules = await robots.text()
+  for (const p of ['/admin', '/api/', '/demo/api/', '/pleatkit-store/', '/agent/']) expect(rules).toContain(`Disallow: ${p}`)
+  expect(rules).not.toMatch(/^Disallow: \/$/m)
+
+  const health = async () => (await (await bot.get('/demo/api/health')).json()) as { visitors: number }
+  const before = { visitors: (await health()).visitors, events: readEvents('scripted').length }
+  for (const p of ['/', '/admin', '/admin?app=v0000000000000000&view=audit']) {
+    const res = await bot.get(p)
+    expect(res.status()).toBe(200)
+    expect(await res.text()).toContain('<div id="root">')
+    expect(res.headers()['set-cookie']).toBeUndefined()
+    expect(res.headers()['x-robots-tag']).toBe(p === '/' ? undefined : 'noindex, nofollow')
+  }
+  expect((await bot.get('/demo/api/status')).status()).toBe(403)
+  expect((await health()).visitors).toBe(before.visitors)
+  expect(readEvents('scripted').length).toBe(before.events)
+  await bot.dispose()
+})
+
 test('free text gets the friendly refusal with the contact, and is logged as refused_out_of_scope', async ({ page, context }) => {
   await openDemo(page, 'scripted')
   const text = 'Make the whole page purple and add a chat with my sales team'
