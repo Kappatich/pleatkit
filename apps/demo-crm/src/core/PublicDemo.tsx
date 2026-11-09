@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { usePleatkitState } from '@pleatkit/runtime'
+import { startDemoTour, useComposerHint } from './DemoOnboarding'
 
 /**
  * The public demo's page chrome (demo.pleatkit.com, docs/demo-hosting.md). Shown only when the page is served by the
@@ -83,7 +84,7 @@ export function DemoStrip({ status, admin = false }: { status: DemoStatus; admin
     <div data-testid="demo-strip" className="border-b border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1">
         <span className="font-medium text-foreground">
-          Public demo. Six example requests work; live requests:{' '}
+          <span className="font-semibold">Public demo.</span> Six example requests work; live requests:{' '}
           <span data-testid="demo-live-left">{live ? `${status.liveLeft} left today` : 'off in this demo'}</span>
         </span>
         <span className="flex flex-wrap gap-x-4">
@@ -108,6 +109,15 @@ export function DemoStrip({ status, admin = false }: { status: DemoStatus; admin
             pleatkit.com
           </a>
         </span>
+        {admin ? (
+          <a className={`${linkClass} ml-auto font-medium text-foreground`} href="/?tour=1" data-testid="demo-tour-link">
+            Start the tour
+          </a>
+        ) : (
+          <button type="button" className={`${linkClass} ml-auto cursor-pointer font-medium text-foreground`} data-testid="demo-tour-link" onClick={startDemoTour}>
+            Start the tour
+          </button>
+        )}
       </div>
     </div>
   )
@@ -192,6 +202,7 @@ export function DemoTracker() {
   const [reasons, setReasons] = useState<string[]>([])
   const [comment, setComment] = useState('')
   const drawerOpen = useDrawerOpen()
+  const hint = useComposerHint()
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -248,6 +259,11 @@ export function DemoTracker() {
   if (!drawerOpen) return null
   return (
     <div data-testid="demo-dock" className="demo-dock">
+      {hint && (
+        <p data-testid="demo-hint" role="status" className="demo-hint">
+          {hint}
+        </p>
+      )}
       {feedback && (
         <div data-testid="demo-feedback" data-request-id={feedback.requestId} className="rounded-lg border border-border bg-card p-3 text-sm shadow-soft">
           {feedback.step === 'thanks' ? (

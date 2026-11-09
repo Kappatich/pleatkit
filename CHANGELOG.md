@@ -23,6 +23,11 @@ request labels); what a vendor needs across all of its customers moves to the pr
   after each applied edit, a pilot form (`leads.jsonl`), `scripts/deploy-demo.sh`, `scripts/demo-pull.sh`,
   `scripts/demo-report.mjs`, a hardened systemd unit and the nginx vhost. Tests: `pnpm --filter @pleatkit/demo-crm e2e:demo`.
   No package changed; the demo page shows its strip only when the demo server serves it.
+- **First-visit onboarding on the public demo** (`apps/demo-crm/src/core/DemoOnboarding.tsx`): on a wide monitor the
+  launcher sat unnoticed in the far corner, so the first visit (or `?tour=1`, or "Start the tour" in the strip) dims
+  the page around the launcher with a card next to it ("Open the drawer" / "Skip"), a hint beside the drawer while the
+  composer stays empty, and a soft launcher pulse until the first applied request. Reduced motion respected, keyboard
+  trapped in the card. Tests: `e2e-demo/onboarding.spec.ts`. No package changed.
 
 ### Breaking (self-hosters)
 - **store-server: routes removed.** `GET /v1/report` (the pilot report and its money columns, with

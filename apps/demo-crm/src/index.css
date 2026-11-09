@@ -69,3 +69,41 @@ body {
 @media (max-width: 760px) {
   .demo-dock { top: 8px; bottom: auto; left: 8px; right: 8px; width: auto; }
 }
+
+/* the public demo's first-visit onboarding (core/DemoOnboarding.tsx). The launcher (packages/ui, z 2147482000) stays
+   above the dim layer, so it shows through the hole and stays clickable; the pulse ring sits just behind it. */
+.demo-onb-layer { position: fixed; inset: 0; z-index: 2147481990; overflow: hidden; }
+.demo-onb-hole { position: absolute; box-shadow: 0 0 0 200vmax rgba(28, 26, 23, .55); pointer-events: none; transition: left .2s, top .2s, width .2s, height .2s; }
+.demo-onb-card { position: fixed; z-index: 2147482010; box-sizing: border-box; padding: 20px 22px 18px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgba(28, 26, 23, .08), 0 24px 48px -24px rgba(28, 26, 23, .55); font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
+.demo-onb-card:focus { outline: none; }
+.demo-onb-card--in { animation: demo-onb-in .24s cubic-bezier(.2, .7, .2, 1); }
+.demo-onb-card::after { content: ""; position: absolute; width: 12px; height: 12px; background: var(--card); border: 1px solid var(--border); transform: rotate(45deg); }
+.demo-onb-card[data-side="left"]::after { right: -7px; bottom: 19px; border-left: 0; border-bottom: 0; }
+.demo-onb-card[data-side="above"]::after { bottom: -7px; left: calc(var(--demo-onb-arrow, 50%) - 6px); border-top: 0; border-left: 0; }
+.demo-onb-title { margin: 0; font-weight: 600; font-size: 22px; line-height: 1.2; letter-spacing: -.01em; }
+.demo-onb-text { margin: 8px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--muted-foreground); }
+.demo-onb-actions { margin-top: 16px; display: flex; align-items: center; gap: 16px; }
+.demo-onb-primary { border: 0; border-radius: 999px; padding: 10px 18px; background: var(--primary); color: var(--primary-foreground); font: inherit; font-weight: 500; font-size: 14px; line-height: 1; cursor: pointer; }
+.demo-onb-primary:hover { opacity: .9; }
+.demo-onb-skip { border: 0; background: none; padding: 6px 2px; color: var(--muted-foreground); font: inherit; font-size: 14px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--ring); }
+.demo-onb-skip:hover { color: var(--foreground); }
+.demo-onb-primary:focus-visible, .demo-onb-skip:focus-visible { outline: 2px solid var(--destructive); outline-offset: 3px; }
+@keyframes demo-onb-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* the launcher asks for attention until the visitor has applied one request: strong during the tour, subtle after */
+.demo-launcher-pulse { position: fixed; z-index: 2147481995; pointer-events: none; animation: demo-pulse-soft 2.8s ease-out infinite; }
+.demo-launcher-pulse--strong { animation: demo-pulse 1.8s ease-out infinite; }
+@keyframes demo-pulse { 0% { box-shadow: 0 0 0 0 rgba(226, 54, 31, .5); } 100% { box-shadow: 0 0 0 18px rgba(226, 54, 31, 0); } }
+@keyframes demo-pulse-soft { 0% { box-shadow: 0 0 0 0 rgba(226, 54, 31, .28); } 60%, 100% { box-shadow: 0 0 0 10px rgba(226, 54, 31, 0); } }
+
+/* the hint next to the drawer while the composer is empty */
+.demo-hint { margin: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); border-left: 3px solid var(--destructive); background: var(--card);
+  color: var(--foreground); font-size: 13.5px; line-height: 1.4; box-shadow: var(--soft-shadow); animation: demo-onb-in .24s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-launcher-pulse { animation: none; }
+  .demo-launcher-pulse--strong { box-shadow: 0 0 0 3px rgba(226, 54, 31, .55); }
+  .demo-onb-hole { transition: none; }
+  .demo-onb-card--in, .demo-hint { animation: none; }
+}

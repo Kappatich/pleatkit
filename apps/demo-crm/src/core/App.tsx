@@ -6,6 +6,7 @@ import { formatDate } from '@/readonly/format'
 import { cn } from '@/lib/utils'
 import { Admin } from './Admin'
 import { AGENT_URL, APP_ID, AUTH, BUNDLE_URL, COMPILE, demoPublicKey, pleatkitConfig, storeFor, tokenFor, USERS, type UserId } from './pleatkit'
+import { DemoOnboarding } from './DemoOnboarding'
 import { DemoLeadForm, DemoStrip, DemoTracker, useDemoStatus } from './PublicDemo'
 
 function readParams() {
@@ -81,6 +82,7 @@ function Crm() {
     >
       <RefreshOnFocus />
       {demo && <DemoTracker />}
+      {demo && !dev && <DemoOnboarding />}
       {EVAL_HOOK ? <EvalHook /> : null}
       {/* Leave room for the fixed dev panel so it does not cover the panels being edited. */}
       <div className="min-h-screen" style={dev ? { paddingRight: 580 } : undefined}>

@@ -44,9 +44,21 @@ export async function eventsOf(mode: Mode, context: BrowserContext, kind?: strin
   return readEvents(mode).filter((e) => e.visitor === v && (!kind || e.kind === kind))
 }
 
-export async function openDemo(page: Page, mode: Mode): Promise<void> {
+/** Mark the first-visit onboarding as seen in this browser context (the tests that are not about it). */
+export async function skipOnboarding(context: BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    try {
+      localStorage.setItem('pk_demo_onboarded', '1')
+    } catch {
+      /* about:blank */
+    }
+  })
+}
+
+export async function openDemo(page: Page, mode: Mode, { onboarding = false }: { onboarding?: boolean } = {}): Promise<void> {
   // nothing leaves the machine: the film and the site links are answered locally
   await page.context().route(/^https:\/\/pleatkit\.com\//, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>pleatkit.com</p>' }))
+  if (!onboarding) await skipOnboarding(page.context())
   await page.goto(`${base(mode)}/`)
   await expect(page.getByTestId('demo-strip')).toBeVisible()
   await page.getByRole('button', { name: /Globex/ }).click()

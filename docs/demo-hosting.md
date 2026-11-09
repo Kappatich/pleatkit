@@ -193,6 +193,17 @@ Renewal runs with the server's certbot timer (webroot). To go LIVE: put the key 
 - Origin bypass: CF-Connecting-IP only keys rate limits; to stop anyone from reaching the server around Cloudflare,
   allow ports 80/443 only from Cloudflare's ranges (optional; the daily caps hold either way).
 
+## First visit
+
+On a wide monitor the CRM sits in the middle and the drawer's launcher is a small pill in the far corner, so the first
+visit gets a short onboarding (`src/core/DemoOnboarding.tsx`, demo app only; `packages/ui` is unchanged). With no
+`pk_demo_onboarded` in localStorage, or with `?tour=1`, 700 ms after the page is interactive the page is dimmed except
+for a rounded hole around the launcher, the launcher pulses, and a card next to it ("Try it on this screen") offers
+"Open the drawer" (clicks the launcher) or "Skip" (Escape too); both set `pk_demo_onboarded`. Below 900 px the card
+sits above the launcher. After the drawer first opens, an empty composer for 4 s brings a one-line hint beside the
+drawer, gone on the first chip click. The launcher keeps a soft pulse until the visitor has applied one request
+(`pk_demo_applied`). "Start the tour" in the strip runs it again without a reload. Reduced motion: no animation.
+
 ## Local runs and tests
 
 ```bash
@@ -205,7 +216,8 @@ pnpm --filter @pleatkit/demo-crm e2e:demo                        # Playwright, h
 `e2e:demo` (`playwright.demo.config.ts`, `e2e-demo/`) starts the server twice (SCRIPTED, and LIVE with the fake
 provider and a $0.50 day) and checks the strip and chips, the refusal path, apply and undo, the feedback strip, two
 visitor cookies as two sandboxes (edits, data, bundles, admin view), the off-topic refusal and its log record, the cap
-fallback, the lead form and the log records. `DEMO_SERVER_COMMAND="node <release>/server.mjs"` runs the same tests
+fallback, the lead form and the log records, and the first-visit onboarding (`onboarding.spec.ts`; with
+`DEMO_SHOTS_DIR` set it saves 2560x1440 and 390x844 screenshots of it there). `DEMO_SERVER_COMMAND="node <release>/server.mjs"` runs the same tests
 against a built release.
 
 ## Limits of this setup
